@@ -1,0 +1,74 @@
+﻿@page "/laptimes"
+@layout EmptyLayout
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using Microsoft.AspNetCore.SignalR.Client
+@using VeloTimerWeb.Shared.Models
+@attribute [Authorize]
+@inject NavigationManager NavigationManager
+@inject HttpClient Http
+
+<h3>LapTimes</h3>
+@if (@laptimes == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Rider</th>
+                <th>Laptime</th>
+                <th>Speed</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var laptime in laptimes)
+            {
+                <tr>
+                    <td>@laptime.Rider</td>
+                    <td>@String.Format("{0:00.000}", laptime.Laptime)</td>
+                    <td>@String.Format("{0:00.000}", laptime.Lapspeed)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+
+@code {
+    private HubConnection hubConnection;
+    private LapTime[] laptimes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hub/passing"))
+            .Build();
+
+        hubConnection.On("passing.updated", () =>
+        {
+            LoadData();
+        });
+
+        await hubConnection.StartAsync();
+
+        try
+        {
+            LoadData();
+        }
+        catch (AccessTokenNotAvailableException exception)
+        {
+            exception.Redirect();
+        }
+    }
+
+    private async void LoadData()
+    {
+        var apiLaptimes = await Http.GetFromJsonAsync<LapTime[]>(NavigationManager.ToAbsoluteUri("/api/LapTimes"));
+        laptimes = apiLaptimes.OrderByDescending(l => l.PassingTime).ToArray();
+
+        StateHasChanged();
+    }
+}

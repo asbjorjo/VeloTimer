@@ -1,0 +1,9 @@
+UNHANDLED EXCEPTIONS FROM PROCESS 21688:
+=====================
+16/09/2021 18:01:48
+System.IO.FileNotFoundException: C:\Program Files\dotnet\sdk\6.0.100-preview.7.21379.14\Microsoft.Build.dll
+   at System.Diagnostics.FileVersionInfo.GetVersionInfo(String fileName) in System.Diagnostics.FileVersionInfo.dll:token 0x6000024+0x1e
+   at Microsoft.Build.Internal.Handshake..ctor(HandshakeOptions nodeType) in Microsoft.Build.dll:token 0x6000c07+0x71
+   at Microsoft.Build.BackEnd.NodeEndpointOutOfProc.GetHandshake() in Microsoft.Build.dll:token 0x6001247+0x0
+   at Microsoft.Build.BackEnd.NodeEndpointOutOfProcBase.PacketPumpProc() in Microsoft.Build.dll:token 0x6001079+0xa9
+===================
