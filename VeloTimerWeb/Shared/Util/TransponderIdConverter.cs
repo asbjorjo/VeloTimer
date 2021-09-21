@@ -4,17 +4,20 @@ namespace VeloTimer.Shared.Util
 {
     public class TransponderIdConverter
     {
-        public static char[] Characters { get; } = { 'C', 'F', 'G', 'H', 'K', 'L', 'N', 'P', 'R', 'S', 'T', 'V', 'W', 'X', 'Z' };
+        private const int idOffset = 0x6000000;
+        private const int numericOffset = 100000;
+
+        private static readonly char[] Characters = { 'C', 'F', 'G', 'H', 'K', 'L', 'N', 'P', 'R', 'S', 'T', 'V', 'W', 'X', 'Z' };
 
         public static string IdToCode(long Id)
         {
             string code = "";
 
-            if (Id > 0x6000000)
+            if (Id > idOffset)
             {
                 string prefix = "";
-                var n = Id - 0x6000000;
-                var m = n / 100000;
+                var n = Id - idOffset;
+                var m = n / numericOffset;
 
                 for (int i = 2; i >= 0; i--)
                 {
@@ -25,9 +28,8 @@ namespace VeloTimer.Shared.Util
                         m = m / 15;
                     }
                 }
-                var suffix = String.Format("{0:00000}", n % 100000);
 
-                code = $"{prefix}-{suffix}";
+                code = $"{prefix}-{n % numericOffset:00000}";
             }
 
             return code;
@@ -50,12 +52,12 @@ namespace VeloTimer.Shared.Util
                 && Array.Exists(Characters, c => codeArray[1] == c)
                 && Array.Exists(Characters, c => codeArray[2] == c))
             {
-                id = 100000
+                id = numericOffset
                      * (Array.IndexOf(Characters, codeArray[0]) * 225
                         + Array.IndexOf(Characters, codeArray[1]) * 15
                         + Array.IndexOf(Characters, codeArray[2]));
                 id += int.Parse(code.Substring(3, 5));
-                id += 0x6000000;
+                id += idOffset;
             }
 
             return id;
