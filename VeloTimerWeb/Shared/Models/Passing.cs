@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace VeloTimerWeb.Shared.Models
+namespace VeloTimer.Shared.Models
 {
     public class Passing : Entity
     {

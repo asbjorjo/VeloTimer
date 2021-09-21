@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace VeloTimerWeb.Shared.Models
+namespace VeloTimer.Shared.Models
 {
     public class TimingLoop : Entity
     {

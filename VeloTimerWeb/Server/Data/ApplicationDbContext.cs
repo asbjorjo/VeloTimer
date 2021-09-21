@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using VeloTimerWeb.Server.Models;
-using VeloTimerWeb.Shared.Models;
+using VeloTimer.Shared.Models;
 
 namespace VeloTimerWeb.Server.Data
 {

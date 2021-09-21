@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using VeloTimerWeb.Server.Data;
 using VeloTimerWeb.Server.Hubs;
-using VeloTimerWeb.Shared.Models;
+using VeloTimer.Shared.Models;
 using VeloTimerWeb.Server.Services.Mylaps;
 
 namespace VeloTimerWeb.Server.Services

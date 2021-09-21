@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Threading.Tasks;
-using VeloTimerWeb.Shared.Models;
+using VeloTimer.Shared.Models;
 
 namespace VeloTimerWeb.Server.Hubs
 {

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ using VeloTimerWeb.Server.Hubs;
 using VeloTimerWeb.Server.Models;
 using VeloTimerWeb.Server.Services;
 using VeloTimerWeb.Server.Services.Mylaps;
+using VeloTimerWeb.Server.Util;
 
 namespace VeloTimerWeb.Server
 {
@@ -32,6 +34,8 @@ namespace VeloTimerWeb.Server
             services.AddSingleton<IPassingDatabaseSettings>(sp =>
                 sp.GetRequiredService<IOptions<PassingDatabaseSettings>>().Value);
             services.AddSingleton<AmmcPassingService>();
+
+            services.AddSingleton<IAuthorizationHandler, AllowAnonymous>();
 
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
@@ -86,11 +90,11 @@ namespace VeloTimerWeb.Server
 
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapBlazorHub();
-                endpoints.MapHub<PassingHub>(PassingHub.hubUrl);
-                endpoints.MapRazorPages();
-                endpoints.MapControllers();
-                endpoints.MapFallbackToFile("index.html");
+                endpoints.MapBlazorHub().WithMetadata(new AllowAnonymousAttribute());
+                endpoints.MapHub<PassingHub>(PassingHub.hubUrl).WithMetadata(new AllowAnonymousAttribute());
+                endpoints.MapRazorPages().WithMetadata(new AllowAnonymousAttribute());
+                endpoints.MapControllers().WithMetadata(new AllowAnonymousAttribute());
+                endpoints.MapFallbackToFile("index.html").WithMetadata(new AllowAnonymousAttribute());
             });
 
             app.UseAzureSignalR(

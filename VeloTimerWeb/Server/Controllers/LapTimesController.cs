@@ -6,7 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimerWeb.Server.Data;
-using VeloTimerWeb.Shared.Models;
+using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Util;
 
 namespace VeloTimerWeb.Server.Controllers
 {
@@ -55,7 +56,7 @@ namespace VeloTimerWeb.Server.Controllers
                         {
                             laptimes.Add(new LapTime
                             {
-                                Rider = transponder.ToString(),
+                                Rider = TransponderIdConverter.IdToCode(passing.TransponderId),
                                 PassingTime = previous,
                                 Laplength = 250,
                                 Laptime = (previous - passing.Time).TotalSeconds

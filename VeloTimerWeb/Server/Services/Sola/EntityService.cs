@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimerWeb.Server.Data;
-using VeloTimerWeb.Shared.Models;
+using VeloTimer.Shared.Models;
 
 namespace VeloTimerWeb.Server.Services.Sola
 {
