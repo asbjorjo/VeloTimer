@@ -15,6 +15,7 @@ namespace VeloTimerWeb.Server.Data
         {
         }
 
+        public DbSet<Track> Tracks { get; set; }
         public DbSet<TimingLoop> TimingLoops { get; set; }
         public DbSet<Transponder> Transponders { get; set; }
         public DbSet<Passing> Passings { get; set; }

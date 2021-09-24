@@ -9,12 +9,26 @@
 @inject HttpClient Http
 
 <h3>LapTimes</h3>
-@if (@laptimes == null)
+
+@if (timingloops == null)
 {
     <p>Loading...</p>
 }
 else
 {
+    <select @onchange="ChangeStartLoop">
+        @foreach (var timingloop in timingloops)
+        {
+            <option value="@timingloop.Id">@timingloop.Description</option>
+        }
+    </select>
+    <select @onchange="ChangeEndLoop">
+        @foreach (var timingloop in timingloops)
+        {
+            <option value="@timingloop.Id">@timingloop.Description</option>
+        }
+    </select>
+
     <table class="table">
         <thead>
             <tr>
@@ -24,13 +38,24 @@ else
             </tr>
         </thead>
         <tbody>
-            @foreach (var laptime in laptimes)
+            @if (@laptimes == null)
             {
                 <tr>
-                    <td>@laptime.Rider</td>
-                    <td>@String.Format("{0:00.000}", laptime.Laptime)</td>
-                    <td>@String.Format("{0:00.000}", laptime.Lapspeed)</td>
+                    <td colspan="3">
+                        Loading...
+                    </td>
                 </tr>
+            }
+            else
+            {
+                @foreach (var laptime in laptimes)
+                {
+                    <tr>
+                        <td>@laptime.Rider</td>
+                        <td>@String.Format("{0:00.000}", laptime.Laptime)</td>
+                        <td>@String.Format("{0:00.000}", laptime.Lapspeed)</td>
+                    </tr>
+                }
             }
         </tbody>
     </table>
@@ -40,6 +65,9 @@ else
 @code {
     private HubConnection hubConnection;
     private LapTime[] laptimes;
+    private TimingLoop[] timingloops;
+    private TimingLoop startloop;
+    private TimingLoop endloop;
 
     protected override async Task OnInitializedAsync()
     {
@@ -47,16 +75,19 @@ else
             .WithUrl(NavigationManager.ToAbsoluteUri("/hub/passing"))
             .Build();
 
-        hubConnection.On("passing.updated", () =>
+        hubConnection.On("passing.updated", async () =>
         {
-            LoadData();
+            await LoadData();
         });
 
         await hubConnection.StartAsync();
 
         try
         {
-            LoadData();
+            timingloops = await Http.GetFromJsonAsync<TimingLoop[]>(NavigationManager.ToAbsoluteUri("/api/TimingLoops"));
+            startloop = timingloops.First();
+            endloop = startloop;
+            await LoadData();
         }
         catch (AccessTokenNotAvailableException exception)
         {
@@ -64,10 +95,25 @@ else
         }
     }
 
-    private async void LoadData()
+    private async Task ChangeStartLoop(ChangeEventArgs e)
     {
-        var apiLaptimes = await Http.GetFromJsonAsync<LapTime[]>(NavigationManager.ToAbsoluteUri("/api/LapTimes"));
-        laptimes = apiLaptimes.OrderByDescending(l => l.PassingTime).ToArray();
+        var start = int.Parse(e.Value.ToString());
+        startloop = timingloops.Where(t => t.Id == start).Single();
+        await LoadData();
+    }
+
+    private async Task ChangeEndLoop(ChangeEventArgs e)
+    {
+        var finish = int.Parse(e.Value.ToString());
+        endloop = timingloops.Where(t => t.Id == finish).Single();
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        laptimes = await Http.GetFromJsonAsync<LapTime[]>(
+            NavigationManager.ToAbsoluteUri(
+                $"/api/LapTimes?startLoop={startloop.Id}&endloop={endloop.Id}"));
 
         StateHasChanged();
     }

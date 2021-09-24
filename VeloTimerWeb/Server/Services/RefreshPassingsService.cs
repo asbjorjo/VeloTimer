@@ -7,9 +7,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VeloTimer.Shared.Models;
 using VeloTimerWeb.Server.Data;
 using VeloTimerWeb.Server.Hubs;
-using VeloTimer.Shared.Models;
 using VeloTimerWeb.Server.Services.Mylaps;
 
 namespace VeloTimerWeb.Server.Services
@@ -39,7 +39,7 @@ namespace VeloTimerWeb.Server.Services
             _logger.LogInformation("Passings Refresh started");
 
             _timer = new Timer(DoRefresh, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(TimerInterval));
-            
+
             return Task.CompletedTask;
         }
 
@@ -54,7 +54,7 @@ namespace VeloTimerWeb.Server.Services
                     _timer.Change(Timeout.Infinite, Timeout.Infinite);
 
                     await RefreshPassings();
-                    
+
                 }
 
                 finally
@@ -71,12 +71,33 @@ namespace VeloTimerWeb.Server.Services
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                var mostRecent = dbContext.Set<Passing>().Select(p => p.Time).OrderByDescending(p => p).FirstOrDefault();
+                var track = dbContext.Set<Track>().FirstOrDefault();
+
+                if (track == null)
+                {
+                    track = new Track { Length = 250, Name = "Sola Arena" };
+                    await dbContext.AddAsync(track);
+
+                    var timingLoops = new List<TimingLoop>()
+                    {
+                        new TimingLoop{ Track = track, LoopId = 1, Description = "Start/Finish", Distance = 0},
+                        new TimingLoop{ Track = track, LoopId = 0, Description = "200m", Distance = 50},
+                        new TimingLoop{ Track = track, LoopId = 2, Description = "100m", Distance = 150},
+                        new TimingLoop{ Track = track, LoopId = 3, Description = "Green", Distance = 225},
+                        new TimingLoop{ Track = track, LoopId = 4, Description = "Red", Distance = 100}
+                    };
+
+                    await dbContext.AddRangeAsync(timingLoops);
+
+                    await dbContext.SaveChangesAsync();
+                }
+
+                var mostRecent = dbContext.Set<Passing>().Select(p => p.Source).OrderByDescending(p => p).FirstOrDefault();
                 await _hubContext.Clients.All.SendAsync("passing.latest", mostRecent);
 
                 _logger.LogInformation("Most recent passing found {0}", mostRecent);
 
-                var passings = await _passingService.GetAfterTime(mostRecent);
+                var passings = await _passingService.GetAfterEntry(mostRecent);
 
                 if (!passings.Any())
                 {
@@ -85,27 +106,23 @@ namespace VeloTimerWeb.Server.Services
                 }
 
                 _logger.LogInformation("Found {0} number of passings", passings.Count);
-            
+
                 var trackPassings = new List<Passing>();
 
                 var transponderIds = passings.Select(p => p.TransponderId).Distinct();
-                var loopIds = passings.Select(p => p.LoopId).Distinct();
-
                 var knownTransponderIds = dbContext.Set<Transponder>().Where(t => transponderIds.Contains(t.Id)).Select(t => t.Id);
-                var knownLoopIds = dbContext.Set<TimingLoop>().Where(t => loopIds.Contains(t.LoopId)).Select(t => t.LoopId);
 
-                foreach (var loopId in loopIds.Except(knownLoopIds))
-                {
-                    dbContext.Set<TimingLoop>().Add(new TimingLoop { LoopId = loopId });
-                }
+                _logger.LogInformation("Identified new transponders: {0} of {1}",
+                    transponderIds.Except(knownTransponderIds).Count(),
+                    transponderIds.Count());
 
                 foreach (var transponderId in transponderIds.Except(knownTransponderIds))
                 {
-                    dbContext.Set<Transponder>().Add(new Transponder { Id = transponderId });
+                    await dbContext.Set<Transponder>().AddAsync(new Transponder { Id = transponderId });
                 }
-                dbContext.SaveChanges();
+                await dbContext.SaveChangesAsync();
 
-                var loops = new Dictionary<int, long>();
+                var loops = new Dictionary<long, long>();
                 foreach (var loop in dbContext.Set<TimingLoop>())
                 {
                     loops.Add(loop.LoopId, loop.Id);
@@ -113,13 +130,21 @@ namespace VeloTimerWeb.Server.Services
 
                 foreach (var p in passings)
                 {
-                    trackPassings.Add(new Passing { LoopId = loops.GetValueOrDefault(p.LoopId), TransponderId = p.TransponderId, Time = p.UtcTime });
+                    //_logger.LogInformation("loop: {0} - transponder: {1}", p.LoopId, p.TransponderId);
+
+                    trackPassings.Add(new Passing
+                    {
+                        LoopId = loops.GetValueOrDefault(p.LoopId),
+                        TransponderId = p.TransponderId,
+                        Time = p.UtcTime,
+                        Source = p.Id
+                    });
                 }
 
                 _logger.LogInformation("Converted {0} number of passings", trackPassings.Count);
 
-                dbContext.AddRange(trackPassings);
-                dbContext.SaveChanges();
+                await dbContext.AddRangeAsync(trackPassings);
+                await dbContext.SaveChangesAsync();
 
                 await _hubContext.Clients.All.SendAsync("passing.updated");
             }
@@ -127,7 +152,7 @@ namespace VeloTimerWeb.Server.Services
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-             _logger.LogInformation("Passings Refresh ended");
+            _logger.LogInformation("Passings Refresh ended");
 
             _timer?.Change(Timeout.Infinite, 0);
 

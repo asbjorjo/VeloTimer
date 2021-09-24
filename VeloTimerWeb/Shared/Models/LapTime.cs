@@ -6,7 +6,7 @@ namespace VeloTimer.Shared.Models
     {
         public string Rider { get; set; }
         public DateTime PassingTime { get; set; }
-        public int Laplength { get; set; }
+        public double Laplength { get; set; }
         public double Laptime { get; set; }
         public double Lapspeed => Laplength / Laptime * 3.6;
     }

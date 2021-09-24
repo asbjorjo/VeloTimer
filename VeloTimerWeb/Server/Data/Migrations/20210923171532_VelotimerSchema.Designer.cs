@@ -10,8 +10,8 @@ using VeloTimerWeb.Server.Data;
 namespace VeloTimerWeb.Server.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20210916133619_SolaCreate")]
-    partial class SolaCreate
+    [Migration("20210923171532_VelotimerSchema")]
+    partial class VelotimerSchema
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -259,6 +259,90 @@ namespace VeloTimerWeb.Server.Data.Migrations
                     b.ToTable("AspNetUserTokens");
                 });
 
+            modelBuilder.Entity("VeloTimer.Shared.Models.Passing", b =>
+                {
+                    b.Property<DateTime>("Time")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("TransponderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("LoopId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Time", "TransponderId", "LoopId");
+
+                    b.HasIndex("LoopId");
+
+                    b.HasIndex("TransponderId");
+
+                    b.ToTable("Passings");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.TimingLoop", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double>("Distance")
+                        .HasColumnType("float");
+
+                    b.Property<long>("LoopId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TrackId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrackId");
+
+                    b.ToTable("TimingLoops");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.Track", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+
+                    b.Property<double>("Length")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Tracks");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.Transponder", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Transponders");
+                });
+
             modelBuilder.Entity("VeloTimerWeb.Server.Models.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -324,85 +408,6 @@ namespace VeloTimerWeb.Server.Data.Migrations
                     b.ToTable("AspNetUsers");
                 });
 
-            modelBuilder.Entity("VeloTimerWeb.Server.Models.Sola.Passing", b =>
-                {
-                    b.Property<DateTime>("Time")
-                        .HasColumnType("datetime2");
-
-                    b.Property<long>("TransponderId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("LoopId")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("Created")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2");
-
-                    b.Property<long>("Id")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("Updated")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Time", "TransponderId", "LoopId");
-
-                    b.HasIndex("LoopId");
-
-                    b.HasIndex("TransponderId", "Time", "LoopId")
-                        .IsUnique();
-
-                    b.ToTable("Passings");
-                });
-
-            modelBuilder.Entity("VeloTimerWeb.Server.Models.Sola.TimingLoop", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
-
-                    b.Property<DateTime?>("Created")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("LoopId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("Updated")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TimingLoops");
-                });
-
-            modelBuilder.Entity("VeloTimerWeb.Server.Models.Sola.Transponder", b =>
-                {
-                    b.Property<long>("Id")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTime?>("Created")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("Updated")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Transponders");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -454,16 +459,16 @@ namespace VeloTimerWeb.Server.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("VeloTimerWeb.Server.Models.Sola.Passing", b =>
+            modelBuilder.Entity("VeloTimer.Shared.Models.Passing", b =>
                 {
-                    b.HasOne("VeloTimerWeb.Server.Models.Sola.TimingLoop", "Loop")
-                        .WithMany()
+                    b.HasOne("VeloTimer.Shared.Models.TimingLoop", "Loop")
+                        .WithMany("Passings")
                         .HasForeignKey("LoopId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("VeloTimerWeb.Server.Models.Sola.Transponder", "Transponder")
-                        .WithMany()
+                    b.HasOne("VeloTimer.Shared.Models.Transponder", "Transponder")
+                        .WithMany("Passings")
                         .HasForeignKey("TransponderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -471,6 +476,32 @@ namespace VeloTimerWeb.Server.Data.Migrations
                     b.Navigation("Loop");
 
                     b.Navigation("Transponder");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.TimingLoop", b =>
+                {
+                    b.HasOne("VeloTimer.Shared.Models.Track", "Track")
+                        .WithMany("TimingLoops")
+                        .HasForeignKey("TrackId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Track");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.TimingLoop", b =>
+                {
+                    b.Navigation("Passings");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.Track", b =>
+                {
+                    b.Navigation("TimingLoops");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.Transponder", b =>
+                {
+                    b.Navigation("Passings");
                 });
 #pragma warning restore 612, 618
         }

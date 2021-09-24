@@ -1,8 +1,7 @@
-﻿using System;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Threading.Tasks;
 using VeloTimerConsole.Data;
 using VeloTimerConsole.Services;
 
@@ -17,9 +16,8 @@ namespace VeloTimerConsole
             return host.RunAsync();
         }
 
-        private static IHostBuilder CreateHostBuilder(string[] args)
-        {
-            var hostBuilder = Host.CreateDefaultBuilder(args)
+        private static IHostBuilder CreateHostBuilder(string[] args) =>
+            Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration((hostingContext, configuration) =>
                 {
                     configuration.Sources.Clear();
@@ -29,14 +27,12 @@ namespace VeloTimerConsole
                         .AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true, reloadOnChange: true);
                     IConfigurationRoot configurationRoot = configuration.Build();
                 })
-                .ConfigureServices((context, services) => 
-                { 
+                .ConfigureServices((context, services) =>
+                {
                     var configuration = context.Configuration;
                     services.Configure<PassingDatabaseSettings>(
                                 configuration.GetSection(nameof(PassingDatabaseSettings)))
                             .AddSingleton<AmmcPassingService>();
                 });
-            return hostBuilder;
-        }
     }
 }

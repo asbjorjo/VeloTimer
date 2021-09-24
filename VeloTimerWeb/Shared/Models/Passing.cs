@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations;
 
 namespace VeloTimer.Shared.Models
 {
@@ -9,5 +10,7 @@ namespace VeloTimer.Shared.Models
         public long LoopId { get; set; }
         public TimingLoop Loop { get; set; }
         public DateTime Time { get; set; }
+        [Required]
+        public string Source { get; set; }
     }
 }

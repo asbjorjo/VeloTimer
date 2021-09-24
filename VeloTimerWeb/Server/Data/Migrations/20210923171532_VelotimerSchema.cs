@@ -3,24 +3,22 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace VeloTimerWeb.Server.Data.Migrations
 {
-    public partial class SolaCreate : Migration
+    public partial class VelotimerSchema : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "TimingLoops",
+                name: "Tracks",
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    LoopId = table.Column<int>(type: "int", nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Updated = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    Created = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Length = table.Column<double>(type: "float", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_TimingLoops", x => x.Id);
+                    table.PrimaryKey("PK_Tracks", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -28,13 +26,33 @@ namespace VeloTimerWeb.Server.Data.Migrations
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Updated = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    Created = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    Name = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Transponders", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TimingLoops",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    LoopId = table.Column<long>(type: "bigint", nullable: false),
+                    TrackId = table.Column<long>(type: "bigint", nullable: false),
+                    Distance = table.Column<double>(type: "float", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TimingLoops", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TimingLoops_Tracks_TrackId",
+                        column: x => x.TrackId,
+                        principalTable: "Tracks",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -44,9 +62,8 @@ namespace VeloTimerWeb.Server.Data.Migrations
                     TransponderId = table.Column<long>(type: "bigint", nullable: false),
                     LoopId = table.Column<long>(type: "bigint", nullable: false),
                     Time = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Id = table.Column<long>(type: "bigint", nullable: false),
-                    Updated = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    Created = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    Source = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Id = table.Column<long>(type: "bigint", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -71,10 +88,14 @@ namespace VeloTimerWeb.Server.Data.Migrations
                 column: "LoopId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Passings_TransponderId_Time_LoopId",
+                name: "IX_Passings_TransponderId",
                 table: "Passings",
-                columns: new[] { "TransponderId", "Time", "LoopId" },
-                unique: true);
+                column: "TransponderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TimingLoops_TrackId",
+                table: "TimingLoops",
+                column: "TrackId");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
@@ -87,6 +108,9 @@ namespace VeloTimerWeb.Server.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "Transponders");
+
+            migrationBuilder.DropTable(
+                name: "Tracks");
         }
     }
 }
