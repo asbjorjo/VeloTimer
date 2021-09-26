@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -9,10 +7,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using VeloTimerWeb.Server.Data;
 using VeloTimerWeb.Server.Hubs;
-using VeloTimerWeb.Server.Models;
 using VeloTimerWeb.Server.Services;
 using VeloTimerWeb.Server.Services.Mylaps;
-using VeloTimerWeb.Server.Util;
 
 namespace VeloTimerWeb.Server
 {
@@ -35,22 +31,11 @@ namespace VeloTimerWeb.Server
                 sp.GetRequiredService<IOptions<PassingDatabaseSettings>>().Value);
             services.AddSingleton<AmmcPassingService>();
 
-            services.AddSingleton<IAuthorizationHandler, AllowAnonymous>();
-
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
-                    Configuration.GetConnectionString("DefaultConnection")));
+                    Configuration.GetConnectionString("Azure")));
 
             services.AddDatabaseDeveloperPageExceptionFilter();
-
-            services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
-                .AddEntityFrameworkStores<ApplicationDbContext>();
-
-            services.AddIdentityServer()
-                .AddApiAuthorization<ApplicationUser, ApplicationDbContext>();
-
-            services.AddAuthentication()
-                .AddIdentityServerJwt();
 
             services.AddControllersWithViews();
             services.AddRazorPages();
@@ -84,17 +69,13 @@ namespace VeloTimerWeb.Server
 
             app.UseRouting();
 
-            app.UseIdentityServer();
-            app.UseAuthentication();
-            app.UseAuthorization();
-
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapBlazorHub().WithMetadata(new AllowAnonymousAttribute());
-                endpoints.MapHub<PassingHub>(PassingHub.hubUrl).WithMetadata(new AllowAnonymousAttribute());
-                endpoints.MapRazorPages().WithMetadata(new AllowAnonymousAttribute());
-                endpoints.MapControllers().WithMetadata(new AllowAnonymousAttribute());
-                endpoints.MapFallbackToFile("index.html").WithMetadata(new AllowAnonymousAttribute());
+                endpoints.MapBlazorHub();
+                endpoints.MapHub<PassingHub>(PassingHub.hubUrl);
+                endpoints.MapRazorPages();
+                endpoints.MapControllers();
+                endpoints.MapFallbackToFile("index.html");
             });
 
             app.UseAzureSignalR(

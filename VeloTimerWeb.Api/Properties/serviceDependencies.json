@@ -4,9 +4,9 @@
       "type": "secrets",
       "connectionId": "AzureVault"
     },
-    "signalr1": {
-      "type": "signalr",
-      "connectionId": "Azure__SignalR__ConnectionString"
+    "mssql1": {
+      "type": "mssql",
+      "connectionId": "Azure"
     }
   }
 }

@@ -1,0 +1,108 @@
+﻿@page "/segmenttimes"
+@layout EmptyLayout
+@using Microsoft.AspNetCore.SignalR.Client
+@using VeloTimer.Shared.Models
+@inject NavigationManager NavigationManager
+@inject HttpClient Http
+
+<h3>LapTimes</h3>
+
+@if (timingloops == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <select @onchange="ChangeStartLoop">
+        @foreach (var timingloop in timingloops)
+        {
+            <option value="@timingloop.Id">@timingloop.Description</option>
+        }
+    </select>
+    <select @onchange="ChangeEndLoop">
+        @foreach (var timingloop in timingloops)
+        {
+            <option value="@timingloop.Id">@timingloop.Description</option>
+        }
+    </select>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Rider</th>
+                <th>Laptime</th>
+                <th>Speed</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (@laptimes == null)
+            {
+                <tr>
+                    <td colspan="3">
+                        Loading...
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var laptime in laptimes)
+                {
+                    <tr>
+                        <td>@laptime.Rider</td>
+                        <td>@String.Format("{0:00.000}", laptime.Laptime)</td>
+                        <td>@String.Format("{0:00.000}", laptime.Lapspeed)</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+}
+
+
+@code {
+    private HubConnection hubConnection;
+    private LapTime[] laptimes;
+    private TimingLoop[] timingloops;
+    private TimingLoop startloop;
+    private TimingLoop endloop;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hub/passing"))
+            .Build();
+
+        hubConnection.On("passing.updated", async () =>
+        {
+            await LoadData();
+        });
+
+        await hubConnection.StartAsync();
+        
+        timingloops = await Http.GetFromJsonAsync<TimingLoop[]>("/timingloops");
+        startloop = timingloops.First();
+        endloop = startloop;
+        await LoadData();
+    }
+
+    private async Task ChangeStartLoop(ChangeEventArgs e)
+    {
+        var start = int.Parse(e.Value.ToString());
+        startloop = timingloops.Where(t => t.Id == start).Single();
+        await LoadData();
+    }
+
+    private async Task ChangeEndLoop(ChangeEventArgs e)
+    {
+        var finish = int.Parse(e.Value.ToString());
+        endloop = timingloops.Where(t => t.Id == finish).Single();
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        laptimes = await Http.GetFromJsonAsync<LapTime[]>($"/laptimes?startLoop={startloop.Id}&endloop={endloop.Id}");
+
+        StateHasChanged();
+    }
+}

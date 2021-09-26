@@ -1,78 +1,61 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using VeloTimerWeb.Server.Data;
 using VeloTimer.Shared.Models;
 using VeloTimer.Shared.Util;
-using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
+using VeloTimerWeb.Api.Data;
 
-namespace VeloTimerWeb.Server.Controllers
+namespace VeloTimerWeb.Api.Services
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class LapTimesController : ControllerBase
+    public class SegmentTimeService : ISegmentTimeService
     {
         private readonly ApplicationDbContext _context;
-        private readonly ILogger<LapTimesController> _logger;
+        private readonly ILogger<SegmentTimeService> _logger;
 
-        public LapTimesController(ApplicationDbContext applicationDbContext, ILogger<LapTimesController> logger)
+        public SegmentTimeService(ApplicationDbContext context, ILogger<SegmentTimeService> logger)
         {
-            _context = applicationDbContext;
+            _context = context;
             _logger = logger;
         }
 
-        [HttpGet]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<LapTime>>> Get(long? startLoop, long? endLoop, long? transponderId, string? transponderLabel)
+        public async Task<IEnumerable<LapTime>> GetSegmentTimesAsync(long start, long finish, long? transponder)
         {
-            if (transponderId.HasValue 
-                && transponderLabel != null
-                && TransponderIdConverter.CodeToId(transponderLabel) != transponderId)
+            var startLoop = await _context.TimingLoops.Where(t => t.Id == start).Include(t => t.Track).SingleAsync();
+            var endLoop = startLoop;
+
+            if (finish != start)
             {
-                return BadRequest($"Transponder label {transponderLabel} and id {transponderId} do not correspond.");
+                endLoop = await _context.FindAsync<TimingLoop>(finish);
             }
 
-            if (!startLoop.HasValue)
-            {
-                startLoop = 1;
-            }
-            if (!endLoop.HasValue)
-            {
-                endLoop = 1;
-            }
-
-            var start = await _context.TimingLoops.Where(t => t.Id == startLoop).Include(t => t.Track).SingleAsync();
-            var end = await _context.FindAsync<TimingLoop>(endLoop);
 
             double lapLength;
 
-            if (start.Distance >= end.Distance)
+            if (startLoop.Distance >= endLoop.Distance)
             {
-                lapLength = start.Track.Length - start.Distance + end.Distance;
-            } 
+                lapLength = startLoop.Track.Length - startLoop.Distance + endLoop.Distance;
+            }
             else
             {
-                lapLength = end.Distance - start.Distance;
+                lapLength = endLoop.Distance - startLoop.Distance;
             }
 
             var dbPassings = _context.Set<Passing>().AsQueryable();
-            
-            if (transponderId.HasValue)
+
+            if (transponder.HasValue)
             {
-                dbPassings = dbPassings.Where(p => p.TransponderId == transponderId);
+                dbPassings = dbPassings.Where(p => p.TransponderId == transponder);
             }
 
             var transponderPassings = await Task.Run(() =>
             {
                 var passings = dbPassings
                                 .OrderByDescending(p => p.Time)
-                                .Where(p => p.LoopId == startLoop || p.LoopId == endLoop)
+                                .Where(p => p.Loop == startLoop || p.Loop == endLoop)
                                 .Select(p => new
                                 {
                                     TransponderId = p.TransponderId,
@@ -95,7 +78,7 @@ namespace VeloTimerWeb.Server.Controllers
 
                     foreach (var passing in transponderPassing.Skip(1))
                     {
-                        if (passing.LoopId == startLoop && endPassing.LoopId == endLoop)
+                        if (passing.LoopId == startLoop.Id && endPassing.LoopId == endLoop.Id)
                         {
                             laptimes.Add(new LapTime
                             {
@@ -110,14 +93,7 @@ namespace VeloTimerWeb.Server.Controllers
                 }
             });
 
-            return laptimes.OrderByDescending(l => l.PassingTime).ToList();
+            return laptimes.OrderByDescending(l => l.PassingTime);
         }
-    }
-
-    public class PassingDetail
-    {
-        public long TransponderId { get; set; }
-        public string Rider { get; set; }
-        public DateTime Time { get; set; }
     }
 }

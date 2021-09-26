@@ -1,0 +1,71 @@
+﻿@page "/200times"
+@layout EmptyLayout
+@using Microsoft.AspNetCore.SignalR.Client
+@using VeloTimer.Shared.Models
+@inject NavigationManager NavigationManager
+@inject HttpClient Http
+
+    <p>
+        <img style="width: 164px; height: 90px;" alt="Sola Arena" src="https://sola-arena.no/wp-content/themes/solaarena/images/logo.svg?ver=4" />
+        <h3>200m tider</h3>
+    </p>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Rider</th>
+                <th>Laptime</th>
+                <th>Speed</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (@laptimes == null)
+        {
+            <tr>
+                <td colspan="3">
+                    Loading...
+                </td>
+            </tr>
+        }
+        else
+        {
+            @foreach (var laptime in laptimes)
+            {
+            <tr>
+                <td>@laptime.Rider</td>
+                <td>@String.Format("{0:00.000}", laptime.Laptime)</td>
+                <td>@String.Format("{0:00.000}", laptime.Lapspeed)</td>
+            </tr>
+            }
+        }
+        </tbody>
+    </table>
+
+
+    @code {
+    private HubConnection hubConnection;
+    private LapTime[] laptimes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/hub/passing"))
+            .Build();
+
+        hubConnection.On("passing.updated", async () =>
+        {
+            await LoadData();
+        });
+
+        await hubConnection.StartAsync();
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        laptimes = await Http.GetFromJsonAsync<LapTime[]>($"/laptimes?startLoop=2&endloop=1");
+
+        StateHasChanged();
+    }
+    }

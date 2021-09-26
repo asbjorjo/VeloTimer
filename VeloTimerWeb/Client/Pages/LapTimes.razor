@@ -1,33 +1,14 @@
 ﻿@page "/laptimes"
 @layout EmptyLayout
-@using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
 @using Microsoft.AspNetCore.SignalR.Client
 @using VeloTimer.Shared.Models
-@*@attribute [Authorize]*@
 @inject NavigationManager NavigationManager
 @inject HttpClient Http
 
-<h3>LapTimes</h3>
-
-@if (timingloops == null)
-{
-    <p>Loading...</p>
-}
-else
-{
-    <select @onchange="ChangeStartLoop">
-        @foreach (var timingloop in timingloops)
-        {
-            <option value="@timingloop.Id">@timingloop.Description</option>
-        }
-    </select>
-    <select @onchange="ChangeEndLoop">
-        @foreach (var timingloop in timingloops)
-        {
-            <option value="@timingloop.Id">@timingloop.Description</option>
-        }
-    </select>
+    <p>
+        <img style="width: 164px; height: 90px;" alt="Sola Arena" src="https://sola-arena.no/wp-content/themes/solaarena/images/logo.svg?ver=4" />
+        <h3>Rundetider</h3>
+    </p>
 
     <table class="table">
         <thead>
@@ -59,62 +40,32 @@ else
             }
         </tbody>
     </table>
-}
 
 
-@code {
-    private HubConnection hubConnection;
-    private LapTime[] laptimes;
-    private TimingLoop[] timingloops;
-    private TimingLoop startloop;
-    private TimingLoop endloop;
+    @code {
+        private HubConnection hubConnection;
+        private LapTime[] laptimes;
 
-    protected override async Task OnInitializedAsync()
-    {
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(NavigationManager.ToAbsoluteUri("/hub/passing"))
-            .Build();
-
-        hubConnection.On("passing.updated", async () =>
+        protected override async Task OnInitializedAsync()
         {
-            await LoadData();
-        });
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl(NavigationManager.ToAbsoluteUri("/hub/passing"))
+                .Build();
 
-        await hubConnection.StartAsync();
+            hubConnection.On("passing.updated", async () =>
+            {
+                await LoadData();
+            });
 
-        try
-        {
-            timingloops = await Http.GetFromJsonAsync<TimingLoop[]>(NavigationManager.ToAbsoluteUri("/api/TimingLoops"));
-            startloop = timingloops.First();
-            endloop = startloop;
+            await hubConnection.StartAsync();
+
             await LoadData();
         }
-        catch (AccessTokenNotAvailableException exception)
+
+        private async Task LoadData()
         {
-            exception.Redirect();
+            laptimes = await Http.GetFromJsonAsync<LapTime[]>($"/laptimes?startLoop=1&endloop=1");
+
+            StateHasChanged();
         }
     }
-
-    private async Task ChangeStartLoop(ChangeEventArgs e)
-    {
-        var start = int.Parse(e.Value.ToString());
-        startloop = timingloops.Where(t => t.Id == start).Single();
-        await LoadData();
-    }
-
-    private async Task ChangeEndLoop(ChangeEventArgs e)
-    {
-        var finish = int.Parse(e.Value.ToString());
-        endloop = timingloops.Where(t => t.Id == finish).Single();
-        await LoadData();
-    }
-
-    private async Task LoadData()
-    {
-        laptimes = await Http.GetFromJsonAsync<LapTime[]>(
-            NavigationManager.ToAbsoluteUri(
-                $"/api/LapTimes?startLoop={startloop.Id}&endloop={endloop.Id}"));
-
-        StateHasChanged();
-    }
-}

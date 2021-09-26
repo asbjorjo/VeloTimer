@@ -3,20 +3,23 @@ using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using VeloTimerWeb.Server.Data;
+using VeloTimerWeb.Api.Data;
 using VeloTimer.Shared.Models;
+using Microsoft.Extensions.Logging;
 
-namespace VeloTimerWeb.Server.Controllers
+namespace VeloTimerWeb.Api.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("[controller]")]
     [ApiController]
     public class TimingLoopsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<TimingLoopsController> _logger;
 
-        public TimingLoopsController(ApplicationDbContext context)
+        public TimingLoopsController(ApplicationDbContext context, ILogger<TimingLoopsController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         // GET: api/TimingLoops

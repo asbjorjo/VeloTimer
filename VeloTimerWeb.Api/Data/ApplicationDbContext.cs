@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using VeloTimer.Shared.Models;
 
-namespace VeloTimerWeb.Server.Data
+namespace VeloTimerWeb.Api.Data
 {
     public class ApplicationDbContext : DbContext
     {
