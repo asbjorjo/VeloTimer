@@ -5,6 +5,18 @@
       "connectionId": "ConnectionStrings:DefaultConnection",
       "suggestion": "true",
       "ignored": "true"
+    },
+    "secrets1": {
+      "resourceId": "/subscriptions/[parameters('subscriptionId')]/resourceGroups/[parameters('resourceGroupName')]/providers/Microsoft.KeyVault/vaults/velotimervault",
+      "type": "secrets.keyVault",
+      "connectionId": "AzureVault",
+      "secretStore": null
+    },
+    "signalr1": {
+      "resourceId": "/subscriptions/[parameters('subscriptionId')]/resourceGroups/[parameters('resourceGroupName')]/providers/Microsoft.SignalRService/SignalR/velotimer",
+      "type": "signalr.azure",
+      "connectionId": "Azure__SignalR__ConnectionString",
+      "secretStore": "AzureKeyVault"
     }
   }
 }
