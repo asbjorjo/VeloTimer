@@ -2,16 +2,25 @@
 using System;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Hub;
 
 namespace VeloTimerWeb.Server.Hubs
 {
-    public class PassingHub : Hub
+    public class PassingHub : Hub<IPassingClient>
     {
-        public const string hubUrl = "/hub/passing";
-
-        public async Task RegisterPassing(Passing passing)
+        public async Task RegisterPassingWithClients(Passing passing)
         {
-            await Clients.All.SendAsync("NewPassing", passing);
+            await Clients.All.RegisterPassing(passing);
+        }
+
+        public async Task SendLastPassingToClients(Passing passing)
+        {
+            await Clients.All.LastPassing(passing);
+        }
+
+        public async Task NotifyClientsOfNewPassings()
+        {
+            await Clients.All.NewPassings();
         }
 
         public override Task OnConnectedAsync()

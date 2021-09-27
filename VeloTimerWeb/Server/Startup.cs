@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using VeloTimer.Shared.Hub;
 using VeloTimerWeb.Server.Data;
 using VeloTimerWeb.Server.Hubs;
 using VeloTimerWeb.Server.Services;
@@ -41,8 +42,7 @@ namespace VeloTimerWeb.Server
             services.AddRazorPages();
             services.AddServerSideBlazor();
 
-            services.AddSignalR()
-                    .AddAzureSignalR();
+            services.AddSignalR();
 
             services.AddHostedService<RefreshPassingsService>();
         }
@@ -72,14 +72,11 @@ namespace VeloTimerWeb.Server
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapBlazorHub();
-                endpoints.MapHub<PassingHub>(PassingHub.hubUrl);
+                endpoints.MapHub<PassingHub>(Strings.hubUrl);
                 endpoints.MapRazorPages();
                 endpoints.MapControllers();
                 endpoints.MapFallbackToFile("index.html");
             });
-
-            app.UseAzureSignalR(
-                routes => routes.MapHub<PassingHub>(PassingHub.hubUrl));
         }
     }
 }

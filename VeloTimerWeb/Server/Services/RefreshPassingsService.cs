@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VeloTimer.Shared.Hub;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Server.Data;
 using VeloTimerWeb.Server.Hubs;
@@ -23,9 +24,9 @@ namespace VeloTimerWeb.Server.Services
         private readonly ILogger<RefreshPassingsService> _logger;
         private readonly AmmcPassingService _passingService;
         private readonly IServiceScopeFactory _serviceScopeFactory;
-        private readonly IHubContext<PassingHub> _hubContext;
+        private readonly IHubContext<PassingHub, IPassingClient> _hubContext;
 
-        public RefreshPassingsService(IHubContext<PassingHub> hubContext, IServiceScopeFactory servicesScopeFactory, AmmcPassingService passingService,
+        public RefreshPassingsService(IHubContext<PassingHub, IPassingClient> hubContext, IServiceScopeFactory servicesScopeFactory, AmmcPassingService passingService,
                                       ILogger<RefreshPassingsService> logger)
         {
             _passingService = passingService;
@@ -92,12 +93,12 @@ namespace VeloTimerWeb.Server.Services
                     await dbContext.SaveChangesAsync();
                 }
 
-                var mostRecent = dbContext.Set<Passing>().Select(p => p.Source).OrderByDescending(p => p).FirstOrDefault();
-                await _hubContext.Clients.All.SendAsync("passing.latest", mostRecent);
+                var mostRecent = dbContext.Set<Passing>().OrderByDescending(p => p).FirstOrDefault();
+                await _hubContext.Clients.All.LastPassing(passing: mostRecent);
 
-                _logger.LogInformation("Most recent passing found {0}", mostRecent);
+                _logger.LogInformation("Most recent passing found {0}", mostRecent.Source);
 
-                var passings = await _passingService.GetAfterEntry(mostRecent);
+                var passings = await _passingService.GetAfterEntry(mostRecent.Source);
 
                 if (!passings.Any())
                 {
@@ -146,7 +147,7 @@ namespace VeloTimerWeb.Server.Services
                 await dbContext.AddRangeAsync(trackPassings);
                 await dbContext.SaveChangesAsync();
 
-                await _hubContext.Clients.All.SendAsync("passing.updated");
+                await _hubContext.Clients.All.NewPassings();
             }
         }
 

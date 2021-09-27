@@ -1,6 +1,7 @@
 ﻿@page "/200times"
 @layout EmptyLayout
 @using Microsoft.AspNetCore.SignalR.Client
+@using VeloTimer.Shared.Hub
 @using VeloTimer.Shared.Models
 @inject NavigationManager NavigationManager
 @inject HttpClient Http
@@ -49,10 +50,10 @@
     protected override async Task OnInitializedAsync()
     {
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(NavigationManager.ToAbsoluteUri("/hub/passing"))
+            .WithUrl(NavigationManager.ToAbsoluteUri(Strings.hubUrl))
             .Build();
 
-        hubConnection.On("passing.updated", async () =>
+        hubConnection.On(Strings.Events.NewPassings, async () =>
         {
             await LoadData();
         });

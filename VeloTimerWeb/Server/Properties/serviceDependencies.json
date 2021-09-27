@@ -6,7 +6,9 @@
     },
     "signalr1": {
       "type": "signalr",
-      "connectionId": "Azure__SignalR__ConnectionString"
+      "connectionId": "",
+      "suggestion": "true",
+      "ignored": "true"
     }
   }
 }
