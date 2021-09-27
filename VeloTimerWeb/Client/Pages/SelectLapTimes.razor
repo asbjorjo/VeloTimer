@@ -1,11 +1,11 @@
 ﻿@page "/segmenttimes"
-@layout EmptyLayout
+@layout MainLayout
 @using Microsoft.AspNetCore.SignalR.Client
 @using VeloTimer.Shared.Models
 @inject NavigationManager NavigationManager
 @inject HttpClient Http
 
-<h3>LapTimes</h3>
+<h3>Segment Times</h3>
 
 @if (timingloops == null)
 {
