@@ -51,6 +51,7 @@
     {
         hubConnection = new HubConnectionBuilder()
             .WithUrl(NavigationManager.ToAbsoluteUri(Strings.hubUrl))
+            .WithAutomaticReconnect()
             .Build();
 
         hubConnection.On(Strings.Events.NewPassings, async () =>
