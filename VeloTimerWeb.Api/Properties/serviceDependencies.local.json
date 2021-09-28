@@ -11,6 +11,9 @@
       "type": "mssql.azure",
       "connectionId": "Azure",
       "secretStore": "AzureKeyVault"
+    },
+    "appInsights1": {
+      "type": "appInsights.sdk"
     }
   }
 }

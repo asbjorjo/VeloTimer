@@ -7,6 +7,9 @@
     "mssql1": {
       "type": "mssql",
       "connectionId": "Azure"
+    },
+    "appInsights1": {
+      "type": "appInsights"
     }
   }
 }
