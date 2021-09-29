@@ -1,0 +1,85 @@
+﻿@using Microsoft.AspNetCore.SignalR.Client
+@using VeloTimer.Shared.Hub
+@using VeloTimer.Shared.Models
+@inherits ComponentBase
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Rider</th>
+            <th>Laptime</th>
+            <th>Speed</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (segmentTimes == null)
+        {
+            <tr>
+                <td colspan="3">
+                    Loading...
+                </td>
+            </tr>
+        }
+        else
+        {
+            @foreach (var segment in segmentTimes)
+            {
+                <tr>
+                    <td>@segment.Rider</td>
+                    <td>@String.Format("{0:00.000}", segment.Laptime)</td>
+                    <td>@String.Format("{0:00.000}", segment.Lapspeed)</td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@code {
+    protected IEnumerable<LapTime> segmentTimes;
+    protected HubConnection hubConnection;
+
+    [Parameter]
+    public long? Start { get; set; }
+    [Parameter]
+    public long? End { get; set; }
+    [Parameter]
+    public long? Transponder { get; set; }
+
+    protected long? startloop;
+    protected long? endloop;
+    protected long? transponder;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri(Strings.hubUrl))
+            .WithAutomaticReconnect()
+            .Build();
+
+        hubConnection.On(Strings.Events.NewPassings, async () =>
+        {
+            await LoadSegmentTimes();
+        });
+
+
+        await hubConnection.StartAsync();
+    }
+
+    protected override Task OnParametersSetAsync()
+    {
+        startloop = Start;
+        endloop = End;
+        transponder = Transponder;
+
+        return LoadSegmentTimes();
+    }
+
+    protected async Task LoadSegmentTimes()
+    {
+        segmentTimes = await Http.GetFromJsonAsync<LapTime[]>($"/laptimes?startLoop={startloop}&endloop={endloop}&transponderid={transponder}");
+
+        StateHasChanged();
+    }
+}
