@@ -59,7 +59,7 @@ namespace VeloTimerWeb.Api.Services
                                 .Select(p => new
                                 {
                                     TransponderId = p.TransponderId,
-                                    Rider = p.Transponder.Name,
+                                    Rider = p.Transponder.Label,
                                     Time = p.Time,
                                     LoopId = p.LoopId
                                 })

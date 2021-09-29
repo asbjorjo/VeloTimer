@@ -8,7 +8,6 @@ using Microsoft.Extensions.Options;
 using VeloTimer.Shared.Hub;
 using VeloTimerWeb.Server.Data;
 using VeloTimerWeb.Server.Hubs;
-using VeloTimerWeb.Server.Services;
 using VeloTimerWeb.Server.Services.Mylaps;
 
 namespace VeloTimerWeb.Server
@@ -44,7 +43,7 @@ namespace VeloTimerWeb.Server
 
             services.AddSignalR();
 
-            services.AddHostedService<RefreshPassingsService>();
+            //services.AddHostedService<RefreshPassingsService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

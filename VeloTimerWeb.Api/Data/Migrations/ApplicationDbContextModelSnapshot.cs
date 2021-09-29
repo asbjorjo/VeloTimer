@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VeloTimerWeb.Server.Data;
 
-namespace VeloTimerWeb.Server.Data.Migrations
+namespace VeloTimerWeb.Api.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
     partial class ApplicationDbContextModelSnapshot : ModelSnapshot
@@ -95,7 +95,7 @@ namespace VeloTimerWeb.Server.Data.Migrations
                     b.Property<long>("Id")
                         .HasColumnType("bigint");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("Label")
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");

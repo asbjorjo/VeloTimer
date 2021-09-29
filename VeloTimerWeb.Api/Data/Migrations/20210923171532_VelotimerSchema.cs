@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
-namespace VeloTimerWeb.Server.Data.Migrations
+namespace VeloTimerWeb.Api.Data.Migrations
 {
     public partial class VelotimerSchema : Migration
     {
