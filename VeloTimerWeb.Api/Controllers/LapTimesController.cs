@@ -26,21 +26,10 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<LapTime>>> Get(long? startLoop, long? endLoop, long? transponderId, string? transponderLabel)
+        public async Task<ActionResult<IEnumerable<LapTime>>> Get(long? startLoop, long? endLoop, long? transponderId)
         {
-            if (transponderId.HasValue
-                && transponderLabel != null)
-            {
-                return BadRequest("Give either transponderId or transponderLabel");
-            }
-
             long start = startLoop ?? 1;
             long finish = endLoop ?? start;
-
-            if (transponderLabel != null)
-            {
-                transponderId = TransponderIdConverter.CodeToId(transponderLabel);
-            }
 
             var segments = await _segmentTimes.GetSegmentTimesAsync(start, finish, transponderId);
 
