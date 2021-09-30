@@ -10,7 +10,6 @@ using Microsoft.Extensions.Logging;
 namespace VeloTimerWeb.Api.Controllers
 {
     [Route("[controller]")]
-    [ApiController]
     public class PassingsController : GenericController<Passing>
     {
         public PassingsController(ILogger<GenericController<Passing>> logger, ApplicationDbContext context) : base(logger, context)

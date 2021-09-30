@@ -10,6 +10,7 @@ using VeloTimerWeb.Api.Data;
 namespace VeloTimerWeb.Api.Controllers
 {
     [ApiController]
+    [Route("[controller]")]
     public abstract class GenericController<T> : ControllerBase where T : Entity
     {
         protected ApplicationDbContext _context;
@@ -24,13 +25,13 @@ namespace VeloTimerWeb.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<T>>> GetAll()
+        public virtual async Task<ActionResult<IEnumerable<T>>> GetAll()
         {
             return await _dbset.ToListAsync();
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<T>> Get(long id)
+        public virtual async Task<ActionResult<T>> Get(long id)
         {
             var value = await _dbset.FindAsync(id);
 
@@ -43,7 +44,7 @@ namespace VeloTimerWeb.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(long id, T value)
+        public virtual async Task<IActionResult> Update(long id, T value)
         {
             if (id != value.Id)
             {
@@ -58,7 +59,7 @@ namespace VeloTimerWeb.Api.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!Exists(id))
+                if (!await Exists(id))
                 {
                     return NotFound();
                 }
@@ -72,7 +73,7 @@ namespace VeloTimerWeb.Api.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<Passing>> Create(T value)
+        public virtual async Task<ActionResult<Passing>> Create(T value)
         {
             await _dbset.AddAsync(value);
             await _context.SaveChangesAsync();
@@ -81,7 +82,7 @@ namespace VeloTimerWeb.Api.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult> Create([FromBody] IEnumerable<T> values)
+        public virtual async Task<ActionResult> Create([FromBody] IEnumerable<T> values)
         {
             await _dbset.AddRangeAsync(values);
             await _context.SaveChangesAsync();
@@ -104,9 +105,9 @@ namespace VeloTimerWeb.Api.Controllers
             return NoContent();
         }
 
-        private bool Exists(long id)
+        private Task<bool> Exists(long id)
         {
-            return _dbset.Any(e => e.Id == id);
+            return _dbset.AnyAsync(e => e.Id == id);
         }
     }
 }
