@@ -24,7 +24,10 @@ namespace VeloTimerWeb.Api.Services
 
         public async Task<IEnumerable<LapTime>> GetSegmentTimesAsync(long start, long finish, long? transponder)
         {
-            var startLoop = await _context.TimingLoops.Where(t => t.Id == start).Include(t => t.Track).SingleAsync();
+            var startLoop = await _context.TimingLoops
+                .Where(t => t.Id == start)
+                .Include(t => t.Track)
+                .SingleAsync();
             var endLoop = startLoop;
 
             if (finish != start)
@@ -32,17 +35,7 @@ namespace VeloTimerWeb.Api.Services
                 endLoop = await _context.FindAsync<TimingLoop>(finish);
             }
 
-
-            double lapLength;
-
-            if (startLoop.Distance >= endLoop.Distance)
-            {
-                lapLength = startLoop.Track.Length - startLoop.Distance + endLoop.Distance;
-            }
-            else
-            {
-                lapLength = endLoop.Distance - startLoop.Distance;
-            }
+            double segmentLength = CalculateSegmentLength(startLoop, endLoop);
 
             var dbPassings = _context.Set<Passing>().AsQueryable();
 
@@ -71,7 +64,8 @@ namespace VeloTimerWeb.Api.Services
 
             var laptimes = new ConcurrentBag<LapTime>();
 
-            Parallel.ForEach(transponderPassings, transponderPassing => {
+            Parallel.ForEach(transponderPassings, transponderPassing =>
+            {
                 {
                     var transponder = transponderPassing.Key;
                     var endPassing = transponderPassing.First();
@@ -84,7 +78,7 @@ namespace VeloTimerWeb.Api.Services
                             {
                                 Rider = TransponderIdConverter.IdToCode(passing.TransponderId),
                                 PassingTime = endPassing.Time,
-                                Laplength = lapLength,
+                                Laplength = segmentLength,
                                 Laptime = (endPassing.Time - passing.Time).TotalSeconds
                             });
                         }
@@ -94,6 +88,13 @@ namespace VeloTimerWeb.Api.Services
             });
 
             return laptimes.OrderByDescending(l => l.PassingTime);
+        }
+
+        private static double CalculateSegmentLength(TimingLoop startLoop, TimingLoop endLoop)
+        {
+            return startLoop.Distance < endLoop.Distance ?
+                endLoop.Distance - startLoop.Distance : 
+                startLoop.Track.Length - startLoop.Distance + endLoop.Distance;
         }
     }
 }
