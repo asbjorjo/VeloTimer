@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.AspNetCore.SignalR.Client;
+﻿using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -59,6 +58,7 @@ namespace VeloTimerConsole.Services
 
         private async void DoRefresh(object state)
         {
+            _logger.LogInformation("Refreshing");
             int sync = Interlocked.CompareExchange(ref _lock, 1, 0);
 
             if (sync == 0)
@@ -67,14 +67,18 @@ namespace VeloTimerConsole.Services
                 {
                     _timer.Change(Timeout.Infinite, Timeout.Infinite);
 
+                    _logger.LogInformation("Starting refresh");
+
                     await RefreshPassings();
 
+                    _logger.LogInformation("Done refreshing");
                 }
 
                 finally
                 {
                     _timer.Change(TimeSpan.FromMilliseconds(TimerInterval), TimeSpan.FromMilliseconds(TimerInterval));
                     _lock = 0;
+                    _logger.LogInformation("Refreshed");
                 }
             }
         }
@@ -84,7 +88,7 @@ namespace VeloTimerConsole.Services
             var mostRecent = await _httpClient.GetFromJsonAsync<Passing>("/passings/mostrecent");
             await hubConnection.SendAsync(Strings.Events.LastPassing, mostRecent);
 
-            _logger.LogInformation("Most recent passing found {0}", mostRecent);
+            _logger.LogInformation("Most recent passing found {0}", mostRecent.Source);
 
             var passings = await _passingService.GetAfterEntry(mostRecent.Source);
 
@@ -110,13 +114,11 @@ namespace VeloTimerConsole.Services
             foreach (var loopId in loopIds.Except(knownLoopIds))
             {
                 await _httpClient.PostAsJsonAsync("timingloops", new TimingLoop { LoopId = loopId });
-                //dbContext.Set<TimingLoop>().Add(new TimingLoop { LoopId = loopId });
             }
 
             foreach (var transponderId in transponderIds.Except(knownTransponderIds))
             {
                 await _httpClient.PostAsJsonAsync("transponders", new Transponder { Id = transponderId });
-                //dbContext.Set<Transponder>().Add(new Transponder { Id = transponderId });
             }
 
             loops = await _httpClient.GetFromJsonAsync<IEnumerable<TimingLoop>>("timingloops");
@@ -129,12 +131,23 @@ namespace VeloTimerConsole.Services
 
             foreach (var p in passings)
             {
-                trackPassings.Add(new Passing { LoopId = loopdict.GetValueOrDefault(p.LoopId), TransponderId = p.TransponderId, Time = p.UtcTime });
+                trackPassings.Add(new Passing
+                { 
+                    LoopId = loopdict.GetValueOrDefault(p.LoopId), 
+                    TransponderId = p.TransponderId, 
+                    Time = p.UtcTime,
+                    Source = p.Id
+                });
             }
 
             _logger.LogInformation("Converted {0} number of passings", trackPassings.Count);
 
-            await _httpClient.PostAsJsonAsync("passings", trackPassings);
+            HttpResponseMessage response = await _httpClient.PostAsJsonAsync("passings/createmany", trackPassings);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError($"{response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
+            }
 
             await hubConnection.SendAsync(Strings.Events.NewPassings);
         }
