@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Services;
@@ -36,12 +35,12 @@ namespace VeloTimerWeb.Api
             services.AddScoped<ISegmentTimeService, SegmentTimeService>();
 
             services.AddCors(options =>
-            { 
-                options.AddPolicy(name: AllowedOrigins, 
-                                  builder => 
-                                  { 
-                                      builder.AllowAnyOrigin(); 
-                                  }); 
+            {
+                options.AddPolicy(name: AllowedOrigins,
+                                  builder =>
+                                  {
+                                      builder.AllowAnyOrigin();
+                                  });
             });
 
             services.AddControllers();

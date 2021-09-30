@@ -1,11 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Threading.Tasks;
-using VeloTimerWeb.Api.Data;
 using VeloTimer.Shared.Models;
-using Microsoft.Extensions.Logging;
+using VeloTimerWeb.Api.Data;
 
 namespace VeloTimerWeb.Api.Controllers
 {
@@ -13,7 +12,7 @@ namespace VeloTimerWeb.Api.Controllers
     public class PassingsController : GenericController<Passing>
     {
         public PassingsController(ILogger<GenericController<Passing>> logger, ApplicationDbContext context) : base(logger, context)
-        { 
+        {
         }
 
         [Route("mostrecent")]
