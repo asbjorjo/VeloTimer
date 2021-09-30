@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Services;
@@ -30,6 +31,8 @@ namespace VeloTimerWeb.Api
                 options.UseSqlServer(
                     Configuration.GetConnectionString("Azure")));
 
+            services.AddDatabaseDeveloperPageExceptionFilter();
+
             services.AddScoped<ISegmentTimeService, SegmentTimeService>();
 
             services.AddCors(options =>
@@ -54,6 +57,7 @@ namespace VeloTimerWeb.Api
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
+                app.UseMigrationsEndPoint();
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "VeloTimerWeb.Api v1"));
             }
