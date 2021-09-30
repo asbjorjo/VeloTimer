@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -93,7 +92,7 @@ namespace VeloTimerWeb.Api.Services
         private static double CalculateSegmentLength(TimingLoop startLoop, TimingLoop endLoop)
         {
             return startLoop.Distance < endLoop.Distance ?
-                endLoop.Distance - startLoop.Distance : 
+                endLoop.Distance - startLoop.Distance :
                 startLoop.Track.Length - startLoop.Distance + endLoop.Distance;
         }
     }

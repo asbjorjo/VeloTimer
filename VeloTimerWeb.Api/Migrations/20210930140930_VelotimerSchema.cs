@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
-namespace VeloTimerWeb.Api.Data.Migrations
+namespace VeloTimerWeb.Api.Migrations
 {
     public partial class VelotimerSchema : Migration
     {
@@ -26,7 +26,7 @@ namespace VeloTimerWeb.Api.Data.Migrations
                 columns: table => new
                 {
                     Id = table.Column<long>(type: "bigint", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    Label = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -59,15 +59,17 @@ namespace VeloTimerWeb.Api.Data.Migrations
                 name: "Passings",
                 columns: table => new
                 {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
                     TransponderId = table.Column<long>(type: "bigint", nullable: false),
                     LoopId = table.Column<long>(type: "bigint", nullable: false),
                     Time = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Source = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Id = table.Column<long>(type: "bigint", nullable: false)
+                    Source = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Passings", x => new { x.Time, x.TransponderId, x.LoopId });
+                    table.PrimaryKey("PK_Passings", x => x.Id);
+                    table.UniqueConstraint("AK_Passings_Time_TransponderId_LoopId", x => new { x.Time, x.TransponderId, x.LoopId });
                     table.ForeignKey(
                         name: "FK_Passings_TimingLoops_LoopId",
                         column: x => x.LoopId,
