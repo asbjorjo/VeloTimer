@@ -86,7 +86,8 @@ namespace VeloTimerConsole.Services
         private async Task RefreshPassings()
         {
             var mostRecent = await _httpClient.GetFromJsonAsync<Passing>("/passings/mostrecent");
-            await hubConnection.SendAsync(Strings.Events.LastPassing, mostRecent);
+            
+            await hubConnection.InvokeAsync("SendLastPassingToClients", mostRecent);
 
             _logger.LogInformation("Most recent passing found {0}", mostRecent.Source);
 
@@ -149,7 +150,7 @@ namespace VeloTimerConsole.Services
                 _logger.LogError($"{response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
             }
 
-            await hubConnection.SendAsync(Strings.Events.NewPassings);
+            await hubConnection.InvokeAsync("NotifyClientsOfNewPassings");
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
