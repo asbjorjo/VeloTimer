@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using VeloTimerWeb.Server.Data;
+using VeloTimerWeb.Api.Data;
 
 namespace VeloTimerWeb.Api.Data.Migrations
 {
