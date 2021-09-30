@@ -16,5 +16,12 @@ namespace VeloTimerWeb.Api.Controllers
         public PassingsController(ILogger<GenericController<Passing>> logger, ApplicationDbContext context) : base(logger, context)
         { 
         }
+
+        [Route("mostrecent")]
+        [HttpGet]
+        public async Task<ActionResult<Passing>> GetMostRecent()
+        {
+            return await _dbset.OrderByDescending(p => p.Time).FirstOrDefaultAsync();
+        }
     }
 }
