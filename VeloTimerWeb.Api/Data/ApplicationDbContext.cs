@@ -17,7 +17,7 @@ namespace VeloTimerWeb.Api.Data
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
-            _ = builder.Entity<Passing>().HasKey(p => new { p.Time, p.TransponderId, p.LoopId });
+            _ = builder.Entity<Passing>().HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
             _ = builder.Entity<Transponder>().Property(t => t.Id).ValueGeneratedNever();
 
             base.OnModelCreating(builder);
