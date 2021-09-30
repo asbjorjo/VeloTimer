@@ -6,9 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using VeloTimer.Shared.Hub;
-using VeloTimerWeb.Server.Data;
 using VeloTimerWeb.Server.Hubs;
-using VeloTimerWeb.Server.Services.Mylaps;
 
 namespace VeloTimerWeb.Server
 {
@@ -27,25 +25,11 @@ namespace VeloTimerWeb.Server
         {
             services.AddApplicationInsightsTelemetry();
 
-            services.Configure<PassingDatabaseSettings>(
-                Configuration.GetSection(nameof(PassingDatabaseSettings)));
-            services.AddSingleton<IPassingDatabaseSettings>(sp =>
-                sp.GetRequiredService<IOptions<PassingDatabaseSettings>>().Value);
-            services.AddSingleton<AmmcPassingService>();
-
-            services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(
-                    Configuration.GetConnectionString("Azure")));
-
-            services.AddDatabaseDeveloperPageExceptionFilter();
-
             services.AddControllersWithViews();
             services.AddRazorPages();
             services.AddServerSideBlazor();
 
             services.AddSignalR();
-
-            //services.AddHostedService<RefreshPassingsService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -54,7 +38,6 @@ namespace VeloTimerWeb.Server
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
-                app.UseMigrationsEndPoint();
                 app.UseWebAssemblyDebugging();
             }
             else
