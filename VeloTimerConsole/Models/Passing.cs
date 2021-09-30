@@ -22,7 +22,7 @@ namespace VeloTimerConsole.Models
         public string Transponder { get; set; }
         [BsonRepresentation(BsonType.String)]
         [BsonElement("loop_id")]
-        public int LoopId { get; set; }
+        public long LoopId { get; set; }
         [BsonRepresentation(BsonType.String)]
         [BsonElement("strength")]
         public int Strength { get; set; }
