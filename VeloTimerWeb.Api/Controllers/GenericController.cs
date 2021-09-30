@@ -14,23 +14,25 @@ namespace VeloTimerWeb.Api.Controllers
     {
         protected ApplicationDbContext _context;
         protected ILogger<GenericController<T>> _logger;
+        protected DbSet<T> _dbset;
 
         public GenericController(ILogger<GenericController<T>> logger, ApplicationDbContext context)
         {
             _logger = logger;
             _context = context;
+            _dbset = _context.Set<T>();
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<T>>> GetAll()
         {
-            return await _context.Set<T>().ToListAsync();
+            return await _dbset.ToListAsync();
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<T>> Get(long id)
         {
-            var value = await _context.Set<T>().FindAsync(id);
+            var value = await _dbset.FindAsync(id);
 
             if (value == null)
             {
@@ -72,7 +74,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<Passing>> Create(T value)
         {
-            await _context.Set<T>().AddAsync(value);
+            await _dbset.AddAsync(value);
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("Get", new { id = value.Id }, value);
@@ -81,7 +83,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpPost]
         public async Task<ActionResult> Create([FromBody] IEnumerable<T> values)
         {
-            await _context.Set<T>().AddRangeAsync(values);
+            await _dbset.AddRangeAsync(values);
             await _context.SaveChangesAsync();
 
             return Accepted();
@@ -90,13 +92,13 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(long id)
         {
-            var value = await _context.Set<T>().FindAsync(id);
+            var value = await _dbset.FindAsync(id);
             if (value == null)
             {
                 return NotFound();
             }
 
-            _context.Set<T>().Remove(value);
+            _dbset.Remove(value);
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -104,7 +106,7 @@ namespace VeloTimerWeb.Api.Controllers
 
         private bool Exists(long id)
         {
-            return _context.Set<T>().Any(e => e.Id == id);
+            return _dbset.Any(e => e.Id == id);
         }
     }
 }
