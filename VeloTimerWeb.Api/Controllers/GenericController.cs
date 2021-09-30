@@ -81,8 +81,8 @@ namespace VeloTimerWeb.Api.Controllers
             return CreatedAtAction("Get", new { id = value.Id }, value);
         }
 
-        [HttpPost]
-        public virtual async Task<ActionResult> Create([FromBody] IEnumerable<T> values)
+        [HttpPost("createmany")]
+        public virtual async Task<ActionResult> Create(IEnumerable<T> values)
         {
             await _dbset.AddRangeAsync(values);
             await _context.SaveChangesAsync();
