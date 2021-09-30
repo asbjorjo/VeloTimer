@@ -11,6 +11,9 @@
       "type": "secrets.keyVault",
       "connectionId": "AzureVault",
       "secretStore": null
+    },
+    "appInsights1": {
+      "type": "appInsights.sdk"
     }
   }
 }

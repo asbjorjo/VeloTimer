@@ -42,6 +42,7 @@ namespace VeloTimerWeb.Server
             services.AddServerSideBlazor();
 
             services.AddSignalR();
+            services.AddApplicationInsightsTelemetry();
 
             //services.AddHostedService<RefreshPassingsService>();
         }

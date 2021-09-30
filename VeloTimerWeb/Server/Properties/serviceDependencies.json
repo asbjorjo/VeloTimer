@@ -9,6 +9,9 @@
       "connectionId": "",
       "suggestion": "true",
       "ignored": "true"
+    },
+    "appInsights1": {
+      "type": "appInsights"
     }
   }
 }
