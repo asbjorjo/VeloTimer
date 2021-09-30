@@ -33,6 +33,8 @@ namespace VeloTimerWeb.Api.Controllers
 
             var segments = await _segmentTimes.GetSegmentTimesAsync(start, finish, transponderId);
 
+            segments = segments.Where(s => s.Lapspeed > 5);
+
             return segments.ToList();
         }
     }
