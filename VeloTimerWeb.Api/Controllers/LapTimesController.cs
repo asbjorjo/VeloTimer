@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
-using VeloTimer.Shared.Util;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
