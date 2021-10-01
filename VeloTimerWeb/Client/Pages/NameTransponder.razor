@@ -1,0 +1,45 @@
+﻿@page "/nametransponder"
+@layout MainLayout
+@using Microsoft.Extensions.Logging
+@using VeloTimer.Shared.Models
+@using VeloTimer.Shared.Util
+@inject NavigationManager NavigationManager
+@inject HttpClient Http
+@inject ILogger<NameTransponder> Logger
+
+<h3>TransponderName</h3>
+
+<EditForm Model="@transponderName" OnValidSubmit="@HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <label>
+        Transponder
+        <InputText id="label" @bind-Value="transponderName.TransponderLabel" />
+    </label>
+    <label>
+        Name
+        <InputText id="name" @bind-Value="transponderName.Name" />
+    </label>
+
+    <label>
+        Valid from
+        <InputDate id="validFrom" @bind-Value="transponderName.ValidFrom"></InputDate>
+    </label>
+    <label>
+        Valid until
+        <InputDate id="validUntil" @bind-Value="transponderName.ValidUntil"></InputDate>
+    </label>
+
+    <button type="submit">Save</button>
+</EditForm>
+
+@code {
+    private TransponderNameWeb transponderName = new();
+
+    private void HandleValidSubmit()
+    {
+        var transponderId = TransponderIdConverter.CodeToId(transponderName.TransponderLabel);
+        Logger.LogInformation($"label: {transponderName.TransponderLabel} -- id: {transponderId}");
+    }
+}
