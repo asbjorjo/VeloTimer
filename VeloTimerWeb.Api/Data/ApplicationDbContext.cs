@@ -13,8 +13,9 @@ namespace VeloTimerWeb.Api.Data
         public DbSet<Track> Tracks { get; set; }
         public DbSet<TimingLoop> TimingLoops { get; set; }
         public DbSet<Transponder> Transponders { get; set; }
+        public DbSet<TransponderName> TransponderNames { get; set; }
         public DbSet<Passing> Passings { get; set; }
-
+        
         protected override void OnModelCreating(ModelBuilder builder)
         {
             _ = builder.Entity<Passing>().HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
