@@ -28,7 +28,7 @@ namespace VeloTimerWeb.Api
 
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
-                    Configuration.GetConnectionString("Azure")));
+                    Configuration.GetConnectionString("Azure") ?? Configuration.GetValue<string>("Azure", null)));
 
             services.AddDatabaseDeveloperPageExceptionFilter();
 
