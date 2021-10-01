@@ -1,17 +1,5 @@
 {
   "dependencies": {
-    "mssql1": {
-      "type": "mssql",
-      "connectionId": "ConnectionStrings:DefaultConnection",
-      "suggestion": "true",
-      "ignored": "true"
-    },
-    "secrets1": {
-      "resourceId": "/subscriptions/[parameters('subscriptionId')]/resourceGroups/[parameters('resourceGroupName')]/providers/Microsoft.KeyVault/vaults/velotimervault",
-      "type": "secrets.keyVault",
-      "connectionId": "AzureVault",
-      "secretStore": null
-    },
     "appInsights1": {
       "type": "appInsights.sdk"
     }
