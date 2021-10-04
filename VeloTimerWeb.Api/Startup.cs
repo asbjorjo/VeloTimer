@@ -40,6 +40,8 @@ namespace VeloTimerWeb.Api
                                   builder =>
                                   {
                                       builder.AllowAnyOrigin();
+                                      builder.AllowAnyMethod();
+                                      builder.AllowAnyHeader();
                                   });
             });
 
