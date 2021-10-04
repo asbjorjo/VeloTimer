@@ -72,7 +72,7 @@ namespace VeloTimerWeb.Api.Controllers
         }
 
         [HttpPost]
-        public virtual async Task<ActionResult<Passing>> Create(T value)
+        public virtual async Task<ActionResult<T>> Create(T value)
         {
             await _dbset.AddAsync(value);
             await _context.SaveChangesAsync();
