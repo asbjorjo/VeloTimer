@@ -37,9 +37,18 @@
 @code {
     private TransponderNameWeb transponderName = new();
 
-    private void HandleValidSubmit()
+    private async void HandleValidSubmit()
     {
         var transponderId = TransponderIdConverter.CodeToId(transponderName.TransponderLabel);
-        Logger.LogInformation($"label: {transponderName.TransponderLabel} -- id: {transponderId}");
+
+        TransponderName name = new TransponderName 
+        { 
+            TransponderId = transponderId, 
+            Name = transponderName.Name,
+            ValidFrom = transponderName.ValidFrom,
+            ValidUntil = transponderName.ValidUntil
+        };
+
+        await Http.PostAsJsonAsync("transpondernames", name);
     }
 }

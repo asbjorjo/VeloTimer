@@ -15,8 +15,8 @@ namespace VeloTimer.Shared.Models
         [Required]
         public string Name { get; set; }
         [Required]
-        public DateTimeOffset ValidFrom { get; set; }
+        public DateTimeOffset ValidFrom { get; set; } = DateTimeOffset.Now;
         [EndDate(otherPropertyName = nameof(ValidFrom))]
-        public DateTimeOffset ValidUntil { get; set; }
+        public DateTimeOffset ValidUntil { get; set; } = DateTimeOffset.Now + TimeSpan.FromDays(1);
     }
 }
