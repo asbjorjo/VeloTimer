@@ -19,7 +19,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet]
         public async Task<ActionResult<Passing>> GetMostRecent()
         {
-            return await _dbset.OrderByDescending(p => p.Time).FirstOrDefaultAsync();
+            return await _dbset.OrderBy(p => p.Source).LastOrDefaultAsync();
         }
     }
 }
