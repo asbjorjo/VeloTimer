@@ -51,7 +51,7 @@ namespace VeloTimerWeb.Api.Services
                                 .Select(p => new
                                 {
                                     TransponderId = p.TransponderId,
-                                    Rider = p.Transponder.Label,
+                                    Rider = p.Transponder.Names.Where(n => n.ValidFrom <= p.Time || n.ValidUntil >= p.Time).SingleOrDefault(),
                                     Time = p.Time,
                                     LoopId = p.LoopId
                                 })
@@ -75,7 +75,7 @@ namespace VeloTimerWeb.Api.Services
                         {
                             laptimes.Add(new LapTime
                             {
-                                Rider = TransponderIdConverter.IdToCode(passing.TransponderId),
+                                Rider = passing.Rider?.Name ?? TransponderIdConverter.IdToCode(passing.TransponderId),
                                 PassingTime = endPassing.Time,
                                 Laplength = segmentLength,
                                 Laptime = (endPassing.Time - passing.Time).TotalSeconds
