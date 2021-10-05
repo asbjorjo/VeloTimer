@@ -10,13 +10,21 @@ namespace VeloTimer.Shared.Models
 {
     public class TransponderNameWeb
     {
+        private DateTimeOffset _validUntil = DateTimeOffset.Now.Date + TimeSpan.FromDays(1) - TimeSpan.FromMilliseconds(1);
+
         [Required]
         public string TransponderLabel { get; set; }
         [Required]
         public string Name { get; set; }
         [Required]
-        public DateTimeOffset ValidFrom { get; set; } = DateTimeOffset.Now;
-        [EndDate(otherPropertyName = nameof(ValidFrom))]
-        public DateTimeOffset ValidUntil { get; set; } = DateTimeOffset.Now + TimeSpan.FromDays(1);
+        public DateTimeOffset ValidFrom { get; set; } = DateTimeOffset.Now.Date;
+        [EndDate(otherPropertyName = nameof(ValidFrom), ErrorMessage = "End date has to be after start date.")]
+        public DateTimeOffset ValidUntil 
+        { 
+            get => _validUntil;
+            set {
+                _validUntil = value.Date + TimeSpan.FromDays(1) - TimeSpan.FromMilliseconds(1);
+            }
+        }
     }
 }
