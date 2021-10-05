@@ -1,19 +1,17 @@
 {
   "dependencies": {
-    "secrets1": {
-      "resourceId": "/subscriptions/[parameters('subscriptionId')]/resourceGroups/[parameters('resourceGroupName')]/providers/Microsoft.KeyVault/vaults/velotimervault",
-      "type": "secrets.keyVault",
-      "connectionId": "AzureVault",
-      "secretStore": null
-    },
-    "mssql1": {
-      "resourceId": "/subscriptions/[parameters('subscriptionId')]/resourceGroups/[parameters('resourceGroupName')]/providers/Microsoft.Sql/servers/velotimer/databases/velotimer",
-      "type": "mssql.azure",
-      "connectionId": "Azure",
-      "secretStore": "AzureKeyVault"
-    },
     "appInsights1": {
       "type": "appInsights.sdk"
+    },
+    "secrets1": {
+      "type": "secrets.user",
+      "connectionId": "AzureVault"
+    },
+    "mssql1": {
+      "resourceId": null,
+      "type": "mssql.local",
+      "connectionId": "Azure",
+      "secretStore": "LocalSecretsFile"
     }
   }
 }

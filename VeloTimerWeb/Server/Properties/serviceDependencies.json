@@ -1,9 +1,5 @@
 {
   "dependencies": {
-    "secrets1": {
-      "type": "secrets",
-      "connectionId": "AzureVault"
-    },
     "signalr1": {
       "type": "signalr",
       "connectionId": "",
