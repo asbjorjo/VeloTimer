@@ -31,7 +31,8 @@ jobs:
       with:
         push: true
         tags: velotimer.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_a71a5db593ad48e58fcde84149d8f400 }}/velotimerconsole:${{ github.sha }}
-        file: VelotimerConsole/Dockerfile
+        file: ./Dockerfile
+        context: VelotimerConsole
 
   deploy:
     runs-on: ubuntu-latest
