@@ -6,13 +6,13 @@ name: Build and deploy container app to Azure Web App - velotimer-reload
 on:
   push:
     branches:
-      - master
+      - dockertest
   workflow_dispatch:
 
 env:
   CONFIGURATION: Release
   DOTNET_CORE_VERSION: 5.0.x
-  WORKING_DIRECTORY: VeloTimerWeb/Server
+  WORKING_DIRECTORY: VeloTimerConsole
 
 jobs:
   build:
