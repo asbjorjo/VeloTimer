@@ -2,7 +2,7 @@
   "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "metadata": {
-    "_dependencyType": "appService.windows"
+    "_dependencyType": "appService.linux"
   },
   "parameters": {
     "resourceGroupName": {
@@ -78,31 +78,35 @@
                 "reserved": false,
                 "serverFarmId": "[variables('appServicePlan_ResourceId')]",
                 "siteConfig": {
-                  "metadata": [
-                    {
-                      "name": "CURRENT_STACK",
-                      "value": "dotnetcore"
-                    }
-                  ]
+                  "linuxFxVersion": "DOTNETCORE|2.1"
                 }
               },
               "identity": {
                 "type": "SystemAssigned"
-              }
+              },
+              "resources": [
+                {
+                  "name": "appsettings",
+                  "type": "config",
+                  "apiVersion": "2015-08-01",
+                  "dependsOn": [
+                    "[concat('Microsoft.Web/Sites/', parameters('resourceName'))]"
+                  ],
+                  "properties": {}
+                }
+              ]
             },
             {
               "location": "[parameters('resourceLocation')]",
               "name": "[variables('appServicePlan_name')]",
               "type": "Microsoft.Web/serverFarms",
-              "apiVersion": "2015-08-01",
-              "sku": {
-                "name": "S1",
-                "tier": "Standard",
-                "family": "S",
-                "size": "S1"
-              },
+              "apiVersion": "2015-02-01",
+              "kind": "linux",
               "properties": {
-                "name": "[variables('appServicePlan_name')]"
+                "name": "[variables('appServicePlan_name')]",
+                "sku": "Standard",
+                "workerSizeId": "0",
+                "reserved": true
               }
             }
           ]
