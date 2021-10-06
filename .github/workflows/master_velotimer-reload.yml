@@ -9,12 +9,28 @@ on:
       - master
   workflow_dispatch:
 
+env:
+  CONFIGURATION: Release
+  DOTNET_CORE_VERSION: 5.0.x
+  WORKING_DIRECTORY: VeloTimerWeb/Server
+
 jobs:
   build:
     runs-on: 'ubuntu-latest'
 
     steps:
     - uses: actions/checkout@v2
+
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
+    - name: Restore
+      run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
+    - name: Build
+      run: dotnet build "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
+    - name: Test
+      run: dotnet test "${{ env.WORKING_DIRECTORY }}" --no-build
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
@@ -32,6 +48,7 @@ jobs:
         push: true
         tags: velotimer.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_a71a5db593ad48e58fcde84149d8f400 }}/velotimerconsole:${{ github.sha }}
         file: ./Dockerfile
+        path: "${{ env.WORKING_DIRECTORY }}"
 
   deploy:
     runs-on: ubuntu-latest
