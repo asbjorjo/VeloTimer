@@ -1,9 +1,5 @@
 {
   "dependencies": {
-    "appInsights1": {
-      "type": "appInsights",
-      "connectionId": "APPINSIGHTS_CONNECTIONSTRING"
-    },
     "secrets1": {
       "type": "secrets",
       "connectionId": "AzureVault"
@@ -11,6 +7,10 @@
     "mssql1": {
       "type": "mssql",
       "connectionId": "Azure"
+    },
+    "appInsights1": {
+      "type": "appInsights",
+      "connectionId": "APPINSIGHTS_CONNECTIONSTRING"
     }
   }
 }
