@@ -2,9 +2,6 @@
   "profiles": {
     "VeloTimerConsole": {
       "commandName": "Project"
-    },
-    "Docker": {
-      "commandName": "Docker"
     }
   }
 }
