@@ -2,6 +2,7 @@
 @using VeloTimer.Shared.Hub
 @using VeloTimer.Shared.Models
 @inherits ComponentBase
+@implements IAsyncDisposable
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
 
@@ -81,5 +82,10 @@
         segmentTimes = await Http.GetFromJsonAsync<LapTime[]>($"/laptimes?startLoop={startloop}&endloop={endloop}&transponderid={transponder}");
 
         StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await hubConnection.DisposeAsync();
     }
 }
