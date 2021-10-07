@@ -34,7 +34,7 @@ jobs:
       uses: docker/build-push-action@v2
       with:
         push: true
-        tags: velotimer.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_a71a5db593ad48e58fcde84149d8f400 }}/velotimerconsole:${{ github.sha }}
+        #tags: velotimer.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_a71a5db593ad48e58fcde84149d8f400 }}/velotimerconsole:${{ github.sha }}
         file: ./Dockerfile
 
   deploy:
