@@ -13,7 +13,9 @@ namespace VeloTimerWeb.Client
             var builder = WebAssemblyHostBuilder.CreateDefault(args);
             builder.RootComponents.Add<App>("#app");
 
-            builder.Services.AddHttpClient("VeloTimerWeb.ServerAPI", client => client.BaseAddress = new Uri("https://velotimer-api.azurewebsites.net"));
+            builder.Services.AddHttpClient(
+                "VeloTimerWeb.ServerAPI", 
+                client => client.BaseAddress = new Uri(Environment.GetEnvironmentVariable("VELOTIMER_API_URL")));
 
             // Supply HttpClient instances that include access tokens when making requests to the server project
             builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("VeloTimerWeb.ServerAPI"));
