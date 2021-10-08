@@ -15,7 +15,7 @@ namespace VeloTimerWeb.Client
 
             builder.Services.AddHttpClient(
                 "VeloTimerWeb.ServerAPI", 
-                client => client.BaseAddress = new Uri(Environment.GetEnvironmentVariable("VELOTIMER_API_URL")));
+                client => client.BaseAddress = new Uri(builder.Configuration["VELOTIMER_API_URL"]));
 
             // Supply HttpClient instances that include access tokens when making requests to the server project
             builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("VeloTimerWeb.ServerAPI"));
