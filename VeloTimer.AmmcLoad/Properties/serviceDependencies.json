@@ -3,12 +3,6 @@
     "appInsights1": {
       "type": "appInsights",
       "connectionId": "APPINSIGHTS_CONNECTIONSTRING"
-    },
-    "signalr1": {
-      "type": "signalr",
-      "connectionId": "",
-      "suggestion": "true",
-      "ignored": "true"
     }
   }
 }
