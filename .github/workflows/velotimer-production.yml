@@ -1,14 +1,14 @@
-name: Build and deploy to Azure development environment
+name: Build and deploy to Azure production environment
 on:
   push:
     branches:
-    - develop   
+    - master   
 env:
-  AZURE_WEBAPP_NAME: velotimer-dev
+  AZURE_WEBAPP_NAME: velotimer
+  AZURE_API_NAME: velotimer-api
+  AZURE_AMMC_NAME: velotimer-ammcload
   AZURE_WEBAPP_PACKAGE_PATH: VeloTimerWeb/Server/publish
-  AZURE_API_NAME: velotimer-dev-api
   AZURE_API_PACKAGE_PATH: VeloTimerWeb.Api/publish
-  AZURE_AMMC_NAME: velotimer-dev-ammcload
   AZURE_AMMC_PACKAGE_PATH: VeloTimer.AmccLoad/publish
   CONFIGURATION: Release
   DOTNET_CORE_VERSION: 5.0.x
@@ -22,7 +22,7 @@ jobs:
     - uses: actions/checkout@v2
     - uses: azure/login@v1
       with:
-        creds: ${{ secrets.AZURE_DEVELOP_CREDENTIALS }}
+        creds: ${{ secrets.AZURE_PRODUCTION_CREDENTIALS }}
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
