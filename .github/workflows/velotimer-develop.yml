@@ -2,8 +2,7 @@ name: Build and deploy .NET Core app to Linux WebApp velotimer
 on:
   push:
     branches:
-    - develop
-    
+    - develop   
 env:
   AZURE_WEBAPP_NAME: velotimer
   AZURE_WEBAPP_PACKAGE_PATH: VeloTimerWeb/Server/publish
