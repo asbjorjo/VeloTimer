@@ -27,6 +27,8 @@ namespace VeloTimer.AmmcLoad
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddApplicationInsightsTelemetry();
+
             services.Configure<PassingDatabaseSettings>(
                                          Configuration.GetSection(nameof(PassingDatabaseSettings)));
             services.AddSingleton<IPassingDatabaseSettings>(sp =>
@@ -37,7 +39,6 @@ namespace VeloTimer.AmmcLoad
             services.AddHostedService<RefreshPassingsService>();
 
             services.AddRazorPages();
-            services.AddApplicationInsightsTelemetry();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
