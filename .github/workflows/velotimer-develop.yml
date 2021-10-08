@@ -47,5 +47,5 @@ jobs:
     - name: Publish API Artifacts
       uses: actions/upload-artifact@v1.0.0
       with:
-        name: webapp
+        name: api
         path: ${{ env.AZURE_API_PACKAGE_PATH }}
