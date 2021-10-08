@@ -10,7 +10,7 @@ env:
   AZURE_API_PACKAGE_PATH: VeloTimerWeb.Api/publish
   AZURE_AMMC_NAME: velotimer-dev-ammcload
   AZURE_AMMC_PACKAGE_PATH: VeloTimer.AmccLoad/publish
-  CONFIGURATION: Release
+  CONFIGURATION: Staging
   DOTNET_CORE_VERSION: 5.0.x
   WEBAPP_WORKING_DIRECTORY: VeloTimerWeb/Server
   API_WORKING_DIRECTORY: VeloTimerWeb.Api
