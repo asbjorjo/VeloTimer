@@ -12,7 +12,7 @@ env:
   AZURE_API_PUBLISH_PROFILE: ${{ secrets.velotimer_api_505b }}
   AZURE_AMMC_NAME: velotimer-ammcload
   AZURE_AMMC_PACKAGE_PATH: VeloTimer.AmccLoad/publish
-  AZURE_AMMC_PUBLISH_PROFILE: ${{  }}
+  AZURE_AMMC_PUBLISH_PROFILE: unknown
   CONFIGURATION: Release
   DOTNET_CORE_VERSION: 5.0.x
   WEBAPP_WORKING_DIRECTORY: VeloTimerWeb/Server
