@@ -10,10 +10,14 @@ env:
   AZURE_API_NAME: velotimer-api
   AZURE_API_PACKAGE_PATH: VeloTimerWeb.Api/publish
   AZURE_API_PUBLISH_PROFILE: ${{ secrets.velotimer_api_505b }}
+  AZURE_AMMC_NAME: velotimer-ammcload
+  AZURE_AMMC_PACKAGE_PATH: VeloTimer.AmccLoad/publish
+  AZURE_AMMC_PUBLISH_PROFILE: ${{  }}
   CONFIGURATION: Release
   DOTNET_CORE_VERSION: 5.0.x
   WEBAPP_WORKING_DIRECTORY: VeloTimerWeb/Server
-  API_WORKING_DIRECTORY: VeloTimer.Api
+  API_WORKING_DIRECTORY: VeloTimerWeb.Api
+  AMMC_WORKING_DIRECTORY: VeloTimer.AmmcLoad
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -29,23 +33,30 @@ jobs:
       run: dotnet build --configuration ${{ env.CONFIGURATION }} --no-restore
     - name: Test
       run: dotnet test --no-build
-    - name: Publish WebApp
-      run: dotnet publish "${{ env.WEBAPP_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
     - name: Publish API
       run: dotnet publish "${{ env.API_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_API_PACKAGE_PATH }}"
+    - name: Publish AmmcLoad
+      run: dotnet publish "${{ env.AMMC_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_AMMC_PACKAGE_PATH }}"
+    - name: Publish WebApp
+      run: dotnet publish "${{ env.WEBAPP_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
 #    - name: Deploy to Azure WebApp
 #      uses: azure/webapps-deploy@v2
 #      with:
 #        app-name: ${{ env.AZURE_WEBAPP_NAME }}
 #        package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
 #        publish-profile: ${{ env.AZURE_WEBAPP_PUBLISH_PROFILE }}
-    - name: Publish WebApp Artifacts
-      uses: actions/upload-artifact@v1.0.0
-      with:
-        name: webapp
-        path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
     - name: Publish API Artifacts
       uses: actions/upload-artifact@v1.0.0
       with:
         name: api
         path: ${{ env.AZURE_API_PACKAGE_PATH }}
+    - name: Publish AmmcLoad Artifacts
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: ammcload
+        path: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
+    - name: Publish WebApp Artifacts
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: webapp
+        path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
