@@ -23,7 +23,7 @@ namespace VeloTimerWeb.Api.Controllers
             
             if (value == null)
             {
-                NotFound();
+                return NotFound();
             }
 
             return value;
