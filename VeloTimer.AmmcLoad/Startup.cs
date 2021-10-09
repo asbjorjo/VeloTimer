@@ -34,7 +34,9 @@ namespace VeloTimer.AmmcLoad
             services.AddSingleton<IPassingDatabaseSettings>(sp =>
                         sp.GetRequiredService<IOptions<PassingDatabaseSettings>>().Value);
             services.AddSingleton<AmmcPassingService>();
-            services.AddHttpClient("VeloTimerWeb.ServerAPI", client => client.BaseAddress = new Uri("https://velotimer-api.azurewebsites.net"));
+            services.AddHttpClient(
+                "VeloTimerWeb.ServerAPI", 
+                client => client.BaseAddress = new Uri(Configuration["VELOTIMER_API_URL"]));
             services.AddSingleton(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("VeloTimerWeb.ServerAPI"));
             services.AddHostedService<RefreshPassingsService>();
 
