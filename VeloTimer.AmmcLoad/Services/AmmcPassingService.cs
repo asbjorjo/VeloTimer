@@ -20,9 +20,12 @@ namespace VeloTimer.AmmcLoad.Services
             _logger.LogInformation("creating");
 
             var client = new MongoClient(settings.ConnectionString);
+            _logger.LogInformation("client ready");
             var database = client.GetDatabase(settings.PassingDatabase);
+            _logger.LogInformation("database ready");
 
             _passings = database.GetCollection<Passing>(settings.PassingCollection);
+            _logger.LogInformation("collection ready");
 
             _logger.LogInformation("created");
         }
