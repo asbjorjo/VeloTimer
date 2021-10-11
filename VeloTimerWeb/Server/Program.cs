@@ -1,8 +1,5 @@
-﻿using Azure.Identity;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
-using System;
 
 namespace VeloTimerWeb.Server
 {
@@ -15,11 +12,6 @@ namespace VeloTimerWeb.Server
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration((context, config) =>
-                {
-                    var keyVaultEndpoint = new Uri(Environment.GetEnvironmentVariable("AzureVault"));
-                    config.AddAzureKeyVault(keyVaultEndpoint, new DefaultAzureCredential());
-                })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();

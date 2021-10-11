@@ -7,5 +7,6 @@ namespace VeloTimer.Shared.Models
         public string Label { get; set; }
 
         public List<Passing> Passings { get; set; }
+        public List<TransponderName> Names { get; set; }
     }
 }

@@ -1,0 +1,114 @@
+﻿@page "/transpondertimes"
+@layout MainLayout
+@using VeloTimer.Shared.Models
+@using VeloTimer.Shared.Util
+@inject NavigationManager NavigationManager
+@inject HttpClient Http
+
+<h3>TransponderTimes</h3>
+
+@if (transponders == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <select @onchange="ChangeTransponder">
+        @foreach (var transponder in transponders)
+        {
+            <option value="@transponder.Id">@TransponderIdConverter.IdToCode(transponder.Id)</option>
+        }
+    </select>
+
+    if (timingloops == null)
+    {
+        <p>Loading....</p>
+    }
+    else
+    {
+        <select @onchange="ChangeStartLoop">
+            @foreach (var timingloop in timingloops)
+            {
+                <option value="@timingloop.Id">@timingloop.Description</option>
+            }
+        </select>
+        <select @onchange="ChangeEndLoop">
+            @foreach (var timingloop in timingloops)
+            {
+                <option value="@timingloop.Id">@timingloop.Description</option>
+            }
+        </select>
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Rider</th>
+                    <th>Laptime</th>
+                    <th>Speed</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (transponder != null && segmenttimes != null)
+                {
+                    @foreach (var day in segmenttimes.GroupBy(s => s.PassingTime.Date))
+                    {
+                        <tr><td colspan="3" align="center">@day.Key.ToShortDateString()</td></tr>
+                        @foreach (var segment in day)
+                        {
+                        <tr>
+                            <td>@segment.Rider</td>
+                            <td>@String.Format("{0:00.000}", segment.Laptime)</td>
+                            <td>@String.Format("{0:00.000}", segment.Lapspeed)</td>
+                        </tr>
+                            }
+                        }
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private Transponder transponder;
+    private Transponder[] transponders;
+    private TimingLoop[] timingloops;
+    private LapTime[] segmenttimes;
+    private long startloop;
+    private long endloop;
+
+    protected override async Task OnInitializedAsync()
+    {
+        transponders = await Http.GetFromJsonAsync<Transponder[]>("/transponders");
+        timingloops = await Http.GetFromJsonAsync<TimingLoop[]>("/timingloops");
+        startloop = timingloops.First().Id;
+        endloop = startloop;
+    }
+
+    private async void ChangeTransponder(ChangeEventArgs e)
+    {
+        var start = long.Parse(e.Value.ToString());
+        transponder = transponders.Where(t => t.Id == start).Single();
+        await LoadSegmentTimes();
+    }
+
+    private async void ChangeStartLoop(ChangeEventArgs e)
+    {
+        var start = long.Parse(e.Value.ToString());
+        startloop = timingloops.Where(t => t.Id == start).Single().Id;
+        await LoadSegmentTimes();
+    }
+
+    private async void ChangeEndLoop(ChangeEventArgs e)
+    {
+        var finish = long.Parse(e.Value.ToString());
+        endloop = timingloops.Where(t => t.Id == finish).Single().Id;
+        await LoadSegmentTimes();
+    }
+
+    protected async Task LoadSegmentTimes()
+    {
+        segmenttimes = await Http.GetFromJsonAsync<LapTime[]>($"/laptimes?startLoop={startloop}&endloop={endloop}&transponderid={transponder.Id}");
+
+        StateHasChanged();
+    }
+}

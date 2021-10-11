@@ -13,6 +13,7 @@ namespace VeloTimerWeb.Api.Data
         public DbSet<Track> Tracks { get; set; }
         public DbSet<TimingLoop> TimingLoops { get; set; }
         public DbSet<Transponder> Transponders { get; set; }
+        public DbSet<TransponderName> TransponderNames { get; set; }
         public DbSet<Passing> Passings { get; set; }
         public DbSet<Segment> Segments { get; set; }
 
@@ -20,6 +21,7 @@ namespace VeloTimerWeb.Api.Data
         {
             _ = builder.Entity<Passing>().HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
             _ = builder.Entity<Transponder>().Property(t => t.Id).ValueGeneratedNever();
+            _ = builder.Entity<TimingLoop>().HasAlternateKey(t => new { t.TrackId, t.LoopId });
 
             base.OnModelCreating(builder);
         }

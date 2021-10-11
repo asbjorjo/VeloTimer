@@ -107,6 +107,33 @@ namespace VeloTimerWeb.Api.Migrations
                     b.ToTable("Transponders");
                 });
 
+            modelBuilder.Entity("VeloTimer.Shared.Models.TransponderName", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("TransponderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("ValidFrom")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ValidUntil")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TransponderId");
+
+                    b.ToTable("TransponderNames");
+                });
+
             modelBuilder.Entity("VeloTimer.Shared.Models.Passing", b =>
                 {
                     b.HasOne("VeloTimer.Shared.Models.TimingLoop", "Loop")
@@ -135,6 +162,17 @@ namespace VeloTimerWeb.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Track");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.TransponderName", b =>
+                {
+                    b.HasOne("VeloTimer.Shared.Models.Transponder", "Transponder")
+                        .WithMany()
+                        .HasForeignKey("TransponderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Transponder");
                 });
 
             modelBuilder.Entity("VeloTimer.Shared.Models.TimingLoop", b =>

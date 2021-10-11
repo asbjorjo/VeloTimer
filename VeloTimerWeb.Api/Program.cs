@@ -17,8 +17,11 @@ namespace VeloTimerWeb.Api
             Host.CreateDefaultBuilder(args)
                  .ConfigureAppConfiguration((context, config) =>
                  {
-                     var keyVaultEndpoint = new Uri(Environment.GetEnvironmentVariable("AzureVault"));
-                     config.AddAzureKeyVault(keyVaultEndpoint, new DefaultAzureCredential());
+                     if (context.HostingEnvironment.IsProduction() || context.HostingEnvironment.IsStaging())
+                     {
+                         var keyVaultEndpoint = new Uri(Environment.GetEnvironmentVariable("AzureVault"));
+                         config.AddAzureKeyVault(keyVaultEndpoint, new DefaultAzureCredential());
+                     }
                  })
                .ConfigureWebHostDefaults(webBuilder =>
                 {
