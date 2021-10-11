@@ -22,7 +22,8 @@ namespace VeloTimerWeb.Api.Data
             _ = builder.Entity<Passing>().HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
             _ = builder.Entity<Transponder>().Property(t => t.Id).ValueGeneratedNever();
             _ = builder.Entity<TimingLoop>().HasAlternateKey(t => new { t.TrackId, t.LoopId });
-
+            builder.Entity<Segment>().HasMany(s => s.Intermediates).WithMany("Loop");
+            
             base.OnModelCreating(builder);
         }
     }
