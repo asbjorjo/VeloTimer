@@ -3,7 +3,6 @@
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
     <UserSecretsId>VeloTimerWeb.Server-08EC3F2D-FBC1-458E-818F-A0C2D433585B</UserSecretsId>
-    <Configurations>Debug;Release;Staging</Configurations>
   </PropertyGroup>
 
   <ItemGroup>
