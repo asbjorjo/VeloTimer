@@ -1,10 +1,10 @@
-﻿@using Microsoft.AspNetCore.SignalR.Client
-@using VeloTimer.Shared.Hub
+﻿@using VeloTimer.Shared.Hub
 @using VeloTimer.Shared.Models
 @inherits ComponentBase
-@implements IAsyncDisposable
+@implements IDisposable
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
+@inject HubConnection hubConnection
 
 <table class="table">
     <thead>
@@ -39,7 +39,6 @@
 
 @code {
     protected IEnumerable<LapTime> segmentTimes;
-    protected HubConnection hubConnection;
 
     [Parameter]
     public long? Start { get; set; }
@@ -52,20 +51,12 @@
     protected long? endloop;
     protected long? transponder;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(NavigationManager.ToAbsoluteUri(Strings.hubUrl))
-            .WithAutomaticReconnect()
-            .Build();
-
         hubConnection.On(Strings.Events.NewPassings, async () =>
         {
             await LoadSegmentTimes();
         });
-
-
-        await hubConnection.StartAsync();
     }
 
     protected override Task OnParametersSetAsync()
@@ -84,12 +75,9 @@
         StateHasChanged();
     }
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        if (hubConnection is not null)
-        {
-            await hubConnection.DisposeAsync();
-        }
+        hubConnection.Remove(Strings.Events.NewPassings);
     }
 }
         

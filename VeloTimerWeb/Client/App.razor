@@ -1,3 +1,7 @@
+@using System.Threading
+@inject HubConnection hubConnection
+@implements IAsyncDisposable
+
 <Router AppAssembly="@typeof(Program).Assembly" PreferExactMatches="@true">
     <Found Context="routeData">
         <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
@@ -10,3 +14,44 @@
         </LayoutView>
     </NotFound>
 </Router>
+
+@code {
+    private CancellationTokenSource cts = new CancellationTokenSource();
+
+    protected override void OnInitialized()
+    {
+        ConnectWithRetryAsync(cts.Token);
+
+        hubConnection.Closed += error =>
+        {
+            return ConnectWithRetryAsync(cts.Token);
+        };
+    }
+
+    private async Task<bool> ConnectWithRetryAsync(CancellationToken token)
+    {
+        while (true)
+        {
+            try
+            {
+                await hubConnection.StartAsync();
+                return true;
+            }
+            catch when (token.IsCancellationRequested)
+            {
+                return false;
+            }
+            catch
+            {
+                await Task.Delay(5000);
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        cts.Cancel();
+        cts.Dispose();
+        await hubConnection.DisposeAsync();
+    }
+}
