@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace VeloTimer.Shared.Models
 {
     public class SegmentTimeRider : SegmentTime
     {
         public string Rider { get; set; }
+
+        public IEnumerable<SegmentTime> Intermediates { get; set; }
     }
     public class SegmentTime
     {

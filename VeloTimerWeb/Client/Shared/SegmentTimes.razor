@@ -29,8 +29,8 @@
             {
                 <tr>
                     <td>@segment.Rider</td>
-                    <td>@String.Format("{0:00.000}", segment.Laptime)</td>
-                    <td>@String.Format("{0:00.000}", segment.Lapspeed)</td>
+                    <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
+                    <td>@String.Format("{0:00.000}", segment.Segmentspeed)</td>
                 </tr>
             }
         }
@@ -38,17 +38,14 @@
 </table>
 
 @code {
-    protected IEnumerable<LapTime> segmentTimes;
+    protected IEnumerable<SegmentTimeRider> segmentTimes;
 
     [Parameter]
-    public long? Start { get; set; }
-    [Parameter]
-    public long? End { get; set; }
+    public long Segment { get; set; }
     [Parameter]
     public long? Transponder { get; set; }
 
-    protected long? startloop;
-    protected long? endloop;
+    protected long segment;
     protected long? transponder;
 
     protected override void OnInitialized()
@@ -61,8 +58,7 @@
 
     protected override Task OnParametersSetAsync()
     {
-        startloop = Start;
-        endloop = End;
+        segment = Segment;
         transponder = Transponder;
 
         return LoadSegmentTimes();
@@ -70,7 +66,7 @@
 
     protected async Task LoadSegmentTimes()
     {
-        segmentTimes = await Http.GetFromJsonAsync<LapTime[]>($"/laptimes?startLoop={startloop}&endloop={endloop}&transponderid={transponder}");
+        segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>($"/segmenttimes?segmentId={segment}&transponderid={transponder}");
 
         StateHasChanged();
     }

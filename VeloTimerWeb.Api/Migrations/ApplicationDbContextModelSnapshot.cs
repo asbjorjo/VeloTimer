@@ -19,19 +19,19 @@ namespace VeloTimerWeb.Api.Migrations
                 .HasAnnotation("ProductVersion", "5.0.10")
                 .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
-            modelBuilder.Entity("SegmentTimingLoop", b =>
+            modelBuilder.Entity("VeloTimer.Shared.Models.Intermediate", b =>
                 {
-                    b.Property<long>("IntermediatesId")
+                    b.Property<long>("SegmentId")
                         .HasColumnType("bigint");
 
-                    b.Property<long>("segmentId")
+                    b.Property<long>("LoopId")
                         .HasColumnType("bigint");
 
-                    b.HasKey("IntermediatesId", "segmentId");
+                    b.HasKey("SegmentId", "LoopId");
 
-                    b.HasIndex("segmentId");
+                    b.HasIndex("LoopId");
 
-                    b.ToTable("SegmentTimingLoop");
+                    b.ToTable("Intermediate");
                 });
 
             modelBuilder.Entity("VeloTimer.Shared.Models.Passing", b =>
@@ -174,19 +174,23 @@ namespace VeloTimerWeb.Api.Migrations
                     b.ToTable("TransponderNames");
                 });
 
-            modelBuilder.Entity("SegmentTimingLoop", b =>
+            modelBuilder.Entity("VeloTimer.Shared.Models.Intermediate", b =>
                 {
-                    b.HasOne("VeloTimer.Shared.Models.TimingLoop", null)
+                    b.HasOne("VeloTimer.Shared.Models.TimingLoop", "Loop")
                         .WithMany()
-                        .HasForeignKey("IntermediatesId")
+                        .HasForeignKey("LoopId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("VeloTimer.Shared.Models.Segment", null)
-                        .WithMany()
-                        .HasForeignKey("segmentId")
+                    b.HasOne("VeloTimer.Shared.Models.Segment", "Segment")
+                        .WithMany("Intermediates")
+                        .HasForeignKey("SegmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Loop");
+
+                    b.Navigation("Segment");
                 });
 
             modelBuilder.Entity("VeloTimer.Shared.Models.Passing", b =>
@@ -247,6 +251,11 @@ namespace VeloTimerWeb.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Transponder");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.Segment", b =>
+                {
+                    b.Navigation("Intermediates");
                 });
 
             modelBuilder.Entity("VeloTimer.Shared.Models.TimingLoop", b =>
