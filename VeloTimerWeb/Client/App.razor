@@ -20,6 +20,7 @@
 
     protected override void OnInitialized()
     {
+        #pragma warning disable 4014
         ConnectWithRetryAsync(cts.Token);
 
         hubConnection.Closed += error =>
