@@ -21,6 +21,30 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
+        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesAsync(long segmentId, long? transponderId)
+        {
+            var segment = await _context.Segments.FindAsync(segmentId);
+
+            if (segment == null)
+            {
+                throw new KeyNotFoundException();
+            }
+
+            var laptimes = await GetSegmentTimesAsync(segment.StartId, segment.EndId, transponderId);
+            var segmenttimes = new List<SegmentTimeRider>();
+
+            foreach (var laptime in laptimes)
+            {
+                segmenttimes.Add(new SegmentTimeRider { 
+                    PassingTime = laptime.PassingTime, 
+                    Rider = laptime.Rider, 
+                    Segmentlength = laptime.Laplength, 
+                    Segmenttime = laptime.Laptime });
+            }
+
+            return segmenttimes.OrderByDescending(s => s.PassingTime);
+        }
+
         public async Task<IEnumerable<LapTime>> GetSegmentTimesAsync(long start, long finish, long? transponder)
         {
             var startLoop = await _context.TimingLoops
