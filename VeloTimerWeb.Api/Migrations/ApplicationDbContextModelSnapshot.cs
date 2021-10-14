@@ -24,12 +24,12 @@ namespace VeloTimerWeb.Api.Migrations
                     b.Property<long>("IntermediatesId")
                         .HasColumnType("bigint");
 
-                    b.Property<long>("LoopId")
+                    b.Property<long>("segmentId")
                         .HasColumnType("bigint");
 
-                    b.HasKey("IntermediatesId", "LoopId");
+                    b.HasKey("IntermediatesId", "segmentId");
 
-                    b.HasIndex("LoopId");
+                    b.HasIndex("segmentId");
 
                     b.ToTable("SegmentTimingLoop");
                 });
@@ -184,7 +184,7 @@ namespace VeloTimerWeb.Api.Migrations
 
                     b.HasOne("VeloTimer.Shared.Models.Segment", null)
                         .WithMany()
-                        .HasForeignKey("LoopId")
+                        .HasForeignKey("segmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -213,13 +213,13 @@ namespace VeloTimerWeb.Api.Migrations
                     b.HasOne("VeloTimer.Shared.Models.TimingLoop", "End")
                         .WithMany()
                         .HasForeignKey("EndId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("VeloTimer.Shared.Models.TimingLoop", "Start")
                         .WithMany()
                         .HasForeignKey("StartId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("End");

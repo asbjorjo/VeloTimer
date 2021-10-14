@@ -19,12 +19,12 @@ namespace VeloTimerWeb.Api.Data
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
-            _ = builder.Entity<Passing>().HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
-            _ = builder.Entity<Transponder>().Property(t => t.Id).ValueGeneratedNever();
-            _ = builder.Entity<TimingLoop>().HasAlternateKey(t => new { t.TrackId, t.LoopId });
-            builder.Entity<Segment>().HasMany(s => s.Intermediates).WithMany("Loop");
-            
-            base.OnModelCreating(builder);
+            builder.Entity<Passing>().HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
+            builder.Entity<Transponder>().Property(t => t.Id).ValueGeneratedNever();
+            builder.Entity<TimingLoop>().HasAlternateKey(t => new { t.TrackId, t.LoopId });
+            builder.Entity<Segment>().HasMany(s => s.Intermediates).WithMany("segment");
+            builder.Entity<Segment>().HasOne(s => s.Start).WithMany().OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<Segment>().HasOne(s => s.End).WithMany().OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

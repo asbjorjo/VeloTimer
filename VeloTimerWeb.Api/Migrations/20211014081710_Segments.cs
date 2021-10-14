@@ -2,7 +2,7 @@
 
 namespace VeloTimerWeb.Api.Migrations
 {
-    public partial class AddSegments : Migration
+    public partial class Segments : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -33,13 +33,13 @@ namespace VeloTimerWeb.Api.Migrations
                         column: x => x.EndId,
                         principalTable: "TimingLoops",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Segments_TimingLoops_StartId",
                         column: x => x.StartId,
                         principalTable: "TimingLoops",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -47,14 +47,14 @@ namespace VeloTimerWeb.Api.Migrations
                 columns: table => new
                 {
                     IntermediatesId = table.Column<long>(type: "bigint", nullable: false),
-                    LoopId = table.Column<long>(type: "bigint", nullable: false)
+                    segmentId = table.Column<long>(type: "bigint", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SegmentTimingLoop", x => new { x.IntermediatesId, x.LoopId });
+                    table.PrimaryKey("PK_SegmentTimingLoop", x => new { x.IntermediatesId, x.segmentId });
                     table.ForeignKey(
-                        name: "FK_SegmentTimingLoop_Segments_LoopId",
-                        column: x => x.LoopId,
+                        name: "FK_SegmentTimingLoop_Segments_segmentId",
+                        column: x => x.segmentId,
                         principalTable: "Segments",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -77,9 +77,9 @@ namespace VeloTimerWeb.Api.Migrations
                 column: "StartId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_SegmentTimingLoop_LoopId",
+                name: "IX_SegmentTimingLoop_segmentId",
                 table: "SegmentTimingLoop",
-                column: "LoopId");
+                column: "segmentId");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
