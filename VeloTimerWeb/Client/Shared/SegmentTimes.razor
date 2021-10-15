@@ -8,12 +8,11 @@
 
 @if (segment != null)
 {
-    @if (segment.Intermediates.Count > 0)
+    @if (segment.Intermediates.Count > 0 && !ShowIntermediate.HasValue)
     {
-        <button @onclick="ToogleIntermediates">@(showintermediate ? "Hide" : "Show") intermediate times</button>
+        <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Hide" : "Show") intermediate times</button>
     }
-    <table class="table">
-        
+    <table class="table table-striped">
         <thead>
             <tr>
                 <th>Rider</th>
@@ -21,10 +20,10 @@
                 {
                     @foreach (var intermediate in segment.Intermediates)
                     {
-                        <th>@intermediate.LoopId</th>
+                        <th>@intermediate.Loop.Description</th>
                     }
                 }
-                <th>@segment.Label</th>
+                <th>@segment.End.Description</th>
                 <th>Speed</th>
             </tr>
         </thead>
@@ -50,7 +49,10 @@
                                 <td>
                                     @(
                                         segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
-                                        segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() : 
+                                        String.Format(
+                                            "{0:00.000}", 
+                                            segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault()
+                                        ) : 
                                         "--"
                                     )
                                 </td>
@@ -72,6 +74,8 @@
     public long Segment { get; set; }
     [Parameter]
     public long? Transponder { get; set; }
+    [Parameter]
+    public bool? ShowIntermediate { get; set; }
 
     protected Segment segment;
     protected long? transponder;
@@ -87,10 +91,26 @@
 
     protected async override Task OnParametersSetAsync()
     {
-        segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
-        transponder = Transponder;
+        if (Segment != segment?.Id || Transponder != transponder) {
+            segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
 
-        await LoadSegmentTimes();
+            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.StartId}");
+            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.EndId}");
+
+            foreach (var intermediate in segment.Intermediates)
+            {
+                intermediate.Loop = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{intermediate.LoopId}");
+            }
+
+            transponder = Transponder;
+
+            await LoadSegmentTimes();
+        }
+
+        if (ShowIntermediate.HasValue)
+        {
+            showintermediate = ShowIntermediate.Value;
+        }
     }
 
     protected async Task LoadSegmentTimes()
