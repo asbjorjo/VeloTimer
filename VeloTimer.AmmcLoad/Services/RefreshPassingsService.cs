@@ -82,9 +82,24 @@ namespace VeloTimer.AmmcLoad.Services
             {
                 _httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
 
-                var mostRecent = await _httpClient.GetFromJsonAsync<Passing>("/passings/mostrecent");
+                Passing mostRecent;
 
-                await _hubConnection.InvokeAsync("SendLastPassingToClients", mostRecent);
+                try
+                {
+                    mostRecent = await _httpClient.GetFromJsonAsync<Passing>("/passings/mostrecent");
+                    await _hubConnection.InvokeAsync("SendLastPassingToClients", mostRecent);
+                }
+                catch (HttpRequestException ex)
+                {
+                    if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        mostRecent = null;
+                    } else
+                    {
+                        throw;
+                    }
+                }
+
 
                 _logger.LogInformation("Most recent passing found {0}", mostRecent.Source);
 
