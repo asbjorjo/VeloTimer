@@ -74,35 +74,39 @@ namespace VeloTimerWeb.Api.Services
                 {
                     var transponder = transponderPassing.Key;
                     var endPassing = transponderPassing.First();
-                    List<SegmentTime> inters = new List<SegmentTime>();
+                    var segmenttimerider = new SegmentTimeRider();
                     
                     foreach (var passing in transponderPassing.Skip(1))
                     {
                         if (endPassing.LoopId != segment.EndId)
                         {
                             endPassing = passing;
-                            inters = new List<SegmentTime>();
+                            segmenttimerider = new SegmentTimeRider();
                         }
                         else if (passing.LoopId == segment.StartId)
                         {
-                            segmenttimes.Add(new SegmentTimeRider
+                            segmenttimerider.Rider = endPassing.Rider?.Name ?? TransponderIdConverter.IdToCode(transponder);
+                            segmenttimerider.PassingTime = endPassing.Time;
+                            segmenttimerider.Segmentlength = segmentLength;
+                            segmenttimerider.Segmenttime = (endPassing.Time - passing.Time).TotalSeconds;
+                            segmenttimerider.Loop = endPassing.LoopId;
+
+                            foreach (var inter in segmenttimerider.Intermediates)
                             {
-                                Rider = passing.Rider?.Name ?? TransponderIdConverter.IdToCode(passing.TransponderId),
-                                PassingTime = endPassing.Time,
-                                Segmentlength = segmentLength,
-                                Segmenttime = (endPassing.Time - passing.Time).TotalSeconds,
-                                Intermediates = inters
-                            });
-                            
-                            inters = new List<SegmentTime>();
+                                inter.Segmenttime = (inter.PassingTime - passing.Time).TotalSeconds;
+                            }
+
+                            segmenttimes.Add(segmenttimerider);
+
                             endPassing = passing;
+                            segmenttimerider = new SegmentTimeRider();
                         }
                         else if (segment.Intermediates.Select(i => i.LoopId).Contains(passing.LoopId))
                         {
-                            inters.Add(new SegmentTime
+                            segmenttimerider.Intermediates.Add(new SegmentTime
                             {
                                 PassingTime = passing.Time,
-                                Segmenttime = (endPassing.Time - passing.Time).TotalSeconds
+                                Loop = passing.LoopId
                             });
                         }
                     }

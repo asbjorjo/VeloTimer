@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace VeloTimer.Shared.Models
@@ -24,6 +25,7 @@ namespace VeloTimer.Shared.Models
         public long SegmentId { get; set; }
         public long LoopId { get; set; }
 
+        [JsonIgnore]
         public Segment Segment { get; set; }
         public TimingLoop Loop { get; set; }
     }

@@ -6,36 +6,64 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Rider</th>
-            <th>Laptime</th>
-            <th>Speed</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (segmentTimes == null)
-        {
+@if (segment != null)
+{
+    @if (segment.Intermediates.Count > 0)
+    {
+        <button @onclick="ToogleIntermediates">@(showintermediate ? "Hide" : "Show") intermediate times</button>
+    }
+    <table class="table">
+        
+        <thead>
             <tr>
-                <td colspan="3">
-                    Loading...
-                </td>
+                <th>Rider</th>
+                @if (showintermediate)
+                {
+                    @foreach (var intermediate in segment.Intermediates)
+                    {
+                        <th>@intermediate.LoopId</th>
+                    }
+                }
+                <th>@segment.Label</th>
+                <th>Speed</th>
             </tr>
-        }
-        else
-        {
-            @foreach (var segment in segmentTimes)
+        </thead>
+        <tbody>
+            @if (segmentTimes == null)
             {
                 <tr>
-                    <td>@segment.Rider</td>
-                    <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
-                    <td>@String.Format("{0:00.000}", segment.Segmentspeed)</td>
+                    <td colspan="3">
+                        Loading...
+                    </td>
                 </tr>
             }
-        }
-    </tbody>
-</table>
+            else
+            {
+                @foreach (var segment in segmentTimes)
+                {
+                    <tr>
+                        <td>@segment.Rider</td>
+                        @if (showintermediate)
+                        {
+                            @foreach (var intermediate in this.segment.Intermediates)
+                            {
+                                <td>
+                                    @(
+                                        segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
+                                        segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() : 
+                                        "--"
+                                    )
+                                </td>
+                            }
+                        }
+                        <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
+                        <td>@String.Format("{0:00.000}", segment.Segmentspeed)</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+}
 
 @code {
     protected IEnumerable<SegmentTimeRider> segmentTimes;
@@ -45,8 +73,9 @@
     [Parameter]
     public long? Transponder { get; set; }
 
-    protected long segment;
+    protected Segment segment;
     protected long? transponder;
+    protected bool showintermediate = false;
 
     protected override void OnInitialized()
     {
@@ -56,19 +85,24 @@
         });
     }
 
-    protected override Task OnParametersSetAsync()
+    protected async override Task OnParametersSetAsync()
     {
-        segment = Segment;
+        segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
         transponder = Transponder;
 
-        return LoadSegmentTimes();
+        await LoadSegmentTimes();
     }
 
     protected async Task LoadSegmentTimes()
     {
-        segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>($"/segmenttimes?segmentId={segment}&transponderid={transponder}");
+        segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>($"/segmenttimes?segmentId={segment.Id}&transponderid={transponder}");
 
         StateHasChanged();
+    }
+
+    protected void ToogleIntermediates()
+    {
+        showintermediate = !showintermediate;
     }
 
     public void Dispose()
