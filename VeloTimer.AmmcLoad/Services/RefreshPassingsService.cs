@@ -101,9 +101,9 @@ namespace VeloTimer.AmmcLoad.Services
                 }
 
 
-                _logger.LogInformation("Most recent passing found {0}", mostRecent.Source);
+                _logger.LogInformation("Most recent passing found {0}", mostRecent?.Source);
 
-                var passings = await _passingService.GetAfterEntry(mostRecent.Source);
+                var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent.Source));
 
                 if (!passings.Any())
                 {
