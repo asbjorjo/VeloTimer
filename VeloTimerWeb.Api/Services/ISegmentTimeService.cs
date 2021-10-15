@@ -6,6 +6,7 @@ namespace VeloTimerWeb.Api.Services
 {
     public interface ISegmentTimeService
     {
+        Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesAsync(long segment, long? transponder);
         Task<IEnumerable<LapTime>> GetSegmentTimesAsync(long start, long finish, long? transponder);
     }
 }

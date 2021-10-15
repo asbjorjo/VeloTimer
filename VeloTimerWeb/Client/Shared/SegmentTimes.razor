@@ -1,95 +1,113 @@
-﻿@using Microsoft.AspNetCore.SignalR.Client
-@using VeloTimer.Shared.Hub
+﻿@using VeloTimer.Shared.Hub
 @using VeloTimer.Shared.Models
 @inherits ComponentBase
-@implements IAsyncDisposable
+@implements IDisposable
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
+@inject HubConnection hubConnection
 
-<table class="table">
-    <thead>
-        <tr>
-            <th>Rider</th>
-            <th>Laptime</th>
-            <th>Speed</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (segmentTimes == null)
-        {
+@if (segment != null)
+{
+    @if (segment.Intermediates.Count > 0)
+    {
+        <button @onclick="ToogleIntermediates">@(showintermediate ? "Hide" : "Show") intermediate times</button>
+    }
+    <table class="table">
+        
+        <thead>
             <tr>
-                <td colspan="3">
-                    Loading...
-                </td>
+                <th>Rider</th>
+                @if (showintermediate)
+                {
+                    @foreach (var intermediate in segment.Intermediates)
+                    {
+                        <th>@intermediate.LoopId</th>
+                    }
+                }
+                <th>@segment.Label</th>
+                <th>Speed</th>
             </tr>
-        }
-        else
-        {
-            @foreach (var segment in segmentTimes)
+        </thead>
+        <tbody>
+            @if (segmentTimes == null)
             {
                 <tr>
-                    <td>@segment.Rider</td>
-                    <td>@String.Format("{0:00.000}", segment.Laptime)</td>
-                    <td>@String.Format("{0:00.000}", segment.Lapspeed)</td>
+                    <td colspan="3">
+                        Loading...
+                    </td>
                 </tr>
             }
-        }
-    </tbody>
-</table>
+            else
+            {
+                @foreach (var segment in segmentTimes)
+                {
+                    <tr>
+                        <td>@segment.Rider</td>
+                        @if (showintermediate)
+                        {
+                            @foreach (var intermediate in this.segment.Intermediates)
+                            {
+                                <td>
+                                    @(
+                                        segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
+                                        segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() : 
+                                        "--"
+                                    )
+                                </td>
+                            }
+                        }
+                        <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
+                        <td>@String.Format("{0:00.000}", segment.Segmentspeed)</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+}
 
 @code {
-    protected IEnumerable<LapTime> segmentTimes;
-    protected HubConnection hubConnection;
+    protected IEnumerable<SegmentTimeRider> segmentTimes;
 
     [Parameter]
-    public long? Start { get; set; }
-    [Parameter]
-    public long? End { get; set; }
+    public long Segment { get; set; }
     [Parameter]
     public long? Transponder { get; set; }
 
-    protected long? startloop;
-    protected long? endloop;
+    protected Segment segment;
     protected long? transponder;
+    protected bool showintermediate = false;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(NavigationManager.ToAbsoluteUri(Strings.hubUrl))
-            .WithAutomaticReconnect()
-            .Build();
-
         hubConnection.On(Strings.Events.NewPassings, async () =>
         {
             await LoadSegmentTimes();
         });
-
-
-        await hubConnection.StartAsync();
     }
 
-    protected override Task OnParametersSetAsync()
+    protected async override Task OnParametersSetAsync()
     {
-        startloop = Start;
-        endloop = End;
+        segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
         transponder = Transponder;
 
-        return LoadSegmentTimes();
+        await LoadSegmentTimes();
     }
 
     protected async Task LoadSegmentTimes()
     {
-        segmentTimes = await Http.GetFromJsonAsync<LapTime[]>($"/laptimes?startLoop={startloop}&endloop={endloop}&transponderid={transponder}");
+        segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>($"/segmenttimes?segmentId={segment.Id}&transponderid={transponder}");
 
         StateHasChanged();
     }
 
-    public async ValueTask DisposeAsync()
+    protected void ToogleIntermediates()
     {
-        if (hubConnection is not null)
-        {
-            await hubConnection.DisposeAsync();
-        }
+        showintermediate = !showintermediate;
+    }
+
+    public void Dispose()
+    {
+        hubConnection.Remove(Strings.Events.NewPassings);
     }
 }
         

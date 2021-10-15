@@ -6,49 +6,35 @@
 
 <h3>Segment Times</h3>
 
-@if (timingloops == null)
+@if (segments == null)
 {
     <p>Loading...</p>
 }
 else
 {
-    <select @onchange="ChangeStartLoop">
-        @foreach (var timingloop in timingloops)
+    <select @onchange="ChangeSegment">
+        @foreach (var segment in segments)
         {
-            <option value="@timingloop.Id">@timingloop.Description</option>
-        }
-    </select>
-    <select @onchange="ChangeEndLoop">
-        @foreach (var timingloop in timingloops)
-        {
-            <option value="@timingloop.Id">@timingloop.Description</option>
+            <option value="@segment.Id">@segment.Label</option>
         }
     </select>
 
-    <SegmentTimes Start="startloop" End="endloop"/>
+    <SegmentTimes Segment=segment/>
 }
 
 @code {
-    private TimingLoop[] timingloops;
-    private long startloop;
-    private long endloop;
+    private Segment[] segments;
+    private long segment;
 
     protected override async Task OnInitializedAsync()
     {
-        timingloops = await Http.GetFromJsonAsync<TimingLoop[]>("/timingloops");
-        startloop = timingloops.First().Id;
-        endloop = startloop;
+        segments = await Http.GetFromJsonAsync<Segment[]>("/segments");
+        segment = segments.First().Id;
     }
 
-    private void ChangeStartLoop(ChangeEventArgs e)
+    private void ChangeSegment(ChangeEventArgs e)
     {
-        var start = int.Parse(e.Value.ToString());
-        startloop = timingloops.Where(t => t.Id == start).Single().Id;
-    }
-
-    private void ChangeEndLoop(ChangeEventArgs e)
-    {
-        var finish = int.Parse(e.Value.ToString());
-        endloop = timingloops.Where(t => t.Id == finish).Single().Id;
+        var selected = int.Parse(e.Value.ToString());
+        segment = segments.Where(s => s.Id == selected).Single().Id;
     }
 }

@@ -21,6 +21,101 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
+        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesAsync(long segmentId, long? transponderId)
+        {
+            var segment = await _context.Segments.Where(s => s.Id == segmentId)
+                                                 .Include(s => s.Start)
+                                                 .ThenInclude(t => t.Track)
+                                                 .Include(s => s.End)
+                                                 .Include(s => s.Intermediates)
+                                                 .SingleOrDefaultAsync();
+            
+            if (segment == null)
+            {
+                throw new KeyNotFoundException();
+            }
+
+            double segmentLength = CalculateSegmentLength(segment.Start, segment.End);
+
+            var loopIds = new List<long>
+            {
+                segment.StartId,
+                segment.EndId
+            };
+            loopIds.AddRange(segment.Intermediates?.Select(i => i.LoopId));
+            loopIds = loopIds.Distinct().ToList();
+
+            var dbPassings = _context.Set<Passing>().AsQueryable();
+
+            if (transponderId.HasValue)
+            {
+                dbPassings = dbPassings.Where(p => p.TransponderId == transponderId);
+            }
+
+            var passings = dbPassings
+                                .Where(p => loopIds.Contains(p.LoopId))
+                                .Select(p => new
+                                {
+                                    TransponderId = p.TransponderId,
+                                    Rider = p.Transponder.Names.Where(n => n.ValidFrom <= p.Time || n.ValidUntil >= p.Time).SingleOrDefault(),
+                                    Time = p.Time,
+                                    LoopId = p.LoopId
+                                })
+                                .OrderByDescending(p => p.Time)
+                                .Take(1000)
+                                .AsEnumerable();
+
+            var transponderPassings = passings.GroupBy(p => p.TransponderId);
+
+            var segmenttimes = new ConcurrentBag<SegmentTimeRider>();
+
+            Parallel.ForEach(transponderPassings, transponderPassing =>
+            {
+                {
+                    var transponder = transponderPassing.Key;
+                    var endPassing = transponderPassing.First();
+                    var segmenttimerider = new SegmentTimeRider();
+                    
+                    foreach (var passing in transponderPassing.Skip(1))
+                    {
+                        if (endPassing.LoopId != segment.EndId)
+                        {
+                            endPassing = passing;
+                            segmenttimerider = new SegmentTimeRider();
+                        }
+                        else if (passing.LoopId == segment.StartId)
+                        {
+                            segmenttimerider.Rider = endPassing.Rider?.Name ?? TransponderIdConverter.IdToCode(transponder);
+                            segmenttimerider.PassingTime = endPassing.Time;
+                            segmenttimerider.Segmentlength = segmentLength;
+                            segmenttimerider.Segmenttime = (endPassing.Time - passing.Time).TotalSeconds;
+                            segmenttimerider.Loop = endPassing.LoopId;
+
+                            foreach (var inter in segmenttimerider.Intermediates)
+                            {
+                                inter.Segmenttime = (inter.PassingTime - passing.Time).TotalSeconds;
+                            }
+
+                            segmenttimes.Add(segmenttimerider);
+
+                            endPassing = passing;
+                            segmenttimerider = new SegmentTimeRider();
+                        }
+                        else if (segment.Intermediates.Select(i => i.LoopId).Contains(passing.LoopId))
+                        {
+                            segmenttimerider.Intermediates.Add(new SegmentTime
+                            {
+                                PassingTime = passing.Time,
+                                Loop = passing.LoopId
+                            });
+                        }
+                    }
+                }
+            });
+
+            return segmenttimes.OrderByDescending(s => s.PassingTime);
+        }
+
         public async Task<IEnumerable<LapTime>> GetSegmentTimesAsync(long start, long finish, long? transponder)
         {
             var startLoop = await _context.TimingLoops
@@ -43,9 +138,7 @@ namespace VeloTimerWeb.Api.Services
                 dbPassings = dbPassings.Where(p => p.TransponderId == transponder);
             }
 
-            var transponderPassings = await Task.Run(() =>
-            {
-                var passings = dbPassings
+            var passings = dbPassings
                                 .OrderByDescending(p => p.Time)
                                 .Where(p => p.Loop == startLoop || p.Loop == endLoop)
                                 .Select(p => new
@@ -58,8 +151,7 @@ namespace VeloTimerWeb.Api.Services
                                 .Take(1000)
                                 .AsEnumerable();
 
-                return passings.GroupBy(p => p.TransponderId);
-            });
+            var transponderPassings = passings.GroupBy(p => p.TransponderId);
 
             var laptimes = new ConcurrentBag<LapTime>();
 

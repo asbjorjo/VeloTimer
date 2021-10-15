@@ -20,25 +20,19 @@ else
         }
     </select>
 
-    if (timingloops == null)
+    if (segments == null)
     {
         <p>Loading....</p>
     }
     else
     {
-        <select @onchange="ChangeStartLoop">
-            @foreach (var timingloop in timingloops)
+        <select @onchange="ChangeSegment">
+            @foreach (var segment in segments)
             {
-                <option value="@timingloop.Id">@timingloop.Description</option>
+                <option value="@segment.Id">@segment.Label</option>
             }
         </select>
-        <select @onchange="ChangeEndLoop">
-            @foreach (var timingloop in timingloops)
-            {
-                <option value="@timingloop.Id">@timingloop.Description</option>
-            }
-        </select>
-
+        
         <table class="table">
             <thead>
                 <tr>
@@ -57,8 +51,8 @@ else
                         {
                         <tr>
                             <td>@segment.Rider</td>
-                            <td>@String.Format("{0:00.000}", segment.Laptime)</td>
-                            <td>@String.Format("{0:00.000}", segment.Lapspeed)</td>
+                            <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
+                            <td>@String.Format("{0:00.000}", segment.Segmentspeed)</td>
                         </tr>
                             }
                         }
@@ -71,17 +65,19 @@ else
 @code {
     private Transponder transponder;
     private Transponder[] transponders;
-    private TimingLoop[] timingloops;
-    private LapTime[] segmenttimes;
-    private long startloop;
-    private long endloop;
+    private Segment[] segments;
+    private SegmentTimeRider[] segmenttimes;
+    private long segment;
 
     protected override async Task OnInitializedAsync()
     {
         transponders = await Http.GetFromJsonAsync<Transponder[]>("/transponders");
-        timingloops = await Http.GetFromJsonAsync<TimingLoop[]>("/timingloops");
-        startloop = timingloops.First().Id;
-        endloop = startloop;
+        segments = await Http.GetFromJsonAsync<Segment[]>("/segments");
+
+        transponder = transponders.First();
+        segment = segments.First().Id;
+
+        await LoadSegmentTimes();
     }
 
     private async void ChangeTransponder(ChangeEventArgs e)
@@ -91,23 +87,17 @@ else
         await LoadSegmentTimes();
     }
 
-    private async void ChangeStartLoop(ChangeEventArgs e)
+    private async void ChangeSegment(ChangeEventArgs e)
     {
-        var start = long.Parse(e.Value.ToString());
-        startloop = timingloops.Where(t => t.Id == start).Single().Id;
-        await LoadSegmentTimes();
-    }
+        var selected = int.Parse(e.Value.ToString());
+        segment = segments.Where(s => s.Id == selected).Single().Id;
 
-    private async void ChangeEndLoop(ChangeEventArgs e)
-    {
-        var finish = long.Parse(e.Value.ToString());
-        endloop = timingloops.Where(t => t.Id == finish).Single().Id;
         await LoadSegmentTimes();
     }
 
     protected async Task LoadSegmentTimes()
     {
-        segmenttimes = await Http.GetFromJsonAsync<LapTime[]>($"/laptimes?startLoop={startloop}&endloop={endloop}&transponderid={transponder.Id}");
+        segmenttimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>($"/segmenttimes?segmentId={segment}&transponderid={transponder.Id}");
 
         StateHasChanged();
     }
