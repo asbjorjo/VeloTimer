@@ -15,14 +15,16 @@ namespace VeloTimerWeb.Api.Data
         public DbSet<Transponder> Transponders { get; set; }
         public DbSet<TransponderName> TransponderNames { get; set; }
         public DbSet<Passing> Passings { get; set; }
-        
+        public DbSet<Segment> Segments { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
-            _ = builder.Entity<Passing>().HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
-            _ = builder.Entity<Transponder>().Property(t => t.Id).ValueGeneratedNever();
-            _ = builder.Entity<TimingLoop>().HasAlternateKey(t => new { t.TrackId, t.LoopId });
-
-            base.OnModelCreating(builder);
+            builder.Entity<Passing>().HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
+            builder.Entity<Transponder>().Property(t => t.Id).ValueGeneratedNever();
+            builder.Entity<TimingLoop>().HasAlternateKey(t => new { t.TrackId, t.LoopId });
+            builder.Entity<Segment>().HasOne(s => s.Start).WithMany().OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<Segment>().HasOne(s => s.End).WithMany().OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<Intermediate>().HasKey(k => new { k.SegmentId, k.LoopId });
         }
     }
 }

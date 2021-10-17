@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -12,6 +13,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using VeloTimer.AmmcLoad.Data;
 using VeloTimer.AmmcLoad.Services;
+using VeloTimer.Shared.Hub;
 
 namespace VeloTimer.AmmcLoad
 {
@@ -37,7 +39,8 @@ namespace VeloTimer.AmmcLoad
             services.AddHttpClient(
                 "VeloTimerWeb.ServerAPI", 
                 client => client.BaseAddress = new Uri(Configuration["VELOTIMER_API_URL"]));
-            services.AddSingleton(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("VeloTimerWeb.ServerAPI"));
+            services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("VeloTimerWeb.ServerAPI"));
+            services.AddSingleton<HubConnection>(new HubConnectionBuilder().WithUrl(new Uri(new Uri(Configuration["VELOTIMER_HUB"]), Strings.hubUrl)).WithAutomaticReconnect().Build());
             services.AddHostedService<RefreshPassingsService>();
 
             services.AddRazorPages();
