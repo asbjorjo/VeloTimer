@@ -39,6 +39,12 @@ jobs:
       run: dotnet publish "${{ env.AMMC_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_AMMC_PACKAGE_PATH }}"
     - name: Publish WebApp
       run: dotnet publish "${{ env.WEBAPP_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+    - name: Install EF Tool
+      run: |
+          dotnet new tool-manifest
+          dotnet tool install dotnet-ef
+    - name: Update Database
+      run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} --no-build
     - name: Deploy to Azure API
       uses: azure/webapps-deploy@v2
       with:
