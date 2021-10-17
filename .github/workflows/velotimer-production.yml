@@ -15,6 +15,7 @@ env:
   WEBAPP_WORKING_DIRECTORY: VeloTimerWeb/Server
   API_WORKING_DIRECTORY: VeloTimerWeb.Api
   AMMC_WORKING_DIRECTORY: VeloTimer.AmmcLoad
+  AzureVault: https://velotimervault.vault.azure.net/
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
