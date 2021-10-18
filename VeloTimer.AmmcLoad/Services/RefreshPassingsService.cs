@@ -161,7 +161,7 @@ namespace VeloTimer.AmmcLoad.Services
                     _logger.LogError($"{response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
                 } else
                 {
-                    await _hubConnection.InvokeAsync("NotifyLoopsOfNewPassings", loopIds);
+                    await _hubConnection.InvokeAsync("NotifyLoopsOfNewPassings", trackPassings.Select(tp => tp.LoopId).Distinct());
                 }
             }
         }
