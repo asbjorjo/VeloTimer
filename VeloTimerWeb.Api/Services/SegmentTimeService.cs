@@ -91,9 +91,21 @@ namespace VeloTimerWeb.Api.Services
                             segmenttimerider.Segmenttime = (endPassing.Time - passing.Time).TotalSeconds;
                             segmenttimerider.Loop = endPassing.LoopId;
 
-                            foreach (var inter in segmenttimerider.Intermediates)
+                            if (segmenttimerider.Intermediates.Count > segment.Intermediates.Count)
                             {
-                                inter.Segmenttime = (inter.PassingTime - passing.Time).TotalSeconds;
+                                _logger.LogWarning($"Too many intermediate times found:" +
+                                    $" - {TransponderIdConverter.IdToCode(transponder)}" +
+                                    $" - {segment.Label}" +
+                                    $" - {passing.Time}" +
+                                    $" - {endPassing.Time}" +
+                                    $" - {segmenttimerider.Segmenttime}" +
+                                    $" - {segmenttimerider.Intermediates.Count}");
+                                segmenttimerider.Intermediates.Clear();
+                            } else {
+                                foreach (var inter in segmenttimerider.Intermediates)
+                                {
+                                    inter.Segmenttime = (inter.PassingTime - passing.Time).TotalSeconds;
+                                }
                             }
 
                             segmenttimes.Add(segmenttimerider);
