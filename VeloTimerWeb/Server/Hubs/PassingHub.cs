@@ -35,14 +35,14 @@ namespace VeloTimerWeb.Server.Hubs
             await Clients.Groups(loops.Select(l => l.ToString()).ToList()).NewPassings();
         }
 
-        public async Task AddToTimingLoopGroup(long loop)
+        public Task AddToTimingLoopGroup(long loop)
         {
-            await Groups.AddToGroupAsync(Context.ConnectionId, loop.ToString());
+            return Groups.AddToGroupAsync(Context.ConnectionId, loop.ToString());
         }
 
-        public async Task RemoveFromTimingLoopGroup(long loop) 
+        public Task RemoveFromTimingLoopGroup(long loop) 
         { 
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, loop.ToString()); 
+            return Groups.RemoveFromGroupAsync(Context.ConnectionId, loop.ToString()); 
         }
 
         public override Task OnConnectedAsync()
