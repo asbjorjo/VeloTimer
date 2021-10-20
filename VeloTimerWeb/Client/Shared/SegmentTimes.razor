@@ -92,6 +92,11 @@
     protected async override Task OnParametersSetAsync()
     {
         if (Segment != segment?.Id || Transponder != transponder) {
+            if (segment != null)
+            {
+                await hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+            }
+
             segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
 
             segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.StartId}");
@@ -103,6 +108,8 @@
             }
 
             transponder = Transponder;
+
+            await hubConnection.InvokeAsync("AddToTimingLoopGroup", segment.EndId);
 
             await LoadSegmentTimes();
         }
@@ -128,6 +135,7 @@
     public void Dispose()
     {
         hubConnection.Remove(Strings.Events.NewPassings);
+        hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
     }
 }
         

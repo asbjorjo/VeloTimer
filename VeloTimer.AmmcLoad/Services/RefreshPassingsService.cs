@@ -87,7 +87,6 @@ namespace VeloTimer.AmmcLoad.Services
                 try
                 {
                     mostRecent = await _httpClient.GetFromJsonAsync<Passing>("/passings/mostrecent");
-                    await _hubConnection.InvokeAsync("SendLastPassingToClients", mostRecent);
                 }
                 catch (HttpRequestException ex)
                 {
@@ -160,9 +159,10 @@ namespace VeloTimer.AmmcLoad.Services
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogError($"{response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
+                } else
+                {
+                    await _hubConnection.InvokeAsync("NotifyLoopsOfNewPassings", trackPassings.Select(tp => tp.LoopId).Distinct());
                 }
-
-                await _hubConnection.InvokeAsync("NotifyClientsOfNewPassings");
             }
         }
 
