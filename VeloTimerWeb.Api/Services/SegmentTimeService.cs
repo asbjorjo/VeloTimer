@@ -38,7 +38,17 @@ namespace VeloTimerWeb.Api.Services
                     paramName: nameof(segmentId));
             }
 
-            double segmentLength = CalculateSegmentLength(segment.Start, segment.End);
+            var passings = transponderId.HasValue ? _context.Passings.Where(p => transponderId.Value == p.TransponderId) : _context.Passings;
+
+            var firstpass = await passings.OrderByDescending(p => p.Time)
+                                          .Where(p => p.Loop == segment.Start)
+                                          .Take(100)
+                                          .LastOrDefaultAsync();
+
+            if (firstpass == null)
+            {
+                return Enumerable.Empty<SegmentTimeRider>();
+            }
 
             var loopIds = new List<long>
             {
@@ -48,87 +58,148 @@ namespace VeloTimerWeb.Api.Services
             loopIds.AddRange(segment.Intermediates?.Select(i => i.LoopId));
             loopIds = loopIds.Distinct().ToList();
 
-            var dbPassings = _context.Set<Passing>().AsQueryable();
-
-            if (transponderId.HasValue)
-            {
-                dbPassings = dbPassings.Where(p => p.TransponderId == transponderId);
-            }
-
-            var passings = dbPassings
-                                .Where(p => loopIds.Contains(p.LoopId))
-                                .Select(p => new
-                                {
-                                    TransponderId = p.TransponderId,
-                                    Rider = p.Transponder.Names.Where(n => n.ValidFrom <= p.Time || n.ValidUntil >= p.Time).SingleOrDefault(),
-                                    Time = p.Time,
-                                    LoopId = p.LoopId
-                                })
-                                .OrderByDescending(p => p.Time)
-                                .Take(1000)
-                                .AsEnumerable();
-
-            var transponderPassings = passings.GroupBy(p => p.TransponderId);
+            var passingevents = passings.Where(p => loopIds.Contains(p.LoopId))
+                                        .Where(p => p.Time > firstpass.Time)
+                                        .OrderBy(p => p.Time)
+                                        .AsEnumerable()
+                                        .GroupBy(p => p.TransponderId);
 
             var segmenttimes = new ConcurrentBag<SegmentTimeRider>();
 
-            Parallel.ForEach(transponderPassings, transponderPassing =>
+            Parallel.ForEach(passingevents, transponderpassings =>
             {
+                var transponderid = transponderpassings.Key;
+                SegmentTimeRider segmenttimerider = new SegmentTimeRider
                 {
-                    var transponder = transponderPassing.Key;
-                    var endPassing = transponderPassing.First();
-                    var segmenttimerider = new SegmentTimeRider();
-                    
-                    foreach (var passing in transponderPassing.Skip(1))
+                    Rider = TransponderIdConverter.IdToCode(transponderid),
+                    PassingTime = transponderpassings.First().Time,
+                    Loop = segment.EndId,
+                    Segmentlength = CalculateSegmentLength(segment.Start, segment.End)
+                };
+
+                foreach (var transponderpassing in transponderpassings.Skip(1))
+                {
+                    if (segment.Intermediates.Select(i => i.LoopId).Contains(transponderpassing.LoopId))
                     {
-                        if (endPassing.LoopId != segment.EndId)
+                        segmenttimerider.Intermediates.Add(new SegmentTime
                         {
-                            endPassing = passing;
-                            segmenttimerider = new SegmentTimeRider();
-                        }
-                        else if (passing.LoopId == segment.StartId)
+                            Loop = transponderpassing.LoopId,
+                            PassingTime = transponderpassing.Time,
+                            Segmenttime = (transponderpassing.Time - segmenttimerider.PassingTime).TotalSeconds
+                        });
+                    }
+                    if (transponderpassing.LoopId == segment.EndId)
+                    {
+                        segmenttimerider.Segmenttime = (transponderpassing.Time - segmenttimerider.PassingTime).TotalSeconds;
+                        segmenttimes.Add(segmenttimerider);
+                        segmenttimerider = new SegmentTimeRider
                         {
-                            segmenttimerider.Rider = endPassing.Rider?.Name ?? TransponderIdConverter.IdToCode(transponder);
-                            segmenttimerider.PassingTime = endPassing.Time;
-                            segmenttimerider.Segmentlength = segmentLength;
-                            segmenttimerider.Segmenttime = (endPassing.Time - passing.Time).TotalSeconds;
-                            segmenttimerider.Loop = endPassing.LoopId;
-
-                            if (segmenttimerider.Intermediates.Count > segment.Intermediates.Count)
-                            {
-                                _logger.LogWarning($"Too many intermediate times found:" +
-                                    $" - {TransponderIdConverter.IdToCode(transponder)}" +
-                                    $" - {segment.Label}" +
-                                    $" - {passing.Time}" +
-                                    $" - {endPassing.Time}" +
-                                    $" - {segmenttimerider.Segmenttime}" +
-                                    $" - {segmenttimerider.Intermediates.Count}");
-                                segmenttimerider.Intermediates.Clear();
-                            } else {
-                                foreach (var inter in segmenttimerider.Intermediates)
-                                {
-                                    inter.Segmenttime = (inter.PassingTime - passing.Time).TotalSeconds;
-                                }
-                            }
-
-                            segmenttimes.Add(segmenttimerider);
-
-                            endPassing = passing;
-                            segmenttimerider = new SegmentTimeRider();
-                        }
-                        else if (segment.Intermediates.Select(i => i.LoopId).Contains(passing.LoopId))
-                        {
-                            segmenttimerider.Intermediates.Add(new SegmentTime
-                            {
-                                PassingTime = passing.Time,
-                                Loop = passing.LoopId
-                            });
-                        }
+                            Rider = TransponderIdConverter.IdToCode(transponderid),
+                            Loop = segment.EndId,
+                            Segmentlength = CalculateSegmentLength(segment.Start, segment.End)
+                        };
+                    }
+                    if (transponderpassing.LoopId == segment.StartId)
+                    {
+                        segmenttimerider.PassingTime = transponderpassing.Time;
+                        segmenttimerider.Intermediates.Clear();
                     }
                 }
             });
 
-            return segmenttimes.OrderByDescending(s => s.PassingTime);
+            return segmenttimes.OrderByDescending(st => st.PassingTime);
+
+            //double segmentLength = CalculateSegmentLength(segment.Start, segment.End);
+
+            //var loopIds = new List<long>
+            //{
+            //    segment.StartId,
+            //    segment.EndId
+            //};
+            //loopIds.AddRange(segment.Intermediates?.Select(i => i.LoopId));
+            //loopIds = loopIds.Distinct().ToList();
+
+            //var dbPassings = _context.Set<Passing>().AsQueryable();
+
+            //if (transponderId.HasValue)
+            //{
+            //    dbPassings = dbPassings.Where(p => p.TransponderId == transponderId);
+            //}
+
+            //var passings = dbPassings
+            //                    .Where(p => loopIds.Contains(p.LoopId))
+            //                    .Select(p => new
+            //                    {
+            //                        TransponderId = p.TransponderId,
+            //                        Rider = p.Transponder.Names.Where(n => n.ValidFrom <= p.Time || n.ValidUntil >= p.Time).SingleOrDefault(),
+            //                        Time = p.Time,
+            //                        LoopId = p.LoopId
+            //                    })
+            //                    .OrderByDescending(p => p.Time)
+            //                    .Take(1000)
+            //                    .AsEnumerable();
+
+            //var transponderPassings = passings.GroupBy(p => p.TransponderId);
+
+            //var segmenttimes = new ConcurrentBag<SegmentTimeRider>();
+
+            //Parallel.ForEach(transponderPassings, transponderPassing =>
+            //{
+            //    {
+            //        var transponder = transponderPassing.Key;
+            //        var endPassing = transponderPassing.First();
+            //        var segmenttimerider = new SegmentTimeRider();
+                    
+            //        foreach (var passing in transponderPassing.Skip(1))
+            //        {
+            //            if (endPassing.LoopId != segment.EndId)
+            //            {
+            //                endPassing = passing;
+            //                segmenttimerider = new SegmentTimeRider();
+            //            }
+            //            else if (passing.LoopId == segment.StartId)
+            //            {
+            //                segmenttimerider.Rider = endPassing.Rider?.Name ?? TransponderIdConverter.IdToCode(transponder);
+            //                segmenttimerider.PassingTime = endPassing.Time;
+            //                segmenttimerider.Segmentlength = segmentLength;
+            //                segmenttimerider.Segmenttime = (endPassing.Time - passing.Time).TotalSeconds;
+            //                segmenttimerider.Loop = endPassing.LoopId;
+
+            //                if (segmenttimerider.Intermediates.Count > segment.Intermediates.Count)
+            //                {
+            //                    _logger.LogWarning($"Too many intermediate times found:" +
+            //                        $" - {TransponderIdConverter.IdToCode(transponder)}" +
+            //                        $" - {segment.Label}" +
+            //                        $" - {passing.Time}" +
+            //                        $" - {endPassing.Time}" +
+            //                        $" - {segmenttimerider.Segmenttime}" +
+            //                        $" - {segmenttimerider.Intermediates.Count}");
+            //                    segmenttimerider.Intermediates.Clear();
+            //                } else {
+            //                    foreach (var inter in segmenttimerider.Intermediates)
+            //                    {
+            //                        inter.Segmenttime = (inter.PassingTime - passing.Time).TotalSeconds;
+            //                    }
+            //                }
+
+            //                segmenttimes.Add(segmenttimerider);
+
+            //                endPassing = passing;
+            //                segmenttimerider = new SegmentTimeRider();
+            //            }
+            //            else if (segment.Intermediates.Select(i => i.LoopId).Contains(passing.LoopId))
+            //            {
+            //                segmenttimerider.Intermediates.Add(new SegmentTime
+            //                {
+            //                    PassingTime = passing.Time,
+            //                    Loop = passing.LoopId
+            //                });
+            //            }
+            //        }
+            //    }
+            //});
+
+            //return segmenttimes.OrderByDescending(s => s.PassingTime);
         }
 
         private static double CalculateSegmentLength(TimingLoop startLoop, TimingLoop endLoop)
