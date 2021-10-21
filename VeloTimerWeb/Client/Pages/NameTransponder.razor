@@ -35,7 +35,7 @@
     <button type="submit">Save</button>
 </EditForm>
 
-<table class="table table-bordered">
+<table class="table table-bordered table-striped">
     <thead>
         <tr>
             <th>Transponder</th>
@@ -52,8 +52,8 @@
                 <tr>
                     <td>@(TransponderIdConverter.IdToCode(transpondername.TransponderId))</td>
                     <td>@transpondername.Name</td>
-                    <td>@transpondername.ValidFrom</td>
-                    <td>@transpondername.ValidUntil</td>
+                    <td>@transpondername.ValidFrom.Date.ToShortDateString()</td>
+                    <td>@transpondername.ValidUntil.Date.ToShortDateString()</td>
                 </tr>
             }
         }
