@@ -29,8 +29,6 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var segmenttimess = await _segmentTimes.GetSegmentTimesAsync(segmentId, transponderId);
 
-            segmenttimess = segmenttimess.Where(s => s.Segmentspeed > 5);
-
             return segmenttimess.ToList();
         }
     }

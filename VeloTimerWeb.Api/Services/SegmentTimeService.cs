@@ -98,7 +98,10 @@ namespace VeloTimerWeb.Api.Services
                     if (transponderpassing.LoopId == segment.EndId)
                     {
                         segmenttimerider.Segmenttime = (transponderpassing.Time - segmenttimerider.PassingTime).TotalSeconds;
-                        segmenttimes.Add(segmenttimerider);
+                        if (segmenttimerider.Segmenttime < segment.MaxTime && segmenttimerider.Segmenttime > segment.MinTime)
+                        {
+                            segmenttimes.Add(segmenttimerider);
+                        }
                         segmenttimerider = new SegmentTimeRider
                         {
                             Rider = transponderpassing.Rider?.Name ?? TransponderIdConverter.IdToCode(transponderid),
