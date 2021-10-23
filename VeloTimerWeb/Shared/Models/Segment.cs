@@ -14,6 +14,9 @@ namespace VeloTimer.Shared.Models
         public long StartId { get; set; }
         public long EndId { get; set; }
 
+        public long MinTime { get; set; } = 0;
+        public long MaxTime { get; set; } = long.MaxValue;
+
         public TimingLoop Start { get; set; }
         public TimingLoop End { get; set; }
 
