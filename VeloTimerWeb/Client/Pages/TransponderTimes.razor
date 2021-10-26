@@ -37,7 +37,7 @@ else
         {
             var dayindex = DayNumber(fromtime, date) - 1;
             <div>
-                <div class="text-lg-center font-weight-bold" @onclick="() => ToggleShowDay(dayindex)">@date.ToShortDateString()</div>
+                <div class="text-lg-center font-weight-bold" @onclick="() => ToggleShowDay(dayindex)">@date.ToShortDateString() - <SegmentPassingCount Segment=segment Transponder=transponder.Id FromTime=date Period=TimeSpan.FromDays(1)/></div>
                 @if (showdays[dayindex]) {
                     <SegmentTimes Segment=segment Transponder=transponder.Id FromTime=date Period=TimeSpan.FromDays(1) ShowIntermediate=true />
                 }
@@ -50,7 +50,6 @@ else
     private Transponder transponder;
     private Transponder[] transponders;
     private Segment[] segments;
-    private SegmentTimeRider[] segmenttimes;
     private long segment;
     private DateTime fromtime = DateTime.Now.Date - TimeSpan.FromDays(7);
     private DateTime totime = DateTime.Now.Date;

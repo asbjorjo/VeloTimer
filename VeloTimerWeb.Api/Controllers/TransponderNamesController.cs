@@ -37,6 +37,15 @@ namespace VeloTimerWeb.Api.Controllers
             return await base.Create(value);
         }
 
+        [Route("active")]
+        [HttpGet]
+        public async Task<ActionResult<ICollection<TransponderName>>> GetActive()
+        {
+            var value = _context.Passings.Where(p => p.Time > DateTime.Now.AddHours(-1)).Select(p => p.Transponder.Names.Where(tn => tn.ValidFrom < DateTime.Now && tn.ValidUntil > DateTime.Now).SingleOrDefault());
+
+            return value.ToList();
+        }
+
         public override Task<ActionResult> Create(IEnumerable<TransponderName> values)
         {
             throw new NotImplementedException($"Batch creation of {nameof(TransponderName)} not supported");

@@ -32,7 +32,7 @@ namespace VeloTimerWeb.Api
 
             services.AddDatabaseDeveloperPageExceptionFilter();
 
-            services.AddScoped<ISegmentTimeService, SegmentTimeService>();
+            services.AddScoped<ISegmentService, SegmentService>();
 
             services.AddCors(options =>
             {
