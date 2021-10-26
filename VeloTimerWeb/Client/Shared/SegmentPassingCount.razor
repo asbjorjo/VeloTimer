@@ -1,0 +1,79 @@
+﻿@using VeloTimer.Shared.Hub
+@using VeloTimer.Shared.Models
+@inherits ComponentBase
+@implements IDisposable
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject HubConnection hubConnection
+
+@if (segment != null && passingcount != null)
+{
+    @passingcount
+}
+
+@code {
+    protected long passingcount;
+
+    [Parameter]
+    public long Segment { get; set; }
+    [Parameter]
+    public long? Transponder { get; set; }
+    [Parameter]
+    public DateTime? FromTime { get; set; }
+    [Parameter]
+    public TimeSpan? Period { get; set; }
+
+    protected Segment segment;
+    protected long? transponder;
+    protected DateTime? fromtime;
+    protected TimeSpan? period;
+
+    protected override void OnInitialized()
+    {
+        hubConnection.On(Strings.Events.NewPassings, async () =>
+        {
+            await LoadSegmentPassingCount();
+        });
+    }
+
+    protected async override Task OnParametersSetAsync()
+    {
+        if (Segment != segment?.Id || Transponder != transponder) {
+            if (segment != null)
+            {
+                await hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+            }
+
+            segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
+
+            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.StartId}");
+            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.EndId}");
+
+            transponder = Transponder;
+            fromtime = FromTime;
+            period = Period;
+
+            if (period == null)
+            {
+                await hubConnection.InvokeAsync("AddToTimingLoopGroup", segment.EndId);
+            }
+
+            await LoadSegmentPassingCount();
+        }
+
+    }
+
+    protected async Task LoadSegmentPassingCount()
+    {
+        passingcount = await Http.GetFromJsonAsync<long>($"/segments/passingcount?segmentId={segment.Id}&transponderid={transponder}&fromtime={fromtime}&period={period}");
+
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        hubConnection.Remove(Strings.Events.NewPassings);
+        hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+    }
+}
+        

@@ -144,7 +144,7 @@
 
     protected async Task LoadSegmentTimes()
     {
-        segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>($"/segmenttimes?segmentId={segment.Id}&transponderid={transponder}&fromtime={fromtime}&period={period}");
+        segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>($"/segments/times?segmentId={segment.Id}&transponderid={transponder}&fromtime={fromtime}&period={period}");
 
         StateHasChanged();
     }

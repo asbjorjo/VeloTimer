@@ -5,8 +5,9 @@ using VeloTimer.Shared.Models;
 
 namespace VeloTimerWeb.Api.Services
 {
-    public interface ISegmentTimeService
+    public interface ISegmentService
     {
         Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesAsync(long segment, long? transponder, DateTime? fromtime, TimeSpan? period);
+        Task<long> GetSegmentPassingCountAsync(long segment, long? transponder, DateTime? fromtime, TimeSpan? period);
     }
 }
