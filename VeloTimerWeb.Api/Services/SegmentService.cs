@@ -24,13 +24,8 @@ namespace VeloTimerWeb.Api.Services
 
         public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesAsync(long segmentId, long? transponderId, DateTime? fromtime, TimeSpan? period)
         {
-            var segment = await _context.Segments.Where(s => s.Id == segmentId)
-                                                 .Include(s => s.Start)
-                                                 .ThenInclude(t => t.Track)
-                                                 .Include(s => s.End)
-                                                 .Include(s => s.Intermediates)
-                                                 .SingleOrDefaultAsync();
-            
+            var segment = await LoadSegment(segmentId);
+
             if (segment == null)
             {
                 throw new ArgumentException(
@@ -38,9 +33,7 @@ namespace VeloTimerWeb.Api.Services
                     paramName: nameof(segmentId));
             }
 
-            var passings = transponderId.HasValue ? _context.Passings.Where(p => transponderId.Value == p.TransponderId) : _context.Passings;
-            passings = fromtime.HasValue ? passings.Where(p => p.Time >= fromtime) : passings;
-            passings = period.HasValue ? passings.Where(p => p.Time <= fromtime + period) : passings;
+            var passings = FilterPassings(_context.Passings, transponderId, fromtime, period);
 
             var firstpass = await passings.OrderBy(p => p.Time)
                                           .Where(p => p.Loop == segment.Start)
@@ -60,7 +53,7 @@ namespace VeloTimerWeb.Api.Services
             loopIds = loopIds.Distinct().ToList();
 
             var passingevents = passings.Where(p => loopIds.Contains(p.LoopId))
-                                        .Where(p => p.Time > firstpass.Time)
+                                        .Where(p => p.Time >= firstpass.Time)
                                         .Select(p => new
                                         {
                                             TransponderId = p.TransponderId,
@@ -126,12 +119,7 @@ namespace VeloTimerWeb.Api.Services
         {
             long passingcount = 0;
 
-            var segment = await _context.Segments.Where(s => s.Id == segmentId)
-                                                 .Include(s => s.Start)
-                                                 .ThenInclude(t => t.Track)
-                                                 .Include(s => s.End)
-                                                 .Include(s => s.Intermediates)
-                                                 .SingleOrDefaultAsync();
+            var segment = await LoadSegment(segmentId);
 
             if (segment == null)
             {
@@ -140,9 +128,7 @@ namespace VeloTimerWeb.Api.Services
                     paramName: nameof(segmentId));
             }
 
-            var passings = transponderId.HasValue ? _context.Passings.Where(p => transponderId.Value == p.TransponderId) : _context.Passings;
-            passings = fromtime.HasValue ? passings.Where(p => p.Time >= fromtime) : passings;
-            passings = period.HasValue ? passings.Where(p => p.Time <= fromtime + period) : passings;
+            var passings = FilterPassings(_context.Passings, transponderId, fromtime, period);
 
             var firstpass = await passings.OrderBy(p => p.Time)
                                           .Where(p => p.Loop == segment.Start)
@@ -162,7 +148,7 @@ namespace VeloTimerWeb.Api.Services
             loopIds = loopIds.Distinct().ToList();
 
             var passingevents = passings.Where(p => loopIds.Contains(p.LoopId))
-                                        .Where(p => p.Time > firstpass.Time)
+                                        .Where(p => p.Time >= firstpass.Time)
                                         .Select(p => new
                                         {
                                             TransponderId = p.TransponderId,
@@ -191,6 +177,25 @@ namespace VeloTimerWeb.Api.Services
             }
 
             return passingcount;
+        }
+
+        private async Task<Segment> LoadSegment(long segmentId)
+        {
+            return await _context.Segments.Where(s => s.Id == segmentId)
+                                          .Include(s => s.Start)
+                                          .ThenInclude(t => t.Track)
+                                          .Include(s => s.End)
+                                          .Include(s => s.Intermediates)
+                                          .SingleOrDefaultAsync();
+        }
+
+        private static IQueryable<Passing> FilterPassings(IQueryable<Passing> passings, long? transponderId, DateTime? fromtime, TimeSpan? period)
+        {
+            passings = transponderId.HasValue ? passings.Where(p => transponderId.Value == p.TransponderId) : passings;
+            passings = fromtime.HasValue ? passings.Where(p => p.Time >= fromtime) : passings;
+            passings = period.HasValue ? passings.Where(p => p.Time <= fromtime + period) : passings;
+
+            return passings;
         }
 
         private static double CalculateSegmentLength(TimingLoop startLoop, TimingLoop endLoop)
