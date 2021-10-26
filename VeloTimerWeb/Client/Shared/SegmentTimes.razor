@@ -21,6 +21,7 @@
                     @foreach (var intermediate in segment.Intermediates)
                     {
                         <th>@intermediate.Loop.Description</th>
+                        <th>Speed</th>
                     }
                 }
                 <th>@segment.End.Description</th>
@@ -56,6 +57,16 @@
                                         "--"
                                     )
                                 </td>
+                                <td>
+                                    @(
+                                        segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
+                                        String.Format(
+                                            "{0:00.000}", 
+                                            segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmentspeed).SingleOrDefault()
+                                        ) : 
+                                        "--"
+                                    )
+                                </td>
                             }
                         }
                         <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
@@ -76,10 +87,16 @@
     public long? Transponder { get; set; }
     [Parameter]
     public bool? ShowIntermediate { get; set; }
+    [Parameter]
+    public DateTime? FromTime { get; set; }
+    [Parameter]
+    public TimeSpan? Period { get; set; }
 
     protected Segment segment;
     protected long? transponder;
     protected bool showintermediate = false;
+    protected DateTime? fromtime;
+    protected TimeSpan? period;
 
     protected override void OnInitialized()
     {
@@ -108,8 +125,13 @@
             }
 
             transponder = Transponder;
+            fromtime = FromTime;
+            period = Period;
 
-            await hubConnection.InvokeAsync("AddToTimingLoopGroup", segment.EndId);
+            if (period == null)
+            {
+                await hubConnection.InvokeAsync("AddToTimingLoopGroup", segment.EndId);
+            }
 
             await LoadSegmentTimes();
         }
@@ -122,7 +144,7 @@
 
     protected async Task LoadSegmentTimes()
     {
-        segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>($"/segmenttimes?segmentId={segment.Id}&transponderid={transponder}");
+        segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>($"/segmenttimes?segmentId={segment.Id}&transponderid={transponder}&fromtime={fromtime}&period={period}");
 
         StateHasChanged();
     }
