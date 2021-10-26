@@ -32,33 +32,17 @@ else
                 <option value="@segment.Id">@segment.Label</option>
             }
         </select>
-        
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Rider</th>
-                    <th>Laptime</th>
-                    <th>Speed</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if (transponder != null && segmenttimes != null)
-                {
-                    @foreach (var day in segmenttimes.GroupBy(s => s.PassingTime.Date))
-                    {
-                        <tr><td colspan="3" align="center">@day.Key.ToShortDateString()</td></tr>
-                        @foreach (var segment in day)
-                        {
-                        <tr>
-                            <td>@segment.Rider</td>
-                            <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
-                            <td>@String.Format("{0:00.000}", segment.Segmentspeed)</td>
-                        </tr>
-                            }
-                        }
+
+        @for (var date = totime; date > fromtime; date -= TimeSpan.FromDays(1))
+        {
+            var dayindex = DayNumber(fromtime, date) - 1;
+            <div>
+                <div class="text-lg-center font-weight-bold" @onclick="() => ToggleShowDay(dayindex)">@date.ToShortDateString()</div>
+                @if (showdays[dayindex]) {
+                    <SegmentTimes Segment=segment Transponder=transponder.Id FromTime=date Period=TimeSpan.FromDays(1) ShowIntermediate=true />
                 }
-            </tbody>
-        </table>
+            </div>
+        }
     }
 }
 
@@ -68,37 +52,41 @@ else
     private Segment[] segments;
     private SegmentTimeRider[] segmenttimes;
     private long segment;
+    private DateTime fromtime = DateTime.Now.Date - TimeSpan.FromDays(7);
+    private DateTime totime = DateTime.Now.Date;
+    private bool[] showdays;
 
     protected override async Task OnInitializedAsync()
     {
         transponders = await Http.GetFromJsonAsync<Transponder[]>("/transponders");
         segments = await Http.GetFromJsonAsync<Segment[]>("/segments");
 
+        showdays = new bool[(totime-fromtime).Days];
+        Array.Fill(showdays, false);
+
         transponder = transponders.First();
         segment = segments.First().Id;
-
-        await LoadSegmentTimes();
     }
 
-    private async void ChangeTransponder(ChangeEventArgs e)
+    private void ChangeTransponder(ChangeEventArgs e)
     {
         var start = long.Parse(e.Value.ToString());
         transponder = transponders.Where(t => t.Id == start).Single();
-        await LoadSegmentTimes();
     }
 
-    private async void ChangeSegment(ChangeEventArgs e)
+    private void ChangeSegment(ChangeEventArgs e)
     {
         var selected = int.Parse(e.Value.ToString());
         segment = segments.Where(s => s.Id == selected).Single().Id;
-
-        await LoadSegmentTimes();
     }
 
-    protected async Task LoadSegmentTimes()
+    private int DayNumber(DateTime start, DateTime end)
     {
-        segmenttimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>($"/segmenttimes?segmentId={segment}&transponderid={transponder.Id}");
+        return (end - start).Days;
+    }
 
-        StateHasChanged();
+    private void ToggleShowDay(int day)
+    {
+        showdays[day] = !showdays[day];
     }
 }

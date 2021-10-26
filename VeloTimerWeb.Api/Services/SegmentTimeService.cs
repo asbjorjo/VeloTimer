@@ -22,7 +22,7 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesAsync(long segmentId, long? transponderId)
+        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesAsync(long segmentId, long? transponderId, DateTime? fromtime, TimeSpan? period)
         {
             var segment = await _context.Segments.Where(s => s.Id == segmentId)
                                                  .Include(s => s.Start)
@@ -39,11 +39,12 @@ namespace VeloTimerWeb.Api.Services
             }
 
             var passings = transponderId.HasValue ? _context.Passings.Where(p => transponderId.Value == p.TransponderId) : _context.Passings;
+            passings = fromtime.HasValue ? passings.Where(p => p.Time >= fromtime) : passings;
+            passings = period.HasValue ? passings.Where(p => p.Time <= fromtime + period) : passings;
 
-            var firstpass = await passings.OrderByDescending(p => p.Time)
+            var firstpass = await passings.OrderBy(p => p.Time)
                                           .Where(p => p.Loop == segment.Start)
-                                          .Take(100)
-                                          .LastOrDefaultAsync();
+                                          .FirstOrDefaultAsync();
 
             if (firstpass == null)
             {
@@ -65,7 +66,7 @@ namespace VeloTimerWeb.Api.Services
                                             TransponderId = p.TransponderId,
                                             Rider = p.Transponder.Names.Where(n => n.ValidFrom <= p.Time || n.ValidUntil >= p.Time).SingleOrDefault(),
                                             Time = p.Time,
-                                            LoopId = p.LoopId
+                                            Loop = p.Loop
                                         })
                                         .OrderBy(p => p.Time)
                                         .AsEnumerable()
@@ -86,16 +87,17 @@ namespace VeloTimerWeb.Api.Services
 
                 foreach (var transponderpassing in transponderpassings.Skip(1))
                 {
-                    if (segment.Intermediates.Select(i => i.LoopId).Contains(transponderpassing.LoopId))
+                    if (segment.Intermediates.Select(i => i.LoopId).Contains(transponderpassing.Loop.Id))
                     {
                         segmenttimerider.Intermediates.Add(new SegmentTime
                         {
-                            Loop = transponderpassing.LoopId,
+                            Loop = transponderpassing.Loop.Id,
                             PassingTime = transponderpassing.Time,
-                            Segmenttime = (transponderpassing.Time - segmenttimerider.PassingTime).TotalSeconds
+                            Segmenttime = (transponderpassing.Time - segmenttimerider.PassingTime).TotalSeconds,
+                            Segmentlength = CalculateSegmentLength(segment.Start, transponderpassing.Loop)
                         });
                     }
-                    if (transponderpassing.LoopId == segment.EndId)
+                    if (transponderpassing.Loop.Id == segment.EndId)
                     {
                         segmenttimerider.Segmenttime = (transponderpassing.Time - segmenttimerider.PassingTime).TotalSeconds;
                         if (segmenttimerider.Segmenttime < segment.MaxTime && segmenttimerider.Segmenttime > segment.MinTime)
@@ -109,7 +111,7 @@ namespace VeloTimerWeb.Api.Services
                             Segmentlength = CalculateSegmentLength(segment.Start, segment.End)
                         };
                     }
-                    if (transponderpassing.LoopId == segment.StartId)
+                    if (transponderpassing.Loop.Id == segment.StartId)
                     {
                         segmenttimerider.PassingTime = transponderpassing.Time;
                         segmenttimerider.Intermediates.Clear();

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -25,9 +26,9 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> Get(long segmentId, long? transponderId)
+        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> Get(long segmentId, long? transponderId, DateTime? fromtime, TimeSpan? period)
         {
-            var segmenttimess = await _segmentTimes.GetSegmentTimesAsync(segmentId, transponderId);
+            var segmenttimess = await _segmentTimes.GetSegmentTimesAsync(segmentId, transponderId, fromtime, period);
 
             return segmenttimess.ToList();
         }
