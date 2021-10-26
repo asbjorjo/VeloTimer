@@ -1,0 +1,34 @@
+﻿@using VeloTimer.Shared.Hub
+@using VeloTimer.Shared.Models
+@using VeloTimer.Shared.Util
+@inherits ComponentBase
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject HubConnection hubConnection
+
+<h3>Active Riders</h3>
+
+ @if (activetransponders is null)
+{
+    <p>Loading...</p>
+} else
+{
+    if (activetransponders.Length == 0)
+    {
+        <p>No one on track...</p>
+    } else {
+        @foreach(var transponder in activetransponders)
+        {
+            @TransponderIdConverter.IdToCode(transponder.Id)<br/>
+        }
+    }
+}
+
+@code {
+    private Transponder[] activetransponders;
+
+    protected async override Task OnInitializedAsync()
+    {
+        activetransponders = await Http.GetFromJsonAsync <Transponder[]>($"/transponders/active");
+    }
+}
