@@ -11,7 +11,7 @@ namespace VeloTimer.Shared.Models
     }
     public class SegmentTime
     {
-        public DateTime PassingTime { get; set; }
+        public DateTimeOffset PassingTime { get; set; }
         public long Loop { get; set; }
         public double Segmentlength { get; set; }
         public double Segmenttime { get; set; }

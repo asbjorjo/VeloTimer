@@ -20,7 +20,12 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet]
         public async Task<ActionResult<ICollection<Transponder>>> GetActive(TimeSpan period, DateTime? fromtime)
         {
-            DateTime _fromtime = fromtime.HasValue ? fromtime.Value : DateTime.Now;
+            DateTimeOffset _fromtime = DateTimeOffset.Now.ToLocalTime();
+
+            if (fromtime.HasValue)
+            {
+                _fromtime = fromtime.Value;
+            }
             
             var value = _dbset.Where(t => t.Passings.Where(p => p.Time > _fromtime - period && p.Time <= _fromtime).Any())
                               .OrderByDescending(t => t.Passings.OrderByDescending(p => p.Time).First());

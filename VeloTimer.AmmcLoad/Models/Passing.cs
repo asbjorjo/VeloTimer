@@ -31,9 +31,9 @@ namespace VeloTimer.AmmcLoad.Models
         public string StrengthText { get; set; }
         [BsonSerializer(typeof(AmmcDatetimeSerializer))]
         [BsonElement("utc_time")]
-        public DateTime UtcTime { get; set; }
+        public DateTimeOffset UtcTime { get; set; }
         [BsonSerializer(typeof(AmmcDatetimeSerializer))]
         [BsonElement("local_time")]
-        public DateTime LocalTime { get; set; }
+        public DateTimeOffset LocalTime { get; set; }
     }
 }

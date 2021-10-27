@@ -36,9 +36,10 @@ namespace VeloTimer.AmmcLoad
             services.AddSingleton<IPassingDatabaseSettings>(sp =>
                         sp.GetRequiredService<IOptions<PassingDatabaseSettings>>().Value);
             services.AddSingleton<AmmcPassingService>();
+            services.AddTransient<VeloHttpClientHandler>();
             services.AddHttpClient(
                 "VeloTimerWeb.ServerAPI", 
-                client => client.BaseAddress = new Uri(Configuration["VELOTIMER_API_URL"]));
+                client => client.BaseAddress = new Uri(Configuration["VELOTIMER_API_URL"])).ConfigurePrimaryHttpMessageHandler<VeloHttpClientHandler>();
             services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("VeloTimerWeb.ServerAPI"));
             services.AddSingleton<HubConnection>(new HubConnectionBuilder().WithUrl(new Uri(new Uri(Configuration["VELOTIMER_HUB"]), Strings.hubUrl)).WithAutomaticReconnect().Build());
             services.AddHostedService<RefreshPassingsService>();
@@ -71,6 +72,14 @@ namespace VeloTimer.AmmcLoad
             {
                 endpoints.MapRazorPages();
             });
+        }
+    }
+
+    public class VeloHttpClientHandler : HttpClientHandler
+    {
+        public VeloHttpClientHandler()
+        {
+            MaxConnectionsPerServer = 20;
         }
     }
 }
