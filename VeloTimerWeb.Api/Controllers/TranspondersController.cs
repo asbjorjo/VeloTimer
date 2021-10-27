@@ -18,12 +18,12 @@ namespace VeloTimerWeb.Api.Controllers
 
         [Route("active")]
         [HttpGet]
-        public async Task<ActionResult<ICollection<Transponder>>> GetActive(TimeSpan? period, DateTime? fromtime)
+        public async Task<ActionResult<ICollection<Transponder>>> GetActive(TimeSpan period, DateTime? fromtime)
         {
             DateTime _fromtime = fromtime.HasValue ? fromtime.Value : DateTime.Now;
-            TimeSpan _period = period.HasValue ? period.Value : TimeSpan.FromHours(1);
-
-            var value = _dbset.Where(t => t.Passings.Where(p => p.Time > _fromtime - _period && p.Time <= _fromtime).Any()).OrderByDescending(t => t.Passings.OrderByDescending(p => p.Time).First());
+            
+            var value = _dbset.Where(t => t.Passings.Where(p => p.Time > _fromtime - period && p.Time <= _fromtime).Any())
+                              .OrderByDescending(t => t.Passings.OrderByDescending(p => p.Time).First());
             
             return await value.ToListAsync();
         }
