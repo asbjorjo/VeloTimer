@@ -154,15 +154,40 @@ namespace VeloTimer.AmmcLoad.Services
 
                 _logger.LogInformation("Converted {0} number of passings", trackPassings.Count);
 
-                HttpResponseMessage response = await _httpClient.PostAsJsonAsync("passings/createmany", trackPassings);
+                var tasks = new List<Task>();
 
-                if (!response.IsSuccessStatusCode)
+                foreach (var trackpassing in trackPassings)
                 {
-                    _logger.LogError($"{response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
-                } else
-                {
-                    await _hubConnection.InvokeAsync("NotifyLoopsOfNewPassings", trackPassings.Select(tp => tp.LoopId).Distinct());
+                    tasks.Add(PostPassing(trackpassing));
                 }
+
+                await Task.WhenAll(tasks);
+
+                //HttpResponseMessage response = await _httpClient.PostAsJsonAsync("passings/createmany", trackPassings);
+
+                //if (!response.IsSuccessStatusCode)
+                //{
+                //    _logger.LogError($"{response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
+                //} else
+                //{
+                //    await _hubConnection.InvokeAsync("NotifyLoopsOfNewPassings", trackPassings.Select(tp => tp.LoopId).Distinct());
+                //}
+            }
+        }
+
+        private async Task PostPassing(Passing passing)
+        {
+            var posted = await _httpClient.PostAsJsonAsync("passings", passing);
+
+            if (posted.IsSuccessStatusCode)
+            {
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+                _hubConnection.InvokeAsync("NotifyLoopOfNewPassing", passing.LoopId);
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            } 
+            else
+            {
+                _logger.LogError($"Could not post passing - {passing.Source} - {posted.StatusCode}");
             }
         }
 
