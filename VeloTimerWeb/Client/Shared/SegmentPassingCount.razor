@@ -73,7 +73,10 @@
     public void Dispose()
     {
         hubConnection.Remove(Strings.Events.NewPassings);
-        hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+        if (segment != null)
+        {
+            hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+        }
     }
 }
         

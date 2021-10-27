@@ -6,7 +6,7 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-@if (segment != null)
+@if (segment != null && segment.Start != null && segment.End !=null)
 {
     @if (segment.Intermediates.Count > 0 && !ShowIntermediate.HasValue)
     {
@@ -16,7 +16,7 @@
         <thead>
             <tr>
                 <th>Rider</th>
-                @if (showintermediate)
+                @if (showintermediate && !segment.Intermediates.Where(i => i.Loop == null).Any())
                 {
                     @foreach (var intermediate in segment.Intermediates)
                     {
@@ -43,7 +43,7 @@
                 {
                     <tr>
                         <td>@segment.Rider</td>
-                        @if (showintermediate)
+                        @if (showintermediate && !this.segment.Intermediates.Where(i => i.Loop == null).Any())
                         {
                             @foreach (var intermediate in this.segment.Intermediates)
                             {
@@ -157,7 +157,10 @@
     public void Dispose()
     {
         hubConnection.Remove(Strings.Events.NewPassings);
-        hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+        if (segment != null)
+        {
+            hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+        }
     }
 }
         
