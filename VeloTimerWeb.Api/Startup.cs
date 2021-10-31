@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
+using System;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Services;
 
@@ -28,7 +29,8 @@ namespace VeloTimerWeb.Api
 
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
-                    Configuration.GetConnectionString("Azure")));
+                    Configuration.GetConnectionString("Azure"), o => 
+                        o.CommandTimeout((int)TimeSpan.FromMinutes(10).TotalSeconds)));
 
             services.AddDatabaseDeveloperPageExceptionFilter();
 
