@@ -47,6 +47,7 @@
 
     protected async Task LoadActiveTransponders()
     {
-        activetransponders = await Http.GetFromJsonAsync <Transponder[]>($"/transponders/active?fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}&period={period}");
+        activetransponders = await Http.GetFromJsonAsync <Transponder[]>(
+            $"/transponders/active?fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}&period={period}");
     }
 }
