@@ -30,6 +30,11 @@ namespace VeloTimerWeb.Server.Hubs
             await Clients.All.NewPassings();
         }
 
+        public async Task NotifyLoopOfNewPassing(long loop)
+        {
+            await Clients.Groups(loop.ToString()).NewPassings();
+        }
+        
         public async Task NotifyLoopsOfNewPassings(List<long> loops)
         {
             await Clients.Groups(loops.Select(l => l.ToString()).ToList()).NewPassings();

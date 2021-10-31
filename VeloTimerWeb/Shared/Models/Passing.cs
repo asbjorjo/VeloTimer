@@ -9,7 +9,7 @@ namespace VeloTimer.Shared.Models
         public Transponder Transponder { get; set; }
         public long LoopId { get; set; }
         public TimingLoop Loop { get; set; }
-        public DateTime Time { get; set; }
+        public DateTimeOffset Time { get; set; }
         [Required]
         public string Source { get; set; }
     }

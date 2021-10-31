@@ -22,7 +22,7 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesAsync(long segmentId, long? transponderId, DateTime? fromtime, TimeSpan? period)
+        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesAsync(long segmentId, long? transponderId, DateTimeOffset? fromtime, TimeSpan? period)
         {
             var segment = await LoadSegment(segmentId);
 
@@ -115,7 +115,7 @@ namespace VeloTimerWeb.Api.Services
             return segmenttimes.OrderByDescending(st => st.PassingTime);
         }
 
-        public async Task<long> GetSegmentPassingCountAsync(long segmentId, long? transponderId, DateTime? fromtime, TimeSpan? period)
+        public async Task<long> GetSegmentPassingCountAsync(long segmentId, long? transponderId, DateTimeOffset? fromtime, TimeSpan? period)
         {
             long passingcount = 0;
 
@@ -189,7 +189,7 @@ namespace VeloTimerWeb.Api.Services
                                           .SingleOrDefaultAsync();
         }
 
-        private static IQueryable<Passing> FilterPassings(IQueryable<Passing> passings, long? transponderId, DateTime? fromtime, TimeSpan? period)
+        private static IQueryable<Passing> FilterPassings(IQueryable<Passing> passings, long? transponderId, DateTimeOffset? fromtime, TimeSpan? period)
         {
             passings = transponderId.HasValue ? passings.Where(p => transponderId.Value == p.TransponderId) : passings;
             passings = fromtime.HasValue ? passings.Where(p => p.Time >= fromtime) : passings;

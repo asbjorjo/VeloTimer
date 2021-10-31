@@ -25,10 +25,28 @@
 }
 
 @code {
-    private Transponder[] activetransponders;
+    [Parameter]
+    public DateTime? FromTime { get; set; }
+    [Parameter]
+    public TimeSpan Period { get; set; } = TimeSpan.FromHours(1);
 
-    protected async override Task OnInitializedAsync()
+    private Transponder[] activetransponders;
+    private DateTime? fromtime;
+    private TimeSpan period;
+
+    protected async override Task OnParametersSetAsync()
     {
-        activetransponders = await Http.GetFromJsonAsync <Transponder[]>($"/transponders/active");
+        if (Period != period || (FromTime.HasValue && FromTime.Value != fromtime))
+        {
+            fromtime = FromTime.HasValue ? FromTime.Value : null;
+            period = Period;
+
+            await LoadActiveTransponders();
+        }
+    }
+
+    protected async Task LoadActiveTransponders()
+    {
+        activetransponders = await Http.GetFromJsonAsync <Transponder[]>($"/transponders/active?fromtime={fromtime}&period={period}");
     }
 }
