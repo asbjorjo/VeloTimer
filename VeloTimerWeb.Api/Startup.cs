@@ -29,8 +29,7 @@ namespace VeloTimerWeb.Api
 
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
-                    Configuration.GetConnectionString("Azure"), o => 
-                        o.CommandTimeout((int)TimeSpan.FromMinutes(10).TotalSeconds)));
+                    Configuration.GetConnectionString("Azure")));
 
             services.AddDatabaseDeveloperPageExceptionFilter();
 
