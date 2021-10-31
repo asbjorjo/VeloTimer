@@ -67,9 +67,9 @@
     {
         passingcount = await Http.GetFromJsonAsync<long>(
             $"/segments/passingcount?segmentId={segment.Id}"
-            + "&transponderid={transponder}"
-            + "&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + "&period={period}");
+            + $"&transponderid={transponder}"
+            + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
+            + $"&period={period}");
 
         StateHasChanged();
     }
