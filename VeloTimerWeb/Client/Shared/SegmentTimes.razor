@@ -88,14 +88,14 @@
     [Parameter]
     public bool? ShowIntermediate { get; set; }
     [Parameter]
-    public DateTime? FromTime { get; set; }
+    public DateTimeOffset? FromTime { get; set; }
     [Parameter]
     public TimeSpan? Period { get; set; }
 
     protected Segment segment;
     protected long? transponder;
     protected bool showintermediate = false;
-    protected DateTime? fromtime;
+    protected DateTimeOffset? fromtime;
     protected TimeSpan? period;
 
     protected override void OnInitialized()
@@ -125,7 +125,7 @@
             }
 
             transponder = Transponder;
-            fromtime = FromTime;
+            fromtime = FromTime?.ToUniversalTime();
             period = Period;
 
             if (period == null)
@@ -144,7 +144,11 @@
 
     protected async Task LoadSegmentTimes()
     {
-        segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>($"/segments/times?segmentId={segment.Id}&transponderid={transponder}&fromtime={fromtime}&period={period}");
+        segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>(
+            $"/segments/times?segmentId={segment.Id}"
+            + $"&transponderid={transponder}"
+            + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
+            + $"&period={period}");
 
         StateHasChanged();
     }
