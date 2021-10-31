@@ -18,9 +18,9 @@ namespace VeloTimerWeb.Api.Controllers
 
         [Route("active")]
         [HttpGet]
-        public async Task<ActionResult<ICollection<Transponder>>> GetActive(TimeSpan period, DateTime? fromtime)
+        public async Task<ActionResult<ICollection<Transponder>>> GetActive(TimeSpan period, DateTimeOffset? fromtime)
         {
-            DateTimeOffset _fromtime = DateTimeOffset.Now.ToLocalTime();
+            DateTimeOffset _fromtime = DateTimeOffset.Now;
 
             if (fromtime.HasValue)
             {
