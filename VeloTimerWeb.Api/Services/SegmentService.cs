@@ -57,7 +57,7 @@ namespace VeloTimerWeb.Api.Services
                                         .Select(p => new
                                         {
                                             TransponderId = p.TransponderId,
-                                            Rider = p.Transponder.Names.Where(n => n.ValidFrom <= p.Time || n.ValidUntil >= p.Time).SingleOrDefault(),
+                                            Rider = p.Transponder.Names.Where(n => n.ValidFrom <= p.Time && n.ValidUntil >= p.Time).SingleOrDefault(),
                                             Time = p.Time,
                                             Loop = p.Loop
                                         })
