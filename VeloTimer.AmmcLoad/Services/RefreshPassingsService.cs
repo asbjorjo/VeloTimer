@@ -36,8 +36,6 @@ namespace VeloTimer.AmmcLoad.Services
             _logger = logger;
             _serviceScopeFactory = servicesScopeFactory;
             _hubConnection = hubConnection;
-
-            _logger.LogInformation("Created");
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -51,7 +49,6 @@ namespace VeloTimer.AmmcLoad.Services
 
         private async void DoRefresh(object state)
         {
-            _logger.LogInformation("Refreshing");
             int sync = Interlocked.CompareExchange(ref _lock, 1, 0);
 
             if (sync == 0)
@@ -60,18 +57,13 @@ namespace VeloTimer.AmmcLoad.Services
                 {
                     _timer.Change(Timeout.Infinite, Timeout.Infinite);
 
-                    _logger.LogInformation("Starting refresh");
-
                     await RefreshPassings();
-
-                    _logger.LogInformation("Done refreshing");
                 }
 
                 finally
                 {
                     _timer.Change(TimeSpan.FromMilliseconds(TimerInterval), TimeSpan.FromMilliseconds(TimerInterval));
                     _lock = 0;
-                    _logger.LogInformation("Refreshed");
                 }
             }
         }
