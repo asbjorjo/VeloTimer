@@ -26,42 +26,26 @@ namespace VeloTimerWeb.Api.Services
         {
             var segment = await LoadSegment(segmentId);
 
-            if (segment == null)
-            {
-                throw new ArgumentException(
-                    message: $"Specified segment - {segmentId} - does not exist.", 
-                    paramName: nameof(segmentId));
-            }
-
             var passings = FilterPassings(_context.Passings, transponderId, fromtime, period);
 
-            var firstpass = await passings.OrderBy(p => p.Time)
-                                          .Where(p => p.Loop == segment.Start)
-                                          .FirstOrDefaultAsync();
+            var firstpass = await FindFirstPassing(passings, segment);
 
             if (firstpass == null)
             {
                 return Enumerable.Empty<SegmentTimeRider>();
             }
 
-            var loopIds = new List<long>
-            {
-                segment.StartId,
-                segment.EndId
-            };
-            loopIds.AddRange(segment.Intermediates?.Select(i => i.LoopId));
-            loopIds = loopIds.Distinct().ToList();
+            var loopIds = GetSegmentLoopIds(segment);
 
-            var passingevents = passings.Where(p => loopIds.Contains(p.LoopId))
-                                        .Where(p => p.Time >= firstpass.Time)
-                                        .Select(p => new
+            passings = GetPassings(passings, firstpass, loopIds);
+
+            var passingevents = passings.Select(p => new
                                         {
                                             TransponderId = p.TransponderId,
                                             Rider = p.Transponder.Names.Where(n => n.ValidFrom <= p.Time && n.ValidUntil >= p.Time).SingleOrDefault(),
                                             Time = p.Time,
                                             Loop = p.Loop
                                         })
-                                        .OrderBy(p => p.Time)
                                         .AsEnumerable()
                                         .GroupBy(p => p.TransponderId);
 
@@ -121,42 +105,24 @@ namespace VeloTimerWeb.Api.Services
 
             var segment = await LoadSegment(segmentId);
 
-            if (segment == null)
-            {
-                throw new ArgumentException(
-                    message: $"Specified segment - {segmentId} - does not exist.",
-                    paramName: nameof(segmentId));
-            }
-
             var passings = FilterPassings(_context.Passings, transponderId, fromtime, period);
 
-            var firstpass = await passings.OrderBy(p => p.Time)
-                                          .Where(p => p.Loop == segment.Start)
-                                          .FirstOrDefaultAsync();
+            var firstpass = await FindFirstPassing(passings, segment);
 
             if (firstpass == null)
             {
                 return passingcount;
             }
 
-            var loopIds = new List<long>
-            {
-                segment.StartId,
-                segment.EndId
-            };
-            loopIds.AddRange(segment.Intermediates?.Select(i => i.LoopId));
-            loopIds = loopIds.Distinct().ToList();
+            var loopIds = GetSegmentLoopIds(segment, false);
 
-            var passingevents = passings.Where(p => loopIds.Contains(p.LoopId))
-                                        .Where(p => p.Time >= firstpass.Time)
-                                        .Select(p => new
+            passings = GetPassings(passings, firstpass, loopIds);
+
+            var passingevents = passings.Select(p => new
                                         {
-                                            TransponderId = p.TransponderId,
-                                            Rider = p.Transponder.Names.Where(n => n.ValidFrom <= p.Time || n.ValidUntil >= p.Time).SingleOrDefault(),
                                             Time = p.Time,
                                             LoopId = p.LoopId
-                                        })
-                                        .OrderBy(p => p.Time);
+                                        });
 
             var starttime = passingevents.First().Time;
             foreach (var passing in passingevents.Skip(1))
@@ -181,12 +147,27 @@ namespace VeloTimerWeb.Api.Services
 
         private async Task<Segment> LoadSegment(long segmentId)
         {
-            return await _context.Segments.Where(s => s.Id == segmentId)
-                                          .Include(s => s.Start)
-                                          .ThenInclude(t => t.Track)
-                                          .Include(s => s.End)
-                                          .Include(s => s.Intermediates)
-                                          .SingleOrDefaultAsync();
+            var segment = await _context.Segments.Where(s => s.Id == segmentId)
+                                                 .Include(s => s.Start).ThenInclude(t => t.Track)
+                                                 .Include(s => s.End)
+                                                 .Include(s => s.Intermediates)
+                                                 .SingleOrDefaultAsync();
+
+            if (segment == null)
+            {
+                throw new ArgumentException(
+                    message: $"Specified segment - {segmentId} - does not exist.",
+                    paramName: nameof(segmentId));
+            }
+
+            return segment;
+        }
+
+        private async Task<Passing> FindFirstPassing(IQueryable<Passing> passings, Segment segment)
+        {
+            return await passings.OrderBy(p => p.Time)
+                                 .Where(p => p.Loop == segment.Start)
+                                 .FirstOrDefaultAsync();
         }
 
         private static IQueryable<Passing> FilterPassings(IQueryable<Passing> passings, long? transponderId, DateTimeOffset? fromtime, TimeSpan? period)
@@ -196,6 +177,29 @@ namespace VeloTimerWeb.Api.Services
             passings = period.HasValue ? passings.Where(p => p.Time <= fromtime + period) : passings;
 
             return passings;
+        }
+
+        private static IQueryable<Passing> GetPassings(IQueryable<Passing> passings, Passing firstpass, IEnumerable<long> loopIds)
+        {
+            return passings.Where(p => loopIds.Contains(p.LoopId))
+                           .Where(p => p.Time >= firstpass.Time)
+                           .OrderBy(p => p.Time);
+        }
+
+        private static IEnumerable<long> GetSegmentLoopIds(Segment segment, bool includeIntermediates = true)
+        {
+            var loopIds = new List<long>
+            {
+                segment.StartId,
+                segment.EndId
+            };
+
+            if (includeIntermediates)
+            {
+                loopIds.AddRange(segment.Intermediates?.Select(i => i.LoopId));
+            }
+
+            return loopIds.Distinct();
         }
 
         private static double CalculateSegmentLength(TimingLoop startLoop, TimingLoop endLoop)
