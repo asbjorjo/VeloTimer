@@ -64,7 +64,7 @@ namespace VeloTimerWeb.Api.Controllers
                 _fromtime = fromtime.Value;
             }
 
-            var segmenttimes = await _segmentTimes.GetFastestSegmentTime(segmentId, transponderId, _fromtime, totime, count, requireintermediates);
+            var segmenttimes = await _segmentTimes.GetFastestSegmentTimes(segmentId, transponderId, _fromtime, totime, count, requireintermediates);
 
             return segmenttimes.ToList();
         }

@@ -99,7 +99,7 @@ namespace VeloTimerWeb.Api.Services
             return segmenttimes.OrderByDescending(st => st.PassingTime);
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTime(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime, int? count, bool requireintermediates)
+        public async Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTimes(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime, int? count, bool requireintermediates)
         {
             var times = await GetSegmentTimesAsync(segmentId, transponderId, fromtime, totime);
 
