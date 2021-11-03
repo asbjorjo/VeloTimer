@@ -5,11 +5,11 @@
 
 <div>
 Times to beat this month:
-<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-1) Segment=1 ShowIntermediate=false />
-<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-1) Segment=2 ShowIntermediate=false />
+<FastestSegmentTime FromTime=DateTimeOffset.Now.Date-TimeSpan.FromDays(DateTimeOffset.Now.Day) Segment=1 ShowIntermediate=false />
+<FastestSegmentTime FromTime=DateTimeOffset.Now.Date-TimeSpan.FromDays(DateTimeOffset.Now.Day) Segment=2 ShowIntermediate=false />
 </div>
 <div>
 Best times last month:
-<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-2) ToTime=DateTimeOffset.Now.AddMonths(-1) Segment=1 ShowIntermediate=false />
-<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-2) ToTime=DateTimeOffset.Now.AddMonths(-1) Segment=2 ShowIntermediate=false />
+<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-2).Date-TimeSpan.FromDays(DateTimeOffset.Now.Day) ToTime=DateTimeOffset.Now.AddMonths(-1).Date-TimeSpan.FromDays(DateTimeOffset.Now.Day) Segment=1 ShowIntermediate=false />
+<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-2).Date-TimeSpan.FromDays(DateTimeOffset.Now.Day) ToTime=DateTimeOffset.Now.AddMonths(-1).Date-TimeSpan.FromDays(DateTimeOffset.Now.Day) Segment=2 ShowIntermediate=false />
 </div>
