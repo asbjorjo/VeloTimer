@@ -1,3 +1,19 @@
 ﻿@page "/"
+@using System.Globalization
 
 <ActiveRiders FromTime=DateTimeOffset.Now.AddHours(-1) />
+
+<div>
+Times to beat this month:
+<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-1) Segment=1 ShowIntermediate=false />
+<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-1) Segment=2 ShowIntermediate=false />
+<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-1) Segment=3 ShowIntermediate=false />
+<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-1) Segment=4 ShowIntermediate=false />
+</div>
+<div>
+Best times last month:
+<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-2) ToTime=DateTimeOffset.Now.AddMonths(-1) Segment=1 ShowIntermediate=false />
+<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-2) ToTime=DateTimeOffset.Now.AddMonths(-1) Segment=2 ShowIntermediate=false />
+<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-2) ToTime=DateTimeOffset.Now.AddMonths(-1) Segment=3 ShowIntermediate=false />
+<FastestSegmentTime FromTime=DateTimeOffset.Now.AddMonths(-2) ToTime=DateTimeOffset.Now.AddMonths(-1) Segment=4 ShowIntermediate=false />
+</div>
