@@ -15,7 +15,7 @@ namespace VeloTimer.Shared.Util
 
         public static DateTimeOffset EndOfMonth(DateTimeOffset date)
         {
-            return StartOfMonth(date).AddMonths(1).AddDays(-1);
+            return StartOfMonth(date).AddMonths(1).AddTicks(-1);
         }
     }
 }
