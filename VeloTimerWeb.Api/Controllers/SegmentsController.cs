@@ -38,7 +38,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet("times")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetTimes(long segmentId, long? transponderId, DateTime? fromtime, TimeSpan? period)
+        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetTimes(long segmentId, long? transponderId, DateTime? fromtime, DateTimeOffset? totime)
         {
             DateTimeOffset _fromtime = DateTimeOffset.Now;
 
@@ -47,7 +47,7 @@ namespace VeloTimerWeb.Api.Controllers
                 _fromtime = fromtime.Value;
             }
 
-            var segmenttimes = await _segmentTimes.GetSegmentTimesAsync(segmentId, transponderId, _fromtime, period);
+            var segmenttimes = await _segmentTimes.GetSegmentTimesAsync(segmentId, transponderId, _fromtime, totime);
 
             return segmenttimes.ToList();
         }
@@ -55,7 +55,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet("fastest")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetFastest(long segmentId, long? transponderId, DateTime? fromtime, TimeSpan? period)
+        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetFastest(long segmentId, long? transponderId, DateTime? fromtime, DateTimeOffset? totime, int? count, bool requireintermediates)
         {
             DateTimeOffset _fromtime = DateTimeOffset.Now;
 
@@ -64,7 +64,7 @@ namespace VeloTimerWeb.Api.Controllers
                 _fromtime = fromtime.Value;
             }
 
-            var segmenttimes = await _segmentTimes.GetFastestSegmentTime(segmentId, transponderId, _fromtime, period);
+            var segmenttimes = await _segmentTimes.GetFastestSegmentTime(segmentId, transponderId, _fromtime, totime, count, requireintermediates);
 
             return segmenttimes.ToList();
         }
@@ -72,7 +72,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet("passingcount")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<KeyValuePair<string, long>>>> GetPassingCounts(long segmentId, long? transponderId, DateTime? fromtime, TimeSpan? period)
+        public async Task<ActionResult<IEnumerable<KeyValuePair<string, long>>>> GetPassingCounts(long segmentId, long? transponderId, DateTime? fromtime, DateTimeOffset? totime)
         {
             DateTimeOffset _fromtime = DateTimeOffset.Now;
 
@@ -81,7 +81,7 @@ namespace VeloTimerWeb.Api.Controllers
                 _fromtime = fromtime.Value;
             }
 
-            var passingcount = await _segmentTimes.GetSegmentPassingCountAsync(segmentId, transponderId, _fromtime, period);
+            var passingcount = await _segmentTimes.GetSegmentPassingCountAsync(segmentId, transponderId, _fromtime, totime);
 
             return passingcount.ToList();
         }

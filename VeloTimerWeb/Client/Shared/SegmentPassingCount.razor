@@ -21,12 +21,12 @@
     [Parameter]
     public DateTimeOffset? FromTime { get; set; }
     [Parameter]
-    public TimeSpan? Period { get; set; }
+    public DateTimeOffset? ToTime { get; set; }
 
     protected Segment segment;
     protected long? transponder;
     protected DateTimeOffset? fromtime;
-    protected TimeSpan? period;
+    protected DateTimeOffset? totime;
 
     protected override void OnInitialized()
     {
@@ -51,9 +51,9 @@
 
             transponder = Transponder;
             fromtime = FromTime?.ToUniversalTime();
-            period = Period;
+            totime = ToTime?.ToUniversalTime();
 
-            if (period == null)
+            if (totime == null)
             {
                 await hubConnection.InvokeAsync("AddToTimingLoopGroup", segment.EndId);
             }
@@ -69,7 +69,7 @@
         $"/segments/passingcount?segmentId={segment.Id}"
             + $"&transponderid={transponder}"
             + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&period={period}");
+            + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}");
         passingcount = counts.FirstOrDefault().Value;
 
         StateHasChanged();

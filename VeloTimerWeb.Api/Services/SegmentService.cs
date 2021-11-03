@@ -22,11 +22,11 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesAsync(long segmentId, long? transponderId, DateTimeOffset? fromtime, TimeSpan? period)
+        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesAsync(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime)
         {
             var segment = await LoadSegment(segmentId);
 
-            var passings = FilterPassings(_context.Passings, transponderId, fromtime, period);
+            var passings = FilterPassings(_context.Passings, transponderId, fromtime, totime);
 
             var firstpass = await FindFirstPassing(passings, segment);
 
@@ -99,18 +99,31 @@ namespace VeloTimerWeb.Api.Services
             return segmenttimes.OrderByDescending(st => st.PassingTime);
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTime(long segmentId, long? transponderId, DateTimeOffset? fromtime, TimeSpan? period)
+        public async Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTime(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime, int? count, bool requireintermediates)
         {
-            var times = await GetSegmentTimesAsync(segmentId, transponderId, fromtime, period);
+            var times = await GetSegmentTimesAsync(segmentId, transponderId, fromtime, totime);
 
-            return times.OrderBy(st => st.Segmenttime);
+            if (requireintermediates)
+            {
+                var segment = await LoadSegment(segmentId);
+                times = times.Where(st => st.Intermediates.Count() == segment.Intermediates.Count());
+            }
+
+            times = times.OrderBy(st => st.Segmenttime);
+
+            if (count.HasValue)
+            {
+                times = times.Take(count.Value);
+            }
+
+            return times;
         }
 
-        public async Task<IEnumerable<KeyValuePair<string, long>>> GetSegmentPassingCountAsync(long segmentId, long? transponderId, DateTimeOffset? fromtime, TimeSpan? period)
+        public async Task<IEnumerable<KeyValuePair<string, long>>> GetSegmentPassingCountAsync(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime)
         {
             var segment = await LoadSegment(segmentId);
 
-            var passings = FilterPassings(_context.Passings, transponderId, fromtime, period);
+            var passings = FilterPassings(_context.Passings, transponderId, fromtime, totime);
 
             var firstpass = await FindFirstPassing(passings, segment);
 
@@ -187,11 +200,11 @@ namespace VeloTimerWeb.Api.Services
                                  .FirstOrDefaultAsync();
         }
 
-        private static IQueryable<Passing> FilterPassings(IQueryable<Passing> passings, long? transponderId, DateTimeOffset? fromtime, TimeSpan? period)
+        private static IQueryable<Passing> FilterPassings(IQueryable<Passing> passings, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime)
         {
             passings = transponderId.HasValue ? passings.Where(p => transponderId.Value == p.TransponderId) : passings;
             passings = fromtime.HasValue ? passings.Where(p => p.Time >= fromtime) : passings;
-            passings = period.HasValue ? passings.Where(p => p.Time <= fromtime + period) : passings;
+            passings = totime.HasValue ? passings.Where(p => p.Time <= totime) : passings;
 
             return passings;
         }

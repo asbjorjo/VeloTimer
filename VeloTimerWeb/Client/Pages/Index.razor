@@ -1,4 +1,7 @@
 ﻿@page "/"
 
-<ActiveRiders Period=TimeSpan.FromHours(1) />
-<FastestSegmentTimes FromTime=DateTimeOffset.Now.AddMonths(-1) Segment=1 />
+<ActiveRiders FromTime=DateTimeOffset.Now.AddHours(-1) />
+<FastestSegmentTimes FromTime=DateTimeOffset.Now.AddMonths(-1) Segment=1 Count=10 ShowIntermediate=false />
+<FastestSegmentTimes FromTime=DateTimeOffset.Now.AddMonths(-1) Segment=2 Count=10 ShowIntermediate=true />
+<FastestSegmentTimes FromTime=DateTimeOffset.Now.AddMonths(-1) Segment=3 Count=10 ShowIntermediate=true />
+<FastestSegmentTimes FromTime=DateTimeOffset.Now.AddMonths(-1) Segment=4 Count=10 ShowIntermediate=true />

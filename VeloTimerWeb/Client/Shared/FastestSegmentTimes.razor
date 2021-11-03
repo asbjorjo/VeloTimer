@@ -90,13 +90,19 @@
     [Parameter]
     public DateTimeOffset? FromTime { get; set; }
     [Parameter]
-    public TimeSpan? Period { get; set; }
+    public DateTimeOffset? ToTime { get; set; }
+    [Parameter]
+    public int Count { get; set; }
+    [Parameter]
+    public bool RequireIntermediates { get; set; } = true;
 
     protected Segment segment;
     protected long? transponder;
     protected bool showintermediate = false;
     protected DateTimeOffset? fromtime;
-    protected TimeSpan? period;
+    protected DateTimeOffset? totime;
+    protected int count;
+    protected bool requireintermediates;
 
     protected override void OnInitialized()
     {
@@ -108,7 +114,7 @@
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Segment != segment?.Id || Transponder != transponder) {
+        if (Segment != segment?.Id || Transponder != transponder || Count != count) {
             if (segment != null)
             {
                 await hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
@@ -126,9 +132,11 @@
 
             transponder = Transponder;
             fromtime = FromTime?.ToUniversalTime();
-            period = Period;
+            totime = ToTime?.ToUniversalTime();
+            count = Count;
+            requireintermediates = RequireIntermediates;
 
-            if (period == null)
+            if (totime == null)
             {
                 await hubConnection.InvokeAsync("AddToTimingLoopGroup", segment.EndId);
             }
@@ -148,7 +156,9 @@
             $"/segments/fastest?segmentId={segment.Id}"
             + $"&transponderid={transponder}"
             + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&period={period}");
+            + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
+            + $"&count={count}"
+            + $"&requireintermediates={requireintermediates}");
 
         StateHasChanged();
     }

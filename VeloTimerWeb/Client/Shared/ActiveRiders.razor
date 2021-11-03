@@ -26,20 +26,20 @@
 
 @code {
     [Parameter]
-    public DateTimeOffset? FromTime { get; set; }
+    public DateTimeOffset FromTime { get; set; } = DateTimeOffset.Now.AddHours(-1);
     [Parameter]
-    public TimeSpan Period { get; set; } = TimeSpan.FromHours(1);
+    public DateTimeOffset? ToTime { get; set; }
 
     private Transponder[] activetransponders;
-    private DateTimeOffset? fromtime;
-    private TimeSpan period;
+    private DateTimeOffset fromtime;
+    private DateTimeOffset? totime;
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Period != period || (FromTime.HasValue && FromTime.Value != fromtime))
+        if (FromTime != fromtime || (ToTime.HasValue && ToTime.Value != totime))
         {
-            fromtime = FromTime.HasValue ? FromTime.Value.ToUniversalTime() : null;
-            period = Period;
+            totime = ToTime.HasValue ? ToTime.Value.ToUniversalTime() : null;
+            fromtime = FromTime;
 
             await LoadActiveTransponders();
         }
@@ -48,6 +48,6 @@
     protected async Task LoadActiveTransponders()
     {
         activetransponders = await Http.GetFromJsonAsync <Transponder[]>(
-            $"/transponders/active?fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}&period={period}");
+            $"/transponders/active?fromtime={fromtime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}");
     }
 }
