@@ -148,7 +148,7 @@
             $"/segments/times?segmentId={segment.Id}"
             + $"&transponderid={transponder}"
             + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")})");
+            + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}");
 
         StateHasChanged();
     }
