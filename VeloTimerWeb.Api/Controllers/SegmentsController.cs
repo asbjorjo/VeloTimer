@@ -40,7 +40,7 @@ namespace VeloTimerWeb.Api.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetTimes(long segmentId, long? transponderId, DateTime? fromtime, TimeSpan? period)
         {
-            DateTimeOffset _fromtime = DateTimeOffset.Now.ToLocalTime();
+            DateTimeOffset _fromtime = DateTimeOffset.Now;
 
             if (fromtime.HasValue)
             {
@@ -52,12 +52,29 @@ namespace VeloTimerWeb.Api.Controllers
             return segmenttimes.ToList();
         }
 
+        [HttpGet("fastest")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetFastest(long segmentId, long? transponderId, DateTime? fromtime, TimeSpan? period)
+        {
+            DateTimeOffset _fromtime = DateTimeOffset.Now;
+
+            if (fromtime.HasValue)
+            {
+                _fromtime = fromtime.Value;
+            }
+
+            var segmenttimes = await _segmentTimes.GetFastestSegmentTime(segmentId, transponderId, _fromtime, period);
+
+            return segmenttimes.ToList();
+        }
+
         [HttpGet("passingcount")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<long>> GetPassingCounts(long segmentId, long? transponderId, DateTime? fromtime, TimeSpan? period)
+        public async Task<ActionResult<IEnumerable<KeyValuePair<string, long>>>> GetPassingCounts(long segmentId, long? transponderId, DateTime? fromtime, TimeSpan? period)
         {
-            DateTimeOffset _fromtime = DateTimeOffset.Now.ToLocalTime();
+            DateTimeOffset _fromtime = DateTimeOffset.Now;
 
             if (fromtime.HasValue)
             {
@@ -66,7 +83,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             var passingcount = await _segmentTimes.GetSegmentPassingCountAsync(segmentId, transponderId, _fromtime, period);
 
-            return passingcount;
+            return passingcount.ToList();
         }
     }
 }

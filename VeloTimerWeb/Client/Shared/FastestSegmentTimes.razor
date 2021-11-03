@@ -1,0 +1,170 @@
+﻿@using VeloTimer.Shared.Hub
+@using VeloTimer.Shared.Models
+@inherits ComponentBase
+@implements IDisposable
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject HubConnection hubConnection
+
+@if (segment != null && segment.Start != null && segment.End !=null)
+{
+    @if (segment.Intermediates.Count > 0 && !ShowIntermediate.HasValue)
+    {
+        <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Hide" : "Show") intermediate times</button>
+    }
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Rider</th>
+                @if (showintermediate && !segment.Intermediates.Where(i => i.Loop == null).Any())
+                {
+                    @foreach (var intermediate in segment.Intermediates)
+                    {
+                        <th>@intermediate.Loop.Description</th>
+                        <th>Speed</th>
+                    }
+                }
+                <th>@segment.End.Description</th>
+                <th>Speed</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (segmentTimes == null)
+            {
+                <tr>
+                    <td colspan="3">
+                        Loading...
+                    </td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var segment in segmentTimes)
+                {
+                    <tr>
+                        <td>@segment.Rider</td>
+                        @if (showintermediate && !this.segment.Intermediates.Where(i => i.Loop == null).Any())
+                        {
+                            @foreach (var intermediate in this.segment.Intermediates)
+                            {
+                                <td>
+                                    @(
+                                        segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
+                                        String.Format(
+                                            "{0:00.000}", 
+                                            segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault()
+                                        ) : 
+                                        "--"
+                                    )
+                                </td>
+                                <td>
+                                    @(
+                                        segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
+                                        String.Format(
+                                            "{0:00.000}", 
+                                            segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmentspeed).SingleOrDefault()
+                                        ) : 
+                                        "--"
+                                    )
+                                </td>
+                            }
+                        }
+                        <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
+                        <td>@String.Format("{0:00.000}", segment.Segmentspeed)</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    protected IEnumerable<SegmentTimeRider> segmentTimes;
+
+    [Parameter]
+    public long Segment { get; set; }
+    [Parameter]
+    public long? Transponder { get; set; }
+    [Parameter]
+    public bool? ShowIntermediate { get; set; }
+    [Parameter]
+    public DateTimeOffset? FromTime { get; set; }
+    [Parameter]
+    public TimeSpan? Period { get; set; }
+
+    protected Segment segment;
+    protected long? transponder;
+    protected bool showintermediate = false;
+    protected DateTimeOffset? fromtime;
+    protected TimeSpan? period;
+
+    protected override void OnInitialized()
+    {
+        hubConnection.On(Strings.Events.NewPassings, async () =>
+        {
+            await LoadSegmentTimes();
+        });
+    }
+
+    protected async override Task OnParametersSetAsync()
+    {
+        if (Segment != segment?.Id || Transponder != transponder) {
+            if (segment != null)
+            {
+                await hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+            }
+
+            segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
+
+            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.StartId}");
+            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.EndId}");
+
+            foreach (var intermediate in segment.Intermediates)
+            {
+                intermediate.Loop = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{intermediate.LoopId}");
+            }
+
+            transponder = Transponder;
+            fromtime = FromTime?.ToUniversalTime();
+            period = Period;
+
+            if (period == null)
+            {
+                await hubConnection.InvokeAsync("AddToTimingLoopGroup", segment.EndId);
+            }
+
+            await LoadSegmentTimes();
+        }
+
+        if (ShowIntermediate.HasValue)
+        {
+            showintermediate = ShowIntermediate.Value;
+        }
+    }
+
+    protected async Task LoadSegmentTimes()
+    {
+        segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>(
+            $"/segments/fastest?segmentId={segment.Id}"
+            + $"&transponderid={transponder}"
+            + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
+            + $"&period={period}");
+
+        StateHasChanged();
+    }
+
+    protected void ToogleIntermediates()
+    {
+        showintermediate = !showintermediate;
+    }
+
+    public void Dispose()
+    {
+        hubConnection.Remove(Strings.Events.NewPassings);
+        if (segment != null)
+        {
+            hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+        }
+    }
+}
+        

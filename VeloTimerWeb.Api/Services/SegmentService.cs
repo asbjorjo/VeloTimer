@@ -99,10 +99,15 @@ namespace VeloTimerWeb.Api.Services
             return segmenttimes.OrderByDescending(st => st.PassingTime);
         }
 
-        public async Task<long> GetSegmentPassingCountAsync(long segmentId, long? transponderId, DateTimeOffset? fromtime, TimeSpan? period)
+        public async Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTime(long segmentId, long? transponderId, DateTimeOffset? fromtime, TimeSpan? period)
         {
-            long passingcount = 0;
+            var times = await GetSegmentTimesAsync(segmentId, transponderId, fromtime, period);
 
+            return times.OrderBy(st => st.Segmenttime);
+        }
+
+        public async Task<IEnumerable<KeyValuePair<string, long>>> GetSegmentPassingCountAsync(long segmentId, long? transponderId, DateTimeOffset? fromtime, TimeSpan? period)
+        {
             var segment = await LoadSegment(segmentId);
 
             var passings = FilterPassings(_context.Passings, transponderId, fromtime, period);
@@ -111,7 +116,7 @@ namespace VeloTimerWeb.Api.Services
 
             if (firstpass == null)
             {
-                return passingcount;
+                return Enumerable.Empty<KeyValuePair<string, long>>();
             }
 
             var loopIds = GetSegmentLoopIds(segment, false);
@@ -120,29 +125,41 @@ namespace VeloTimerWeb.Api.Services
 
             var passingevents = passings.Select(p => new
                                         {
+                                            TransponderId = p.TransponderId,
                                             Time = p.Time,
                                             LoopId = p.LoopId
-                                        });
+                                        }).AsEnumerable().GroupBy(p => p.TransponderId);
 
-            var starttime = passingevents.First().Time;
-            foreach (var passing in passingevents.Skip(1))
+            var segmentcounts = new ConcurrentDictionary<string, long>();
+
+            Parallel.ForEach(passingevents, transponderpassings =>
             {
-                if (passing.LoopId == segment.EndId)
-                {
-                    var time = (passing.Time - starttime).TotalSeconds;
-                    if (time < segment.MaxTime && time > segment.MinTime)
-                    {
-                        passingcount++;
-                    }
-                    
-                }
-                if (passing.LoopId == segment.StartId)
-                {
-                    starttime = passing.Time;
-                }
-            }
+                long passingcount = 0;
 
-            return passingcount;
+                var transponderid = transponderpassings.Key;
+                var starttime = transponderpassings.First().Time;
+
+                foreach (var passing in transponderpassings.Skip(1))
+                {
+                    if (passing.LoopId == segment.EndId)
+                    {
+                        var time = (passing.Time - starttime).TotalSeconds;
+                        if (time < segment.MaxTime && time > segment.MinTime)
+                        {
+                            passingcount++;
+                        }
+
+                    }
+                    if (passing.LoopId == segment.StartId)
+                    {
+                        starttime = passing.Time;
+                    }
+                }
+
+                segmentcounts.TryAdd(TransponderIdConverter.IdToCode(transponderid), passingcount);
+            });
+
+            return segmentcounts;
         }
 
         private async Task<Segment> LoadSegment(long segmentId)

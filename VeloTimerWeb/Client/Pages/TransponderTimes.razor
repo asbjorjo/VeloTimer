@@ -71,6 +71,7 @@ else
     {
         var start = long.Parse(e.Value.ToString());
         transponder = transponders.Where(t => t.Id == start).Single();
+        Array.Fill(showdays, false);
     }
 
     private void ChangeSegment(ChangeEventArgs e)

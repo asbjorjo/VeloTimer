@@ -65,11 +65,12 @@
 
     protected async Task LoadSegmentPassingCount()
     {
-        passingcount = await Http.GetFromJsonAsync<long>(
-            $"/segments/passingcount?segmentId={segment.Id}"
+        var counts = await Http.GetFromJsonAsync<IEnumerable<KeyValuePair<string, long>>>(
+        $"/segments/passingcount?segmentId={segment.Id}"
             + $"&transponderid={transponder}"
             + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
             + $"&period={period}");
+        passingcount = counts.FirstOrDefault().Value;
 
         StateHasChanged();
     }
