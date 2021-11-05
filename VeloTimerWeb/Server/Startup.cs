@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +23,12 @@ namespace VeloTimerWeb.Server
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddApplicationInsightsTelemetry();
+
+            services.AddAuthentication()
+                .AddJwtBearer("Bearer", options =>
+                {
+                    options.Authority = "https://localhost:44387";
+                });
 
             services.AddControllersWithViews();
             services.AddRazorPages();
@@ -50,6 +57,9 @@ namespace VeloTimerWeb.Server
             app.UseStaticFiles();
 
             app.UseRouting();
+
+            app.UseAuthentication();
+            app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {

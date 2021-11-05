@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Net.Http;
@@ -17,11 +19,13 @@ namespace VeloTimerWeb.Client
             builder.RootComponents.Add<App>("#app");
 
             builder.Services.AddHttpClient(
-                "VeloTimerWeb.ServerAPI", 
-                client => client.BaseAddress = new Uri(builder.Configuration["VELOTIMER_API_URL"]));
+                    "VeloTimerWeb.ServerAPI", 
+                    client => client.BaseAddress = new Uri(builder.Configuration["VELOTIMER_API_URL"]))
+                .AddHttpMessageHandler<BaseAddressAuthorizationMessageHandler>(); ;
 
             builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>()
                                                .CreateClient("VeloTimerWeb.ServerAPI"));
+
             builder.Services.AddSingleton<HubConnection>(sp => {
                 var navigationManager = sp.GetRequiredService<NavigationManager>();
                 return new HubConnectionBuilder().WithUrl(navigationManager.ToAbsoluteUri(Strings.hubUrl))
@@ -29,6 +33,11 @@ namespace VeloTimerWeb.Client
                                                  .Build();
             });
 
+            builder.Services.AddOidcAuthentication(options =>
+            {
+                builder.Configuration.Bind("Local", options.ProviderOptions);
+            });
+                        
             await builder.Build().RunAsync();
         }
     }

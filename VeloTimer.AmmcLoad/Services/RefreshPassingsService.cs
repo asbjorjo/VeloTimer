@@ -25,7 +25,7 @@ namespace VeloTimer.AmmcLoad.Services
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private HttpClient _httpClient;
 
-        private HubConnection _hubConnection;
+        private readonly HubConnection _hubConnection;
 
         public RefreshPassingsService(IServiceScopeFactory servicesScopeFactory,
                                       AmmcPassingService passingService,
@@ -42,7 +42,7 @@ namespace VeloTimer.AmmcLoad.Services
         {
             _logger.LogInformation("Passings Refresh started");
             
-            await _hubConnection.StartAsync();
+            await _hubConnection.StartAsync(cancellationToken);
 
             _timer = new Timer(DoRefresh, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(TimerInterval));
         }
@@ -70,101 +70,100 @@ namespace VeloTimer.AmmcLoad.Services
 
         private async Task RefreshPassings()
         {
-            using (var scope = _serviceScopeFactory.CreateScope())
+            using var scope = _serviceScopeFactory.CreateScope();
+            _httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
+
+            Passing mostRecent;
+
+            try
             {
-                _httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
-
-                Passing mostRecent;
-
-                try
-                {
-                    mostRecent = await _httpClient.GetFromJsonAsync<Passing>("/passings/mostrecent");
-                }
-                catch (HttpRequestException ex)
-                {
-                    if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    {
-                        mostRecent = null;
-                    } else
-                    {
-                        throw;
-                    }
-                }
-
-
-                _logger.LogInformation("Most recent passing found {0}", mostRecent?.Source);
-
-                var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent.Source));
-
-                if (!passings.Any())
-                {
-                    _logger.LogInformation("Found no new passings");
-                    return;
-                }
-
-                _logger.LogInformation("Found {0} number of passings", passings.Count);
-
-                var trackPassings = new List<Passing>();
-
-                var transponderIds = passings.Select(p => p.TransponderId).Distinct();
-                var loopIds = passings.Select(p => p.LoopId).Distinct();
-
-                var transponders = await _httpClient.GetFromJsonAsync<IEnumerable<Transponder>>("transponders");
-                var loops = await _httpClient.GetFromJsonAsync<IEnumerable<TimingLoop>>("timingloops");
-
-                var knownTransponderIds = transponders.Where(t => transponderIds.Contains(t.Id)).Select(t => t.Id);
-                var knownLoopIds = loops.Where(t => loopIds.Contains(t.LoopId)).Select(t => t.LoopId);
-
-                foreach (var loopId in loopIds.Except(knownLoopIds))
-                {
-                    await _httpClient.PostAsJsonAsync("timingloops", new TimingLoop { LoopId = loopId });
-                }
-
-                foreach (var transponderId in transponderIds.Except(knownTransponderIds))
-                {
-                    await _httpClient.PostAsJsonAsync("transponders", new Transponder { Id = transponderId });
-                }
-
-                loops = await _httpClient.GetFromJsonAsync<IEnumerable<TimingLoop>>("timingloops");
-
-                var loopdict = new Dictionary<long, long>();
-                foreach (var loop in loops)
-                {
-                    loopdict.Add(loop.LoopId, loop.Id);
-                }
-
-                foreach (var p in passings)
-                {
-                    trackPassings.Add(new Passing
-                    {
-                        LoopId = loopdict.GetValueOrDefault(p.LoopId),
-                        TransponderId = p.TransponderId,
-                        Time = p.UtcTime,
-                        Source = p.Id
-                    });
-                }
-
-                _logger.LogInformation("Converted {0} number of passings", trackPassings.Count);
-
-                var tasks = new List<Task>();
-
-                foreach (var trackpassing in trackPassings)
-                {
-                    tasks.Add(PostPassing(trackpassing));
-                }
-
-                await Task.WhenAll(tasks);
-
-                //HttpResponseMessage response = await _httpClient.PostAsJsonAsync("passings/createmany", trackPassings);
-
-                //if (!response.IsSuccessStatusCode)
-                //{
-                //    _logger.LogError($"{response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
-                //} else
-                //{
-                //    await _hubConnection.InvokeAsync("NotifyLoopsOfNewPassings", trackPassings.Select(tp => tp.LoopId).Distinct());
-                //}
+                mostRecent = await _httpClient.GetFromJsonAsync<Passing>("/passings/mostrecent");
             }
+            catch (HttpRequestException ex)
+            {
+                if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    mostRecent = null;
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+
+            _logger.LogInformation("Most recent passing found {0}", mostRecent?.Source);
+
+            var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent.Source));
+
+            if (!passings.Any())
+            {
+                _logger.LogInformation("Found no new passings");
+                return;
+            }
+
+            _logger.LogInformation("Found {0} number of passings", passings.Count);
+
+            var trackPassings = new List<Passing>();
+
+            var transponderIds = passings.Select(p => p.TransponderId).Distinct();
+            var loopIds = passings.Select(p => p.LoopId).Distinct();
+
+            var transponders = await _httpClient.GetFromJsonAsync<IEnumerable<Transponder>>("transponders");
+            var loops = await _httpClient.GetFromJsonAsync<IEnumerable<TimingLoop>>("timingloops");
+
+            var knownTransponderIds = transponders.Where(t => transponderIds.Contains(t.Id)).Select(t => t.Id);
+            var knownLoopIds = loops.Where(t => loopIds.Contains(t.LoopId)).Select(t => t.LoopId);
+
+            foreach (var loopId in loopIds.Except(knownLoopIds))
+            {
+                await _httpClient.PostAsJsonAsync("timingloops", new TimingLoop { LoopId = loopId });
+            }
+
+            foreach (var transponderId in transponderIds.Except(knownTransponderIds))
+            {
+                await _httpClient.PostAsJsonAsync("transponders", new Transponder { Id = transponderId });
+            }
+
+            loops = await _httpClient.GetFromJsonAsync<IEnumerable<TimingLoop>>("timingloops");
+
+            var loopdict = new Dictionary<long, long>();
+            foreach (var loop in loops)
+            {
+                loopdict.Add(loop.LoopId, loop.Id);
+            }
+
+            foreach (var p in passings)
+            {
+                trackPassings.Add(new Passing
+                {
+                    LoopId = loopdict.GetValueOrDefault(p.LoopId),
+                    TransponderId = p.TransponderId,
+                    Time = p.UtcTime,
+                    Source = p.Id
+                });
+            }
+
+            _logger.LogInformation("Converted {0} number of passings", trackPassings.Count);
+
+            var tasks = new List<Task>();
+
+            foreach (var trackpassing in trackPassings)
+            {
+                tasks.Add(PostPassing(trackpassing));
+            }
+
+            await Task.WhenAll(tasks);
+
+            //HttpResponseMessage response = await _httpClient.PostAsJsonAsync("passings/createmany", trackPassings);
+
+            //if (!response.IsSuccessStatusCode)
+            //{
+            //    _logger.LogError($"{response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
+            //} else
+            //{
+            //    await _hubConnection.InvokeAsync("NotifyLoopsOfNewPassings", trackPassings.Select(tp => tp.LoopId).Distinct());
+            //}
         }
 
         private async Task PostPassing(Passing passing)

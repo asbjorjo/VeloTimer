@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,7 @@ using Microsoft.OpenApi.Models;
 using System;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Services;
+using VeloTimer.Shared.Models;
 
 namespace VeloTimerWeb.Api
 {
@@ -31,6 +33,31 @@ namespace VeloTimerWeb.Api
                 options.UseSqlServer(
                     Configuration.GetConnectionString("Azure")));
 
+            services.AddDefaultIdentity<User>(options => options.SignIn.RequireConfirmedAccount = true)
+               .AddEntityFrameworkStores<ApplicationDbContext>();
+
+            services.AddIdentityServer()
+                .AddApiAuthorization<User, ApplicationDbContext>()
+                .AddDeveloperSigningCredential();
+
+            services.AddAuthentication()
+                .AddIdentityServerJwt()
+                .AddStrava(options =>
+                {
+                    options.ClientId = Configuration["Authentication:Strava:ClientId"];
+                    options.ClientSecret = Configuration["Authentication:Strava:ClientSecret"];
+                })
+                .AddFacebook(options =>
+                {
+                    options.AppId = Configuration["Authentication:Facebook:AppId"];
+                    options.AppSecret = Configuration["Authentication:Facebook:AppSecret"];
+                })
+                .AddGoogle(options =>
+                {
+                    options.ClientId = Configuration["Authentication:Google:ClientId"];
+                    options.ClientSecret = Configuration["Authentication:Google:ClientSecret"];
+                });
+            
             services.AddDatabaseDeveloperPageExceptionFilter();
 
             services.AddScoped<ISegmentService, SegmentService>();
@@ -40,12 +67,15 @@ namespace VeloTimerWeb.Api
                 options.AddPolicy(name: AllowedOrigins,
                                   builder =>
                                   {
-                                      builder.AllowAnyOrigin();
+                                      //builder.AllowAnyOrigin();
+                                      builder.WithOrigins("https://localhost:44350");
                                       builder.AllowAnyMethod();
                                       builder.AllowAnyHeader();
+                                      builder.AllowCredentials();
                                   });
             });
 
+            services.AddRazorPages();
             services.AddControllers();
             services.AddSwaggerGen(c =>
             {
@@ -65,15 +95,20 @@ namespace VeloTimerWeb.Api
             }
 
             app.UseHttpsRedirection();
+            app.UseStaticFiles();
 
             app.UseRouting();
 
             app.UseCors(AllowedOrigins);
 
+            app.UseIdentityServer();
+            app.UseAuthentication();
             app.UseAuthorization();
 
+            
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapRazorPages();
                 endpoints.MapControllers();
             });
         }

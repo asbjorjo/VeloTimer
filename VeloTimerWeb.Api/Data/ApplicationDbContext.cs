@@ -1,12 +1,16 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using IdentityServer4.EntityFramework.Options;
+using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using VeloTimer.Shared.Models;
 
 namespace VeloTimerWeb.Api.Data
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext : ApiAuthorizationDbContext<User>
     {
         public ApplicationDbContext(
-            DbContextOptions options) : base(options)
+            DbContextOptions options,
+            IOptions<OperationalStoreOptions> operationalStoreOptions) : base(options, operationalStoreOptions)
         {
         }
 
@@ -25,6 +29,8 @@ namespace VeloTimerWeb.Api.Data
             builder.Entity<Segment>().HasOne(s => s.Start).WithMany().OnDelete(DeleteBehavior.Restrict);
             builder.Entity<Segment>().HasOne(s => s.End).WithMany().OnDelete(DeleteBehavior.Restrict);
             builder.Entity<Intermediate>().HasKey(k => new { k.SegmentId, k.LoopId });
+
+            base.OnModelCreating(builder);
         }
     }
 }

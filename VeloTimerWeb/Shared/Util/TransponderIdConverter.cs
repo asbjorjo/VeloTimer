@@ -25,7 +25,7 @@ namespace VeloTimer.Shared.Util
                     if ((c != 'C') || (i > 0))
                     {
                         prefix = c + prefix;
-                        m = m / 15;
+                        m /= 15;
                     }
                 }
 
