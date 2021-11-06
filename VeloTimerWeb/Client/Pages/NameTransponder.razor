@@ -8,57 +8,61 @@
 @inject HttpClient Http
 @inject ILogger<NameTransponder> Logger
 
-<h3>TransponderName</h3>
+<AuthorizeView Roles="Admin">
+    <Authorized>
+        <h3>TransponderName</h3>
 
-<EditForm Model="@transponderName" OnValidSubmit="@HandleValidSubmit">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
+        <EditForm Model="@transponderName" OnValidSubmit="@HandleValidSubmit" Context="formcontext">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
 
-    <label>
-        Transponder
-        <InputText id="label" @bind-Value="transponderName.TransponderLabel" />
-    </label>
-    <label>
-        Name
-        <InputText id="name" @bind-Value="transponderName.Name" />
-    </label>
+            <label>
+                Transponder
+                <InputText id="label" @bind-Value="transponderName.TransponderLabel" />
+            </label>
+            <label>
+                Name
+                <InputText id="name" @bind-Value="transponderName.Name" />
+            </label>
 
-    <label>
-        Valid from
-        <InputDate id="validFrom" @bind-Value="transponderName.ValidFrom"></InputDate>
-    </label>
-    <label>
-        Valid until
-        <InputDate id="validUntil" @bind-Value="transponderName.ValidUntil"></InputDate>
-    </label>
+            <label>
+                Valid from
+                <InputDate id="validFrom" @bind-Value="transponderName.ValidFrom"></InputDate>
+            </label>
+            <label>
+                Valid until
+                <InputDate id="validUntil" @bind-Value="transponderName.ValidUntil"></InputDate>
+            </label>
 
-    <button type="submit">Save</button>
-</EditForm>
+            <button type="submit">Save</button>
+        </EditForm>
 
-<table class="table table-bordered table-striped">
-    <thead>
-        <tr>
-            <th>Transponder</th>
-            <th>Name</th>
-            <th>From</th>
-            <th>To</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if(transpondernames != null)
-        {
-            @foreach(var transpondername in transpondernames)
-            {
+        <table class="table table-bordered table-striped">
+            <thead>
                 <tr>
-                    <td>@(TransponderIdConverter.IdToCode(transpondername.TransponderId))</td>
-                    <td>@transpondername.Name</td>
-                    <td>@transpondername.ValidFrom.Date.ToShortDateString()</td>
-                    <td>@transpondername.ValidUntil.Date.ToShortDateString()</td>
+                    <th>Transponder</th>
+                    <th>Name</th>
+                    <th>From</th>
+                    <th>To</th>
                 </tr>
-            }
-        }
-    </tbody>
-</table>
+            </thead>
+            <tbody>
+                @if(transpondernames != null)
+                {
+                    @foreach(var transpondername in transpondernames)
+                    {
+                        <tr>
+                            <td>@(TransponderIdConverter.IdToCode(transpondername.TransponderId))</td>
+                            <td>@transpondername.Name</td>
+                            <td>@transpondername.ValidFrom.Date.ToShortDateString()</td>
+                            <td>@transpondername.ValidUntil.Date.ToShortDateString()</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </Authorized>
+</AuthorizeView>
 
 @code {
     private TransponderNameWeb transponderName = new();

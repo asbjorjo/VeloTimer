@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
@@ -80,15 +81,7 @@ namespace VeloTimerWeb.Api.Controllers
             return CreatedAtAction("Get", new { id = value.Id }, value);
         }
 
-        [HttpPost("createmany")]
-        public virtual async Task<ActionResult> Create(IEnumerable<T> values)
-        {
-            await _dbset.AddRangeAsync(values);
-            await _context.SaveChangesAsync();
-
-            return Accepted();
-        }
-
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(long id)
         {

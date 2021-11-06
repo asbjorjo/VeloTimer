@@ -5,6 +5,8 @@
 @inject NavigationManager NavigationManager
 @inject HttpClient Http
 
+<AuthorizeView Roles="User">
+    <Authorized>
 <h3>TransponderTimes</h3>
 
 @if (transponders == null)
@@ -45,6 +47,8 @@ else
         }
     }
 }
+</Authorized>
+</AuthorizeView>
 
 @code {
     [Parameter]

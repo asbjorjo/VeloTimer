@@ -21,7 +21,9 @@ namespace VeloTimerWeb.Client
             builder.Services.AddHttpClient(
                     "VeloTimerWeb.ServerAPI", 
                     client => client.BaseAddress = new Uri(builder.Configuration["VELOTIMER_API_URL"]))
-                .AddHttpMessageHandler<BaseAddressAuthorizationMessageHandler>(); ;
+                .AddHttpMessageHandler(sp => sp.GetRequiredService<AuthorizationMessageHandler>()
+                .ConfigureHandler(
+                    authorizedUrls: new[] {"https://localhost:44387"}));
 
             builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>()
                                                .CreateClient("VeloTimerWeb.ServerAPI"));
@@ -36,8 +38,12 @@ namespace VeloTimerWeb.Client
             builder.Services.AddOidcAuthentication(options =>
             {
                 builder.Configuration.Bind("Local", options.ProviderOptions);
-            });
-                        
+                builder.Configuration.Bind("User", options.UserOptions);
+                options.ProviderOptions.DefaultScopes.Add("VeloTimerWeb.ApiAPI");
+                options.AuthenticationPaths.RemoteProfilePath = "https://localhost:44387/Identity/Account/Manage";
+                options.AuthenticationPaths.RemoteRegisterPath = "https://localhost:44387/Identity/Account/Register";
+            }).AddAccountClaimsPrincipalFactory<RolesClaimsPrincipalFactory>();
+
             await builder.Build().RunAsync();
         }
     }

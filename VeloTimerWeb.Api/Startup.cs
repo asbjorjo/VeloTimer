@@ -10,6 +10,12 @@ using System;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Services;
 using VeloTimer.Shared.Models;
+using System.Linq;
+using System.IdentityModel.Tokens.Jwt;
+using IdentityServer4.Services;
+using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
+using Microsoft.Net.Http.Headers;
 
 namespace VeloTimerWeb.Api
 {
@@ -33,12 +39,17 @@ namespace VeloTimerWeb.Api
                 options.UseSqlServer(
                     Configuration.GetConnectionString("Azure")));
 
-            services.AddDefaultIdentity<User>(options => options.SignIn.RequireConfirmedAccount = true)
-               .AddEntityFrameworkStores<ApplicationDbContext>();
+            services.Configure<IdentityOptions>(options => options.ClaimsIdentity.UserIdClaimType = ClaimTypes.NameIdentifier);
+
+            services.AddDefaultIdentity<User>()
+                .AddRoles<Role>()
+                .AddEntityFrameworkStores<ApplicationDbContext>();
 
             services.AddIdentityServer()
-                .AddApiAuthorization<User, ApplicationDbContext>()
-                .AddDeveloperSigningCredential();
+                .AddApiAuthorization<User, ApplicationDbContext>();
+
+            services.AddTransient<IProfileService, ProfileService>();
+            JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Remove("role");
 
             services.AddAuthentication()
                 .AddIdentityServerJwt()
@@ -57,6 +68,8 @@ namespace VeloTimerWeb.Api
                     options.ClientId = Configuration["Authentication:Google:ClientId"];
                     options.ClientSecret = Configuration["Authentication:Google:ClientSecret"];
                 });
+
+            services.AddAuthorization();
             
             services.AddDatabaseDeveloperPageExceptionFilter();
 
@@ -70,7 +83,8 @@ namespace VeloTimerWeb.Api
                                       //builder.AllowAnyOrigin();
                                       builder.WithOrigins("https://localhost:44350");
                                       builder.AllowAnyMethod();
-                                      builder.AllowAnyHeader();
+                                      //builder.AllowAnyHeader();
+                                      builder.WithHeaders(HeaderNames.ContentType, HeaderNames.Authorization);
                                       builder.AllowCredentials();
                                   });
             });

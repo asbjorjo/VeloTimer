@@ -45,10 +45,5 @@ namespace VeloTimerWeb.Api.Controllers
 
             return value.ToList();
         }
-
-        public override Task<ActionResult> Create(IEnumerable<TransponderName> values)
-        {
-            throw new NotImplementedException($"Batch creation of {nameof(TransponderName)} not supported");
-        }
     }
 }
