@@ -42,8 +42,8 @@ namespace VeloTimerWeb.Client
             builder.Services.AddApiAuthorization(options =>
             {
                 builder.Configuration.Bind("oidc", options.ProviderOptions);
-                options.AuthenticationPaths.RemoteProfilePath = $"{builder.Configuration["VELOTIMER_API_URL"]}/Account/Manage";
-                options.AuthenticationPaths.RemoteRegisterPath = $"{builder.Configuration["VELOTIMER_API_URL"]}/Account/Register";
+                options.AuthenticationPaths.RemoteProfilePath = $"{builder.Configuration["VELOTIMER_API_URL"]}/Identity/Account/Manage";
+                options.AuthenticationPaths.RemoteRegisterPath = $"{builder.Configuration["VELOTIMER_API_URL"]}/Identity/Account/Register";
             }).AddAccountClaimsPrincipalFactory<RolesClaimsPrincipalFactory>();
 
             await builder.Build().RunAsync();
