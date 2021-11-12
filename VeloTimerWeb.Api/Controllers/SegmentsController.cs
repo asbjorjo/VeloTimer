@@ -19,11 +19,12 @@ namespace VeloTimerWeb.Api.Controllers
         
         public SegmentsController(ISegmentService segmentTimes,
                                   ILogger<GenericController<Segment>> logger,
-                                  ApplicationDbContext context) : base(logger, context)
+                                  VeloTimerDbContext context) : base(logger, context)
         {
             _segmentTimes = segmentTimes;
         }
 
+        [AllowAnonymous]
         public override async Task<ActionResult<Segment>> Get(long id)
         {
             var value = await _dbset.Include(s => s.Intermediates).Where(s => s.Id == id).SingleOrDefaultAsync();
@@ -53,6 +54,7 @@ namespace VeloTimerWeb.Api.Controllers
             return segmenttimes.ToList();
         }
 
+        [AllowAnonymous]
         [HttpGet("fastest")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -65,12 +67,11 @@ namespace VeloTimerWeb.Api.Controllers
                 _fromtime = fromtime.Value;
             }
 
-            var segmenttimes = await _segmentTimes.GetFastestSegmentTimes(segmentId, transponderId, _fromtime, totime, count, requireintermediates);
+            var segmenttimes = await _segmentTimes.GetFastestSegmentTimesNewWay(segmentId, transponderId, _fromtime, totime, count, requireintermediates);
 
             return segmenttimes.ToList();
         }
 
-        [Authorize]
         [HttpGet("passingcount")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]

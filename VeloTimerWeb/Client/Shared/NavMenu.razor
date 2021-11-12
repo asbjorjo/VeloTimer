@@ -1,5 +1,5 @@
-﻿<div class="top-row pl-4 navbar navbar-dark">
-    <a class="navbar-brand" href="">VeloTimerWeb</a>
+﻿<div class="top-row navbar navbar-dark">
+    <a class="navbar-brand" href="">VeloTimer</a>
     <button class="navbar-toggler" @onclick="ToggleNavMenu">
         <span class="navbar-toggler-icon"></span>
     </button>
@@ -12,22 +12,21 @@
                 <span class="oi oi-home" aria-hidden="true"></span> Home
             </NavLink>
         </li>
-        <li class="nav-item px-3">
-            <NavLink class="nav-link" href="nametransponder">
-                <span class="oi oi-cog" aria-hidden="true"></span> Name transponder
-            </NavLink>
-        </li>
-        <li class="nav-item px-3">
-            <NavLink class="nav-link" href="segmenttimes">
-                <span class="oi oi-list-rich" aria-hidden="true"></span> Segment times
-            </NavLink>
-        </li>
-        <li class="nav-item px-3">
-            <NavLink class="nav-link" href="transpondertimes">
-                <span class="oi oi-list-rich" aria-hidden="true"></span> Transponder times
-            </NavLink>
-        </li>
-        <li class="nav-item px-3">
+        <AuthorizeView>
+            <Authorized>
+                <li class="nav-item px-3">
+                    <NavLink class="nav-link" href="segmenttimes">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Segment times
+                    </NavLink>
+                </li>
+                <li class="nav-item px-3">
+                    <NavLink class="nav-link" href="registertransponder">
+                        <span class="oi oi-list-rich" aria-hidden="true"></span> Register transponder
+                    </NavLink>
+                </li>
+            </Authorized>
+        </AuthorizeView>
+@*        <li class="nav-item px-3">
             <NavLink class="nav-link" href="laptimes">
                 <span class="oi oi-list-rich" aria-hidden="true"></span> Lap times
             </NavLink>
@@ -36,7 +35,7 @@
             <NavLink class="nav-link" href="200times">
                 <span class="oi oi-list-rich" aria-hidden="true"></span> 200m times
             </NavLink>
-        </li>
+        </li>*@
     </ul>
 </div>
 

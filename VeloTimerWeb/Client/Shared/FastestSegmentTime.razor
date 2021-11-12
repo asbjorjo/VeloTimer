@@ -8,7 +8,7 @@
 
 @if (segment != null && segment.Start != null && segment.End !=null)
 {
-    @if (segment.Intermediates.Count > 0 && !ShowIntermediate.HasValue)
+    @if (segment.Intermediates.Count() > 0 && !ShowIntermediate.HasValue)
     {
         <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Hide" : "Show") intermediate times</button>
     }
@@ -47,7 +47,7 @@
 
     protected override void OnInitialized()
     {
-        hubConnection.On(Strings.Events.NewPassings, async () =>
+        hubConnection.On(Strings.Events.NewSegmentRun, async () =>
         {
             await LoadSegmentTimes();
         });
@@ -58,7 +58,7 @@
         if (Segment != segment?.Id || Transponder != transponder) {
             if (segment != null)
             {
-                await hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+                await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
             }
 
             segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
@@ -78,7 +78,7 @@
 
             if (totime == null)
             {
-                await hubConnection.InvokeAsync("AddToTimingLoopGroup", segment.EndId);
+                await hubConnection.InvokeAsync("AddToSegmentGroup", segment.Id);
             }
 
             await LoadSegmentTimes();
@@ -112,10 +112,10 @@
 
     public void Dispose()
     {
-        hubConnection.Remove(Strings.Events.NewPassings);
+        hubConnection.Remove(Strings.Events.NewSegmentRun);
         if (segment != null)
         {
-            hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+            hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
         }
     }
 }

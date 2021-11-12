@@ -10,6 +10,11 @@ namespace VeloTimerWeb.Server.Hubs
 {
     public class PassingHub : Hub<IPassingClient>
     {
+        public async Task NotifySegmentOfNewRun(SegmentRun segment)
+        {
+            await Clients.Groups($"segment_{segment.SegmentId}").NewSegmentRun();
+        }
+
         public async Task RegisterPassingWithClients(Passing passing)
         {
             await Clients.All.RegisterPassing(passing);
@@ -32,22 +37,32 @@ namespace VeloTimerWeb.Server.Hubs
 
         public async Task NotifyLoopOfNewPassing(long loop)
         {
-            await Clients.Groups(loop.ToString()).NewPassings();
+            await Clients.Groups($"loop_{loop}").NewPassings();
         }
         
         public async Task NotifyLoopsOfNewPassings(List<long> loops)
         {
-            await Clients.Groups(loops.Select(l => l.ToString()).ToList()).NewPassings();
+            await Clients.Groups(loops.Select(l => $"loop_{l}").ToList()).NewPassings();
         }
 
         public Task AddToTimingLoopGroup(long loop)
         {
-            return Groups.AddToGroupAsync(Context.ConnectionId, loop.ToString());
+            return Groups.AddToGroupAsync(Context.ConnectionId, $"loop_{loop}");
         }
 
         public Task RemoveFromTimingLoopGroup(long loop) 
         { 
-            return Groups.RemoveFromGroupAsync(Context.ConnectionId, loop.ToString()); 
+            return Groups.RemoveFromGroupAsync(Context.ConnectionId, $"loop_{loop}"); 
+        }
+
+        public Task AddToSegmentGroup(long segment)
+        {
+            return Groups.AddToGroupAsync(Context.ConnectionId, $"segment_{segment}");
+        }
+
+        public Task RemoveSegmentLoopGroup(long segment)
+        {
+            return Groups.RemoveFromGroupAsync(Context.ConnectionId, $"segment_{segment}");
         }
 
         public override Task OnConnectedAsync()

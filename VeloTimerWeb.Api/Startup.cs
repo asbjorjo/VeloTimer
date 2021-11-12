@@ -1,3 +1,5 @@
+using IdentityServer4.Models;
+using IdentityServer4.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -5,17 +7,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.OpenApi.Models;
-using System;
-using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Services;
-using VeloTimer.Shared.Models;
-using System.Linq;
-using System.IdentityModel.Tokens.Jwt;
-using IdentityServer4.Services;
-using Microsoft.AspNetCore.Identity;
-using System.Security.Claims;
 using Microsoft.Net.Http.Headers;
+using Microsoft.OpenApi.Models;
+using System.IdentityModel.Tokens.Jwt;
+using VeloTimer.Shared.Hub;
+using VeloTimer.Shared.Models;
+using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Hubs;
+using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api
 {
@@ -35,24 +34,70 @@ namespace VeloTimerWeb.Api
         {
             services.AddApplicationInsightsTelemetry();
 
-            services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(
-                    Configuration.GetConnectionString("Azure")));
+            services.AddDbContext<VeloTimerDbContext>(options =>
+            {
+                options.UseSqlServer(Configuration.GetConnectionString("Azure"));
+            });
+            services.AddDbContext<VeloIdentityDbContext>(options =>
+            {
+                options.UseSqlServer(Configuration.GetConnectionString("Azure"));
+            });
 
-            services.Configure<IdentityOptions>(options => options.ClaimsIdentity.UserIdClaimType = ClaimTypes.NameIdentifier);
+            //services.Configure<IdentityOptions>(options =>
+            //{
+            //    options.ClaimsIdentity.UserIdClaimType = Claims.Subject;
+            //    options.ClaimsIdentity.UserNameClaimType = Claims.Name;
+            //    options.ClaimsIdentity.EmailClaimType = Claims.Email;
+            //    options.ClaimsIdentity.RoleClaimType = Claims.Role;
+            //});
 
-            services.AddDefaultIdentity<User>()
+            //services.AddOptions().AddLogging();
+
+            //// Services used by identity
+            //services.TryAddScoped<IUserValidator<User>, UserValidator<User>>();
+            //services.TryAddScoped<IPasswordValidator<User>, PasswordValidator<User>>();
+            //services.TryAddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+            //services.TryAddScoped<ILookupNormalizer, UpperInvariantLookupNormalizer>();
+
+            //// No interface for the error describer so we can add errors without rev'ing the interface
+            //services.TryAddScoped<IdentityErrorDescriber>();
+            //services.TryAddScoped<IUserClaimsPrincipalFactory<User>, UserClaimsPrincipalFactory<User>>();
+            //services.TryAddScoped<VeloTimeUserManager<User>>();
+
+            services.AddDefaultIdentity<User>(options =>
+            {
+            })
+                .AddUserManager<VeloTimeUserManager<User>>()
                 .AddRoles<Role>()
-                .AddEntityFrameworkStores<ApplicationDbContext>();
+                .AddEntityFrameworkStores<VeloIdentityDbContext>();
 
-            services.AddIdentityServer()
-                .AddApiAuthorization<User, ApplicationDbContext>();
+            services.AddIdentityServer(options =>
+            {
+                options.Events.RaiseErrorEvents = true;
+                options.Events.RaiseInformationEvents = true;
+                options.Events.RaiseFailureEvents = true;
+                options.Events.RaiseSuccessEvents = true;
+
+                // see https://identityserver4.readthedocs.io/en/latest/topics/resources.html
+                options.EmitStaticAudienceClaim = true;
+            })
+                .AddApiAuthorization<User, VeloIdentityDbContext>(options =>
+                {
+                    options.Clients.Add(new Client
+                    {
+                        ClientId = "WebApi.Loader",
+                        AllowedGrantTypes = { GrantType.ClientCredentials },
+                        ClientSecrets = { new Secret("secret".Sha256()) },
+                        AllowedScopes = { "VeloTimer.Api", "VeloTimer.ApiAPI" }
+                    });
+                });
 
             services.AddTransient<IProfileService, ProfileService>();
             JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Remove("role");
 
             services.AddAuthentication()
                 .AddIdentityServerJwt()
+
                 .AddStrava(options =>
                 {
                     options.ClientId = Configuration["Authentication:Strava:ClientId"];
@@ -70,9 +115,11 @@ namespace VeloTimerWeb.Api
                 });
 
             services.AddAuthorization();
-            
+
             services.AddDatabaseDeveloperPageExceptionFilter();
 
+            services.AddScoped<IPassingService, PassingService>();
+            services.AddScoped<IRiderService, RiderService>();
             services.AddScoped<ISegmentService, SegmentService>();
 
             services.AddCors(options =>
@@ -80,17 +127,18 @@ namespace VeloTimerWeb.Api
                 options.AddPolicy(name: AllowedOrigins,
                                   builder =>
                                   {
-                                      //builder.AllowAnyOrigin();
-                                      builder.WithOrigins("https://localhost:44350");
+                                      builder.WithOrigins("https://localhost:44350", "https://velotimer-dev.azurewebsites.net");
                                       builder.AllowAnyMethod();
-                                      //builder.AllowAnyHeader();
-                                      builder.WithHeaders(HeaderNames.ContentType, HeaderNames.Authorization);
+                                      //builder.WithHeaders(HeaderNames.ContentType, HeaderNames.Authorization);
+                                      builder.AllowAnyHeader();
                                       builder.AllowCredentials();
                                   });
             });
 
+            services.AddSignalR();
             services.AddRazorPages();
             services.AddControllers();
+
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "VeloTimerWeb.Api", Version = "v1" });
@@ -119,10 +167,10 @@ namespace VeloTimerWeb.Api
             app.UseAuthentication();
             app.UseAuthorization();
 
-            
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapRazorPages();
+                endpoints.MapHub<PassingHub>(Strings.hubUrl);
                 endpoints.MapControllers();
             });
         }

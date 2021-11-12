@@ -33,7 +33,8 @@
     {
         #pragma warning disable 4014
         ConnectWithRetryAsync(cts.Token);
-
+        #pragma warning restore 4014
+        
         hubConnection.Closed += error =>
         {
             return ConnectWithRetryAsync(cts.Token);

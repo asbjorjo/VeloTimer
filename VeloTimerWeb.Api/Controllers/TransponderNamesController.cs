@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -13,7 +14,7 @@ namespace VeloTimerWeb.Api.Controllers
     public class TransponderNamesController : GenericController<TransponderName>
     {
         public TransponderNamesController(ILogger<GenericController<TransponderName>> logger,
-                                          ApplicationDbContext context) : base(logger, context)
+                                          VeloTimerDbContext context) : base(logger, context)
         {
         }
 
@@ -43,7 +44,7 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var value = _context.Passings.Where(p => p.Time > DateTime.Now.AddHours(-1)).Select(p => p.Transponder.Names.Where(tn => tn.ValidFrom < DateTime.Now && tn.ValidUntil > DateTime.Now).SingleOrDefault());
 
-            return value.ToList();
+            return await value.ToListAsync();
         }
     }
 }

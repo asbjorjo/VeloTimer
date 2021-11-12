@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace VeloTimer.Shared.Models
 {
-    public class Role : IdentityRole
+    public class Role : IdentityRole<Guid>
     {
     }
 }

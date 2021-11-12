@@ -8,7 +8,7 @@
 
 @if (segment != null && segment.Start != null && segment.End !=null)
 {
-    @if (segment.Intermediates.Count > 0 && !ShowIntermediate.HasValue)
+    @if (segment.Intermediates.Count() > 0 && !ShowIntermediate.HasValue)
     {
         <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Hide" : "Show") intermediate times</button>
     }

@@ -14,13 +14,16 @@ namespace VeloTimer.Shared.Models
         public long StartId { get; set; }
         public long EndId { get; set; }
 
+        public bool DisplayIntermediates { get; set; }
+        public bool RequireIntermediates { get; set; }
+
         public long MinTime { get; set; } = 0;
         public long MaxTime { get; set; } = long.MaxValue;
 
         public TimingLoop Start { get; set; }
         public TimingLoop End { get; set; }
 
-        public virtual ICollection<Intermediate> Intermediates { get; set; }
+        public virtual ICollection<Intermediate> Intermediates { get; set; } = new List<Intermediate>();
     }
 
     public class Intermediate

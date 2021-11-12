@@ -1,0 +1,37 @@
+﻿@using VeloTimer.Shared.Hub
+@using VeloTimer.Shared.Models
+@using VeloTimer.Shared.Util
+
+@inherits ComponentBase
+@inject IApiClient Http
+@inject NavigationManager NavigationManager
+@inject HubConnection hubConnection
+
+@(activeriders > 0 ? activeriders : "No") rider@(activeriders > 0 ? "s" : "") on track.
+
+@code {
+    [Parameter]
+    public DateTimeOffset FromTime { get; set; } = DateTimeOffset.Now.AddHours(-1);
+    [Parameter]
+    public DateTimeOffset? ToTime { get; set; }
+
+    private int activeriders;
+    private DateTimeOffset fromtime;
+    private DateTimeOffset? totime;
+
+    protected async override Task OnParametersSetAsync()
+    {
+        if (FromTime != fromtime || (ToTime.HasValue && ToTime.Value != totime))
+        {
+            totime = ToTime.HasValue ? ToTime.Value.ToUniversalTime() : null;
+            fromtime = FromTime;
+
+            await LoadRiderCount();
+        }
+    }
+
+    protected async Task LoadRiderCount()
+    {
+        activeriders = await Http.GetActiveRiderCount(fromtime, totime);
+    }
+}

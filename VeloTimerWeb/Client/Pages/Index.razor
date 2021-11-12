@@ -2,15 +2,27 @@
 @using System.Globalization
 @using VeloTimer.Shared.Util
 
-<ActiveRiders FromTime=DateTimeOffset.Now.AddHours(-1) />
+<div>
+    <div>
+        <ActiveRiderCount FromTime=DateTimeOffset.Now.AddHours(-1) />
+    </div>
 
-<div>
-Times to beat this month:
-<FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Segment=1 ShowIntermediate=false />
-<FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Segment=2 ShowIntermediate=false />
-</div>
-<div>
-Best times last month:
-<FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Segment=1 ShowIntermediate=false />
-<FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Segment=2 ShowIntermediate=false />
+    <AuthorizeView>
+        <Authorized>
+            <div>
+                <ActiveRiders FromTime=DateTimeOffset.Now.AddHours(-1) />
+            </div>
+        </Authorized>
+    </AuthorizeView>
+
+    <div>
+        Times to beat this month:
+        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Segment=1 ShowIntermediate=false />
+        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Segment=2 ShowIntermediate=false />
+    </div>
+    <div>
+        Best times last month:
+        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Segment=1 ShowIntermediate=false />
+        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Segment=2 ShowIntermediate=false />
+    </div>
 </div>

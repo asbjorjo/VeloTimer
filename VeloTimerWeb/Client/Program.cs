@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
@@ -8,6 +7,7 @@ using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Hub;
+using VeloTimerWeb.Client.Services;
 
 namespace VeloTimerWeb.Client
 {
@@ -18,30 +18,32 @@ namespace VeloTimerWeb.Client
             var builder = WebAssemblyHostBuilder.CreateDefault(args);
             builder.RootComponents.Add<App>("#app");
 
+            builder.Services.AddScoped<VeloTimerAuthorizationMessageHandler>();
+
             builder.Services.AddHttpClient(
-                    "VeloTimerWeb.ServerAPI", 
+                    "VeloTimerWeb.ServerAPI",
                     client => client.BaseAddress = new Uri(builder.Configuration["VELOTIMER_API_URL"]))
-                .AddHttpMessageHandler(sp => sp.GetRequiredService<AuthorizationMessageHandler>()
-                .ConfigureHandler(
-                    authorizedUrls: new[] {"https://localhost:44387"}));
+                .AddHttpMessageHandler<VeloTimerAuthorizationMessageHandler>();
+
+            builder.Services.AddHttpClient<IApiClient, ApiClient>()
+                .AddHttpMessageHandler<VeloTimerAuthorizationMessageHandler>();
 
             builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>()
                                                .CreateClient("VeloTimerWeb.ServerAPI"));
 
-            builder.Services.AddSingleton<HubConnection>(sp => {
+            builder.Services.AddSingleton<HubConnection>(sp =>
+            {
                 var navigationManager = sp.GetRequiredService<NavigationManager>();
-                return new HubConnectionBuilder().WithUrl(navigationManager.ToAbsoluteUri(Strings.hubUrl))
+                return new HubConnectionBuilder().WithUrl(new Uri(new Uri(builder.Configuration["VELOTIMER_API_URL"]), Strings.hubUrl))
                                                  .WithAutomaticReconnect()
                                                  .Build();
             });
 
-            builder.Services.AddOidcAuthentication(options =>
+            builder.Services.AddApiAuthorization(options =>
             {
-                builder.Configuration.Bind("Local", options.ProviderOptions);
-                builder.Configuration.Bind("User", options.UserOptions);
-                options.ProviderOptions.DefaultScopes.Add("VeloTimerWeb.ApiAPI");
-                options.AuthenticationPaths.RemoteProfilePath = "https://localhost:44387/Identity/Account/Manage";
-                options.AuthenticationPaths.RemoteRegisterPath = "https://localhost:44387/Identity/Account/Register";
+                builder.Configuration.Bind("oidc", options.ProviderOptions);
+                options.AuthenticationPaths.RemoteProfilePath = $"{builder.Configuration["VELOTIMER_API_URL"]}/Account/Manage";
+                options.AuthenticationPaths.RemoteRegisterPath = $"{builder.Configuration["VELOTIMER_API_URL"]}/Account/Register";
             }).AddAccountClaimsPrincipalFactory<RolesClaimsPrincipalFactory>();
 
             await builder.Build().RunAsync();

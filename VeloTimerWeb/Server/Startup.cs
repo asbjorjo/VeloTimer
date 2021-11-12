@@ -64,7 +64,7 @@ namespace VeloTimerWeb.Server
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapBlazorHub();
-                endpoints.MapHub<PassingHub>(Strings.hubUrl);
+                //endpoints.MapHub<PassingHub>(Strings.hubUrl);
                 endpoints.MapRazorPages();
                 endpoints.MapControllers();
                 endpoints.MapFallbackToFile("index.html");

@@ -1,0 +1,100 @@
+﻿@page "/registertransponder"
+@layout MainLayout
+@inherits ComponentBase
+@using Microsoft.Extensions.Logging
+@using VeloTimer.Shared.Models
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject HttpClient Http
+@inject ILogger<RegisterTransponder> Logger
+
+<AuthorizeView>
+    <Authorized>
+        <h3>Register Transponder</h3>
+
+        <EditForm Model="@transponderName" OnValidSubmit="@HandleValidSubmit" Context="formcontext">
+            <DataAnnotationsValidator />
+            <ServerValidator @ref="serverValidator" />
+            <ValidationSummary />
+
+            <label>
+                Transponder
+                <InputText id="label" @bind-Value="transponderName.TransponderLabel" />
+            </label>
+            <InputText id="name" @bind-Value="transponderName.Owner" hidden="true" />
+           
+            <label>
+                Valid from
+                <InputDate id="validFrom" @bind-Value="transponderName.OwnedFrom"></InputDate>
+            </label>
+            <label>
+                Valid until
+                <InputDate id="validUntil" @bind-Value="transponderName.OwnedUntil"></InputDate>
+            </label>
+
+            <button type="submit">Save</button>
+        </EditForm>
+
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Transponder</th>
+                    <th>From</th>
+                    <th>To</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if(transpondernames != null)
+                {
+                    @foreach(var transpondername in transpondernames)
+                    {
+                        <tr>
+                            <td>@transpondername.TransponderLabel</td>
+                            <td>@transpondername.OwnedFrom.Date.ToShortDateString()</td>
+                            <td>@transpondername.OwnedUntil.Date.ToShortDateString()</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private TransponderOwnershipWeb transponderName = new();
+    private IEnumerable<TransponderOwnershipWeb> transpondernames;
+    private ServerValidator serverValidator;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            transponderName.Owner = user.FindFirst(c => c.Type == "sub")?.Value;
+        }
+
+        await LoadTransponderNames();
+    }
+
+    private async Task LoadTransponderNames()
+    {
+        transpondernames = await Http.GetFromJsonAsync<IEnumerable<TransponderOwnershipWeb>>($"rider/{transponderName.Owner}/transponders");
+    }
+
+    private async void HandleValidSubmit()
+    {
+        var result = await Http.PostAsJsonAsync($"rider/{transponderName.Owner}/transponders", transponderName);
+        if (result.IsSuccessStatusCode)
+        {
+            await LoadTransponderNames();
+            StateHasChanged();            
+        }
+        else
+        {
+            serverValidator.Validate(result, transponderName);
+            Console.WriteLine($"{result.StatusCode}");
+        }
+    }
+}

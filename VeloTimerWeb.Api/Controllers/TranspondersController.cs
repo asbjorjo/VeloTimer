@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
@@ -12,10 +13,11 @@ namespace VeloTimerWeb.Api.Controllers
 {
     public class TranspondersController : GenericController<Transponder>
     {
-        public TranspondersController(ILogger<GenericController<Transponder>> logger, ApplicationDbContext context) : base(logger, context)
+        public TranspondersController(ILogger<GenericController<Transponder>> logger, VeloTimerDbContext context) : base(logger, context)
         {
         }
 
+        [AllowAnonymous]
         [Route("active")]
         [HttpGet]
         public async Task<ActionResult<ICollection<Transponder>>> GetActive(TimeSpan period, DateTimeOffset? fromtime)

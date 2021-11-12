@@ -10,6 +10,6 @@ namespace VeloTimer.Shared.Models
         public string Description { get; set; }
 
         public Track Track { get; set; }
-        public List<Passing> Passings { get; set; }
+        public ICollection<Passing> Passings { get; set; }
     }
 }
