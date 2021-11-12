@@ -90,7 +90,8 @@ namespace VeloTimerWeb.Api
                         ClientSecrets = { new Secret("secret".Sha256()) },
                         AllowedScopes = { "VeloTimer.Api", "VeloTimer.ApiAPI" }
                     });
-                });
+                })
+                .AddDeveloperSigningCredential();
 
             services.AddTransient<IProfileService, ProfileService>();
             JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Remove("role");
