@@ -18,7 +18,7 @@
         "AZURE_USERNAME": "asbjorjo@gmail.com",
         "ASPNETCORE_ENVIRONMENT": "Development",
         "AZURE_TENANT_ID": "3db7b746-e675-424b-a111-54c3346b4de8",
-        "AzureVault": "https://velotimervault.vault.azure.net/"
+        "AzureVault": "https://velotimer-dev-vault.vault.azure.net/"
       }
     },
     "VeloTimerWeb.Api": {
@@ -28,10 +28,10 @@
       "environmentVariables": {
         "AZURE_USERNAME": "asbjorjo@gmail.com",
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "AzureVault": "https://velotimervault.vault.azure.net/"
+        "AzureVault": "https://velotimer-dev-vault.vault.azure.net/"
       },
       "dotnetRunMessages": "true",
-      "applicationUrl": "https://localhost:44387;http://localhost:58223"
+      "applicationUrl": "https://localhost:44387;http://localhost:58223   "
     }
   }
 }

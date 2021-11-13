@@ -3,6 +3,7 @@ using IdentityServer4.Stores;
 using Microsoft.Azure.KeyVault;
 using Microsoft.Azure.KeyVault.Models;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Collections.Generic;
@@ -21,13 +22,19 @@ namespace VeloTimerWeb.Api.Util
         private readonly SemaphoreSlim _cacheLock;
         private readonly KeyVaultClient _keyVaultClient;
         private readonly IMemoryCache _cache;
+        private readonly ILogger<AzureKeyVaultSigningCredentialsStore> _logger;
         private readonly IKeyVaultConfig _keyVaultConfig;
 
-        public AzureKeyVaultSigningCredentialsStore(KeyVaultClient keyVaultClient, IKeyVaultConfig keyVaultConfig, IMemoryCache cache)
+        public AzureKeyVaultSigningCredentialsStore(
+            KeyVaultClient keyVaultClient, 
+            IKeyVaultConfig keyVaultConfig, 
+            IMemoryCache cache,
+            ILogger<AzureKeyVaultSigningCredentialsStore> logger)
         {
             _keyVaultClient = keyVaultClient;
             _keyVaultConfig = keyVaultConfig;
             _cache = cache;
+            _logger = logger;
 
             // MemoryCache.GetOrCreateAsync does not appear to be thread safe:
             // https://github.com/aspnet/Caching/blob/56447f941b39337947273476b2c366b3dffde565/src/Microsoft.Extensions.Caching.Abstractions/MemoryCacheExtensions.cs#L92-L106
@@ -40,6 +47,7 @@ namespace VeloTimerWeb.Api.Util
             try
             {
                 var (active, _) = await _cache.GetOrCreateAsync(MemoryCacheKey, RefreshCacheAsync);
+                _logger.LogInformation($"Active key: {active}");
                 return active;
             }
             finally
@@ -54,6 +62,7 @@ namespace VeloTimerWeb.Api.Util
             try
             {
                 var (_, secondary) = await _cache.GetOrCreateAsync(MemoryCacheKey, RefreshCacheAsync);
+                _logger.LogInformation($"Secondary key: {secondary}");
                 return secondary;
             }
             finally
@@ -64,6 +73,7 @@ namespace VeloTimerWeb.Api.Util
 
         private async Task<(SigningCredentials active, IEnumerable<SecurityKeyInfo> secondary)> RefreshCacheAsync(ICacheEntry cache)
         {
+            _logger.LogInformation($"Refresh cache.");
             cache.AbsoluteExpiration = DateTime.Now.AddDays(1);
             var enabledCertificateVersions = await GetAllEnabledCertificateVersionsAsync(_keyVaultClient, _keyVaultConfig.KeyVaultName, _keyVaultConfig.KeyVaultCertificateName);
             var active = await GetActiveCertificateAsync(_keyVaultClient, _keyVaultConfig.KeyVaultRolloverHours, enabledCertificateVersions);

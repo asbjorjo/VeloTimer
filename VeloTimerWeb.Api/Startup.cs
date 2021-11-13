@@ -1,6 +1,8 @@
 using IdentityServer4.Models;
 using IdentityServer4.Services;
+using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +20,7 @@ using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
 using VeloTimerWeb.Api.Services;
+using VeloTimerWeb.Api.Util;
 
 namespace VeloTimerWeb.Api
 {
@@ -69,12 +72,26 @@ namespace VeloTimerWeb.Api
             //services.TryAddScoped<IUserClaimsPrincipalFactory<User>, UserClaimsPrincipalFactory<User>>();
             //services.TryAddScoped<VeloTimeUserManager<User>>();
 
+            //var conf = new KeyVaultConfig
+            //{
+            //    KeyVaultCertificateName = "tokensiging",
+            //    KeyVaultName = "velotimer-dev-vault",
+            //    KeyVaultRolloverHours = 36
+            //};
+
             services.AddDefaultIdentity<User>(options =>
             {
             })
                 .AddUserManager<VeloTimeUserManager<User>>()
                 .AddRoles<Role>()
                 .AddEntityFrameworkStores<VeloIdentityDbContext>();
+
+            services.Configure<JwtBearerOptions>(
+                IdentityServerJwtConstants.IdentityServerJwtBearerScheme,
+                options =>
+                {
+                    options.Authority = Configuration["VELOTIMER_API_URL"];
+                });
 
             var identitybuilder = services.AddIdentityServer(options =>
             {
@@ -86,7 +103,7 @@ namespace VeloTimerWeb.Api
                 // see https://identityserver4.readthedocs.io/en/latest/topics/resources.html
                 options.EmitStaticAudienceClaim = true;
             })
-                .AddApiAuthorization<User, VeloIdentityDbContext>(options =>
+                .AddModifiedApiAuthorization<User, VeloIdentityDbContext>(options =>
                 {
                     options.Clients.Add(new Client
                     {
@@ -103,19 +120,18 @@ namespace VeloTimerWeb.Api
                 identitybuilder.AddDeveloperSigningCredential();
             } else
             {
-                if (identitybuilder == null)
-                {
-                    Console.WriteLine("identitybuilder is null, no bueno.");
-                }
-                Console.WriteLine("Finding key from key vault.");
-                var key = Configuration["tokensiging"];
-                Console.WriteLine($"Found key: {key}");
-                var pfxBytes = Convert.FromBase64String(key);
-                Console.WriteLine($"Converted: {pfxBytes}");
+                //services.AddSingleton<IKeyVaultConfig>(conf);
+                //services.AddKeyVaultSigningCredentials();
 
-                // Create the certificate.
+                //Console.WriteLine("Finding key from key vault.");
+                var key = Configuration["tokensiging"];
+                //Console.WriteLine($"Found key: {key}");
+                var pfxBytes = Convert.FromBase64String(key);
+                //Console.WriteLine($"Converted: {pfxBytes}");
+
+                //// Create the certificate.
                 var cert = new X509Certificate2(pfxBytes);
-                Console.WriteLine($"Certificate: {cert}");
+                //Console.WriteLine($"Certificate: {cert}");
                 identitybuilder
                     .AddSigningCredential(cert);
             }
