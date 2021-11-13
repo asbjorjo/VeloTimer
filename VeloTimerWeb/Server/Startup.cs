@@ -27,7 +27,7 @@ namespace VeloTimerWeb.Server
             services.AddAuthentication()
                 .AddJwtBearer("Bearer", options =>
                 {
-                    options.Authority = "https://localhost:44387";
+                    options.Authority = Configuration["VELOTIMER_API_URL"];
                 });
 
             services.AddControllersWithViews();
