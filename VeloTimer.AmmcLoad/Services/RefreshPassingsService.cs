@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
@@ -9,7 +8,6 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Hub;
 using VeloTimer.Shared.Models;
 
 namespace VeloTimer.AmmcLoad.Services
@@ -19,6 +17,7 @@ namespace VeloTimer.AmmcLoad.Services
         private const long TimerInterval = 1000;
         private int _lock = 0;
         private Timer _timer;
+        private Passing mostRecent;
 
         private readonly ILogger<RefreshPassingsService> _logger;
         private readonly AmmcPassingService _passingService;
@@ -37,8 +36,10 @@ namespace VeloTimer.AmmcLoad.Services
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("Passings Refresh started");
-            
-                _timer = new Timer(DoRefresh, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(TimerInterval));
+
+            await LoadMostRecentPassing();
+
+            _timer = new Timer(DoRefresh, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(TimerInterval));
         }
 
         private async void DoRefresh(object state)
@@ -62,12 +63,10 @@ namespace VeloTimer.AmmcLoad.Services
             }
         }
 
-        private async Task RefreshPassings()
+        private async Task LoadMostRecentPassing()
         {
             using var scope = _serviceScopeFactory.CreateScope();
             _httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
-
-            Passing mostRecent;
 
             try
             {
@@ -87,7 +86,10 @@ namespace VeloTimer.AmmcLoad.Services
 
 
             _logger.LogInformation("Most recent passing found {0}", mostRecent?.Source);
+        }
 
+        private async Task RefreshPassings()
+        {
             var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent.Source));
 
             if (!passings.Any())
@@ -110,25 +112,11 @@ namespace VeloTimer.AmmcLoad.Services
                     TimingSystem = TransponderType.TimingSystem.Mylaps_X2,
                     TransponderId = passing.TransponderId.ToString()
                 }));
-
-                //var register = new PassingRegister
-                //{
-                //    LoopId = passing.LoopId,
-                //    Source = passing.Id,
-                //    Time = passing.UtcTime,
-                //    TimingSystem = TransponderType.TimingSystem.Mylaps_X2,
-                //    TransponderId = passing.TransponderId.ToString()
-                //};
-
-                //var posted = await _httpClient.PostAsJsonAsync("passings/register", register);
-
-                //if (!posted.IsSuccessStatusCode)
-                //{
-                //    _logger.LogError($"Could not post passing - {register.Source} - {posted.StatusCode}");
-                //}
             }
 
             await Task.WhenAll(tasks);
+
+            await LoadMostRecentPassing();
         }
 
         private async Task PostPassing(PassingRegister passing)
