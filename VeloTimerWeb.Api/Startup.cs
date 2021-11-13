@@ -9,7 +9,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi.Models;
+using System;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Cryptography.X509Certificates;
 using VeloTimer.Shared.Hub;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
@@ -22,12 +24,14 @@ namespace VeloTimerWeb.Api
     {
         readonly string AllowedOrigins = "_allowedOrigins";
 
-        public Startup(IConfiguration configuration)
+        public Startup(IConfiguration configuration, IHostEnvironment env)
         {
             Configuration = configuration;
+            Environment = env;
         }
 
         public IConfiguration Configuration { get; }
+        public IHostEnvironment Environment { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -71,7 +75,7 @@ namespace VeloTimerWeb.Api
                 .AddRoles<Role>()
                 .AddEntityFrameworkStores<VeloIdentityDbContext>();
 
-            services.AddIdentityServer(options =>
+            var identitybuilder = services.AddIdentityServer(options =>
             {
                 options.Events.RaiseErrorEvents = true;
                 options.Events.RaiseInformationEvents = true;
@@ -90,8 +94,21 @@ namespace VeloTimerWeb.Api
                         ClientSecrets = { new Secret("secret".Sha256()) },
                         AllowedScopes = { "VeloTimer.Api", "VeloTimer.ApiAPI" }
                     });
-                })
-                .AddDeveloperSigningCredential();
+                });
+
+            if (Environment.IsDevelopment())
+            {
+                identitybuilder.AddDeveloperSigningCredential();
+            } else
+            {
+                var key = Configuration["tokensiging"];
+                var pfxBytes = Convert.FromBase64String(key);
+
+                // Create the certificate.
+                var cert = new X509Certificate2(pfxBytes);
+                identitybuilder
+                    .AddSigningCredential(cert);
+            }
 
             services.AddTransient<IProfileService, ProfileService>();
             JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Remove("role");
