@@ -99,9 +99,14 @@ namespace VeloTimerWeb.Api
 
             if (Environment.IsDevelopment())
             {
+                Console.WriteLine("Using development key.");
                 identitybuilder.AddDeveloperSigningCredential();
             } else
             {
+                if (identitybuilder == null)
+                {
+                    Console.WriteLine("identitybuilder is null, no bueno.");
+                }
                 Console.WriteLine("Finding key from key vault.");
                 var key = Configuration["tokensiging"];
                 Console.WriteLine($"Found key: {key}");
