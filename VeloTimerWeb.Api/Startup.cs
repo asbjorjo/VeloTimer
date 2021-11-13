@@ -123,8 +123,17 @@ namespace VeloTimerWeb.Api
                 //services.AddSingleton<IKeyVaultConfig>(conf);
                 //services.AddKeyVaultSigningCredentials();
 
+                string key;
+
                 //Console.WriteLine("Finding key from key vault.");
-                var key = Configuration["tokensiging"];
+                if (Environment.IsStaging())
+                {
+                    key = Configuration["tokensiging"];
+                }
+                else
+                {
+                    key = Configuration["tokensigning"];
+                }
                 //Console.WriteLine($"Found key: {key}");
                 var pfxBytes = Convert.FromBase64String(key);
                 //Console.WriteLine($"Converted: {pfxBytes}");
