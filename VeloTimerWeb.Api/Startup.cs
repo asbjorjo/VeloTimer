@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi.Models;
 using System;
@@ -24,14 +25,16 @@ namespace VeloTimerWeb.Api
     {
         readonly string AllowedOrigins = "_allowedOrigins";
 
-        public Startup(IConfiguration configuration, IHostEnvironment env)
+        public Startup(IConfiguration configuration, IHostEnvironment env, ILogger<Startup> logger)
         {
             Configuration = configuration;
             Environment = env;
+            _logger = logger;
         }
 
         public IConfiguration Configuration { get; }
         public IHostEnvironment Environment { get; }
+        public ILogger<Startup> _logger { get;  }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -101,11 +104,15 @@ namespace VeloTimerWeb.Api
                 identitybuilder.AddDeveloperSigningCredential();
             } else
             {
+                _logger.LogInformation("Finding key from key vault.");
                 var key = Configuration["tokensiging"];
+                _logger.LogInformation($"Found key: {key}");
                 var pfxBytes = Convert.FromBase64String(key);
+                _logger.LogInformation($"Converted: {pfxBytes}");
 
                 // Create the certificate.
                 var cert = new X509Certificate2(pfxBytes);
+                _logger.LogInformation($"Certificate: {cert}");
                 identitybuilder
                     .AddSigningCredential(cert);
             }
