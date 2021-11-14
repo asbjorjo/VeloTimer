@@ -7,12 +7,12 @@
 
 <AuthorizeView>
     <Authorized>
-        <a href="authentication/profile">Hello, @(username ?? "")!</a>
-        <button class="nav-link btn btn-link" @onclick="BeginSignOut">Log out</button>
+        <a href="authentication/profile">Hei, @(username ?? "")!</a>
+        <button class="nav-link btn btn-link" @onclick="BeginSignOut">Logg ut</button>
     </Authorized>
     <NotAuthorized>
-        <a href="authentication/register">Register</a>
-        <a href="authentication/login">Log in</a>
+        <a href="authentication/register">Registrer</a>
+        <a href="authentication/login">Logg inn</a>
     </NotAuthorized>
 </AuthorizeView>
 
