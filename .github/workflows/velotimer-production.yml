@@ -39,8 +39,8 @@ jobs:
       run: dotnet publish "${{ env.API_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_API_PACKAGE_PATH }}"
     - name: Publish AmmcLoad
       run: dotnet publish "${{ env.AMMC_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_AMMC_PACKAGE_PATH }}"
-    - name: Publish WebApp
-      run: dotnet publish "${{ env.WEBAPP_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
+#    - name: Publish WebApp
+#      run: dotnet publish "${{ env.WEBAPP_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
     - name: Install EF Tool
       run: |
           dotnet new tool-manifest
@@ -49,16 +49,16 @@ jobs:
       run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloIdentityDbContext --no-build
     - name: Update VeloTimer Database
       run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
-    - name: Deploy to Azure API
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: ${{ env.AZURE_API_NAME }}
-        package: ${{ env.AZURE_API_PACKAGE_PATH }}
+#    - name: Deploy to Azure API
+#      uses: azure/webapps-deploy@v2
+#      with:
+#        app-name: ${{ env.AZURE_API_NAME }}
+#        package: ${{ env.AZURE_API_PACKAGE_PATH }}
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+        package: ${{ env.AZURE_API_PACKAGE_PATH }}
     - name: Deploy to Azure AmmcLoader
       uses: azure/webapps-deploy@v2
       with:
@@ -74,10 +74,10 @@ jobs:
       with:
         name: ammcload
         path: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
-    - name: Publish WebApp Artifacts
-      uses: actions/upload-artifact@v1.0.0
-      with:
-        name: webapp
-        path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+#    - name: Publish WebApp Artifacts
+#      uses: actions/upload-artifact@v1.0.0
+#      with:
+#        name: webapp
+#        path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
     - name: Azure Logout
       run: az logout
