@@ -105,7 +105,7 @@ namespace VeloTimerWeb.Api
             })
                 .AddModifiedApiAuthorization<User, VeloIdentityDbContext>(options =>
                 {
-                    options.Clients.Add(new Client
+                    options.Clients.Add(new IdentityServer4.Models.Client
                     {
                         ClientId = "WebApi.Loader",
                         AllowedGrantTypes = { GrantType.ClientCredentials },
@@ -190,6 +190,7 @@ namespace VeloTimerWeb.Api
 
             services.AddSignalR();
             services.AddRazorPages();
+            services.AddServerSideBlazor();
             services.AddControllers();
 
             services.AddSwaggerGen(c =>
@@ -207,9 +208,11 @@ namespace VeloTimerWeb.Api
                 app.UseMigrationsEndPoint();
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "VeloTimerWeb.Api v1"));
+                app.UseWebAssemblyDebugging();
             }
 
             app.UseHttpsRedirection();
+            app.UseBlazorFrameworkFiles();
             app.UseStaticFiles();
 
             app.UseRouting();
@@ -222,9 +225,11 @@ namespace VeloTimerWeb.Api
 
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapBlazorHub();
                 endpoints.MapRazorPages();
                 endpoints.MapHub<PassingHub>(Strings.hubUrl);
                 endpoints.MapControllers();
+                endpoints.MapFallbackToFile("index.html");
             });
         }
     }

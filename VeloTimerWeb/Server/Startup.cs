@@ -4,8 +4,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using VeloTimer.Shared.Hub;
-using VeloTimerWeb.Server.Hubs;
 
 namespace VeloTimerWeb.Server
 {
@@ -64,7 +62,6 @@ namespace VeloTimerWeb.Server
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapBlazorHub();
-                //endpoints.MapHub<PassingHub>(Strings.hubUrl);
                 endpoints.MapRazorPages();
                 endpoints.MapControllers();
                 endpoints.MapFallbackToFile("index.html");

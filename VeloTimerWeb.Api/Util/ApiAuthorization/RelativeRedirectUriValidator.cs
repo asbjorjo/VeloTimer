@@ -21,7 +21,7 @@ namespace VeloTimerWeb.Api.Util.ApiAuthorization
 
         public IAbsoluteUrlFactory AbsoluteUrlFactory { get; }
 
-        public override Task<bool> IsRedirectUriValidAsync(string requestedUri, Client client)
+        public override Task<bool> IsRedirectUriValidAsync(string requestedUri, IdentityServer4.Models.Client client)
         {
             if (IsLocalSPA(client))
             {
@@ -33,7 +33,7 @@ namespace VeloTimerWeb.Api.Util.ApiAuthorization
             }
         }
 
-        public override Task<bool> IsPostLogoutRedirectUriValidAsync(string requestedUri, Client client)
+        public override Task<bool> IsPostLogoutRedirectUriValidAsync(string requestedUri, IdentityServer4.Models.Client client)
         {
             if (IsLocalSPA(client))
             {
@@ -45,7 +45,7 @@ namespace VeloTimerWeb.Api.Util.ApiAuthorization
             }
         }
 
-        private static bool IsLocalSPA(Client client) =>
+        private static bool IsLocalSPA(IdentityServer4.Models.Client client) =>
             client.Properties.TryGetValue(ApplicationProfilesPropertyNames.Profile, out var clientType) &&
             ApplicationProfiles.IdentityServerSPA == clientType;
 
