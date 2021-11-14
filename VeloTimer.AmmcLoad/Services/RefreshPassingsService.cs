@@ -100,24 +100,36 @@ namespace VeloTimer.AmmcLoad.Services
 
             _logger.LogInformation("Found {0} number of passings", passings.Count);
 
-            var tasks = new List<Task>();
+            //var tasks = new List<Task>();
 
             using var scope = _serviceScopeFactory.CreateScope();
             _httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
-            
             foreach (var passing in passings)
             {
-                tasks.Add(PostPassing(new PassingRegister
+                var posted = await _httpClient.PostAsJsonAsync("passings/register", new PassingRegister
                 {
                     LoopId = passing.LoopId,
                     Source = passing.Id,
                     Time = passing.UtcTime,
                     TimingSystem = TransponderType.TimingSystem.Mylaps_X2,
                     TransponderId = passing.TransponderId.ToString()
-                }));
+                });
+
+                if (!posted.IsSuccessStatusCode)
+                {
+                    _logger.LogError($"Could not post passing - {passing.Id} - {posted.StatusCode}");
+                }
+                //tasks.Add(PostPassing(new PassingRegister
+                //{
+                //    LoopId = passing.LoopId,
+                //    Source = passing.Id,
+                //    Time = passing.UtcTime,
+                //    TimingSystem = TransponderType.TimingSystem.Mylaps_X2,
+                //    TransponderId = passing.TransponderId.ToString()
+                //}));
             }
 
-            await Task.WhenAll(tasks);
+            //await Task.WhenAll(tasks);
 
             await LoadMostRecentPassing();
         }
