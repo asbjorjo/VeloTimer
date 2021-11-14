@@ -114,6 +114,8 @@ namespace VeloTimer.AmmcLoad.Services
                 }));
             }
 
+            using var scope = _serviceScopeFactory.CreateScope();
+            _httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
             await Task.WhenAll(tasks);
 
             await LoadMostRecentPassing();
