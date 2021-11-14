@@ -10,22 +10,22 @@
 {
     @if (segment.Intermediates.Count() > 0 && !ShowIntermediate.HasValue && segment.DisplayIntermediates)
     {
-        <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Hide" : "Show") intermediate times</button>
+        <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Skjul" : "Vis") mellomtider</button>
     }
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Rider</th>
+                <th>Rytter</th>
                 @if (showintermediate && !segment.Intermediates.Where(i => i.Loop == null).Any())
                 {
                     @foreach (var intermediate in segment.Intermediates)
                     {
                         <th>@intermediate.Loop.Description</th>
-                        <th>Speed</th>
+                        <th>Fart</th>
                     }
                 }
                 <th>@segment.End.Description</th>
-                <th>Speed</th>
+                <th>Fart</th>
             </tr>
         </thead>
         <tbody>
@@ -33,7 +33,7 @@
             {
                 <tr>
                     <td colspan="3">
-                        Loading...
+                        Laster...
                     </td>
                 </tr>
             }

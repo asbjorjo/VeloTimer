@@ -10,13 +10,24 @@
 {
     @if (segment.Intermediates.Count() > 0 && !ShowIntermediate.HasValue)
     {
-        <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Hide" : "Show") intermediate times</button>
+        <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Skjul" : "Vis") mellomtider</button>
     }
     
     @if (segmentTime != null)
     {
-        <div>
-            @segment.Label -- @segmentTime.Rider - @String.Format("{0:00.000}", segmentTime.Segmentspeed) - @String.Format("{0:00.000}", segmentTime.Segmenttime)
+        <div class="row">
+            <div class="col font-weight-bold">
+            @segment.Label
+            </div>
+            <div class="col">
+            @segmentTime.Rider
+            </div>
+            <div class="col">
+            @String.Format("{0:00.000}", segmentTime.Segmentspeed)
+            </div>
+            <div class="col">
+            @String.Format("{0:00.000}", segmentTime.Segmenttime)
+            </div>
         </div>
     }
 }
