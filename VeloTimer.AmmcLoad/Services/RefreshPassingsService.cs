@@ -70,7 +70,7 @@ namespace VeloTimer.AmmcLoad.Services
 
             try
             {
-                mostRecent = await _httpClient.GetFromJsonAsync<Passing>("/passings/mostrecent");
+                mostRecent = await _httpClient.GetFromJsonAsync<Passing>("passings/mostrecent");
             }
             catch (HttpRequestException ex)
             {
