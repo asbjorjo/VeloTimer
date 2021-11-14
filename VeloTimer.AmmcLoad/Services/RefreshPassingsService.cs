@@ -102,6 +102,9 @@ namespace VeloTimer.AmmcLoad.Services
 
             var tasks = new List<Task>();
 
+            using var scope = _serviceScopeFactory.CreateScope();
+            _httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
+            
             foreach (var passing in passings)
             {
                 tasks.Add(PostPassing(new PassingRegister
@@ -114,8 +117,6 @@ namespace VeloTimer.AmmcLoad.Services
                 }));
             }
 
-            using var scope = _serviceScopeFactory.CreateScope();
-            _httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
             await Task.WhenAll(tasks);
 
             await LoadMostRecentPassing();
