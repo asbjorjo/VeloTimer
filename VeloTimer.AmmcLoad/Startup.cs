@@ -40,7 +40,7 @@ namespace VeloTimer.AmmcLoad
             services.AddHttpClient(
                 "VeloTimerWeb.ServerAPI", 
                 client => client.BaseAddress = new Uri(Configuration["VELOTIMER_API_URL"])).ConfigurePrimaryHttpMessageHandler<VeloHttpClientHandler>();
-            services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("VeloTimerWeb.ServerAPI"));
+            services.AddSingleton(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("VeloTimerWeb.ServerAPI"));
             services.AddHostedService<RefreshPassingsService>();
 
             services.AddRazorPages();
