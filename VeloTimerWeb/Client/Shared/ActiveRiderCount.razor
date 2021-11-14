@@ -7,7 +7,7 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-@(activeriders > 0 ? activeriders : "No") rider@(activeriders > 0 ? "s" : "") on track.
+@(activeriders > 0 ? activeriders : "Ingen") rytter@(activeriders == 1 ? "" : "e") på banen.
 
 @code {
     [Parameter]

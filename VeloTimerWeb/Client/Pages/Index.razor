@@ -3,7 +3,7 @@
 @using VeloTimer.Shared.Util
 
 <div>
-    <div>
+    <div class="row">
         <ActiveRiderCount FromTime=DateTimeOffset.Now.AddHours(-1) />
     </div>
 
@@ -16,12 +16,12 @@
     </AuthorizeView>
 
     <div>
-        Times to beat this month:
+        <div>Tider å slå denne måneden:</div>
         <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Segment=1 ShowIntermediate=false />
         <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Segment=2 ShowIntermediate=false />
     </div>
     <div>
-        Best times last month:
+        <div>Beste tider forrige måned:</div>
         <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Segment=1 ShowIntermediate=false />
         <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Segment=2 ShowIntermediate=false />
     </div>
