@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
@@ -8,15 +9,16 @@ using VeloTimerWeb.Api.Data;
 
 namespace VeloTimerWeb.Api.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("[controller]")]
     public abstract class GenericController<T> : ControllerBase where T : Entity
     {
-        protected ApplicationDbContext _context;
+        protected VeloTimerDbContext _context;
         protected ILogger<GenericController<T>> _logger;
         protected DbSet<T> _dbset;
 
-        public GenericController(ILogger<GenericController<T>> logger, ApplicationDbContext context)
+        public GenericController(ILogger<GenericController<T>> logger, VeloTimerDbContext context)
         {
             _logger = logger;
             _context = context;
@@ -78,15 +80,6 @@ namespace VeloTimerWeb.Api.Controllers
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("Get", new { id = value.Id }, value);
-        }
-
-        [HttpPost("createmany")]
-        public virtual async Task<ActionResult> Create(IEnumerable<T> values)
-        {
-            await _dbset.AddRangeAsync(values);
-            await _context.SaveChangesAsync();
-
-            return Accepted();
         }
 
         [HttpDelete("{id}")]

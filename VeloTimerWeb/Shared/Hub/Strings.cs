@@ -14,6 +14,7 @@ namespace VeloTimer.Shared.Hub
             public static string RegisterPassing => nameof(IPassingClient.RegisterPassing);
             public static string LastPassing => nameof(IPassingClient.LastPassing);
             public static string NewPassings => nameof(IPassingClient.NewPassings);
+            public static string NewSegmentRun => nameof(IPassingClient.NewSegmentRun);
         }
     }
 }

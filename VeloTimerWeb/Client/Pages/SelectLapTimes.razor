@@ -1,4 +1,4 @@
-﻿@page "/segmenttimes"
+﻿@page "/segmenttimes/{SegmentId:long?}"
 @layout MainLayout
 @using VeloTimer.Shared.Models
 @inject NavigationManager NavigationManager
@@ -15,16 +15,25 @@ else
     <select @onchange="ChangeSegment">
         @foreach (var segment in segments)
         {
-            <option value="@segment.Id">@segment.Label</option>
+            <option value="@segment.Id" selected="@(segment.Id == this.segment)">@segment.Label</option>
         }
     </select>
-
     <SegmentTimes Segment=segment FromTime=DateTimeOffset.Now.Date />
 }
 
 @code {
+    [Parameter]
+    public long? SegmentId { get; set; }
     private Segment[] segments;
     private long segment;
+
+    protected override void OnParametersSet()
+    {
+        if (SegmentId.HasValue && SegmentId.Value != segment)
+        {
+            segment = SegmentId.Value;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -34,7 +43,7 @@ else
 
     private void ChangeSegment(ChangeEventArgs e)
     {
-        var selected = int.Parse(e.Value.ToString());
-        segment = segments.Where(s => s.Id == selected).Single().Id;
+        var selected = long.Parse(e.Value.ToString());
+        NavigationManager.NavigateTo($"segmenttimes/{selected}");
     }
 }

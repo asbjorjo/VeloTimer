@@ -11,5 +11,6 @@ namespace VeloTimer.Shared.Hub
         Task RegisterPassing(Passing passing);
         Task NewPassings();
         Task LastPassing(Passing passing);
+        Task NewSegmentRun();
     }
 }

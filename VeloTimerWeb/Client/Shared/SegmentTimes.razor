@@ -8,7 +8,7 @@
 
 @if (segment != null && segment.Start != null && segment.End !=null)
 {
-    @if (segment.Intermediates.Count > 0 && !ShowIntermediate.HasValue)
+    @if (segment.Intermediates.Count() > 0 && !ShowIntermediate.HasValue && segment.DisplayIntermediates)
     {
         <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Hide" : "Show") intermediate times</button>
     }
@@ -43,7 +43,7 @@
                 {
                     <tr>
                         <td>@segment.Rider</td>
-                        @if (showintermediate && !this.segment.Intermediates.Where(i => i.Loop == null).Any())
+                        @if (showintermediate && this.segment.DisplayIntermediates && !this.segment.Intermediates.Where(i => i.Loop == null).Any())
                         {
                             @foreach (var intermediate in this.segment.Intermediates)
                             {
@@ -90,17 +90,17 @@
     [Parameter]
     public DateTimeOffset? FromTime { get; set; }
     [Parameter]
-    public TimeSpan? Period { get; set; }
+    public DateTimeOffset? ToTime { get; set; }
 
     protected Segment segment;
     protected long? transponder;
     protected bool showintermediate = false;
     protected DateTimeOffset? fromtime;
-    protected TimeSpan? period;
+    protected DateTimeOffset? totime;
 
     protected override void OnInitialized()
     {
-        hubConnection.On(Strings.Events.NewPassings, async () =>
+        hubConnection.On(Strings.Events.NewSegmentRun, async () =>
         {
             await LoadSegmentTimes();
         });
@@ -111,7 +111,7 @@
         if (Segment != segment?.Id || Transponder != transponder) {
             if (segment != null)
             {
-                await hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+                await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
             }
 
             segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
@@ -119,18 +119,20 @@
             segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.StartId}");
             segment.End = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.EndId}");
 
+            if (segment.DisplayIntermediates) {
             foreach (var intermediate in segment.Intermediates)
-            {
-                intermediate.Loop = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{intermediate.LoopId}");
+                {
+                    intermediate.Loop = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{intermediate.LoopId}");
+                }
             }
 
             transponder = Transponder;
             fromtime = FromTime?.ToUniversalTime();
-            period = Period;
+            totime = ToTime?.ToUniversalTime();
 
-            if (period == null)
+            if (totime == null)
             {
-                await hubConnection.InvokeAsync("AddToTimingLoopGroup", segment.EndId);
+                await hubConnection.InvokeAsync("AddToSegmentGroup", segment.Id);
             }
 
             await LoadSegmentTimes();
@@ -139,6 +141,9 @@
         if (ShowIntermediate.HasValue)
         {
             showintermediate = ShowIntermediate.Value;
+        } else
+        {
+            showintermediate = segment.DisplayIntermediates;
         }
     }
 
@@ -148,7 +153,8 @@
             $"/segments/times?segmentId={segment.Id}"
             + $"&transponderid={transponder}"
             + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&period={period}");
+            + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
+            + $"&requireintermediates={segment.RequireIntermediates}");
 
         StateHasChanged();
     }
@@ -160,10 +166,10 @@
 
     public void Dispose()
     {
-        hubConnection.Remove(Strings.Events.NewPassings);
+        hubConnection.Remove(Strings.Events.NewSegmentRun);
         if (segment != null)
         {
-            hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+            hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
         }
     }
 }

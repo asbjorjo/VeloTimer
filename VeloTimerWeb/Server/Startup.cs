@@ -1,10 +1,9 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using VeloTimer.Shared.Hub;
-using VeloTimerWeb.Server.Hubs;
 
 namespace VeloTimerWeb.Server
 {
@@ -22,6 +21,12 @@ namespace VeloTimerWeb.Server
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddApplicationInsightsTelemetry();
+
+            services.AddAuthentication()
+                .AddJwtBearer("Bearer", options =>
+                {
+                    options.Authority = Configuration["VELOTIMER_API_URL"];
+                });
 
             services.AddControllersWithViews();
             services.AddRazorPages();
@@ -51,10 +56,12 @@ namespace VeloTimerWeb.Server
 
             app.UseRouting();
 
+            app.UseAuthentication();
+            app.UseAuthorization();
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapBlazorHub();
-                endpoints.MapHub<PassingHub>(Strings.hubUrl);
                 endpoints.MapRazorPages();
                 endpoints.MapControllers();
                 endpoints.MapFallbackToFile("index.html");

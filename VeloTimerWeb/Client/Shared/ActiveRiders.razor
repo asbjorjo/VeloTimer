@@ -1,45 +1,39 @@
-﻿@using VeloTimer.Shared.Hub
+﻿@using Microsoft.Extensions.Logging;
+@using VeloTimer.Shared.Hub
 @using VeloTimer.Shared.Models
 @using VeloTimer.Shared.Util
+@using VeloTimerWeb.Client.Services
 @inherits ComponentBase
-@inject HttpClient Http
+@inject IApiClient Http
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
+@inject ILogger<ActiveRiders> logger
 
-<h3>Active Riders</h3>
+ @if (activeriders != null)
+{
 
- @if (activetransponders is null)
-{
-    <p>Loading...</p>
-} else
-{
-    if (activetransponders.Length == 0)
+    @foreach(var rider in activeriders)
     {
-        <p>No one on track...</p>
-    } else {
-        @foreach(var transponder in activetransponders)
-        {
-            @TransponderIdConverter.IdToCode(transponder.Id)<br/>
-        }
+        @rider.Name<br/>
     }
 }
 
 @code {
     [Parameter]
-    public DateTimeOffset? FromTime { get; set; }
+    public DateTimeOffset FromTime { get; set; } = DateTimeOffset.Now.AddHours(-1);
     [Parameter]
-    public TimeSpan Period { get; set; } = TimeSpan.FromHours(1);
+    public DateTimeOffset? ToTime { get; set; }
 
-    private Transponder[] activetransponders;
-    private DateTimeOffset? fromtime;
-    private TimeSpan period;
+    private IEnumerable<Rider> activeriders;
+    private DateTimeOffset fromtime;
+    private DateTimeOffset? totime;
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Period != period || (FromTime.HasValue && FromTime.Value != fromtime))
+        if (FromTime != fromtime || (ToTime.HasValue && ToTime.Value != totime))
         {
-            fromtime = FromTime.HasValue ? FromTime.Value.ToUniversalTime() : null;
-            period = Period;
+            totime = ToTime.HasValue ? ToTime.Value.ToUniversalTime() : null;
+            fromtime = FromTime;
 
             await LoadActiveTransponders();
         }
@@ -47,7 +41,6 @@
 
     protected async Task LoadActiveTransponders()
     {
-        activetransponders = await Http.GetFromJsonAsync <Transponder[]>(
-            $"/transponders/active?fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}&period={period}");
+        activeriders = await Http.GetActiveRiders(fromtime, totime);
     }
 }
