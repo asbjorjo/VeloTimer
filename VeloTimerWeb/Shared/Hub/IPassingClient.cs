@@ -8,6 +8,7 @@ namespace VeloTimer.Shared.Hub
 {
     public interface IPassingClient
     {
+        Task NotifySegmentOfNewRun(SegmentRun segment);
         Task RegisterPassing(Passing passing);
         Task NewPassings();
         Task LastPassing(Passing passing);

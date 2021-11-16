@@ -15,13 +15,13 @@ namespace VeloTimerWeb.Api.Controllers
 {
     public class SegmentsController : GenericController<Segment>
     {
-        private readonly ISegmentService _segmentTimes;
+        private readonly ISegmentService _segmentService;
         
-        public SegmentsController(ISegmentService segmentTimes,
+        public SegmentsController(ISegmentService segmentService,
                                   ILogger<GenericController<Segment>> logger,
                                   VeloTimerDbContext context) : base(logger, context)
         {
-            _segmentTimes = segmentTimes;
+            _segmentService = segmentService;
         }
 
         [AllowAnonymous]
@@ -49,7 +49,7 @@ namespace VeloTimerWeb.Api.Controllers
                 _fromtime = fromtime.Value;
             }
 
-            var segmenttimes = await _segmentTimes.GetSegmentTimesAsync(segmentId, transponderId, _fromtime, totime);
+            var segmenttimes = await _segmentService.GetSegmentTimes(segmentId, transponderId, _fromtime, totime);
 
             return segmenttimes.ToList();
         }
@@ -67,7 +67,7 @@ namespace VeloTimerWeb.Api.Controllers
                 _fromtime = fromtime.Value;
             }
 
-            var segmenttimes = await _segmentTimes.GetFastestSegmentTimesNewWay(segmentId, transponderId, _fromtime, totime, count, requireintermediates);
+            var segmenttimes = await _segmentService.GetFastestSegmentTimesNewWay(segmentId, transponderId, _fromtime, totime, count, requireintermediates);
 
             return segmenttimes.ToList();
         }
@@ -75,7 +75,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet("passingcount")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<KeyValuePair<string, long>>>> GetPassingCounts(long segmentId, long? transponderId, DateTime? fromtime, DateTimeOffset? totime)
+        public async Task<ActionResult<IEnumerable<KeyValuePair<string, long>>>> GetPassingCounts(long segmentId, long? transponderId, DateTime? fromtime, DateTimeOffset? totime, int? count)
         {
             DateTimeOffset _fromtime = DateTimeOffset.Now;
 
@@ -84,9 +84,9 @@ namespace VeloTimerWeb.Api.Controllers
                 _fromtime = fromtime.Value;
             }
 
-            var passingcount = await _segmentTimes.GetSegmentPassingCountAsync(segmentId, transponderId, _fromtime, totime);
+            var passingcount = await _segmentService.GetSegmentPassingCount(segmentId, transponderId, _fromtime, totime, count);
 
-            return passingcount.ToList();
+            return Ok(passingcount);
         }
     }
 }

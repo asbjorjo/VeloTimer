@@ -22,7 +22,7 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesAsync(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime)
+        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimes(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime)
         {
             var segment = await LoadSegment(segmentId);
 
@@ -110,7 +110,7 @@ namespace VeloTimerWeb.Api.Services
 
         public async Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTimes(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime, int? count, bool requireintermediates)
         {
-            var times = await GetSegmentTimesAsync(segmentId, transponderId, fromtime, totime);
+            var times = await GetSegmentTimes(segmentId, transponderId, fromtime, totime);
 
             if (requireintermediates)
             {
@@ -128,60 +128,66 @@ namespace VeloTimerWeb.Api.Services
             return times;
         }
 
-        public async Task<IEnumerable<KeyValuePair<string, long>>> GetSegmentPassingCountAsync(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime)
+        public async Task<IEnumerable<KeyValuePair<string, long>>> GetSegmentPassingCount(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime, int? count)
         {
-            var segment = await LoadSegment(segmentId);
+            //var segmentruns = _context.Set<SegmentRun>().Where(s => s.SegmentId == segmentId);
+            //if (fromtime.HasValue)
+            //{
+            //    segmentruns = segmentruns.Where(s => s.Start.Time >= fromtime.Value);
+            //}
+            //if (totime.HasValue)
+            //{
+            //    segmentruns = segmentruns.Where(s => s.End.Time <= totime.Value);
+            //}
+            //if (transponderId.HasValue)
+            //{
+            //    segmentruns = segmentruns.Where(s => s.Start.TransponderId == transponderId.Value);
+            //}
 
-            var passings = FilterPassings(_context.Passings, transponderId, fromtime, totime);
+            //segmentruns = segmentruns.Where(s => s.Segment.Intermediates.Count == s.End.Transponder.Passings.Where(p => s.Segment.Intermediates.Select(i => i.Loop).Contains(p.Loop) && p.Time > s.Start.Time && p.Time < s.End.Time).Count());
 
-            var firstpass = await FindFirstPassing(passings, segment);
+            //segmentruns = segmentruns.OrderBy(s => s.Time);
 
-            if (firstpass == null)
+            //var runquery = segmentruns
+            //    .Select(s => new
+            //    {
+            //        Rider = s.End.Transponder.Owners.Where(o => o.OwnedFrom <= s.Start.Time && o.OwnedUntil >= s.End.Time).Select(o => o.Owner).SingleOrDefault(),
+            //        Segment = s.Segment,
+            //        Time = s.Time
+            //    })
+            //    .GroupBy(s => s.Rider)
+            //    .Select(x => new { Rider = x.Key, Count = x.LongCount() });
+
+            //if (count.HasValue)
+            //{
+            //    runquery = runquery.Take(count.Value);
+            //}
+
+            var owners = from to in _context.Set<TransponderOwnership>()
+                            join r in _context.Set<Rider>() on to.OwnerId equals r.Id
+                         from sr in _context.Set<SegmentRun>()
+                         where 
+                            sr.SegmentId == segmentId
+                            && sr.Time >= sr.Segment.MinTime && sr.Time <= sr.Segment.MaxTime 
+                            && to.TransponderId == sr.End.TransponderId 
+                            && sr.End.Time >= fromtime && sr.End.Time >= to.OwnedFrom && sr.End.Time < to.OwnedUntil 
+                            && to.OwnerId == r.Id
+                            && sr.Segment.Intermediates.Count == sr.End.Transponder.Passings.Where(p => p.Time > sr.Start.Time && p.Time < sr.End.Time && sr.Segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)).Count()
+                         group sr by new { to.OwnerId, r.Name } into o
+                         select new 
+                         { 
+                             Rider = o.Key.Name, 
+                             Count = o.LongCount() 
+                         };
+
+            if (count.HasValue)
             {
-                return Enumerable.Empty<KeyValuePair<string, long>>();
+                owners = owners.Take(count.Value);
             }
 
-            var loopIds = GetSegmentLoopIds(segment, false);
+            var runs = await owners.ToDictionaryAsync(k => k.Rider, v => v.Count);
 
-            passings = GetPassings(passings, firstpass, loopIds);
-
-            var passingevents = passings.Select(p => new
-                                        {
-                                            p.TransponderId,
-                                            p.Time,
-                                            p.LoopId
-                                        }).AsEnumerable().GroupBy(p => p.TransponderId);
-
-            var segmentcounts = new ConcurrentDictionary<string, long>();
-
-            Parallel.ForEach(passingevents, transponderpassings =>
-            {
-                long passingcount = 0;
-
-                var transponderid = transponderpassings.Key;
-                var starttime = transponderpassings.First().Time;
-
-                foreach (var passing in transponderpassings.Skip(1))
-                {
-                    if (passing.LoopId == segment.EndId)
-                    {
-                        var time = (passing.Time - starttime).TotalSeconds;
-                        if (time < segment.MaxTime && time > segment.MinTime)
-                        {
-                            passingcount++;
-                        }
-
-                    }
-                    if (passing.LoopId == segment.StartId)
-                    {
-                        starttime = passing.Time;
-                    }
-                }
-
-                segmentcounts.TryAdd(TransponderIdConverter.IdToCode(transponderid), passingcount);
-            });
-
-            return segmentcounts;
+            return runs;
         }
 
         private async Task<Segment> LoadSegment(long segmentId)

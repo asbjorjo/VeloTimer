@@ -82,7 +82,7 @@ namespace VeloTimerWeb.Api.Services
 
                     _context.Add(segmentrun);
 
-                    await _hubContext.Clients.Groups($"segment_{segmentrun.SegmentId}").NewSegmentRun();
+                    await _hubContext.Clients.All.NotifySegmentOfNewRun(segmentrun);
                 }
             }
 

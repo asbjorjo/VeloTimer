@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
 using VeloTimer.Shared.Models;
+using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Areas.Identity.Pages.Account.Manage
 {
@@ -13,15 +14,18 @@ namespace VeloTimerWeb.Api.Areas.Identity.Pages.Account.Manage
     {
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
+        private readonly IRiderService _riderService;
         private readonly ILogger<DeletePersonalDataModel> _logger;
 
         public DeletePersonalDataModel(
             UserManager<User> userManager,
             SignInManager<User> signInManager,
+            IRiderService riderService,
             ILogger<DeletePersonalDataModel> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
+            _riderService = riderService;
             _logger = logger;
         }
 
@@ -73,6 +77,8 @@ namespace VeloTimerWeb.Api.Areas.Identity.Pages.Account.Manage
             {
                 throw new InvalidOperationException($"Unexpected error occurred deleting user with ID '{userId}'.");
             }
+
+            await _riderService.DeleteRider(userId);
 
             await _signInManager.SignOutAsync();
 

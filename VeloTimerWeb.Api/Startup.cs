@@ -180,9 +180,8 @@ namespace VeloTimerWeb.Api
                 options.AddPolicy(name: AllowedOrigins,
                                   builder =>
                                   {
-                                      builder.WithOrigins("https://localhost:44350", "https://velotimer-dev.azurewebsites.net");
+                                      builder.WithOrigins("https://veloti.me", "https://www.veloti.me", "https://velotimer.azurewebsites.net");
                                       builder.AllowAnyMethod();
-                                      //builder.WithHeaders(HeaderNames.ContentType, HeaderNames.Authorization);
                                       builder.AllowAnyHeader();
                                       builder.AllowCredentials();
                                   });

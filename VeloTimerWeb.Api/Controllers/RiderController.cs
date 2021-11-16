@@ -88,21 +88,30 @@ namespace VeloTimerWeb.Api.Controllers
 
             var transponderId = TransponderIdConverter.CodeToId(ownerWeb.TransponderLabel).ToString();
 
-            var existing = _dbset.Where(r => r.Transponders.Where(
-                t => t.Transponder.SystemId == transponderId
-                    && t.Transponder.TimingSystem == TransponderType.TimingSystem.Mylaps_X2
-                    && (ownerWeb.OwnedFrom < t.OwnedUntil && t.OwnedFrom < ownerWeb.OwnedUntil)
-                ).Any());
+            var transponder = await _context.Set<Transponder>().SingleOrDefaultAsync(t => t.SystemId == transponderId && t.TimingSystem == TransponderType.TimingSystem.Mylaps_X2);
 
-            if (existing.Any())
+            if (transponder == null)
             {
-                ModelState.AddModelError(nameof(ownerWeb.TransponderLabel), "Already registered for chosen period.");
-                return Conflict(new ValidationProblemDetails(ModelState));
+                transponder = new Transponder { SystemId = transponderId, TimingSystem = TransponderType.TimingSystem.Mylaps_X2 };
+                _context.Add(transponder);
+            }
+            else
+            {
+                var existing = _dbset.Where(r => r.Transponders.Where(
+                    t => t.Transponder.SystemId == transponderId
+                        && t.Transponder.TimingSystem == TransponderType.TimingSystem.Mylaps_X2
+                        && (ownerWeb.OwnedFrom < t.OwnedUntil && t.OwnedFrom < ownerWeb.OwnedUntil)
+                    ).Any());
+
+                if (existing.Any())
+                {
+                    ModelState.AddModelError(nameof(ownerWeb.TransponderLabel), "Already registered for chosen period.");
+                    return Conflict(new ValidationProblemDetails(ModelState));
+                }
             }
 
             var dbrider = await _dbset.Where(r => r.UserId == rider).SingleAsync();
-            var transponder = await _context.Set<Transponder>().Where(t => t.SystemId == transponderId && t.TimingSystem == TransponderType.TimingSystem.Mylaps_X2).SingleAsync();
-
+            
             var value = new TransponderOwnership
             {
                 OwnedFrom = ownerWeb.OwnedFrom,
@@ -115,7 +124,7 @@ namespace VeloTimerWeb.Api.Controllers
             await _context.SaveChangesAsync();
             ownerWeb.Owner = dbrider.Name;
 
-            return CreatedAtAction(nameof(GetTransponders), ownerWeb);
+            return Ok();
         }
     }
 }
