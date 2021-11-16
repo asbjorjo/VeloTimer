@@ -3,7 +3,7 @@
 @using VeloTimer.Shared.Util
 
 @inherits ComponentBase
-@inject IApiClient Http
+@inject IApiClient Api
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
@@ -32,6 +32,6 @@
 
     protected async Task LoadRiderCount()
     {
-        activeriders = await Http.GetActiveRiderCount(fromtime, totime);
+        activeriders = await Api.GetActiveRiderCount(fromtime, totime);
     }
 }
