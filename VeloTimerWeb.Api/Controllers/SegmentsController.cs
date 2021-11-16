@@ -85,7 +85,7 @@ namespace VeloTimerWeb.Api.Controllers
             }
 
             var passingcount = await _segmentService.GetSegmentPassingCount(segmentId, transponderId, _fromtime, totime, count);
-
+            
             return Ok(passingcount);
         }
     }

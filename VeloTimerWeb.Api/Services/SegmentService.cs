@@ -130,39 +130,6 @@ namespace VeloTimerWeb.Api.Services
 
         public async Task<IEnumerable<KeyValuePair<string, long>>> GetSegmentPassingCount(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime, int? count)
         {
-            //var segmentruns = _context.Set<SegmentRun>().Where(s => s.SegmentId == segmentId);
-            //if (fromtime.HasValue)
-            //{
-            //    segmentruns = segmentruns.Where(s => s.Start.Time >= fromtime.Value);
-            //}
-            //if (totime.HasValue)
-            //{
-            //    segmentruns = segmentruns.Where(s => s.End.Time <= totime.Value);
-            //}
-            //if (transponderId.HasValue)
-            //{
-            //    segmentruns = segmentruns.Where(s => s.Start.TransponderId == transponderId.Value);
-            //}
-
-            //segmentruns = segmentruns.Where(s => s.Segment.Intermediates.Count == s.End.Transponder.Passings.Where(p => s.Segment.Intermediates.Select(i => i.Loop).Contains(p.Loop) && p.Time > s.Start.Time && p.Time < s.End.Time).Count());
-
-            //segmentruns = segmentruns.OrderBy(s => s.Time);
-
-            //var runquery = segmentruns
-            //    .Select(s => new
-            //    {
-            //        Rider = s.End.Transponder.Owners.Where(o => o.OwnedFrom <= s.Start.Time && o.OwnedUntil >= s.End.Time).Select(o => o.Owner).SingleOrDefault(),
-            //        Segment = s.Segment,
-            //        Time = s.Time
-            //    })
-            //    .GroupBy(s => s.Rider)
-            //    .Select(x => new { Rider = x.Key, Count = x.LongCount() });
-
-            //if (count.HasValue)
-            //{
-            //    runquery = runquery.Take(count.Value);
-            //}
-
             var owners = from to in _context.Set<TransponderOwnership>()
                             join r in _context.Set<Rider>() on to.OwnerId equals r.Id
                          from sr in _context.Set<SegmentRun>()
