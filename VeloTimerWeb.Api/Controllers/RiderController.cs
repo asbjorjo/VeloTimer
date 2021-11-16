@@ -124,7 +124,7 @@ namespace VeloTimerWeb.Api.Controllers
             await _context.SaveChangesAsync();
             ownerWeb.Owner = dbrider.Name;
 
-            return CreatedAtAction(nameof(GetTransponders), ownerWeb);
+            return Ok();
         }
     }
 }
