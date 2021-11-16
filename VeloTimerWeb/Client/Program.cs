@@ -16,6 +16,7 @@ namespace VeloTimerWeb.Client
         public static async Task Main(string[] args)
         {
             var builder = WebAssemblyHostBuilder.CreateDefault(args);
+
             builder.RootComponents.Add<App>("#app");
 
             builder.Services.AddScoped<VeloTimerAuthorizationMessageHandler>();
@@ -42,9 +43,8 @@ namespace VeloTimerWeb.Client
             builder.Services.AddApiAuthorization(options =>
             {
                 builder.Configuration.Bind("oidc", options.ProviderOptions);
-                //options.AuthenticationPaths.RemoteProfilePath = $"{builder.Configuration["VELOTIMER_API_URL"]}/Identity/Account/Manage";
-                //options.AuthenticationPaths.RemoteRegisterPath = $"{builder.Configuration["VELOTIMER_API_URL"]}/Identity/Account/Register";
-            }).AddAccountClaimsPrincipalFactory<RolesClaimsPrincipalFactory>();
+            })
+                .AddAccountClaimsPrincipalFactory<RolesClaimsPrincipalFactory>();
 
             await builder.Build().RunAsync();
         }
