@@ -16,16 +16,16 @@
     @if (segmentTime != null)
     {
         <div class="row">
-            <div class="col font-weight-bold">
+            <div class="col-3 col-md-2 col-xl font-weight-bold">
             @segment.Label
             </div>
-            <div class="col">
+            <div class="col-7 col-md-6 col-xl">
             @segmentTime.Rider
             </div>
-            <div class="col">
+            <div class="d-none d-md-block col-md-2 col-xl">
             @String.Format("{0:00.000}", segmentTime.Segmentspeed)
             </div>
-            <div class="col">
+            <div class="col-2 col-md-2 col-xl">
             @String.Format("{0:00.000}", segmentTime.Segmenttime)
             </div>
         </div>

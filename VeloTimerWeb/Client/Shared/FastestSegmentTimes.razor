@@ -21,7 +21,7 @@
                     @foreach (var intermediate in segment.Intermediates)
                     {
                         <th>@intermediate.Loop.Description</th>
-                        <th>Fart</th>
+                        <th class="d-none d-md-block">Fart</th>
                     }
                 }
                 <th>@segment.End.Description</th>
@@ -57,7 +57,7 @@
                                         "--"
                                     )
                                 </td>
-                                <td>
+                                <td class="d-none d-md-block">
                                     @(
                                         segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
                                         String.Format(
