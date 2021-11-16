@@ -15,17 +15,17 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Rytter</th>
+                <th scope="col mw-100">Rytter</th>
                 @if (showintermediate && !segment.Intermediates.Where(i => i.Loop == null).Any())
                 {
                     @foreach (var intermediate in segment.Intermediates)
                     {
-                        <th>@intermediate.Loop.Description</th>
-                        <th class="d-none d-md-block">Fart</th>
+                        <th scope="col" class="text-right">@intermediate.Loop.Description</th>
+                        <th scope="col" class="d-none d-md-block text-right">Fart</th>
                     }
                 }
-                <th>@segment.End.Description</th>
-                <th>Fart</th>
+                <th scope="col" class="text-right">@segment.End.Description</th>
+                <th scope="col" class="text-right">Fart</th>
             </tr>
         </thead>
         <tbody>
@@ -47,7 +47,7 @@
                         {
                             @foreach (var intermediate in this.segment.Intermediates)
                             {
-                                <td>
+                                <td class="text-right">
                                     @(
                                         segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
                                         String.Format(
@@ -57,7 +57,7 @@
                                         "--"
                                     )
                                 </td>
-                                <td class="d-none d-md-block">
+                                <td class="d-none d-md-block text-right">
                                     @(
                                         segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
                                         String.Format(
@@ -69,8 +69,8 @@
                                 </td>
                             }
                         }
-                        <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
-                        <td>@String.Format("{0:00.000}", segment.Segmentspeed)</td>
+                        <td class="text-right">@String.Format("{0:00.000}", segment.Segmenttime)</td>
+                        <td class="text-right">@String.Format("{0:00.000}", segment.Segmentspeed)</td>
                     </tr>
                 }
             }
@@ -117,7 +117,7 @@
         if (Segment != segment?.Id || Transponder != transponder || Count != count) {
             if (segment != null)
             {
-                await hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+                await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
             }
 
             segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
@@ -138,7 +138,7 @@
 
             if (totime == null)
             {
-                await hubConnection.InvokeAsync("AddToTimingLoopGroup", segment.EndId);
+                await hubConnection.InvokeAsync("AddToSegmentGroup", segment.Id);
             }
 
             await LoadSegmentTimes();
@@ -173,7 +173,7 @@
         hubConnection.Remove(Strings.Events.NewPassings);
         if (segment != null)
         {
-            hubConnection.InvokeAsync("RemoveFromTimingLoopGroup", segment.EndId);
+            hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
         }
     }
 }
