@@ -12,7 +12,7 @@ namespace VeloTimer.Shared.Models
     public class TransponderOwnershipWeb
     {
         private DateTimeOffset _ownedFrom = DateTimeOffset.Now.StartOfDay();
-        private DateTimeOffset _ownedUntil = DateTimeOffset.Now.EndOfDay().Date.AddYears(1);
+        private DateTimeOffset _ownedUntil = DateTimeOffset.Now.AddDays(365).EndOfDay();
 
         [Required]
         public string TransponderLabel { get; set; }
