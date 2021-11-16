@@ -15,7 +15,7 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th scope="col mw-100">Rytter</th>
+                <th scope="col" classe="mw-100">Rytter</th>
                 @if (showintermediate && !segment.Intermediates.Where(i => i.Loop == null).Any())
                 {
                     @foreach (var intermediate in segment.Intermediates)
