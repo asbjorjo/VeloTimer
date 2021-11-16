@@ -11,10 +11,20 @@
     foreach (var count in passingcounts)
     {
         <table class="table">
-            <tr>
-                <td>@count.Key</td>
-                <td class="text-right">@count.Value</td>
-            </tr>
+            <thead>
+                <tr>
+                    <th scope="col">Rytter</th>
+                    <th scope="col" class="text-right">Runder</th>
+                    <th scope="col" class="text-right">km</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>@count.Key</td>
+                    <td class="text-right">@count.Value</td>
+                    <td class="text-right">@String.Format("{0:0.00}", Distance(count.Value))</td>
+                </tr>
+            </tbody>
         </table>
     }
 }
@@ -59,7 +69,9 @@
             segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
 
             segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.StartId}");
+            segment.Start.Track = await Http.GetFromJsonAsync<Track>($"/track/{segment.Start.TrackId}");
             segment.End = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.EndId}");
+            segment.End.Track = segment.Start.Track;
 
             transponder = Transponder;
             fromtime = FromTime?.ToUniversalTime();
@@ -87,10 +99,15 @@
             + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
             + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
             + $"&count={count}");
-        
+
         passingcounts = counts;
 
         StateHasChanged();
+    }
+
+    private double Distance(long lapcount)
+    {
+        return lapcount * ((segment.Start.Distance < segment.End.Distance) ? segment.End.Distance - segment.Start.Distance : segment.Start.Track.Length - segment.Start.Distance + segment.End.Distance) / 1000;
     }
 
     public void Dispose()
