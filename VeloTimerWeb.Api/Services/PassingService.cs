@@ -33,8 +33,9 @@ namespace VeloTimerWeb.Api.Services
             if (timingSystem.HasValue && transponderId != null)
             {
                 var transponder = await _context.Set<Transponder>()
-                .Where(t => t.TimingSystem == timingSystem && t.SystemId == transponderId)
-                .SingleOrDefaultAsync();
+                    .AsNoTrackingWithIdentityResolution()
+                    .Where(t => t.TimingSystem == timingSystem && t.SystemId == transponderId)
+                    .SingleOrDefaultAsync();
 
                 if (transponder == null)
                 {
@@ -53,6 +54,7 @@ namespace VeloTimerWeb.Api.Services
             _context.Add(passing);
 
             var segments = await _context.Set<Segment>()
+                .AsNoTracking()
                 .Where(s => s.EndId == passing.LoopId)
                 .Include(s => s.Intermediates)
                 .Include(s => s.Start)
@@ -62,6 +64,7 @@ namespace VeloTimerWeb.Api.Services
             foreach (var segment in segments)
             {
                 var startpassing = await _context.Set<Passing>()
+                    .AsNoTracking()
                     .Where(p =>
                         p.TransponderId == passing.TransponderId
                         && p.LoopId == segment.StartId

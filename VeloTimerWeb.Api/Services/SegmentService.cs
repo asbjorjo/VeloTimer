@@ -39,16 +39,18 @@ namespace VeloTimerWeb.Api.Services
 
             passings = GetPassings(passings, firstpass, loopIds);
 
-            var passingevents = passings.Select(p => new
-                                        {
-                                            p.TransponderId,
-                                            Rider = p.Transponder.Owners.Where(n => n.OwnedFrom <= p.Time && n.OwnedUntil >= p.Time).Select(to => to.Owner).SingleOrDefault(),
-                                            p.Time,
-                                            p.Loop,
-                                            p.Transponder
-                                        })
-                                        .AsEnumerable()
-                                        .GroupBy(p => p.TransponderId);
+            var passingevents = passings
+                .Select(p => new
+                {
+                    p.TransponderId,
+                    Rider = p.Transponder.Owners.Where(n => n.OwnedFrom <= p.Time && n.OwnedUntil >= p.Time).Select(to => to.Owner).SingleOrDefault(),
+                    p.Time,
+                    p.Loop,
+                    p.Transponder
+                })
+                .AsNoTrackingWithIdentityResolution()
+                .AsEnumerable()
+                .GroupBy(p => p.TransponderId);
 
             var segmenttimes = new ConcurrentBag<SegmentTimeRider>();
 
@@ -152,18 +154,22 @@ namespace VeloTimerWeb.Api.Services
                 owners = owners.Take(count.Value);
             }
 
-            var runs = await owners.ToDictionaryAsync(k => k.Rider, v => v.Count);
+            var runs = await owners
+                .AsNoTrackingWithIdentityResolution()
+                .ToDictionaryAsync(k => k.Rider, v => v.Count);
 
             return runs;
         }
 
         private async Task<Segment> LoadSegment(long segmentId)
         {
-            var segment = await _context.Segments.Where(s => s.Id == segmentId)
-                                                 .Include(s => s.Start).ThenInclude(t => t.Track)
-                                                 .Include(s => s.End)
-                                                 .Include(s => s.Intermediates).ThenInclude(i => i.Loop)
-                                                 .SingleOrDefaultAsync();
+            var segment = await _context.Segments
+                .AsNoTrackingWithIdentityResolution()
+                .Where(s => s.Id == segmentId)
+                .Include(s => s.Start).ThenInclude(t => t.Track)
+                .Include(s => s.End)
+                .Include(s => s.Intermediates).ThenInclude(i => i.Loop)
+                .SingleOrDefaultAsync();
 
             if (segment == null)
             {
@@ -177,9 +183,10 @@ namespace VeloTimerWeb.Api.Services
 
         private static async Task<Passing> FindFirstPassing(IQueryable<Passing> passings, Segment segment)
         {
-            return await passings.OrderBy(p => p.Time)
-                                 .Where(p => p.Loop == segment.Start)
-                                 .FirstOrDefaultAsync();
+            return await passings
+                .OrderBy(p => p.Time)
+                .Where(p => p.Loop == segment.Start)
+                .FirstOrDefaultAsync();
         }
 
         private static IQueryable<Passing> FilterPassings(IQueryable<Passing> passings, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime)
@@ -239,7 +246,6 @@ namespace VeloTimerWeb.Api.Services
 
             if (requireintermediates)
             {
-                //segmentruns = segmentruns.Where(s => s.IntermediateCount == s.Segment.Intermediates.Count);
                 segmentruns = segmentruns.Where(s => s.Segment.Intermediates.Count == s.End.Transponder.Passings.Where(p => s.Segment.Intermediates.Select(i => i.Loop).Contains(p.Loop) && p.Time > s.Start.Time && p.Time < s.End.Time).Count());
             }
 
@@ -272,7 +278,9 @@ namespace VeloTimerWeb.Api.Services
                 runquery = runquery.Take(count.Value);
             }   
 
-            var runs = await runquery.ToListAsync();
+            var runs = await runquery
+                .AsNoTrackingWithIdentityResolution()
+                .ToListAsync();
 
             var times = runs
                 .Select(w => new SegmentTimeRider

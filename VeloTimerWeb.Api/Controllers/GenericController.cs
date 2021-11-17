@@ -28,7 +28,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet]
         public virtual async Task<ActionResult<IEnumerable<T>>> GetAll()
         {
-            return await _dbset.ToListAsync();
+            return await _dbset.AsNoTracking().ToListAsync();
         }
 
         [HttpGet("{id}")]

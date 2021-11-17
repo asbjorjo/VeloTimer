@@ -27,7 +27,7 @@ namespace VeloTimerWeb.Api.Controllers
         [AllowAnonymous]
         public override async Task<ActionResult<Segment>> Get(long id)
         {
-            var value = await _dbset.Include(s => s.Intermediates).Where(s => s.Id == id).SingleOrDefaultAsync();
+            var value = await _dbset.AsNoTracking().Include(s => s.Intermediates).Where(s => s.Id == id).SingleOrDefaultAsync();
 
             if (value == null)
             {
