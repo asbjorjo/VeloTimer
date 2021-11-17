@@ -143,6 +143,7 @@ namespace VeloTimerWeb.Api.Services
                             && to.OwnerId == r.Id
                             && sr.Segment.Intermediates.Count == sr.End.Transponder.Passings.Where(p => p.Time > sr.Start.Time && p.Time < sr.End.Time && sr.Segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)).Count()
                          group sr by new { to.OwnerId, r.Name } into o
+                         orderby o.LongCount() descending
                          select new 
                          { 
                              Rider = o.Key.Name, 
