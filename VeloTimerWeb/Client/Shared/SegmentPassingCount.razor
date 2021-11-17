@@ -8,25 +8,25 @@
 
 @if (segment != null && passingcounts != null)
 {
-    foreach (var count in passingcounts)
-    {
-        <table class="table">
-            <thead>
-                <tr>
-                    <th scope="col">Rytter</th>
-                    <th scope="col" class="text-right">Runder</th>
-                    <th scope="col" class="text-right">km</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>@count.Key</td>
-                    <td class="text-right">@count.Value</td>
-                    <td class="text-right">@String.Format("{0:0.00}", Distance(count.Value))</td>
-                </tr>
-            </tbody>
-        </table>
-    }
+    <table class="table">
+        <thead>
+            <tr>
+                <th scope="col">Rytter</th>
+                <th scope="col" class="text-right">Runder</th>
+                <th scope="col" class="text-right">km</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var count in passingcounts)
+        {
+            <tr>
+                <td>@count.Key</td>
+                <td class="text-right">@count.Value</td>
+                <td class="text-right">@String.Format("{0:0.00}", Distance(count.Value))</td>
+            </tr>
+        }
+        </tbody>
+    </table>
 }
 
 @code {
