@@ -91,6 +91,8 @@
     public DateTimeOffset? FromTime { get; set; }
     [Parameter]
     public DateTimeOffset? ToTime { get; set; }
+    [Parameter]
+    public int Count { get; set; }
 
     protected Segment segment;
     protected long? transponder;
@@ -154,7 +156,8 @@
             + $"&transponderid={transponder}"
             + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
             + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&requireintermediates={segment.RequireIntermediates}");
+            + $"&requireintermediates={segment.RequireIntermediates}"
+            + $"&count={Count}");
 
         StateHasChanged();
     }

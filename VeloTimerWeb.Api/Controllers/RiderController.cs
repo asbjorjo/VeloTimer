@@ -28,7 +28,7 @@ namespace VeloTimerWeb.Api.Controllers
         [Route("user/{userId}")]
         public async Task<ActionResult<Rider>> Get(string userId)
         {
-            var rider = await _context.Set<Rider>().SingleOrDefaultAsync(r => r.UserId == userId);
+            var rider = await _context.Set<Rider>().AsNoTracking().SingleOrDefaultAsync(r => r.UserId == userId);
 
             if (rider == null)
             {
@@ -63,16 +63,18 @@ namespace VeloTimerWeb.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult<IEnumerable<TransponderOwnershipWeb>>> GetTransponders(string rider)
         {
-            var transponders = await _context.Set<TransponderOwnership>().Where(to => to.Owner.UserId == rider)
-                                             .OrderByDescending(to => to.OwnedUntil)
-                                             .Select(to => new TransponderOwnershipWeb 
-                                             { 
-                                                 OwnedFrom = to.OwnedFrom, 
-                                                 OwnedUntil = to.OwnedUntil, 
-                                                 Owner = to.Owner.Name, 
-                                                 TransponderLabel = TransponderIdConverter.IdToCode(long.Parse(to.Transponder.SystemId)) 
-                                             })
-                                             .ToListAsync();
+            var transponders = await _context.Set<TransponderOwnership>()
+                .AsNoTracking()
+                .Where(to => to.Owner.UserId == rider)
+                .OrderByDescending(to => to.OwnedUntil)
+                .Select(to => new TransponderOwnershipWeb 
+                { 
+                    OwnedFrom = to.OwnedFrom, 
+                    OwnedUntil = to.OwnedUntil, 
+                    Owner = to.Owner.Name, 
+                    TransponderLabel = TransponderIdConverter.IdToCode(long.Parse(to.Transponder.SystemId)) 
+                })
+                .ToListAsync();
             return transponders;
         }
 

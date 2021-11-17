@@ -27,7 +27,7 @@ namespace VeloTimerWeb.Api.Controllers
         [AllowAnonymous]
         public override async Task<ActionResult<Segment>> Get(long id)
         {
-            var value = await _dbset.Include(s => s.Intermediates).Where(s => s.Id == id).SingleOrDefaultAsync();
+            var value = await _dbset.AsNoTracking().Include(s => s.Intermediates).Where(s => s.Id == id).SingleOrDefaultAsync();
 
             if (value == null)
             {
@@ -40,7 +40,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet("times")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetTimes(long segmentId, long? transponderId, DateTime? fromtime, DateTimeOffset? totime)
+        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetTimes(long segmentId, long? transponderId, DateTime? fromtime, DateTimeOffset? totime, int? Count)
         {
             DateTimeOffset _fromtime = DateTimeOffset.Now;
 
@@ -49,7 +49,7 @@ namespace VeloTimerWeb.Api.Controllers
                 _fromtime = fromtime.Value;
             }
 
-            var segmenttimes = await _segmentService.GetSegmentTimes(segmentId, transponderId, _fromtime, totime);
+            var segmenttimes = await _segmentService.GetSegmentTimesNew(segmentId, _fromtime, totime, Count: Count.Value);
 
             return segmenttimes.ToList();
         }
@@ -67,7 +67,7 @@ namespace VeloTimerWeb.Api.Controllers
                 _fromtime = fromtime.Value;
             }
 
-            var segmenttimes = await _segmentService.GetFastestSegmentTimesNewWay(segmentId, transponderId, _fromtime, totime, count, requireintermediates);
+            var segmenttimes = await _segmentService.GetFastestSegmentTimesNewWay(segmentId, _fromtime, totime); 
 
             return segmenttimes.ToList();
         }

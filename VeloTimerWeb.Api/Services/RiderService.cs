@@ -38,7 +38,10 @@ namespace VeloTimerWeb.Api.Services
         {
             var active = await FindActiveRiderIds(fromtime, totime);
 
-            var riders = await _context.Set<Rider>().Where(r => active.Keys.Contains(r.Id)).ToListAsync();
+            var riders = await _context.Set<Rider>()
+                .AsNoTracking()
+                .Where(r => active.Keys.Contains(r.Id))
+                .ToListAsync();
 
             return riders;
         }
@@ -59,7 +62,9 @@ namespace VeloTimerWeb.Api.Services
                         group p by t.OwnerId into passings
                         select new { passings.Key, Last = passings.Max(p => p.Time) };
 
-            var riders = await query.ToDictionaryAsync(k => k.Key, v => v.Last );
+            var riders = await query
+                .AsNoTrackingWithIdentityResolution()
+                .ToDictionaryAsync(k => k.Key, v => v.Last );
 
             return riders;
         }
