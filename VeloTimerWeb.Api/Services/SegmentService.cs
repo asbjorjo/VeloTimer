@@ -228,61 +228,52 @@ namespace VeloTimerWeb.Api.Services
                 startLoop.Track.Length - startLoop.Distance + endLoop.Distance;
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTimesNewWay(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime, int? count, bool requireintermediates)
+        public async Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTimesNewWay(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, bool RequireIntermediates)
         {
-            var segmentruns = _context.Set<SegmentRun>().Where(s => s.SegmentId == segmentId);
-            if (fromtime.HasValue)
-            {
-                segmentruns = segmentruns.Where(s => s.Start.Time >= fromtime.Value);
-            }
-            if (totime.HasValue)
-            {
-                segmentruns = segmentruns.Where(s => s.End.Time <= totime.Value);
-            }
-            if (transponderId.HasValue)
-            {
-                segmentruns = segmentruns.Where(s => s.Start.TransponderId == transponderId.Value);
-            }
+            var times = Enumerable.Empty<SegmentTimeRider>();
+            var fromtime = DateTimeOffset.MinValue;
+            var totime = DateTimeOffset.MaxValue;
 
-            if (requireintermediates)
+            if (FromTime.HasValue)
             {
-                segmentruns = segmentruns.Where(s => s.Segment.Intermediates.Count == s.End.Transponder.Passings.Where(p => s.Segment.Intermediates.Select(i => i.Loop).Contains(p.Loop) && p.Time > s.Start.Time && p.Time < s.End.Time).Count());
+                fromtime = FromTime.Value;
+            }
+            if (ToTime.HasValue)
+            {
+                totime = ToTime.Value;
             }
 
-            segmentruns = segmentruns.Where(s => s.Time >= s.Segment.MinTime && s.Time <= s.Segment.MaxTime);
-            segmentruns = segmentruns
-                .Include(s => s.Segment)
-                .ThenInclude(s => s.Start)
-                .ThenInclude(s => s.Track)
-                .Include(s => s.Segment)
-                .ThenInclude(s => s.End)
-                .Include(s => s.Segment)
-                .ThenInclude(s => s.Intermediates)
-                .ThenInclude(s => s.Loop);
+            var query = from sr in _context.Set<SegmentRun>()
+                            .Include(sr => sr.Segment)
+                                .ThenInclude(s => s.Intermediates)
+                                    .ThenInclude(i => i.Loop)
+                            .Include(sr => sr.Segment)
+                                .ThenInclude(s => s.Start)
+                                    .ThenInclude(l => l.Track)
+                            .Include(sr => sr.Segment)
+                                .ThenInclude(s => s.End)
+                        from to in _context.Set<TransponderOwnership>()
+                        join r in _context.Set<Rider>() on to.OwnerId equals r.Id
+                        where sr.SegmentId == SegmentId
+                              && sr.Start.Time >= fromtime && sr.End.Time <= totime
+                              && sr.End.Transponder.Passings.Where(p => p.Time > sr.Start.Time && p.Time < sr.End.Time && sr.Segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)).Count() == sr.Segment.Intermediates.Count()
+                        orderby sr.Time ascending
+                        select new
+                        {
+                            Time = sr.Time,
+                            Rider = r,
+                            Transponder = sr.End.Transponder,
+                            Intermediates = sr.End.Transponder.Passings.Where(p => p.Time > sr.Start.Time && p.Time < sr.End.Time && sr.Segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)),
+                            End = sr.End,
+                            Segment = sr.Segment
+                        };
 
-            segmentruns = segmentruns.OrderBy(s => s.Time);
-
-            var runquery = segmentruns
-                .Select(s => new
-                {
-                    Time = s.Time,
-                    Rider = s.End.Transponder.Owners.Where(o => o.OwnedFrom <= s.Start.Time && o.OwnedUntil >= s.End.Time).Select(o => o.Owner).SingleOrDefault(),
-                    Transponder = s.Start.Transponder,
-                    Intermediates = s.End.Transponder.Passings.Where(p => s.Segment.Intermediates.Select(i => i.Loop).Contains(p.Loop) && p.Time > s.Start.Time && p.Time < s.End.Time).DefaultIfEmpty(),
-                    End = s.End,
-                    Segment = s.Segment
-                });
-
-            if (count.HasValue)
-            {
-                runquery = runquery.Take(count.Value);
-            }   
-
-            var runs = await runquery
+            var runs = await query
+                .Take(Count)
                 .AsNoTrackingWithIdentityResolution()
                 .ToListAsync();
 
-            var times = runs
+            times = runs
                 .Select(w => new SegmentTimeRider
                 {
                     Rider = w.Rider?.Name ?? TransponderIdConverter.IdToCode(long.Parse(w.Transponder.SystemId)),
