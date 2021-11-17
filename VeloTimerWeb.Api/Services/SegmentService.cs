@@ -252,11 +252,10 @@ namespace VeloTimerWeb.Api.Services
                                     .ThenInclude(l => l.Track)
                             .Include(sr => sr.Segment)
                                 .ThenInclude(s => s.End)
-                        from to in _context.Set<TransponderOwnership>()
-                            join r in _context.Set<Rider>() on to.OwnerId equals r.Id
+                            join to in _context.Set<TransponderOwnership>() on sr.Start.TransponderId equals to.TransponderId
+                                join r in _context.Set<Rider>() on to.OwnerId equals r.Id
                         where sr.SegmentId == SegmentId
                               && sr.Start.Time >= fromtime && sr.End.Time <= totime
-                              && to.OwnedFrom <= sr.Start.Time && to.OwnedUntil > sr.End.Time
                               && sr.End.Transponder.Passings.Where(p => p.Time > sr.Start.Time && p.Time < sr.End.Time && sr.Segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)).Count() == sr.Segment.Intermediates.Count()
                         orderby sr.Time ascending
                         select new
