@@ -22,6 +22,57 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
+        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesNew(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
+        {
+            var fromtime = DateTimeOffset.MinValue;
+            var totime = DateTimeOffset.MaxValue;
+
+            if (FromTime.HasValue)
+            {
+                fromtime = FromTime.Value;
+            }
+            if (ToTime.HasValue)
+            {
+                totime = ToTime.Value;
+            }
+
+            var times = Enumerable.Empty<SegmentTimeRider>();
+
+            var query = from sr in _context.Set<SegmentRun>()
+                        join to in _context.Set<TransponderOwnership>() on sr.Start.TransponderId equals to.TransponderId
+                        join r in _context.Set<Rider>() on to.OwnerId equals r.Id
+                        where sr.SegmentId == SegmentId
+                              && sr.Start.Time >= fromtime && sr.End.Time <= totime
+                              && to.OwnedFrom <= sr.Start.Time && sr.End.Time < to.OwnedUntil
+                              && sr.End.Transponder.Passings.Where(p => p.Time > sr.Start.Time && p.Time < sr.End.Time && sr.Segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)).Count() == sr.Segment.Intermediates.Count()
+                        orderby sr.End.Time descending
+                        select new SegmentTimeRider
+                        {
+                            Loop = sr.End.LoopId,
+                            PassingTime = sr.End.Time,
+                            Rider = r.Name,
+                            Segmentlength = CalculateSegmentLength(sr.Segment.Start.Distance, sr.Segment.End.Distance, sr.Segment.Start.Track.Length),
+                            Segmenttime = sr.Time,
+                            Intermediates = sr.End.Transponder.Passings
+                                .Where(p => p.Time > sr.Start.Time && p.Time < sr.End.Time && sr.Segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId))
+                                .Select(i => new SegmentTime
+                                {
+                                    Loop = i.LoopId,
+                                    PassingTime = i.Time,
+                                    Segmentlength = CalculateSegmentLength(sr.Segment.Start.Distance, sr.Segment.End.Distance, sr.Segment.Start.Track.Length),
+                                    Segmenttime = (i.Time - sr.Start.Time).TotalSeconds
+                                })
+                                .ToList()
+                        };
+
+            times = await query
+                .Take(Count)
+                .AsNoTrackingWithIdentityResolution()
+                .ToListAsync();
+
+            return times;
+        }
+
         public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimes(long segmentId, long? transponderId, DateTimeOffset? fromtime, DateTimeOffset? totime)
         {
             var segment = await LoadSegment(segmentId);
