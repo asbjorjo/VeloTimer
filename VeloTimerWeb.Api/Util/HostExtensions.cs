@@ -1,10 +1,9 @@
-﻿using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Services;
 
-namespace VeloTimerWeb.Api.Util
+namespace Microsoft.Extensions.Hosting
 {
     public static class HostExtensions
     {

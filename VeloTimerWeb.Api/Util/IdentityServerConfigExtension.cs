@@ -1,23 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using IdentityServer4.Configuration;
+﻿using IdentityServer4.Configuration;
 using IdentityServer4.EntityFramework.Interfaces;
 using IdentityServer4.Hosting;
-using IdentityServer4.Models;
-using IdentityServer4.Stores;
 using IdentityServer4.Validation;
 using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
-using Microsoft.AspNetCore.ApiAuthorization.IdentityServer.Configuration;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System;
+using System.Linq;
 using VeloTimerWeb.Api.Util.ApiAuthorization;
 
-namespace VeloTimerWeb.Api.Util
+namespace Microsoft.Extensions.DependencyInjection
 {
     public static class IdentityServerConfigExtension
     {
@@ -38,7 +31,7 @@ namespace VeloTimerWeb.Api.Util
                 .AddIdentityResources()
                 .AddApiResources()
                 .AddClients();
- 
+
             builder.Services.Configure(configure);
 
             return builder;
