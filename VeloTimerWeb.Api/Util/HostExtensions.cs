@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Services;
+using VeloTimerWeb.Api.Util;
 
 namespace Microsoft.Extensions.Hosting
 {
