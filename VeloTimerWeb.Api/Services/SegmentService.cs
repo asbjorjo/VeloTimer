@@ -332,7 +332,7 @@ namespace VeloTimerWeb.Api.Services
                                 {
                                     Loop = i.LoopId,
                                     PassingTime = i.Time,
-                                    Segmentlength = CalculateSegmentLength(segment.Start.Distance, i.Loop.Distance, sr.Segment.Start.Track.Length),
+                                    Segmentlength = CalculateSegmentLength(segment.Start.Distance, i.Loop.Distance, segment.Start.Track.Length),
                                     Segmenttime = (i.Time - sr.Start.Time).TotalSeconds
                                 })
                                 .ToList()
