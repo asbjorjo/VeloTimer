@@ -72,6 +72,7 @@ namespace VeloTimerWeb.Api.Controllers
             return segmenttimes.ToList();
         }
 
+        [AllowAnonymous]
         [HttpGet("passingcount")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
