@@ -338,6 +338,8 @@ namespace VeloTimerWeb.Api.Services
                                 .ToList()
                         };
 
+            _logger.LogDebug(query.Take(Count).ToQueryString());
+
             times = await query
                 .Take(Count)
                 .AsNoTrackingWithIdentityResolution()
