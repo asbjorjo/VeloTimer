@@ -44,7 +44,12 @@ namespace VeloTimerWeb.Api
 
             services.AddDbContext<VeloTimerDbContext>(options =>
             {
-                options.UseSqlServer(Configuration.GetConnectionString("Azure"));
+                options.UseSqlServer(
+                    Configuration
+                        .GetConnectionString("Azure"), sqloptions => 
+                        {
+                            sqloptions.CommandTimeout((int)TimeSpan.FromMinutes(5).TotalSeconds);
+                        });
             });
             services.AddDbContext<VeloIdentityDbContext>(options =>
             {

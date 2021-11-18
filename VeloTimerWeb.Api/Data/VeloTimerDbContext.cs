@@ -28,6 +28,10 @@ namespace VeloTimerWeb.Api.Data
 
             builder.Entity<Passing>()
                 .HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
+            builder.Entity<Passing>()
+                .HasIndex(p => p.Source);
+            builder.Entity<Passing>()
+                .HasIndex(p => p.Time);
 
             builder.Entity<Segment>()
                 .HasOne(s => s.Start)
@@ -53,9 +57,6 @@ namespace VeloTimerWeb.Api.Data
                 .HasOne(s => s.End)
                 .WithMany()
                 .OnDelete(DeleteBehavior.Restrict);
-
-            //builder.Entity<SegmentPassing>()
-            //    .HasKey(s => new { s.PassingId, s.SegmentId });
 
             builder.Entity<TimingLoop>()
                 .HasAlternateKey(t => new { t.TrackId, t.LoopId });
