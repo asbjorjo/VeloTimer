@@ -1,0 +1,24 @@
+﻿@using VeloTimer.Shared.Hub
+@using VeloTimer.Shared.Models
+@using VeloTimer.Shared.Util
+
+@inherits ComponentBase
+@inject IApiClient Api
+@inject NavigationManager NavigationManager
+@inject HubConnection hubConnection
+
+@(last == null ? "" : $"Siste registrerte passering var {(DateTimeOffset.Now - last.Time).Hours} timer siden.")
+
+@code {
+    private Passing last;
+
+    protected async override Task OnInitializedAsync()
+    {
+        await LoadLastPassing();
+    }
+
+    protected async Task LoadLastPassing()
+    {
+        last = await Api.GetLastPassing();
+    }
+}

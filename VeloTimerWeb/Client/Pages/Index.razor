@@ -4,13 +4,17 @@
 
 <div>
     <div class="row">
-        <ActiveRiderCount FromTime=DateTimeOffset.Now.AddHours(-1) />
+        <div class="col">
+            <ActiveTransponderCount FromTime=DateTimeOffset.Now.AddHours(-1) />
+        </div>
     </div>
 
     <AuthorizeView>
         <Authorized>
-            <div>
-                <ActiveRiders FromTime=DateTimeOffset.Now.AddHours(-1) />
+            <div class="row">
+                <div class="col">
+                    <ActiveRiders FromTime=DateTimeOffset.Now.AddHours(-1) />
+                </div>
             </div>
         </Authorized>
     </AuthorizeView>

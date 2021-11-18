@@ -1,0 +1,46 @@
+﻿@using VeloTimer.Shared.Hub
+@using VeloTimer.Shared.Models
+@using VeloTimer.Shared.Util
+
+@inherits ComponentBase
+@inject IApiClient Api
+@inject NavigationManager NavigationManager
+@inject HubConnection hubConnection
+
+@if (active > 0)
+{
+    <div>
+        @($"{active} rytter{(active > 1 ? "e" : "")} på banen.")
+    </div>
+}
+else
+{
+    <LastPassing/>
+}
+
+@code {
+    [Parameter]
+    public DateTimeOffset FromTime { get; set; } = DateTimeOffset.Now.AddHours(-1);
+    [Parameter]
+    public DateTimeOffset? ToTime { get; set; }
+
+    private int active;
+    private DateTimeOffset fromtime;
+    private DateTimeOffset? totime;
+
+    protected async override Task OnParametersSetAsync()
+    {
+        if (FromTime != fromtime || (ToTime.HasValue && ToTime.Value != totime))
+        {
+            totime = ToTime.HasValue ? ToTime.Value.ToUniversalTime() : null;
+            fromtime = FromTime;
+
+            await LoadRiderCount();
+        }
+    }
+
+    protected async Task LoadRiderCount()
+    {
+        active = await Api.GetActiveTransponderCount(fromtime, totime);
+    }
+}
