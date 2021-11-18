@@ -8,16 +8,27 @@ using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
     public class TranspondersController : GenericController<Transponder>
     {
-        public TranspondersController(ILogger<GenericController<Transponder>> logger, VeloTimerDbContext context) : base(logger, context)
+        private readonly ITransponderService _service;
+
+        public TranspondersController(ITransponderService service, ILogger<GenericController<Transponder>> logger, VeloTimerDbContext context) : base(logger, context)
         {
+            _service = service ?? throw new ArgumentNullException(nameof(service));
         }
 
         [AllowAnonymous]
+        [Route("activecount")]
+        [HttpGet]
+        public async Task<ActionResult<int>> GetActiveCount(DateTimeOffset fromtime, DateTimeOffset? totime)
+        {
+            return await _service.GetActiveCount(fromtime, totime);
+        }
+
         [Route("active")]
         [HttpGet]
         public async Task<ActionResult<ICollection<Transponder>>> GetActive(TimeSpan period, DateTimeOffset? fromtime)

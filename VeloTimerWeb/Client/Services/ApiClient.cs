@@ -55,6 +55,20 @@ namespace VeloTimerWeb.Client.Services
             }
         }
 
+        public async Task<int> GetActiveTransponderCount(DateTimeOffset fromtime, DateTimeOffset? totime)
+        {
+            using (var response = await _client.GetAsync($"transponders/activecount?fromtime={fromtime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}", HttpCompletionOption.ResponseHeadersRead))
+            {
+                response.EnsureSuccessStatusCode();
+
+                var content = await response.Content.ReadAsStreamAsync();
+
+                var count = await JsonSerializer.DeserializeAsync<int>(content);
+
+                return count;
+            }
+        }
+
         public async Task<IEnumerable<Transponder>> GetActiveTransponders(DateTimeOffset fromtime, DateTimeOffset? totime)
         {
             using (var response = await _client.GetAsync($"transponders/active?fromtime={fromtime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}", HttpCompletionOption.ResponseHeadersRead))
@@ -66,6 +80,18 @@ namespace VeloTimerWeb.Client.Services
                 var riders = await JsonSerializer.DeserializeAsync<IEnumerable<Transponder>>(content);
 
                 return riders;
+            }
+        }
+
+        public async Task<Passing> GetLastPassing()
+        {
+            using (var response = await _client.GetAsync($"passings/mostrecent"))
+            {
+                response.EnsureSuccessStatusCode();
+
+                var passing = await response.Content.ReadFromJsonAsync<Passing>();
+
+                return passing;
             }
         }
 
