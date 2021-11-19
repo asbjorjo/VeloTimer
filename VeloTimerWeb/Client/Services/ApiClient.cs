@@ -31,7 +31,7 @@ namespace VeloTimerWeb.Client.Services
 
         public async Task<int> GetActiveRiderCount(DateTimeOffset fromtime, DateTimeOffset? totime)
         {
-            using (var response = await _client.GetAsync($"rider/activecount?fromtime={fromtime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}", HttpCompletionOption.ResponseHeadersRead))
+            using (var response = await _client.GetAsync($"rider/activecount?fromtime={TimeFormatter(fromtime)}&totime={TimeFormatter(totime)}", HttpCompletionOption.ResponseHeadersRead))
             {
                 response.EnsureSuccessStatusCode();
 
@@ -45,7 +45,7 @@ namespace VeloTimerWeb.Client.Services
 
         public async Task<IEnumerable<Rider>> GetActiveRiders(DateTimeOffset fromtime, DateTimeOffset? totime)
         {
-            using (var response = await _client.GetAsync($"rider/active?fromtime={fromtime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}", HttpCompletionOption.ResponseHeadersRead))
+            using (var response = await _client.GetAsync($"rider/active?fromtime={TimeFormatter(fromtime)}&totime={TimeFormatter(totime)}", HttpCompletionOption.ResponseHeadersRead))
             {
                 response.EnsureSuccessStatusCode();
 
@@ -57,7 +57,7 @@ namespace VeloTimerWeb.Client.Services
 
         public async Task<int> GetActiveTransponderCount(DateTimeOffset fromtime, DateTimeOffset? totime)
         {
-            using (var response = await _client.GetAsync($"transponders/activecount?fromtime={fromtime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}", HttpCompletionOption.ResponseHeadersRead))
+            using (var response = await _client.GetAsync($"transponders/activecount?fromtime={TimeFormatter(fromtime)}&totime={TimeFormatter(totime)}", HttpCompletionOption.ResponseHeadersRead))
             {
                 response.EnsureSuccessStatusCode();
 
@@ -71,7 +71,7 @@ namespace VeloTimerWeb.Client.Services
 
         public async Task<IEnumerable<Transponder>> GetActiveTransponders(DateTimeOffset fromtime, DateTimeOffset? totime)
         {
-            using (var response = await _client.GetAsync($"transponders/active?fromtime={fromtime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}", HttpCompletionOption.ResponseHeadersRead))
+            using (var response = await _client.GetAsync($"transponders/active?fromtime={TimeFormatter(fromtime)}&totime={TimeFormatter(totime)}", HttpCompletionOption.ResponseHeadersRead))
             {
                 response.EnsureSuccessStatusCode();
 
@@ -105,6 +105,11 @@ namespace VeloTimerWeb.Client.Services
 
                 return rider;
             }
+        }
+
+        private static string TimeFormatter(DateTimeOffset? time)
+        {
+            return time?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         }
     }
 }
