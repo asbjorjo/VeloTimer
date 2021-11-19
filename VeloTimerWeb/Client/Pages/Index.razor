@@ -5,14 +5,14 @@
 <div>
     <div class="row">
         <div class="col">
-            <ActiveTransponderCount FromTime=DateTimeOffset.Now.AddHours(-1) />
+            <ActiveTransponderCount FromTime=DateTimeOffset.Now.AddMinutes(-30) />
         </div>
     </div>
 
     <AuthorizeView>
         <Authorized>
             <div class="row">
-                <ActiveRiders FromTime=DateTimeOffset.Now.AddHours(-1) />
+                <ActiveRiders FromTime=DateTimeOffset.Now.AddMinutes(-30) />
             </div>
         </Authorized>
     </AuthorizeView>
