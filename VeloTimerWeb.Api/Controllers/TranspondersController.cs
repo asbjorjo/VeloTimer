@@ -26,6 +26,12 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet]
         public async Task<ActionResult<int>> GetActiveCount(DateTimeOffset fromtime, DateTimeOffset? totime)
         {
+            if (fromtime > totime)
+            {
+                ModelState.AddModelError(nameof(totime), $"{totime} greater than {fromtime}");
+                return BadRequest(ModelState);
+            }
+
             return await _service.GetActiveCount(fromtime, totime);
         }
 
