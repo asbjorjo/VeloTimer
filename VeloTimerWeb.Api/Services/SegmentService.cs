@@ -50,7 +50,9 @@ namespace VeloTimerWeb.Api.Services
                         where sr.SegmentId == SegmentId
                               && sr.Start.Time >= fromtime && sr.End.Time <= totime
                               && to.OwnedFrom <= sr.Start.Time && sr.End.Time < to.OwnedUntil
-                              && sr.End.Transponder.Passings.Where(p => p.Time > sr.Start.Time && p.Time < sr.End.Time && segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)).Count() == segment.Intermediates.Count()
+                              && sr.End.Transponder.Passings.Where(
+                                  p => p.Time > sr.Start.Time && p.Time < sr.End.Time 
+                                    && segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)).Count() == segment.Intermediates.Count()
                         orderby sr.End.Time descending
                         select new SegmentTimeRider
                         {
@@ -82,9 +84,9 @@ namespace VeloTimerWeb.Api.Services
             return times;
         }
 
-        public async Task<IEnumerable<KeyValuePair<string, long>>> GetSegmentPassingCount(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
+        public async Task<IEnumerable<KeyValuePair<string, int>>> GetSegmentPassingCount(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
         {
-            var runs = new Dictionary<string, long>();
+            var runs = new Dictionary<string, int>();
             var fromtime = DateTimeOffset.MinValue;
             var totime = DateTimeOffset.MaxValue;
 
@@ -103,9 +105,9 @@ namespace VeloTimerWeb.Api.Services
 
             var segment = await LoadSegment(SegmentId);
 
-            var owners = from to in _context.Set<TransponderOwnership>()
-                            join r in _context.Set<Rider>() on to.OwnerId equals r.Id
-                         from sr in _context.Set<SegmentRun>()
+            var owners = from sr in _context.Set<SegmentRun>()
+                         join to in _context.Set<TransponderOwnership>() on sr.Start.TransponderId equals to.TransponderId
+                         join r in _context.Set<Rider>() on to.OwnerId equals r.Id
                          where 
                             sr.SegmentId == SegmentId
                             && sr.Time >= segment.MinTime && sr.Time <= segment.MaxTime 
@@ -114,11 +116,11 @@ namespace VeloTimerWeb.Api.Services
                             && to.OwnerId == r.Id
                             && segment.Intermediates.Count == sr.End.Transponder.Passings.Where(p => p.Time > sr.Start.Time && p.Time < sr.End.Time && segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)).Count()
                          group sr by new { to.OwnerId, r.Name } into o
-                         orderby o.LongCount() descending
+                         orderby o.Count() descending
                          select new 
                          { 
                              Rider = o.Key.Name, 
-                             Count = o.LongCount() 
+                             Count = o.Count() 
                          };
 
             owners = owners.Take(Count);
@@ -130,7 +132,7 @@ namespace VeloTimerWeb.Api.Services
             return runs;
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, bool RequireIntermediates)
+        public async Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
         {
             var times = Enumerable.Empty<SegmentTimeRider>();
             var fromtime = DateTimeOffset.MinValue;
@@ -191,7 +193,7 @@ namespace VeloTimerWeb.Api.Services
 
             return times;
         }
-        
+       
         private async Task<Segment> LoadSegment(long segmentId)
         {
             var segment = await _context.Segments

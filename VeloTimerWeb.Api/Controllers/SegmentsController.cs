@@ -27,7 +27,11 @@ namespace VeloTimerWeb.Api.Controllers
         [AllowAnonymous]
         public override async Task<ActionResult<Segment>> Get(long id)
         {
-            var value = await _dbset.AsNoTracking().Include(s => s.Intermediates).Where(s => s.Id == id).SingleOrDefaultAsync();
+            var value = await _dbset
+                .AsNoTracking()
+                .Include(s => s.Intermediates)
+                .Where(s => s.Id == id)
+                .SingleOrDefaultAsync();
 
             if (value == null)
             {
@@ -88,7 +92,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet("passingcount")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<KeyValuePair<string, long>>>> GetPassingCounts(long segmentId, DateTime fromtime, DateTimeOffset? totime, int? count)
+        public async Task<ActionResult<IEnumerable<KeyValuePair<string, int>>>> GetPassingCounts(long segmentId, DateTime fromtime, DateTimeOffset? totime, int? count)
         {
             if (count.HasValue && count.Value < 0)
             {
