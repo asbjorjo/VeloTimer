@@ -27,7 +27,11 @@ namespace VeloTimerWeb.Api.Controllers
         [AllowAnonymous]
         public override async Task<ActionResult<Segment>> Get(long id)
         {
-            var value = await _dbset.AsNoTracking().Include(s => s.Intermediates).Where(s => s.Id == id).SingleOrDefaultAsync();
+            var value = await _dbset
+                .AsNoTracking()
+                .Include(s => s.Intermediates)
+                .Where(s => s.Id == id)
+                .SingleOrDefaultAsync();
 
             if (value == null)
             {
@@ -40,52 +44,87 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet("times")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetTimes(long segmentId, long? transponderId, DateTime? fromtime, DateTimeOffset? totime, int? Count)
+        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetTimes(long segmentId, DateTime fromtime, DateTimeOffset? totime, int? count, long? rider)
         {
-            DateTimeOffset _fromtime = DateTimeOffset.Now;
-
-            if (fromtime.HasValue)
+            if (count.HasValue && count.Value < 0)
             {
-                _fromtime = fromtime.Value;
+                ModelState.AddModelError(nameof(count), "Please request a positive number of elemets.");
+            }
+            if (totime.HasValue && totime < fromtime)
+            {
+                ModelState.AddModelError(nameof(totime), "{totime.Value} is before {fromtime}.");
+            }
+            if (ModelState.ErrorCount > 0)
+            {
+                return BadRequest(ModelState);
             }
 
-            var segmenttimes = await _segmentService.GetSegmentTimesNew(segmentId, _fromtime, totime, Count: Count.Value);
+            IEnumerable<SegmentTimeRider> segmenttimes;
 
-            return segmenttimes.ToList();
+            if (rider.HasValue)
+            {
+                segmenttimes = await _segmentService.GetSegmentTimesForRider(segmentId, fromtime, totime, rider.Value, count.Value);
+            }
+            else
+            {
+                segmenttimes = await _segmentService.GetSegmentTimes(segmentId, fromtime, totime, Count: count.Value);
+            }
+
+            return Ok(segmenttimes);
         }
 
         [AllowAnonymous]
         [HttpGet("fastest")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetFastest(long segmentId, long? transponderId, DateTime? fromtime, DateTimeOffset? totime, int? count, bool requireintermediates)
+        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetFastest(long segmentId, DateTime fromtime, DateTimeOffset? totime, int? count, long? rider)
         {
-            DateTimeOffset _fromtime = DateTimeOffset.Now;
-
-            if (fromtime.HasValue)
+            if (count.HasValue && count.Value < 0)
             {
-                _fromtime = fromtime.Value;
+                ModelState.AddModelError(nameof(count), "Please request a positive number of elemets.");
+            }
+            if (totime.HasValue && totime < fromtime)
+            {
+                ModelState.AddModelError(nameof(totime), "{totime.Value} is before {fromtime}.");
+            }
+            if (ModelState.ErrorCount > 0)
+            {
+                return BadRequest(ModelState);
             }
 
-            var segmenttimes = await _segmentService.GetFastestSegmentTimesNewWay(segmentId, _fromtime, totime); 
+            IEnumerable<SegmentTimeRider> segmenttimes;
 
-            return segmenttimes.ToList();
+            if (rider.HasValue)
+            {
+                segmenttimes = await _segmentService.GetFastestSegmentTimesForRider(segmentId, fromtime, totime, rider.Value, count.Value);
+            } else
+            {
+                segmenttimes = await _segmentService.GetFastestSegmentTimes(segmentId, fromtime, totime, Count: count.Value);
+            }
+            
+            return Ok(segmenttimes);
         }
 
         [AllowAnonymous]
         [HttpGet("passingcount")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<KeyValuePair<string, long>>>> GetPassingCounts(long segmentId, long? transponderId, DateTime? fromtime, DateTimeOffset? totime, int? count)
+        public async Task<ActionResult<IEnumerable<KeyValuePair<string, int>>>> GetPassingCounts(long segmentId, DateTime fromtime, DateTimeOffset? totime, int? count)
         {
-            DateTimeOffset _fromtime = DateTimeOffset.Now;
-
-            if (fromtime.HasValue)
+            if (count.HasValue && count.Value < 0)
             {
-                _fromtime = fromtime.Value;
+                ModelState.AddModelError(nameof(count), "Please request a positive number of elemets.");
+            }
+            if (totime.HasValue && totime < fromtime)
+            {
+                ModelState.AddModelError(nameof(totime), "{totime.Value} is before {fromtime}.");
+            }
+            if (ModelState.ErrorCount > 0)
+            {
+                return BadRequest(ModelState);
             }
 
-            var passingcount = await _segmentService.GetSegmentPassingCount(segmentId, transponderId, _fromtime, totime, count);
+            var passingcount = await _segmentService.GetSegmentPassingCount(segmentId, fromtime, totime, count.Value);
             
             return Ok(passingcount);
         }

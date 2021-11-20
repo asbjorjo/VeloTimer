@@ -33,6 +33,9 @@ namespace VeloTimerWeb.Api.Data
             builder.Entity<Passing>()
                 .HasIndex(p => p.Time);
 
+            builder.Entity<Rider>()
+                .HasAlternateKey(p => p.UserId);
+
             builder.Entity<Segment>()
                 .HasOne(s => s.Start)
                 .WithMany()

@@ -7,7 +7,7 @@ using VeloTimerWeb.Api.Data;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class TimingLoopsController : GenericController<TimingLoop>
     {
         public TimingLoopsController(VeloTimerDbContext context, ILogger<GenericController<TimingLoop>> logger) : base(logger, context)

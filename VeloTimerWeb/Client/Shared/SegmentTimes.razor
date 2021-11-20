@@ -2,6 +2,7 @@
 @using VeloTimer.Shared.Models
 @inherits ComponentBase
 @implements IDisposable
+@inject IApiClient Api
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
@@ -93,9 +94,12 @@
     public DateTimeOffset? ToTime { get; set; }
     [Parameter]
     public int Count { get; set; }
+    [Parameter]
+    public long? Rider { get; set; }
 
     protected Segment segment;
     protected long? transponder;
+    protected long? rider;
     protected bool showintermediate = false;
     protected DateTimeOffset? fromtime;
     protected DateTimeOffset? totime;
@@ -110,21 +114,21 @@
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Segment != segment?.Id || Transponder != transponder) {
+        if (Segment != segment?.Id || Transponder != transponder || Rider != rider) {
             if (segment != null)
             {
                 await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
             }
 
-            segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
+            segment = await Http.GetFromJsonAsync<Segment>($"segments/{Segment}");
 
-            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.StartId}");
-            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.EndId}");
+            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.StartId}");
+            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.EndId}");
 
             if (segment.DisplayIntermediates) {
-            foreach (var intermediate in segment.Intermediates)
+                foreach (var intermediate in segment.Intermediates)
                 {
-                    intermediate.Loop = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{intermediate.LoopId}");
+                    intermediate.Loop = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{intermediate.LoopId}");
                 }
             }
 
@@ -151,13 +155,7 @@
 
     protected async Task LoadSegmentTimes()
     {
-        segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>(
-            $"/segments/times?segmentId={segment.Id}"
-            + $"&transponderid={transponder}"
-            + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&requireintermediates={segment.RequireIntermediates}"
-            + $"&count={Count}");
+        segmentTimes = await Api.GetSegmentTimes(segment.Id, fromtime, totime, Count: Count, RiderId: rider);
 
         StateHasChanged();
     }

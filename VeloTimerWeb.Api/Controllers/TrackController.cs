@@ -8,7 +8,7 @@ using VeloTimerWeb.Api.Data;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     [ApiController]
     public class TrackController : GenericController<Track>
     {

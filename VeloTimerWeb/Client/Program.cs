@@ -23,7 +23,7 @@ namespace VeloTimerWeb.Client
 
             builder.Services.AddHttpClient(
                     "VeloTimerWeb.ServerAPI",
-                    client => client.BaseAddress = new Uri(builder.Configuration["VELOTIMER_API_URL"]))
+                    client => client.BaseAddress = new Uri(new Uri(builder.Configuration["VELOTIMER_API_URL"]), "api/"))
                 .AddHttpMessageHandler<VeloTimerAuthorizationMessageHandler>();
 
             builder.Services.AddHttpClient<IApiClient, ApiClient>()

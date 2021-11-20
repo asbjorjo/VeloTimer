@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VeloTimerWeb.Api.Data;
 
 namespace VeloTimerWeb.Api.Migrations.VeloTimer
 {
     [DbContext(typeof(VeloTimerDbContext))]
-    partial class VeloTimerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20211120113403_RiderUserIdIndex")]
+    partial class RiderUserIdIndex
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

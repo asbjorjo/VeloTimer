@@ -2,6 +2,7 @@
 @using VeloTimer.Shared.Models
 @inherits ComponentBase
 @implements IDisposable
+@inject IApiClient Api
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
@@ -31,7 +32,7 @@
 
 @code {
     protected long passingcount;
-    protected IEnumerable<KeyValuePair<string, long>> passingcounts;
+    protected IEnumerable<KeyValuePair<string, int>> passingcounts;
 
     [Parameter]
     public long Segment { get; set; }
@@ -43,12 +44,15 @@
     public DateTimeOffset? ToTime { get; set; }
     [Parameter]
     public int? Count { get; set; }
+    [Parameter]
+    public long? Rider { get; set; }
 
     protected Segment segment;
     protected long? transponder;
     protected DateTimeOffset? fromtime;
     protected DateTimeOffset? totime;
     protected int count = 10;
+    protected long? rider;
 
     protected override void OnInitialized()
     {
@@ -60,22 +64,23 @@
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Segment != segment?.Id || Transponder != transponder) {
+        if (Segment != segment?.Id || Transponder != transponder || Rider != rider) {
             if (segment != null)
             {
                 await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
             }
 
-            segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
+            segment = await Http.GetFromJsonAsync<Segment>($"segments/{Segment}");
 
-            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.StartId}");
-            segment.Start.Track = await Http.GetFromJsonAsync<Track>($"/track/{segment.Start.TrackId}");
-            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.EndId}");
+            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.StartId}");
+            segment.Start.Track = await Http.GetFromJsonAsync<Track>($"track/{segment.Start.TrackId}");
+            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.EndId}");
             segment.End.Track = segment.Start.Track;
 
             transponder = Transponder;
             fromtime = FromTime?.ToUniversalTime();
             totime = ToTime?.ToUniversalTime();
+            rider = Rider;
 
             if (totime == null)
             {
@@ -93,8 +98,8 @@
 
     protected async Task LoadSegmentPassingCount()
     {
-        var counts = await Http.GetFromJsonAsync<Dictionary<string, long>>(
-        $"/segments/passingcount?segmentId={segment.Id}"
+        var counts = await Http.GetFromJsonAsync<Dictionary<string, int>>(
+        $"segments/passingcount?segmentId={segment.Id}"
             + $"&transponderid={transponder}"
             + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
             + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
