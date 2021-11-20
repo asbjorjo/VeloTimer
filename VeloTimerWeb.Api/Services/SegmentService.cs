@@ -171,11 +171,16 @@ namespace VeloTimerWeb.Api.Services
             var owners = from sr in _context.Set<SegmentRun>()
                             join to in _context.Set<TransponderOwnership>() on sr.Start.TransponderId equals to.TransponderId
                                 join r in _context.Set<Rider>() on to.OwnerId equals r.Id
-                         where 
+                         let intermediatecount = (from p in _context.Set<Passing>()
+                                                  where sr.Start.Time < p.Time && sr.End.Time > p.Time
+                                                     && p.TransponderId == to.TransponderId
+                                                     && segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)
+                                                  select p.Id).Count()
+                         where
                             sr.SegmentId == SegmentId
                             && sr.End.Time >= fromtime && sr.End.Time >= to.OwnedFrom && sr.End.Time < to.OwnedUntil
                             && sr.Time >= segment.MinTime && sr.Time <= segment.MaxTime 
-                            && segment.Intermediates.Count == sr.End.Transponder.Passings.Where(p => p.Time > sr.Start.Time && p.Time < sr.End.Time && segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)).Count()
+                            //&& segment.Intermediates.Count == sr.End.Transponder.Passings.Where(p => p.Time > sr.Start.Time && p.Time < sr.End.Time && segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)).Count()
                          group sr by new { to.OwnerId, r.Name } into o
                          orderby o.Count() descending
                          select new 
@@ -185,7 +190,9 @@ namespace VeloTimerWeb.Api.Services
                          };
 
             owners = owners.Take(Count);
-        
+
+            _logger.LogDebug(owners.ToQueryString());
+
             runs = await owners
                 .AsNoTracking()
                 .ToDictionaryAsync(k => k.Rider, v => v.Count);

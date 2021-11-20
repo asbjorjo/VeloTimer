@@ -60,6 +60,8 @@ namespace VeloTimerWeb.Api.Data
                 .HasOne(s => s.End)
                 .WithMany()
                 .OnDelete(DeleteBehavior.Restrict);
+            builder.Entity<SegmentRun>()
+                .HasIndex(s => new { s.SegmentId, s.Time, s.StartId, s.EndId });
 
             builder.Entity<TimingLoop>()
                 .HasAlternateKey(t => new { t.TrackId, t.LoopId });
