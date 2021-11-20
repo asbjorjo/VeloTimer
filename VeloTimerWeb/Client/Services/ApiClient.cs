@@ -81,7 +81,7 @@ namespace VeloTimerWeb.Client.Services
             }
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetBestTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, int? RiderId)
+        public async Task<IEnumerable<SegmentTimeRider>> GetBestTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, long? RiderId)
         {
             using (var response = await _client.GetAsync($"segments/fastest?SegmentId={SegmentId}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}&RiderId={RiderId}"))
             {
@@ -117,7 +117,7 @@ namespace VeloTimerWeb.Client.Services
             }
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, int? RiderId)
+        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, long? RiderId)
         {
             using (var response = await _client.GetAsync($"segments/times?SegmentId={SegmentId}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}&RiderId={RiderId}"))
             {

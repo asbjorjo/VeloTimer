@@ -44,7 +44,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet("times")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetTimes(long segmentId, DateTime fromtime, DateTimeOffset? totime, int? count)
+        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetTimes(long segmentId, DateTime fromtime, DateTimeOffset? totime, int? count, long? rider)
         {
             if (count.HasValue && count.Value < 0)
             {
@@ -59,7 +59,16 @@ namespace VeloTimerWeb.Api.Controllers
                 return BadRequest(ModelState);
             }
 
-            var segmenttimes = await _segmentService.GetSegmentTimes(segmentId, fromtime, totime, Count: count.Value);
+            IEnumerable<SegmentTimeRider> segmenttimes;
+
+            if (rider.HasValue)
+            {
+                segmenttimes = await _segmentService.GetSegmentTimesForRider(segmentId, fromtime, totime, rider.Value, count.Value);
+            }
+            else
+            {
+                segmenttimes = await _segmentService.GetSegmentTimes(segmentId, fromtime, totime, Count: count.Value);
+            }
 
             return Ok(segmenttimes);
         }
@@ -68,7 +77,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet("fastest")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetFastest(long segmentId, DateTime fromtime, DateTimeOffset? totime, int? count)
+        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetFastest(long segmentId, DateTime fromtime, DateTimeOffset? totime, int? count, long? rider)
         {
             if (count.HasValue && count.Value < 0)
             {
@@ -83,7 +92,15 @@ namespace VeloTimerWeb.Api.Controllers
                 return BadRequest(ModelState);
             }
 
-            var segmenttimes = await _segmentService.GetFastestSegmentTimes(segmentId, fromtime, totime, Count: count.Value);
+            IEnumerable<SegmentTimeRider> segmenttimes;
+
+            if (rider.HasValue)
+            {
+                segmenttimes = await _segmentService.GetFastestSegmentTimesForRider(segmentId, fromtime, totime, rider.Value, count.Value);
+            } else
+            {
+                segmenttimes = await _segmentService.GetFastestSegmentTimes(segmentId, fromtime, totime, Count: count.Value);
+            }
             
             return Ok(segmenttimes);
         }
