@@ -11,7 +11,7 @@ namespace VeloTimerWeb.Api.Controllers
 {
     [Authorize]
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public abstract class GenericController<T> : ControllerBase where T : Entity
     {
         protected VeloTimerDbContext _context;

@@ -1,4 +1,4 @@
-﻿@page "/segmenttimes/{SegmentId:long?}"
+﻿@page "/rider/segmenttimes/{SegmentId:long?}"
 @layout MainLayout
 @using VeloTimer.Shared.Models
 @inject NavigationManager NavigationManager
@@ -37,7 +37,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        segments = await Http.GetFromJsonAsync<Segment[]>("/segments");
+        segments = await Http.GetFromJsonAsync<Segment[]>("segments");
         segment = segments.First().Id;
     }
 

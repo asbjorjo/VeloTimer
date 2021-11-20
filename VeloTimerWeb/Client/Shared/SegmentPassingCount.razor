@@ -2,6 +2,7 @@
 @using VeloTimer.Shared.Models
 @inherits ComponentBase
 @implements IDisposable
+@inject IApiClient Api
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
@@ -66,11 +67,11 @@
                 await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
             }
 
-            segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
+            segment = await Http.GetFromJsonAsync<Segment>($"segments/{Segment}");
 
-            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.StartId}");
-            segment.Start.Track = await Http.GetFromJsonAsync<Track>($"/track/{segment.Start.TrackId}");
-            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.EndId}");
+            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.StartId}");
+            segment.Start.Track = await Http.GetFromJsonAsync<Track>($"track/{segment.Start.TrackId}");
+            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.EndId}");
             segment.End.Track = segment.Start.Track;
 
             transponder = Transponder;
@@ -94,7 +95,7 @@
     protected async Task LoadSegmentPassingCount()
     {
         var counts = await Http.GetFromJsonAsync<Dictionary<string, int>>(
-        $"/segments/passingcount?segmentId={segment.Id}"
+        $"segments/passingcount?segmentId={segment.Id}"
             + $"&transponderid={transponder}"
             + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
             + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"

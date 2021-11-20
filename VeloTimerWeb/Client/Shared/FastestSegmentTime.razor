@@ -2,6 +2,7 @@
 @using VeloTimer.Shared.Models
 @inherits ComponentBase
 @implements IDisposable
+@inject IApiClient Api
 @inject HttpClient Http
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
@@ -72,14 +73,14 @@
                 await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
             }
 
-            segment = await Http.GetFromJsonAsync<Segment>($"/segments/{Segment}");
+            segment = await Http.GetFromJsonAsync<Segment>($"segments/{Segment}");
 
-            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.StartId}");
-            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{segment.EndId}");
+            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.StartId}");
+            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.EndId}");
 
             foreach (var intermediate in segment.Intermediates)
             {
-                intermediate.Loop = await Http.GetFromJsonAsync<TimingLoop>($"/timingloops/{intermediate.LoopId}");
+                intermediate.Loop = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{intermediate.LoopId}");
             }
 
             transponder = Transponder;
@@ -103,13 +104,7 @@
 
     protected async Task LoadSegmentTimes()
     {
-        var segmentTimes = await Http.GetFromJsonAsync<SegmentTimeRider[]>(
-            $"/segments/fastest?segmentId={segment.Id}"
-            + $"&transponderid={transponder}"
-            + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&count={count}"
-            + $"&requireintermediates={requireintermediates}");
+        var segmentTimes = await Api.GetBestTimes(segment.Id, fromtime, totime, Count: count);
 
         segmentTime = segmentTimes.FirstOrDefault();
 

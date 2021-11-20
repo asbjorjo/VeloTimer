@@ -1,0 +1,75 @@
+﻿@page "/track/besttimes"
+@layout MainLayout
+
+    <div class="row">
+        <div class="col">
+            <h3>Banerekorder</h3>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col">
+            <div class="row text-center">
+                 <div class="col">
+                 <h4>Runde</h4>
+                 </div>
+            </div>
+            <div class="row">
+                 <div class="col">
+                <FastestSegmentTimes Segment=2 FromTime=DateTimeOffset.MinValue RequireIntermediates=true ShowIntermediate=false Count=10 />
+                </div>
+            </div>
+        </div>
+        <div class="w-100 d-lg-none"></div>
+        <div class="col">
+            <div class="row text-center">
+                 <div class="col">
+                <h4>200 meter</h4>
+                </div>
+            </div>
+            <div class="row">
+                 <div class="col">
+                <FastestSegmentTimes Segment=1 FromTime=DateTimeOffset.MinValue RequireIntermediates=true ShowIntermediate=false Count=10 />
+                </div>
+            </div>
+        </div>
+    </div>  
+    <div class="row">
+        <div class="col">
+            <div class="row text-center">
+                 <div class="col">
+                <h4>3000 meter</h4>
+                </div>
+            </div>
+            <div class="row">
+                 <div class="col">
+                @*<FastestSegmentTimes Segment=1 FromTime=DateTimeOffset.MinValue RequireIntermediates=true ShowIntermediate=false Count=10 />*@
+                </div>
+            </div>
+        </div>
+        <div class="w-100 d-lg-none"></div>
+        <div class="col">
+            <div class="row text-center">
+                 <div class="col">
+                <h4>4000 meter</h4>
+                </div>
+            </div>
+            <div class="row">
+                 <div class="col">
+                @*<FastestSegmentTimes Segment=1 FromTime=DateTimeOffset.MinValue RequireIntermediates=true ShowIntermediate=false Count=10 />*@
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row justify-content-center">
+        <div class="col text-center">
+            <h4>Rundejeger</h4>
+        </div>
+        <div class="w-100"/>
+        <div class="col col-lg-6">
+            <SegmentPassingCount Segment="2" FromTime=DateTimeOffset.MinValue Count=10 />
+        </div>
+    </div>
+
+@{
+}

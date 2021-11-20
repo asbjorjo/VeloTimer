@@ -24,7 +24,7 @@ namespace VeloTimerWeb.Client.Services
             ILogger<ApiClient> logger)
         {
             _client = client;
-            client.BaseAddress = new Uri(config["VELOTIMER_API_URL"]);
+            client.BaseAddress = new Uri(new Uri(config["VELOTIMER_API_URL"]), "api/");
             _authStateProvider = authStateProvider;
             _logger = logger;
         }
@@ -75,11 +75,21 @@ namespace VeloTimerWeb.Client.Services
             {
                 response.EnsureSuccessStatusCode();
 
-                var content = await response.Content.ReadAsStreamAsync();
-
-                var riders = await JsonSerializer.DeserializeAsync<IEnumerable<Transponder>>(content);
+                var riders = await response.Content.ReadFromJsonAsync<IEnumerable<Transponder>>();
 
                 return riders;
+            }
+        }
+
+        public async Task<IEnumerable<SegmentTimeRider>> GetBestTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, int? RiderId)
+        {
+            using (var response = await _client.GetAsync($"segments/fastest?SegmentId={SegmentId}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}&RiderId={RiderId}"))
+            {
+                response.EnsureSuccessStatusCode();
+
+                var times = await response.Content.ReadFromJsonAsync<IEnumerable<SegmentTimeRider>>();
+
+                return times;
             }
         }
 
@@ -104,6 +114,18 @@ namespace VeloTimerWeb.Client.Services
                 var rider = await response.Content.ReadFromJsonAsync<Rider>();
 
                 return rider;
+            }
+        }
+
+        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, int? RiderId)
+        {
+            using (var response = await _client.GetAsync($"segments/times?SegmentId={SegmentId}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}&RiderId={RiderId}"))
+            {
+                response.EnsureSuccessStatusCode();
+
+                var times = await response.Content.ReadFromJsonAsync<IEnumerable<SegmentTimeRider>>();
+
+                return times;
             }
         }
 
