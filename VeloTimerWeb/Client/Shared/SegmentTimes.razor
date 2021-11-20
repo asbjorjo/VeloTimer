@@ -94,9 +94,12 @@
     public DateTimeOffset? ToTime { get; set; }
     [Parameter]
     public int Count { get; set; }
+    [Parameter]
+    public long? Rider { get; set; }
 
     protected Segment segment;
     protected long? transponder;
+    protected long? rider;
     protected bool showintermediate = false;
     protected DateTimeOffset? fromtime;
     protected DateTimeOffset? totime;
@@ -111,7 +114,7 @@
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Segment != segment?.Id || Transponder != transponder) {
+        if (Segment != segment?.Id || Transponder != transponder || Rider != rider) {
             if (segment != null)
             {
                 await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
@@ -152,7 +155,7 @@
 
     protected async Task LoadSegmentTimes()
     {
-        segmentTimes = await Api.GetSegmentTimes(segment.Id, fromtime, totime, Count: Count);
+        segmentTimes = await Api.GetSegmentTimes(segment.Id, fromtime, totime, Count: Count, RiderId: rider);
 
         StateHasChanged();
     }

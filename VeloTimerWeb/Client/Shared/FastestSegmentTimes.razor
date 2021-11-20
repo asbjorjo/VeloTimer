@@ -16,7 +16,14 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th scope="col" classe="mw-100">Rytter</th>
+                @if (rider.HasValue)
+                {
+                    <th scope="col" class="mw-100">Dato</th>    
+                }
+                else
+                {
+                    <th scope="col" class="mw-100">Rytter</th>    
+                }
                 @if (showintermediate && !segment.Intermediates.Where(i => i.Loop == null).Any())
                 {
                     @foreach (var intermediate in segment.Intermediates)
@@ -43,7 +50,14 @@
                 @foreach (var segment in segmentTimes)
                 {
                     <tr>
-                        <td>@segment.Rider</td>
+                        @if (rider.HasValue)
+                        {
+                            <td>@segment.PassingTime.LocalDateTime</td>
+                        }
+                        else
+                        {
+                            <td>@segment.Rider</td>    
+                        }
                         @if (showintermediate && !this.segment.Intermediates.Where(i => i.Loop == null).Any())
                         {
                             @foreach (var intermediate in this.segment.Intermediates)
@@ -95,7 +109,7 @@
     [Parameter]
     public int Count { get; set; }
     [Parameter]
-    public bool RequireIntermediates { get; set; } = true;
+    public long? Rider { get; set; }
 
     protected Segment segment;
     protected long? transponder;
@@ -103,7 +117,7 @@
     protected DateTimeOffset? fromtime;
     protected DateTimeOffset? totime;
     protected int count;
-    protected bool requireintermediates;
+    protected long? rider;
 
     protected override void OnInitialized()
     {
@@ -115,7 +129,7 @@
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Segment != segment?.Id || Transponder != transponder || Count != count) {
+        if (Segment != segment?.Id || Transponder != transponder || Count != count || Rider != rider) {
             if (segment != null)
             {
                 await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
@@ -135,7 +149,7 @@
             fromtime = FromTime?.ToUniversalTime();
             totime = ToTime?.ToUniversalTime();
             count = Count;
-            requireintermediates = RequireIntermediates;
+            rider = Rider;
 
             if (totime == null)
             {
@@ -153,7 +167,7 @@
 
     protected async Task LoadSegmentTimes()
     {
-        segmentTimes = await Api.GetBestTimes(segment.Id, fromtime, totime, Count: count);
+        segmentTimes = await Api.GetBestTimes(segment.Id, fromtime, totime, Count: count, RiderId: rider);
 
         StateHasChanged();
     }
