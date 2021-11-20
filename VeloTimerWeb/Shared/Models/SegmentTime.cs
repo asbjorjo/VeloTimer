@@ -7,7 +7,7 @@ namespace VeloTimer.Shared.Models
     {
         public string Rider { get; set; }
 
-        public ICollection<SegmentTime> Intermediates { get; set; } = new List<SegmentTime>();
+        public IEnumerable<SegmentTime> Intermediates { get; set; } = new List<SegmentTime>();
     }
     public class SegmentTime
     {

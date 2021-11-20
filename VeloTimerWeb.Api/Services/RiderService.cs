@@ -63,7 +63,7 @@ namespace VeloTimerWeb.Api.Services
                         select new { passings.Key, Last = passings.Max(p => p.Time) };
 
             var riders = await query
-                .AsNoTrackingWithIdentityResolution()
+                .AsNoTracking()
                 .ToDictionaryAsync(k => k.Key, v => v.Last );
 
             return riders;

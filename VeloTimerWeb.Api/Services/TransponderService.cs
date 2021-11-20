@@ -24,6 +24,7 @@ namespace VeloTimerWeb.Api.Services
             totime = totime ?? DateTimeOffset.MaxValue;
 
             var active = await _context.Set<Passing>()
+                .AsNoTracking()
                 .Where(p => p.Time >= fromtime && p.Time < totime)
                 .Select(p => p.TransponderId)
                 .Distinct()
