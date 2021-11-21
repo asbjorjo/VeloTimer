@@ -44,6 +44,6 @@ else
     private void ChangeSegment(ChangeEventArgs e)
     {
         var selected = long.Parse(e.Value.ToString());
-        NavigationManager.NavigateTo($"segmenttimes/{selected}");
+        NavigationManager.NavigateTo($"track/segmenttimes/{selected}");
     }
 }
