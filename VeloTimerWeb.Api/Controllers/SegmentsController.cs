@@ -25,6 +25,12 @@ namespace VeloTimerWeb.Api.Controllers
         }
 
         [AllowAnonymous]
+        public override async Task<ActionResult<IEnumerable<Segment>>> GetAll()
+        {
+            return await base.GetAll();
+        }
+
+        [AllowAnonymous]
         public override async Task<ActionResult<Segment>> Get(long id)
         {
             var value = await _dbset

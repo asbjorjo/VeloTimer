@@ -26,7 +26,7 @@ namespace VeloTimerWeb.Api.Services
 
             if (user == null)
             {
-                throw new ArgumentException(nameof(userId));
+                throw new ArgumentNullException(nameof(userId));
             }
 
             _context.Remove(user);
@@ -53,11 +53,18 @@ namespace VeloTimerWeb.Api.Services
             return active.Keys.Count();
         }
 
-        private async Task<Dictionary<long, DateTimeOffset>> FindActiveRiderIds(DateTimeOffset fromtime, DateTimeOffset? totime)
+        private async Task<Dictionary<long, DateTimeOffset>> FindActiveRiderIds(DateTimeOffset fromtime, DateTimeOffset? ToTime)
         {
+            var totime = DateTimeOffset.MaxValue;
+            if (ToTime.HasValue)
+            {
+                totime = ToTime.Value;
+            }
+
             var query = from t in _context.TranspondersOwnerships
                         from p in _context.Passings
-                        where p.Time >= fromtime && p.TransponderId == t.TransponderId && p.Time >= t.OwnedFrom && p.Time < t.OwnedUntil
+                        where p.Time >= fromtime && p.Time <= totime 
+                            && p.TransponderId == t.TransponderId && p.Time >= t.OwnedFrom && p.Time < t.OwnedUntil
                         orderby p.Time descending
                         group p by t.OwnerId into passings
                         select new { passings.Key, Last = passings.Max(p => p.Time) };
