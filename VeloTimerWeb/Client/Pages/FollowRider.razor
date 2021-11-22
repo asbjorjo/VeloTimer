@@ -82,7 +82,7 @@
 
     protected async override Task OnInitializedAsync()
     {
-        transponders = await Api.GetActiveTransponders(DateTimeOffset.Now.AddDays(-4), null);
+        transponders = await Api.GetActiveTransponders(DateTimeOffset.Now.AddMinutes (-15), null);
         //riders = await Api.GetActiveRiders(DateTimeOffset.Now.AddHours(-15), null);
         segments = await Api.GetSegments(1L);
     }
