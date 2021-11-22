@@ -37,6 +37,7 @@ namespace VeloTimerWeb.Api.Controllers
             return await _service.GetActiveCount(fromtime, totime);
         }
 
+        [AllowAnonymous]
         [Route("active")]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Transponder>>> GetActive(DateTimeOffset FromTime, DateTimeOffset? ToTime)
@@ -64,7 +65,7 @@ namespace VeloTimerWeb.Api.Controllers
             foreach (var transponderId in TransponderId)
             {
                 var onetimes = await _segmentService.GetSegmentTimes(SegmentId, FromTime, ToTime);
-                times.Concat(onetimes);
+                times = times.Concat(onetimes);
             }
 
             return Ok(times.OrderByDescending(t => t.PassingTime));
