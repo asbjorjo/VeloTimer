@@ -21,7 +21,7 @@ namespace VeloTimerWeb.Api.Services
 
         public async Task<int> GetActiveCount(DateTimeOffset fromtime, DateTimeOffset? totime)
         {
-            totime = totime ?? DateTimeOffset.MaxValue;
+            totime ??= DateTimeOffset.MaxValue;
 
             var active = await _context.Set<Passing>()
                 .AsNoTracking()
