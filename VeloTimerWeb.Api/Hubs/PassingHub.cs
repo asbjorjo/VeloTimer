@@ -12,7 +12,12 @@ namespace VeloTimerWeb.Api.Hubs
     {
         public async Task NotifySegmentOfNewRun(SegmentRun segment)
         {
-            await Clients.Groups($"segment_{segment.SegmentId}").NewSegmentRun();
+            await Clients.Groups($"segment_{segment.SegmentId}").NewSegmentRun(segment);
+        }
+
+        public async Task NotifyTransponderOfNewRun(Transponder transponder, SegmentRun segment)
+        {
+            await Clients.Groups($"segment_{segment.SegmentId}_transponder_{transponder.Id}").NewSegmentRun(segment, transponder);
         }
 
         public async Task RegisterPassingWithClients(Passing passing)
@@ -63,6 +68,16 @@ namespace VeloTimerWeb.Api.Hubs
         public Task RemoveFromSegmentGroup(long segment)
         {
             return Groups.RemoveFromGroupAsync(Context.ConnectionId, $"segment_{segment}");
+        }
+
+        public Task AddToSegmentTransponderGroup(long segment, long transponder)
+        {
+            return Groups.AddToGroupAsync(Context.ConnectionId, $"segment_{segment}_transponder_{transponder}");
+        }
+
+        public Task RemoveFromSegmentTransponderGroup(long segment, long transponder)
+        {
+            return Groups.RemoveFromGroupAsync(Context.ConnectionId, $"segment_{segment}_transponder_{transponder}");
         }
 
         public override Task OnConnectedAsync()
