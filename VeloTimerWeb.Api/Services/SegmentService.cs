@@ -84,7 +84,7 @@ namespace VeloTimerWeb.Api.Services
             return times;
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesForRider(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, long RiderId, int Count = 50)
+        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesForRider(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, long RiderId, int Count)
         {
             var times = Enumerable.Empty<SegmentTimeRider>();
 
@@ -134,6 +134,57 @@ namespace VeloTimerWeb.Api.Services
                                     Segmentlength = CalculateSegmentLength(segment.Start.Distance, i.Loop.Distance, segment.Start.Track.Length),
                                     Segmenttime = (i.Time - sr.Start.Time).TotalSeconds
                                 })
+                        };
+
+            query = query.Take(Count);
+
+            _logger.LogDebug(query.ToQueryString());
+
+            times = await query
+                .AsNoTracking()
+                .ToListAsync();
+
+            return times;
+        }
+
+        public async Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesForTransponder(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, long TransponderId, int Count)
+        {
+            var times = Enumerable.Empty<SegmentTimeRider>();
+
+            var fromtime = DateTimeOffset.MinValue;
+            var totime = DateTimeOffset.MaxValue;
+
+            if (FromTime.HasValue)
+            {
+                fromtime = FromTime.Value;
+            }
+            if (ToTime.HasValue)
+            {
+                totime = ToTime.Value;
+            }
+            if (totime <= fromtime || Count <= 0)
+            {
+                return times;
+            }
+
+            var segment = await LoadSegment(SegmentId);
+
+            var query = from sr in _context.Set<SegmentRun>()
+                        where sr.SegmentId == SegmentId
+                              && sr.Start.TransponderId == TransponderId
+                              && sr.Start.Time >= fromtime && sr.End.Time <= totime
+                              && sr.Time >= segment.MinTime && sr.Time <= segment.MaxTime
+                              && sr.End.Transponder.Passings.Where(
+                                  p => p.Time > sr.Start.Time && p.Time < sr.End.Time
+                                    && segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)).Count() == segment.Intermediates.Count()
+                        orderby sr.End.Time descending
+                        select new SegmentTimeRider
+                        {
+                            Loop = sr.End.LoopId,
+                            PassingTime = sr.End.Time,
+                            Rider = TransponderIdConverter.IdToCode(long.Parse(sr.Start.Transponder.SystemId)),
+                            Segmentlength = CalculateSegmentLength(segment.Start.Distance, segment.End.Distance, segment.Start.Track.Length),
+                            Segmenttime = sr.Time
                         };
 
             query = query.Take(Count);
