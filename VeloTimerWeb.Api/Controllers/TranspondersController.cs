@@ -15,10 +15,12 @@ namespace VeloTimerWeb.Api.Controllers
     public class TranspondersController : GenericController<Transponder>
     {
         private readonly ITransponderService _service;
+        private readonly ISegmentService _segmentService;
 
-        public TranspondersController(ITransponderService service, ILogger<GenericController<Transponder>> logger, VeloTimerDbContext context) : base(logger, context)
+        public TranspondersController(ITransponderService service, ISegmentService segmentService, ILogger<GenericController<Transponder>> logger, VeloTimerDbContext context) : base(logger, context)
         {
             _service = service ?? throw new ArgumentNullException(nameof(service));
+            _segmentService = segmentService ?? throw new ArgumentNullException(nameof(segmentService));
         }
 
         [AllowAnonymous]
@@ -37,19 +39,35 @@ namespace VeloTimerWeb.Api.Controllers
 
         [Route("active")]
         [HttpGet]
-        public async Task<ActionResult<ICollection<Transponder>>> GetActive(TimeSpan period, DateTimeOffset? fromtime)
+        public async Task<ActionResult<IEnumerable<Transponder>>> GetActive(DateTimeOffset FromTime, DateTimeOffset? ToTime)
         {
-            DateTimeOffset _fromtime = DateTimeOffset.Now;
+            var fromtime = FromTime;
+            var totime = DateTimeOffset.MaxValue;
 
-            if (fromtime.HasValue)
+            if (ToTime.HasValue)
             {
-                _fromtime = fromtime.Value;
+                totime = ToTime.Value;
             }
-            
-            var value = _dbset.Where(t => t.Passings.Where(p => p.Time > _fromtime - period && p.Time <= _fromtime).Any())
-                              .OrderByDescending(t => t.Passings.OrderByDescending(p => p.Time).First());
+
+            var value = _context.Set<Passing>().Where(p => p.Time >= fromtime && p.Time <= totime).Select(p => p.Transponder).Distinct();
             
             return await value.ToListAsync();
+        }
+
+        [AllowAnonymous]
+        [Route("times")]
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetTimes(long SegmentId, [FromQuery] IEnumerable<long> TransponderId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int? Count)
+        {
+            var times = Enumerable.Empty<SegmentTimeRider>();
+
+            foreach (var transponderId in TransponderId)
+            {
+                var onetimes = await _segmentService.GetSegmentTimes(SegmentId, FromTime, ToTime);
+                times.Concat(onetimes);
+            }
+
+            return Ok(times.OrderByDescending(t => t.PassingTime));
         }
     }
 }
