@@ -11,15 +11,16 @@
   "profiles": {
     "IIS Express": {
       "commandName": "IISExpress",
-      "launchBrowser": false,
-      "launchUrl": "swagger",
+      "launchBrowser": true,
+      //"launchUrl": "swagger",
       "environmentVariables": {
         "Key": "Value",
         "AZURE_USERNAME": "asbjorjo@gmail.com",
         "ASPNETCORE_ENVIRONMENT": "Development",
         "AZURE_TENANT_ID": "3db7b746-e675-424b-a111-54c3346b4de8",
         "AzureVault": "https://velotimer-dev-vault.vault.azure.net/"
-      }
+      },
+      "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}"
     },
     "VeloTimerWeb.Api": {
       "commandName": "Project",
