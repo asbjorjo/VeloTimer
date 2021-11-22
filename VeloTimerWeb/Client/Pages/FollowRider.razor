@@ -55,6 +55,10 @@
                 <tbody>
                     @foreach (var row in tabletimes)
                     {
+                        @if (selectedtransponders.Count > 1)
+                        {
+                            <tr>@row.Min()</tr>
+                        }
                         <tr>
                             @foreach (var time in row)
                             {
@@ -78,11 +82,11 @@
     private Dictionary<string, SegmentTimeRider> times;
     private List<double[]> tabletimes = new List<double[]>();
     private DateTimeOffset lastpassing;
-    private List<Transponder> thisround;
+    private List<Transponder> thisround = new List<Transponder>();
 
     protected async override Task OnInitializedAsync()
     {
-        transponders = await Api.GetActiveTransponders(DateTimeOffset.Now.AddMinutes (-15), null);
+        transponders = await Api.GetActiveTransponders(DateTimeOffset.Now.AddMinutes (-120), null);
         //riders = await Api.GetActiveRiders(DateTimeOffset.Now.AddHours(-15), null);
         segments = await Api.GetSegments(1L);
     }
@@ -94,26 +98,34 @@
             hubConnection.InvokeAsync("AddToSegmentTransponderGroup", segment.Id, tpid);
         }
 
-        thisround = new List<Transponder>();
+        thisround.Clear();
         lastpassing = DateTimeOffset.Now;
-        tabletimes = new List<double[]>();
-        tabletimes.Add(new double[selectedtransponders.Count > 1 ? selectedtransponders.Count + 1 : 1]);
+        tabletimes.Clear();
+        tabletimes.Add(new double[selectedtransponders.Count]);
 
         hubConnection.On<SegmentRun, Transponder>(Strings.Events.NewSegmentRun, RefreshTimes);
     }
 
     private void RefreshTimes(SegmentRun segmentRun, Transponder transponder)
     {
-        if (selectedtransponders.Except(thisround).Any())
+        Console.WriteLine("Refreshing times");
+
+        Console.WriteLine("Created row");
+
+        // Second time a transponder i seen has to be new round.
+        // TODO: Deal with potentially dropped transponders.
+        if (thisround.Select(t => t.Id).Contains(transponder.Id))
         {
-            var row = tabletimes.Last();
-            row[selectedtransponders.IndexOf(transponder)] = segmentRun.Time;
-        } 
-        else
-        {
+            var newrow = new double[selectedtransponders.Count];
+            tabletimes.Insert(0, newrow);
             thisround.Clear();
-            tabletimes.Add(new double[selectedtransponders.Count > 1 ? selectedtransponders.Count + 1 : 1]);
         }
+
+        var index = selectedtransponders.FindIndex(t => t.Id == transponder.Id);
+
+        var row = tabletimes.ElementAt(0);
+        row[index] = segmentRun.Time;
+        thisround.Add(transponder);
 
         StateHasChanged();
     }
