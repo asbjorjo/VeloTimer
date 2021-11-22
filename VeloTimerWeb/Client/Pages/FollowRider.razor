@@ -1,7 +1,11 @@
 ﻿@page "/sekundering"
+@using VeloTimer.Shared.Hub
+@using VeloTimer.Shared.Models
+@using VeloTimer.Shared.Util
 @layout MainLayout
 @inject IApiClient Api
 @inject HubConnection hubConnection
+@implements IDisposable
 
 <div class="row">
     <div class="column">
@@ -9,47 +13,143 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="column">
-        <div class="row">
-            <div class="column">
-                <h4>Velg ryttere</h4>
-            </div>
+@if (segments != null) {
+    <div class="row">
+        <div class="column">
+            <h4>Velg ryttere</h4>
+            @foreach (var transponder in transponders)
+            {
+                <input type="checkbox" checked="@(selectedtransponders.Contains(transponder))" @onchange="eventArgs => ChangeTransponder(transponder.Id, eventArgs)" />
+                @(TransponderIdConverter.IdToCode(long.Parse(transponder.SystemId)))<br />
+            }
+        </div>
+        <div class="column">
+            <h4>Velg målepunkt</h4>
+            <select @onchange="ChangeSegment">
+                @foreach (var segment in segments)
+                {
+                    <option value="@segment.Id" selected="@(segment == this.segment)">@segment.Label</option>
+                }
+            </select>
             <div class="w-100"/>
-            <div class="column">
-                Dropdown
-            </div>
+            <button disabled=@(segment == null || selectedtransponders.Count < 1) @onclick="StartTiming">Start</button>
         </div>
     </div>
-    <div class="column">
-        <div class="row">
-            <div class="column">
-                <h4>Velg målepunkt</h4>
-            </div>
-            <div class="w-100"/>
-            <div class="column">
-                Dropdown
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="row justify-content-center">
-    <div class="column">
-        <div class="row">
-            <div class="column text-center">
-                <h4>Passingstider</h4>
-            </div>
+    <div class="row justify-content-center">
+        <div class="column text-center">
+            <h4>Passeringstider</h4>
+            <table class="table-striped">
+                <thead>
+                    <tr>
+                    @if (selectedtransponders.Count > 1)
+                    {
+                        <th>Gruppe</th>
+                    }
+                    @foreach (var transponder in selectedtransponders)
+                    {
+                        <th>@(TransponderIdConverter.IdToCode(long.Parse(transponder.SystemId)))</th>
+                    }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in tabletimes)
+                    {
+                        <tr>
+                            @foreach (var time in row)
+                            {
+                                <td>@time</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
-        <div class="row">
-            <div class="column">
-                Tabell
-            </div>
-        </div>
-
     </div>
-</div>
+}
 
 @code {
+    private IEnumerable<Transponder> transponders;
+    private IEnumerable<Rider> riders;
+    private IEnumerable<Segment> segments;
+    private Segment segment;
+    private List<Transponder> selectedtransponders = new List<Transponder>();
+    private DateTimeOffset starttime = DateTimeOffset.Now;
+    private Dictionary<string, SegmentTimeRider> times;
+    private List<double[]> tabletimes;
+    private DateTimeOffset lastpassing;
+    private List<Transponder> thisround;
+
+    protected async override Task OnInitializedAsync()
+    {
+        transponders = await Api.GetActiveTransponders(DateTimeOffset.Now.AddDays(-4), null);
+        //riders = await Api.GetActiveRiders(DateTimeOffset.Now.AddHours(-15), null);
+        segments = await Api.GetSegments(1L);
+    }
+
+    private void StartTiming()
+    {
+        foreach (var tpid in transponders.Select(t => t.Id))
+        {
+            hubConnection.InvokeAsync("AddToSegmentTransponderGroup", segment.Id, tpid);
+        }
+
+        thisround = new List<Transponder>();
+        lastpassing = DateTimeOffset.Now;
+        tabletimes = new List<double[]>();
+        tabletimes.Add(new double[selectedtransponders.Count > 1 ? selectedtransponders.Count + 1 : 1]);
+
+        hubConnection.On<SegmentRun, Transponder>(Strings.Events.NewSegmentRun, RefreshTimes);
+    }
+
+    private void RefreshTimes(SegmentRun segmentRun, Transponder transponder)
+    {
+        if (selectedtransponders.Except(thisround).Any())
+        {
+            var row = tabletimes.Last();
+            row[selectedtransponders.IndexOf(transponder)] = segmentRun.Time;
+        } 
+        else
+        {
+            thisround.Clear();
+            tabletimes.Add(new double[selectedtransponders.Count > 1 ? selectedtransponders.Count + 1 : 1]);
+        }
+
+        StateHasChanged();
+    }
+
+    private void ChangeSegment(ChangeEventArgs e)
+    {
+        segment = segments.Single(s => s.Id == long.Parse(e.Value.ToString()));
+        StateHasChanged();
+    }
+    private void ChangeTransponder(long tpid, ChangeEventArgs e)
+    {
+        var tp = transponders.Single(t => t.Id == tpid);
+
+        if (selectedtransponders.Contains(tp))
+        {
+            selectedtransponders.Remove(tp);
+        }
+        else
+        {
+            selectedtransponders.Add(tp);
+        }
+
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        hubConnection.Remove(Strings.Events.NewSegmentRun);
+
+        if (segment != null && transponders?.Count() > 0)
+        {
+            foreach (var tpid in transponders.Select(t => t.Id))
+            {
+                hubConnection.InvokeAsync("RemoveFromSegmentTransponderGroup", segment.Id, tpid);
+            }
+        }
+    }
 
 }
