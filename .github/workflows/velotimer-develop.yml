@@ -2,7 +2,7 @@ name: Build and deploy to Azure development environment
 on:
   push:
     branches:
-    - feature-sekundering   
+    - develop   
 env:
   AZURE_WEBAPP_NAME: velotimer-dev
   AZURE_WEBAPP_PACKAGE_PATH: VeloTimerWeb/Server/publish
