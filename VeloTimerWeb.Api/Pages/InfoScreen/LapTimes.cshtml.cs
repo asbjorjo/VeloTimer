@@ -35,6 +35,8 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
                 return NotFound();
             }
 
+            ViewData["Title"] = SegmentLabel;
+
             var seedtimes = await _segmentService.GetSegmentTimes(segment.Id, DateTimeOffset.Now.AddDays(-1), null, 100);
             times = new Queue<SegmentTimeRider>(seedtimes);
 
