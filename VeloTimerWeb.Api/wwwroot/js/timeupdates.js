@@ -41,7 +41,7 @@ function refreshTimes() {
 
     var currentTime = new Date();
 
-    if (currentTime.getTime() - _time.getTime() > 10000) {
+    if (currentTime.getTime() - _time.getTime() > 30000) {
         location.reload();
     }        
 }
