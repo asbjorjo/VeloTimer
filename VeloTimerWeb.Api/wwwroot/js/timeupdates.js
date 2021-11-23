@@ -10,6 +10,9 @@ var _time = new Date();
 
 async function start() {
     try {
+        connection.on("NewSegmentRun", function (segmentrun) {
+            refreshTimes();
+        });
         await connection.start();
         console.log("SignalR Connected.");
         if (_segmentid) {
@@ -41,15 +44,13 @@ function refreshTimes() {
 
     var currentTime = new Date();
 
-    if (currentTime.getTime() - _time.getTime() > 30000) {
-        location.reload();
+    if (currentTime.getTime() - _time.getTime() > 15000) {
+        console.log("Should reload");
+        window.location.reload();
+        _time = currentTime;
     }        
 }
 
 connection.onclose(async () => {
     await start();
-});
-
-connection.on("NewSegmentRun", function (segmentrun) {
-    refreshTimes();
 });
