@@ -110,6 +110,8 @@
     public int Count { get; set; }
     [Parameter]
     public long? Rider { get; set; }
+    [Parameter]
+    public bool OnePerRider { get; set; } = false;
 
     protected Segment segment;
     protected long? transponder;
@@ -167,7 +169,7 @@
 
     protected async Task LoadSegmentTimes()
     {
-        segmentTimes = await Api.GetBestTimes(segment.Id, fromtime, totime, Count: count, RiderId: rider);
+        segmentTimes = await Api.GetBestTimes(segment.Id, fromtime, totime, Count: count, RiderId: rider, OnePerRider: OnePerRider);
 
         StateHasChanged();
     }
@@ -179,11 +181,11 @@
 
     public void Dispose()
     {
-        hubConnection.Remove(Strings.Events.NewPassings);
-        if (segment != null)
-        {
-            hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
-        }
+        //hubConnection.Remove(Strings.Events.NewPassings);
+        //if (segment != null)
+        //{
+        //    hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
+        //}
     }
 }
         

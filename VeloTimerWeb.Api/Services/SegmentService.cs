@@ -231,6 +231,7 @@ namespace VeloTimerWeb.Api.Services
                             sr.SegmentId == SegmentId
                             && sr.End.Time >= fromtime && sr.End.Time >= to.OwnedFrom && sr.End.Time < to.OwnedUntil
                             && sr.Time >= segment.MinTime && sr.Time <= segment.MaxTime 
+                            && intermediatecount == segment.Intermediates.Count()
                             //&& segment.Intermediates.Count == sr.End.Transponder.Passings.Where(p => p.Time > sr.Start.Time && p.Time < sr.End.Time && segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)).Count()
                          group sr by new { to.OwnerId, r.Name } into o
                          orderby o.Count() descending
@@ -251,7 +252,7 @@ namespace VeloTimerWeb.Api.Services
             return runs;
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
+        public async Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, bool OnePerRider)
         {
             var times = Enumerable.Empty<SegmentTimeRider>();
             var fromtime = DateTimeOffset.MinValue;
@@ -272,37 +273,73 @@ namespace VeloTimerWeb.Api.Services
             }
 
             var segment = await LoadSegment(SegmentId);
-
-            var query = from sr in _context.Set<SegmentRun>()
+            
+            if (OnePerRider)
+            {
+                var query = from sr in _context.Set<SegmentRun>()
                             join to in _context.Set<TransponderOwnership>() on sr.Start.TransponderId equals to.TransponderId
-                                join r in _context.Set<Rider>() on to.OwnerId equals r.Id
-                        let intermediatecount = (from p in _context.Set<Passing>() 
-                                                 where sr.Start.Time < p.Time && sr.End.Time > p.Time 
-                                                    && p.TransponderId == to.TransponderId 
-                                                    && segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)
-                                                 select p.Id).Count()
-                        where sr.SegmentId == SegmentId
-                              && sr.Start.Time >= fromtime && sr.End.Time <= totime
-                              && sr.Time >= segment.MinTime && sr.Time <= segment.MaxTime
-                              && to.OwnedFrom <= sr.Start.Time && sr.End.Time < to.OwnedUntil
-                              && intermediatecount == segment.Intermediates.Count()
-                        orderby sr.Time ascending
-                        select new SegmentTimeRider
-                        {
-                            Loop = sr.End.LoopId,
-                            PassingTime = sr.End.Time,
-                            Rider = r.Name,
-                            Segmenttime = sr.Time,
-                            Segmentlength = CalculateSegmentLength(segment.Start, segment.End)
-                        };
+                            join r in _context.Set<Rider>() on to.OwnerId equals r.Id
+                            let intermediatecount = (from p in _context.Set<Passing>()
+                                                     where sr.Start.Time < p.Time && sr.End.Time > p.Time
+                                                        && p.TransponderId == to.TransponderId
+                                                        && segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)
+                                                     select p.Id).Count()
+                            where sr.SegmentId == SegmentId
+                                  && sr.Start.Time >= fromtime && sr.End.Time <= totime
+                                  && sr.Time >= segment.MinTime && sr.Time <= segment.MaxTime
+                                  && to.OwnedFrom <= sr.Start.Time && sr.End.Time < to.OwnedUntil
+                                  && intermediatecount == segment.Intermediates.Count()
+                            orderby sr.Time ascending
+                            group sr.Time by new { to.OwnerId, r.Name } into runs
+                            select new SegmentTimeRider
+                            {
+                                Loop = segment.EndId,
+                                Rider = runs.Key.Name,
+                                Segmenttime = runs.Min(),
+                                Segmentlength = CalculateSegmentLength(segment.Start, segment.End)
+                            };
 
-            query = query.Take(Count);
+                query = query.Take(Count);
 
-            _logger.LogDebug(query.ToQueryString());
+                _logger.LogDebug(query.ToQueryString());
 
-            times = await query
-                .AsNoTracking()
-                .ToListAsync();
+                times = await query
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
+            else
+            {
+                var query = from sr in _context.Set<SegmentRun>()
+                                join to in _context.Set<TransponderOwnership>() on sr.Start.TransponderId equals to.TransponderId
+                                    join r in _context.Set<Rider>() on to.OwnerId equals r.Id
+                            let intermediatecount = (from p in _context.Set<Passing>() 
+                                                     where sr.Start.Time < p.Time && sr.End.Time > p.Time 
+                                                        && p.TransponderId == to.TransponderId 
+                                                        && segment.Intermediates.Select(i => i.LoopId).Contains(p.LoopId)
+                                                     select p.Id).Count()
+                            where sr.SegmentId == SegmentId
+                                  && sr.Start.Time >= fromtime && sr.End.Time <= totime
+                                  && sr.Time >= segment.MinTime && sr.Time <= segment.MaxTime
+                                  && to.OwnedFrom <= sr.Start.Time && sr.End.Time < to.OwnedUntil
+                                  && intermediatecount == segment.Intermediates.Count()
+                            orderby sr.Time ascending
+                            select new SegmentTimeRider
+                            {
+                                Loop = sr.End.LoopId,
+                                PassingTime = sr.End.Time,
+                                Rider = r.Name,
+                                Segmenttime = sr.Time,
+                                Segmentlength = CalculateSegmentLength(segment.Start, segment.End)
+                            };
+                
+                query = query.Take(Count);
+
+                _logger.LogDebug(query.ToQueryString());
+
+                times = await query
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
 
             var segmentLength = CalculateSegmentLength(segment.Start.Distance, segment.End.Distance, segment.Start.Track.Length);
 

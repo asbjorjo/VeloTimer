@@ -7,7 +7,7 @@ namespace VeloTimerWeb.Api.Services
 {
     public interface ISegmentService
     {
-        Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10);
+        Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10, bool OnePerRider = false);
         Task<IEnumerable<SegmentTimeRider>> GetFastestSegmentTimesForRider(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, long RiderId, int Count = 10);
         Task<IEnumerable<SegmentTimeRider>> GetSegmentTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 50);
         Task<IEnumerable<SegmentTimeRider>> GetSegmentTimesForRider(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, long RiderId, int Count = 50);
