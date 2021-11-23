@@ -118,11 +118,11 @@
 
     public void Dispose()
     {
-        hubConnection.Remove(Strings.Events.NewSegmentRun);
-        if (segment != null)
-        {
-            hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
-        }
+        //hubConnection.Remove(Strings.Events.NewSegmentRun);
+        //if (segment != null)
+        //{
+        //    hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
+        //}
     }
 }
         

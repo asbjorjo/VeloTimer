@@ -26,9 +26,10 @@ namespace VeloTimerWeb.Client.Services
             ILogger<ApiClient> logger)
         {
             _client = client;
-            client.BaseAddress = new Uri(new Uri(config["VELOTIMER_API_URL"]), "api/");
+            _client.BaseAddress = new Uri(new Uri(config["VELOTIMER_API_URL"]), "api/");
             _authStateProvider = authStateProvider;
             _logger = logger;
+            _logger.LogDebug(_client.BaseAddress.ToString());
         }
 
         public async Task<int> GetActiveRiderCount(DateTimeOffset fromtime, DateTimeOffset? totime)
@@ -76,9 +77,9 @@ namespace VeloTimerWeb.Client.Services
             return riders;
         }
 
-        public async Task<IEnumerable<SegmentTimeRider>> GetBestTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, long? RiderId)
+        public async Task<IEnumerable<SegmentTimeRider>> GetBestTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, long? RiderId, bool OnePerRider)
         {
-            using var response = await _client.GetAsync($"segments/fastest?SegmentId={SegmentId}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}&RiderId={RiderId}");
+            using var response = await _client.GetAsync($"segments/fastest?SegmentId={SegmentId}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}&RiderId={RiderId}&OnePerRider={OnePerRider}");
             response.EnsureSuccessStatusCode();
 
             var times = await response.Content.ReadFromJsonAsync<IEnumerable<SegmentTimeRider>>();

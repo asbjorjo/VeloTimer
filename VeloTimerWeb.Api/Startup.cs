@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,7 @@ using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi.Models;
 using System;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net.Http;
 using System.Security.Cryptography.X509Certificates;
 using VeloTimer.Shared.Hub;
 using VeloTimer.Shared.Models;
@@ -21,6 +23,7 @@ using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
 using VeloTimerWeb.Api.Services;
 using VeloTimerWeb.Api.Util;
+using VeloTimerWeb.Client.Services;
 
 namespace VeloTimerWeb.Api
 {
@@ -195,8 +198,28 @@ namespace VeloTimerWeb.Api
 
             services.AddSignalR();
             services.AddRazorPages();
-            services.AddServerSideBlazor();
             services.AddControllers();
+            //services.AddServerSideBlazor();
+
+            //services.AddScoped<VeloTimerAuthorizationMessageHandler>();
+
+            //services.AddHttpClient(
+            //        "VeloTimerWeb.ServerAPI",
+            //        client => client.BaseAddress = new Uri(new Uri(Configuration["VELOTIMER_API_URL"]), "api/"));
+            //.AddHttpMessageHandler<VeloTimerAuthorizationMessageHandler>();
+
+            //services.AddHttpClient<IApiClient, ApiClient>();
+            //.AddHttpMessageHandler<VeloTimerAuthorizationMessageHandler>();
+
+            //services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>()
+            //                                   .CreateClient("VeloTimerWeb.ServerAPI"));
+
+            //services.AddSingleton<HubConnection>(sp =>
+            //{
+            //    return new HubConnectionBuilder().WithUrl(new Uri(new Uri(Configuration["VELOTIMER_API_URL"]), Strings.hubUrl))
+            //                                     .WithAutomaticReconnect()
+            //                                     .Build();
+            //});
 
             services.AddSwaggerGen(c =>
             {
@@ -230,7 +253,7 @@ namespace VeloTimerWeb.Api
 
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapBlazorHub();
+                //endpoints.MapBlazorHub();
                 endpoints.MapRazorPages();
                 endpoints.MapHub<PassingHub>(Strings.hubUrl);
                 endpoints.MapControllers();

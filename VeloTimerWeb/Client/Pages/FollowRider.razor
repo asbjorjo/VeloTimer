@@ -55,11 +55,11 @@
                 <tbody>
                     @foreach (var row in tabletimes)
                     {
+                        <tr>
                         @if (selectedtransponders.Count > 1)
                         {
-                            <tr>@row.Min()</tr>
+                            <td class="text-bold">@(row.Where(r => r > 0).Count() > 0 ? row.Where(r => r > 0).Min() : "")</td>
                         }
-                        <tr>
                             @foreach (var time in row)
                             {
                                 <td>@time</td>
