@@ -291,6 +291,7 @@ namespace VeloTimerWeb.Api.Services
                                   && intermediatecount == segment.Intermediates.Count()
                             orderby sr.Time ascending
                             group sr.Time by new { to.OwnerId, r.Name } into runs
+                            orderby runs.Min() ascending
                             select new SegmentTimeRider
                             {
                                 Loop = segment.EndId,
