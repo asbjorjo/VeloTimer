@@ -13,15 +13,21 @@
     <link href="~/favicon.png" type="image/png" rel="icon">
 </head>
 <body>
-    <header>
-        <img style="width: 164px; height: 90px;" alt="Sola Arena" src="https://sola-arena.no/wp-content/themes/solaarena/images/logo.svg?ver=4" />
-        <h3>Rundetider</h3>
-    </header>
-
-    <div class="container">
-        <main role="main" class="pb-3">
+    <div class="page">
+    <div class="main">
+        <div class="content px-4">
+            <div class="row align-items-center">
+                <div class="col justify-content-start">
+                    <img style="width: 164px; height: 90px;" alt="Sola Arena" src="https://sola-arena.no/wp-content/themes/solaarena/images/logo.svg?ver=4" />
+                </div>
+                <div class="col text-center">
+                    <h3>Passeringstider<br/>@ViewData["Title"]</h3>
+                </div>
+                <div class="col"></div>
+            </div>
             @RenderBody()
-        </main>
+        </div>
+    </div>
     </div>
     <footer class="footer border-top text-muted">
         <div class="container">
