@@ -47,7 +47,7 @@
         {
             try
             {
-                await hubConnection.StartAsync();
+                await hubConnection.StartAsync(token);
                 return true;
             }
             catch when (token.IsCancellationRequested)
