@@ -37,7 +37,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
             ViewData["Title"] = SegmentLabel;
 
-            var seedtimes = await _segmentService.GetSegmentTimes(segment.Id, DateTimeOffset.Now.AddDays(-1), null, 100);
+            var seedtimes = await _segmentService.GetSegmentTimes(segment.Id, DateTimeOffset.Now.AddDays(-1), null, 35);
             times = new Queue<SegmentTimeRider>(seedtimes);
 
             return Page();
@@ -45,7 +45,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
         public async Task OnGetNewTimeAsync()
         {
-            var newtimes = await _segmentService.GetSegmentTimes(segment.Id, times.Last().PassingTime.AddTicks(1), DateTimeOffset.MaxValue, 100);
+            var newtimes = await _segmentService.GetSegmentTimes(segment.Id, times.Last().PassingTime.AddTicks(1), DateTimeOffset.MaxValue, 35);
 
             newtimes.ToList().ForEach(t => times.Enqueue(t));
         }
