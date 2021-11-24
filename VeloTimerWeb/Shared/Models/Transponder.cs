@@ -10,7 +10,6 @@ namespace VeloTimer.Shared.Models
         public TransponderType TimingSystemRelation { get; set; }
 
         public ICollection<Passing> Passings { get; set; }
-        public ICollection<TransponderName> Names { get; set; }
         public ICollection<TransponderOwnership> Owners { get; set; }
     }
 }

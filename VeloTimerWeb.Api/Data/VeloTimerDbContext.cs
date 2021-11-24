@@ -17,7 +17,6 @@ namespace VeloTimerWeb.Api.Data
         public DbSet<TimingLoop> TimingLoops { get; set; }
         public DbSet<Track> Tracks { get; set; }
         public DbSet<Transponder> Transponders { get; set; }
-        public DbSet<TransponderName> TransponderNames { get; set; }
         public DbSet<TransponderOwnership> TranspondersOwnerships { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
