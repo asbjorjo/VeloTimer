@@ -12,15 +12,17 @@ using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    public class TranspondersController : GenericController<Transponder>
+    public class TranspondersController : ControllerBase
     {
+        private readonly VeloTimerDbContext _context;
+        private readonly ILogger<TranspondersController> _logger;
         private readonly ITransponderService _service;
-        private readonly ISegmentService _segmentService;
-
-        public TranspondersController(ITransponderService service, ISegmentService segmentService, ILogger<GenericController<Transponder>> logger, VeloTimerDbContext context) : base(logger, context)
+        
+        public TranspondersController(ITransponderService service, ILogger<TranspondersController> logger, VeloTimerDbContext context) : base()
         {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _service = service ?? throw new ArgumentNullException(nameof(service));
-            _segmentService = segmentService ?? throw new ArgumentNullException(nameof(segmentService));
         }
 
         [AllowAnonymous]
@@ -62,11 +64,11 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var times = Enumerable.Empty<SegmentTimeRider>();
 
-            foreach (var transponderId in TransponderId)
-            {
-                var onetimes = await _segmentService.GetSegmentTimes(SegmentId, FromTime, ToTime);
-                times = times.Concat(onetimes);
-            }
+            //foreach (var transponderId in TransponderId)
+            //{
+            //    var onetimes = await _segmentService.GetSegmentTimes(SegmentId, FromTime, ToTime);
+            //    times = times.Concat(onetimes);
+            //}
 
             return Ok(times.OrderByDescending(t => t.PassingTime));
         }

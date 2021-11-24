@@ -10,76 +10,85 @@ namespace VeloTimerWeb.Api.Data
         {
         }
 
-        public DbSet<Passing> Passings { get; set; }
-        public DbSet<Rider> Riders { get; set; }
-        public DbSet<Segment> Segments { get; set; }
-        public DbSet<SegmentRun> SegmentRuns { get; set; }
-        public DbSet<TimingLoop> TimingLoops { get; set; }
-        public DbSet<Track> Tracks { get; set; }
-        public DbSet<Transponder> Transponders { get; set; }
-        public DbSet<TransponderOwnership> TranspondersOwnerships { get; set; }
-
         protected override void OnModelCreating(ModelBuilder builder)
         {
             builder.HasDefaultSchema("velotimer");
 
             base.OnModelCreating(builder);
 
-            builder.Entity<Passing>()
-                .HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
-            builder.Entity<Passing>()
-                .HasIndex(p => p.Source);
-            builder.Entity<Passing>()
-                .HasIndex(p => p.Time);
+            builder.Entity<Passing>(x =>
+            {
+                x.Property(p => p.Time)
+                    .HasConversion(
+                        v => v,
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
+                x.HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
+                x.HasIndex(p => p.SourceId);
+                x.HasIndex(p => p.Time);
+            });
 
-            builder.Entity<Rider>()
-                .HasAlternateKey(p => p.UserId);
+            builder.Entity<Rider>(x =>
+            {
+                x.HasAlternateKey(p => p.UserId);
+            });
 
-            builder.Entity<Segment>()
-                .HasOne(s => s.Start)
-                .WithMany()
-                .OnDelete(DeleteBehavior.Restrict);
-            builder.Entity<Segment>()
-                .HasOne(s => s.End)
-                .WithMany()
-                .OnDelete(DeleteBehavior.Restrict);
-            builder.Entity<Intermediate>()
-                .HasKey(k => new { k.SegmentId, k.LoopId });
+            //builder.Entity<SegmentRun>(x =>
+            //{
+            //    x.HasAlternateKey(k => new { k.SegmentId, k.StartId, k.EndId });
+            //    x.HasOne(s => s.Start)
+            //        .WithMany()
+            //        .OnDelete(DeleteBehavior.Cascade);
+            //    x.HasOne(s => s.End)
+            //        .WithMany()
+            //        .OnDelete(DeleteBehavior.Cascade);
+            //    x.HasIndex(s => new { s.SegmentId, s.Time, s.StartId, s.EndId });
+            //});
 
-            builder.Entity<SegmentRun>()
-                .HasAlternateKey(k => new { k.SegmentId, k.StartId, k.EndId });
-            builder.Entity<SegmentRun>()
-                .HasOne(s => s.Segment)
-                .WithMany();
-            builder.Entity<SegmentRun>()
-                .HasOne(s => s.Start)
-                .WithMany()
-                .OnDelete(DeleteBehavior.Cascade);
-            builder.Entity<SegmentRun>()
-                .HasOne(s => s.End)
-                .WithMany()
-                .OnDelete(DeleteBehavior.Restrict);
-            builder.Entity<SegmentRun>()
-                .HasIndex(s => new { s.SegmentId, s.Time, s.StartId, s.EndId });
+            builder.Entity<TimingLoop>(x =>
+            {
+                x.HasAlternateKey(t => new { t.TrackId, t.LoopId });
+            });
 
-            builder.Entity<TimingLoop>()
-                .HasAlternateKey(t => new { t.TrackId, t.LoopId });
+            builder.Entity<Track>();
 
-            builder.Entity<Transponder>()
-                .HasAlternateKey(t => new { t.TimingSystem, t.SystemId });
-            builder.Entity<Transponder>()
-                .Property(t => t.TimingSystem)
-                .HasConversion<string>();
-            builder.Entity<Transponder>()
-                .HasOne(t => t.TimingSystemRelation)
-                .WithMany()
-                .HasForeignKey(t => t.TimingSystem);
+            builder.Entity<TrackSegment>(x =>
+            {
+                x.HasOne<Track>()
+                    .WithMany();
+                x.HasOne(s => s.Start)
+                    .WithMany();
+                x.HasOne(s => s.End)
+                    .WithMany();
+            });
 
-            builder.Entity<TransponderType>()
-                .Property(t => t.System)
-                .HasConversion<string>();
-            builder.Entity<TransponderType>()
-                .HasKey(t => t.System);
+            builder.Entity<Transponder>(x =>
+            {
+                x.Property(t => t.TimingSystem)
+                    .HasConversion<string>();
+                x.HasAlternateKey(t => new { t.TimingSystem, t.SystemId });
+                x.HasOne(t => t.TimingSystemRelation)
+                    .WithMany()
+                    .HasForeignKey(t => t.TimingSystem);
+            });
+
+            builder.Entity<TransponderOwnership>(x =>
+            {
+                x.Property(p => p.OwnedFrom)
+                    .HasConversion(
+                        v => v,
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
+                x.Property(p => p.OwnedUntil)
+                    .HasConversion(
+                        v => v,
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
+            });
+
+            builder.Entity<TransponderType>(x =>
+            {
+                x.Property(t => t.System)
+                    .HasConversion<string>();
+                x.HasKey(t => t.System);
+            });
 
             builder.SnakeCaseModel();
         }

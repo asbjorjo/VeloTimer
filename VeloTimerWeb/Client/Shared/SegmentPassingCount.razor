@@ -72,11 +72,6 @@
 
             segment = await Http.GetFromJsonAsync<Segment>($"segments/{Segment}");
 
-            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.StartId}");
-            segment.Start.Track = await Http.GetFromJsonAsync<Track>($"track/{segment.Start.TrackId}");
-            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.EndId}");
-            segment.End.Track = segment.Start.Track;
-
             transponder = Transponder;
             fromtime = FromTime?.ToUniversalTime();
             totime = ToTime?.ToUniversalTime();

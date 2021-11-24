@@ -16,13 +16,19 @@ namespace VeloTimerWeb.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class RiderController : GenericController<Rider>
+    public class RiderController : ControllerBase
     {
         private readonly IRiderService _riderService;
+        private readonly ILogger<RiderController> _logger;
+        private readonly VeloTimerDbContext _context;
+        private readonly DbSet<Rider> _dbset;
 
-        public RiderController(IRiderService riderService, ILogger<GenericController<Rider>> logger, VeloTimerDbContext context) : base(logger, context)
+        public RiderController(IRiderService riderService, ILogger<RiderController> logger, VeloTimerDbContext context) : base()
         {
             _riderService = riderService;
+            _logger = logger;
+            _context = context;
+            _dbset = _context.Set<Rider>();
         }
 
         [Route("user/{userId}")]
@@ -116,8 +122,8 @@ namespace VeloTimerWeb.Api.Controllers
             
             var value = new TransponderOwnership
             {
-                OwnedFrom = ownerWeb.OwnedFrom,
-                OwnedUntil = ownerWeb.OwnedUntil,
+                OwnedFrom = ownerWeb.OwnedFrom.UtcDateTime,
+                OwnedUntil = ownerWeb.OwnedUntil.UtcDateTime,
                 Owner = dbrider,
                 Transponder = transponder
             };

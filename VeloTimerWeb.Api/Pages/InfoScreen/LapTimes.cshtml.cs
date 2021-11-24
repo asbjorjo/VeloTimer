@@ -14,40 +14,37 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 {
     public class LapTimesModel : PageModel
     {
-        private readonly ISegmentService _segmentService;
         private readonly VeloTimerDbContext _context;
 
         public Queue<SegmentTimeRider> times { get; set; }
-        public Segment segment { get; set; }
-
-        public LapTimesModel(ISegmentService segmentService, VeloTimerDbContext context)
+        
+        public LapTimesModel(VeloTimerDbContext context)
         {
-            _segmentService = segmentService;
             _context = context;
         }
 
         public async Task<IActionResult> OnGetAsync(string SegmentLabel)
         {
-            segment = await _context.Set<Segment>().SingleOrDefaultAsync(s => s.Label == SegmentLabel);
+            //segment = await _context.Set<Segment>().SingleOrDefaultAsync(s => s.Label == SegmentLabel);
 
-            if (segment == null)
-            {
-                return NotFound();
-            }
+            //if (segment == null)
+            //{
+            //    return NotFound();
+            //}
 
-            ViewData["Title"] = SegmentLabel;
+            //ViewData["Title"] = SegmentLabel;
 
-            var seedtimes = await _segmentService.GetSegmentTimes(segment.Id, DateTimeOffset.Now.AddDays(-1), null, 35);
-            times = new Queue<SegmentTimeRider>(seedtimes);
+            //var seedtimes = await _segmentService.GetSegmentTimes(segment.Id, DateTimeOffset.Now.AddDays(-1), null, 35);
+            //times = new Queue<SegmentTimeRider>(seedtimes);
 
             return Page();
         }
 
         public async Task OnGetNewTimeAsync()
         {
-            var newtimes = await _segmentService.GetSegmentTimes(segment.Id, times.Last().PassingTime.AddTicks(1), DateTimeOffset.MaxValue, 35);
+            //var newtimes = await _segmentService.GetSegmentTimes(segment.Id, times.Last().PassingTime.AddTicks(1), DateTimeOffset.MaxValue, 35);
 
-            newtimes.ToList().ForEach(t => times.Enqueue(t));
+            //newtimes.ToList().ForEach(t => times.Enqueue(t));
         }
     }
 }

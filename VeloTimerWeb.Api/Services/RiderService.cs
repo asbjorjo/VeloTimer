@@ -53,7 +53,7 @@ namespace VeloTimerWeb.Api.Services
             return active.Keys.Count();
         }
 
-        private async Task<Dictionary<long, DateTimeOffset>> FindActiveRiderIds(DateTimeOffset fromtime, DateTimeOffset? ToTime)
+        private async Task<Dictionary<long, DateTime>> FindActiveRiderIds(DateTimeOffset fromtime, DateTimeOffset? ToTime)
         {
             var totime = DateTimeOffset.MaxValue;
             if (ToTime.HasValue)
@@ -61,12 +61,12 @@ namespace VeloTimerWeb.Api.Services
                 totime = ToTime.Value;
             }
 
-            var query = from t in _context.TranspondersOwnerships
-                        from p in _context.Passings
+            var query = from t in _context.Set<TransponderOwnership>()
+                        from p in _context.Set<Passing>()
                         where p.Time >= fromtime && p.Time <= totime 
-                            && p.TransponderId == t.TransponderId && p.Time >= t.OwnedFrom && p.Time < t.OwnedUntil
+                            && p.Transponder == t.Transponder && p.Time >= t.OwnedFrom && p.Time < t.OwnedUntil
                         orderby p.Time descending
-                        group p by t.OwnerId into passings
+                        group p by t.Owner.Id into passings
                         select new { passings.Key, Last = passings.Max(p => p.Time) };
 
             var riders = await query

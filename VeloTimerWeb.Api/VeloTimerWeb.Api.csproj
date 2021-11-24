@@ -36,7 +36,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\VeloTimerWeb\Client\VeloTimerWeb.Client.csproj" />
     <ProjectReference Include="..\VeloTimerWeb\Shared\VeloTimer.Shared.csproj" />
   </ItemGroup>
 

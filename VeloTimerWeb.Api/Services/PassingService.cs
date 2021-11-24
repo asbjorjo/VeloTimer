@@ -52,8 +52,8 @@ namespace VeloTimerWeb.Api.Services
 
             _context.Add(passing);
 
-            var segments = await _context.Set<Segment>()
-                .Where(s => s.EndId == passing.LoopId)
+            var segments = await _context.Set<TrackSegment>()
+                .Where(s => s.End == passing.Loop)
                 .ToListAsync();
 
             foreach (var segment in segments)
@@ -61,7 +61,7 @@ namespace VeloTimerWeb.Api.Services
                 var startpassing = await _context.Set<Passing>()
                     .Where(p =>
                         p.TransponderId == passing.TransponderId
-                        && p.LoopId == segment.StartId
+                        && p.Loop == segment.Start
                         && p.Time < passing.Time
                     )
                     .OrderByDescending(p => p.Time)
@@ -69,18 +69,18 @@ namespace VeloTimerWeb.Api.Services
 
                 if (startpassing != null)
                 {
-                    var segmentrun = new SegmentRun 
-                    { 
-                        Segment = segment, 
-                        Start = startpassing, 
-                        End = passing, 
-                        Time = (passing.Time - startpassing.Time).TotalSeconds
-                    };
+                    //var segmentrun = new SegmentRun 
+                    //{ 
+                    //    Segment = segment, 
+                    //    Start = startpassing, 
+                    //    End = passing, 
+                    //    Time = (passing.Time - startpassing.Time).TotalSeconds
+                    //};
 
-                    _context.Add(segmentrun);
+                    //_context.Add(segmentrun);
 
-                    await _hubContext.Clients.Group($"segment_{segment.Id}").NewSegmentRun(segmentrun);
-                    await _hubContext.Clients.Group($"segment_{segment.Id}_transponder_{passing.Transponder.Id}").NewSegmentRun(segmentrun, passing.Transponder);
+                    //await _hubContext.Clients.Group($"segment_{segment.Id}").NewSegmentRun(segmentrun);
+                    //await _hubContext.Clients.Group($"segment_{segment.Id}_transponder_{passing.Transponder.Id}").NewSegmentRun(segmentrun, passing.Transponder);
                 }
             }
 

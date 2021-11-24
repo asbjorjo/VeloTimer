@@ -11,16 +11,22 @@ using VeloTimerWeb.Api.Services;
 namespace VeloTimerWeb.Api.Controllers
 {
     [Route("api/[controller]")]
-    public class PassingsController : GenericController<Passing>
+    public class PassingsController : ControllerBase
     {
         private readonly IPassingService _passingService;
+        private readonly ILogger<PassingsController> _logger;
+        private readonly VeloTimerDbContext _context;
+        private readonly DbSet<Passing> _dbset;
 
         public PassingsController(
             IPassingService passingService,
             VeloTimerDbContext context,
-            ILogger<GenericController<Passing>> logger) : base(logger, context)
+            ILogger<PassingsController> logger) : base()
         {
             _passingService = passingService;
+            _logger = logger;
+            _context = context;
+            _dbset = _context.Set<Passing>();
         }
 
         [AllowAnonymous]
@@ -28,7 +34,7 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet]
         public async Task<ActionResult<Passing>> GetMostRecent()
         {
-            var value = await _dbset.AsNoTracking().OrderBy(p => p.Source).LastOrDefaultAsync();
+            var value = await _dbset.AsNoTracking().OrderBy(p => p.SourceId).LastOrDefaultAsync();
             
             if (value == null)
             {
@@ -45,8 +51,8 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var newpassing = new Passing
             {
-                Source = passing.Source,
-                Time = passing.Time
+                SourceId = passing.Source,
+                Time = passing.Time.UtcDateTime
             };
 
             var loop = await _context.Set<TimingLoop>()

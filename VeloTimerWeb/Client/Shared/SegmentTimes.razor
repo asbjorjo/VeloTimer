@@ -64,20 +64,20 @@
                             {
                                 <td>
                                     @(
-                                        segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
+                                        segment.Intermediates.Where(i => i.Loop == intermediate.Loop.Id).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
                                         String.Format(
                                             "{0:00.000}", 
-                                            segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault()
+                                            segment.Intermediates.Where(i => i.Loop == intermediate.Loop.Id).Select(i => i.Segmenttime).SingleOrDefault()
                                         ) : 
                                         "--"
                                     )
                                 </td>
                                 <td>
                                     @(
-                                        segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
+                                        segment.Intermediates.Where(i => i.Loop == intermediate.Loop.Id).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
                                         String.Format(
                                             "{0:00.000}", 
-                                            segment.Intermediates.Where(i => i.Loop == intermediate.LoopId).Select(i => i.Segmentspeed).SingleOrDefault()
+                                            segment.Intermediates.Where(i => i.Loop == intermediate.Loop.Id).Select(i => i.Segmentspeed).SingleOrDefault()
                                         ) : 
                                         "--"
                                     )
@@ -135,16 +135,6 @@
             }
 
             segment = await Http.GetFromJsonAsync<Segment>($"segments/{Segment}");
-
-            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.StartId}");
-            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.EndId}");
-
-            if (segment.DisplayIntermediates) {
-                foreach (var intermediate in segment.Intermediates)
-                {
-                    intermediate.Loop = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{intermediate.LoopId}");
-                }
-            }
 
             transponder = Transponder;
             fromtime = FromTime?.ToUniversalTime();
