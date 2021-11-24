@@ -7,7 +7,7 @@
   <ItemGroup>
     <PackageReference Include="IdentityModel" Version="5.2.0" />
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.19.0" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="5.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="6.0.0" />
     <PackageReference Include="MongoDB.Driver" Version="2.13.2" />
   </ItemGroup>
 
