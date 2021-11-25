@@ -22,6 +22,12 @@ namespace VeloTimerWeb.Api.Data
                     .HasConversion(
                         v => v,
                         v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
+                x.HasOne(p => p.Transponder)
+                    .WithMany(t => t.Passings)
+                    .IsRequired();
+                x.HasOne(p => p.Loop)
+                    .WithMany(t => t.Passings)
+                    .IsRequired();
                 x.HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
                 x.HasIndex(p => p.SourceId);
                 x.HasIndex(p => p.Time);
@@ -32,33 +38,32 @@ namespace VeloTimerWeb.Api.Data
                 x.HasAlternateKey(p => p.UserId);
             });
 
-            //builder.Entity<SegmentRun>(x =>
-            //{
-            //    x.HasAlternateKey(k => new { k.SegmentId, k.StartId, k.EndId });
-            //    x.HasOne(s => s.Start)
-            //        .WithMany()
-            //        .OnDelete(DeleteBehavior.Cascade);
-            //    x.HasOne(s => s.End)
-            //        .WithMany()
-            //        .OnDelete(DeleteBehavior.Cascade);
-            //    x.HasIndex(s => new { s.SegmentId, s.Time, s.StartId, s.EndId });
-            //});
-
             builder.Entity<TimingLoop>(x =>
             {
+                x.Property(p => p.LoopId)
+                    .IsRequired();
+                x.Property(p => p.Distance)
+                    .IsRequired();
+                x.HasOne(p => p.Track)
+                    .WithMany(t => t.TimingLoops)
+                    .IsRequired();
                 x.HasAlternateKey(t => new { t.TrackId, t.LoopId });
             });
 
-            builder.Entity<Track>();
+            builder.Entity<Track>(x =>
+            {
+                x.HasMany(t => t.Segments)
+                    .WithOne();
+            });
 
             builder.Entity<TrackSegment>(x =>
             {
-                x.HasOne<Track>()
-                    .WithMany();
                 x.HasOne(s => s.Start)
-                    .WithMany();
+                    .WithMany()
+                    .IsRequired();
                 x.HasOne(s => s.End)
-                    .WithMany();
+                    .WithMany()
+                    .IsRequired();
             });
 
             builder.Entity<Transponder>(x =>

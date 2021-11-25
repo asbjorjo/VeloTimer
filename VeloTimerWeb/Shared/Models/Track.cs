@@ -12,6 +12,7 @@ namespace VeloTimer.Shared.Models
         public string Name { get; set; }
         public double Length { get; set; }
 
+        public IEnumerable<TrackSegment> Segments { get; set; }
         public IEnumerable<TimingLoop> TimingLoops { get; set; }
     }
 }
