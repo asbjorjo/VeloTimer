@@ -10,6 +10,7 @@ using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
+    [ApiController]
     [Route("api/[controller]")]
     public class PassingsController : ControllerBase
     {

@@ -61,57 +61,39 @@ namespace VeloTimerWeb.Api.Util
 
             timingloops = _context.Set<TimingLoop>().Where(t => t.Track.Name == track.Name).ToList();
 
-            //var segment = new Segment 
-            //{ 
-            //    Label = "Lap", 
-            //    Start = timingloops.Single(t => t.Distance == 250), 
-            //    End = timingloops.Single(t => t.Distance == 250), 
-            //    DisplayIntermediates = false,
-            //    RequireIntermediates = true,
-            //    MinTime = 5, 
-            //    MaxTime = 300 
-            //};
-            //segment.Intermediates = timingloops.Except(timingloops.Where(t => t.Distance == 250)).Select(t => new Intermediate { Loop = t, Segment = segment}).ToList();
-            //AddNewSegment(segment);
+            var segment = new TrackSegment
+            {
+                Start = timingloops.Single(t => t.LoopId == 0),
+                End = timingloops.Single(t => t.LoopId == 1),
+            };
+            AddNewSegment(segment);
 
-            //segment = new Segment
-            //{
-            //    Label = "200m",
-            //    Start = timingloops.Single(t => t.Distance == 50),
-            //    End = timingloops.Single(t => t.Distance == 250),
-            //    DisplayIntermediates = true,
-            //    RequireIntermediates = true,
-            //    MinTime = 9,
-            //    MaxTime = 15
-            //};
-            //segment.Intermediates = timingloops.Where(t => (t.Distance == 150)).Select(t => new Intermediate { Loop = t, Segment = segment }).ToList();
-            //AddNewSegment(segment);
+            segment = new TrackSegment
+            {
+                Start = timingloops.Single(t => t.LoopId == 1),
+                End = timingloops.Single(t => t.LoopId == 4),
+            };
+            AddNewSegment(segment);
 
-            //segment = new Segment
-            //{
-            //    Label = "Red pursuit",
-            //    Start = timingloops.Single(t => t.Description == "Red"),
-            //    End = timingloops.Single(t => t.Description == "Red"),
-            //    DisplayIntermediates = true,
-            //    RequireIntermediates = true,
-            //    MinTime = 6,
-            //    MaxTime = 30
-            //};
-            //segment.Intermediates = timingloops.Where(t => (t.Description == "Green")).Select(t => new Intermediate { Loop = t, Segment = segment }).ToList();
-            //AddNewSegment(segment);
-            //segment = new Segment
-            //{
-            //    Label = "Green pursuit",
-            //    Start = timingloops.Single(t => t.Description == "Green"),
-            //    End = timingloops.Single(t => t.Description == "Green"),
-            //    DisplayIntermediates = true,
-            //    RequireIntermediates = true,
-            //    MinTime = 6,
-            //    MaxTime = 30
-            //};
-            //segment.Intermediates = timingloops.Where(t => (t.Description == "Red")).Select(t => new Intermediate { Loop = t, Segment = segment }).ToList();
-            //AddNewSegment(segment);
-
+            segment = new TrackSegment
+            {
+                Start = timingloops.Single(t => t.LoopId == 4),
+                End = timingloops.Single(t => t.LoopId == 2),
+            };
+            AddNewSegment(segment);
+            segment = new TrackSegment
+            {
+                Start = timingloops.Single(t => t.LoopId == 2),
+                End = timingloops.Single(t => t.LoopId == 3),
+            };
+            AddNewSegment(segment);
+            segment = new TrackSegment
+            {
+                Start = timingloops.Single(t => t.LoopId == 3),
+                End = timingloops.Single(t => t.LoopId == 0 ),
+            };
+            AddNewSegment(segment);
+            
             AddNewTimingSystem(new TransponderType { System = TransponderType.TimingSystem.Mylaps_X2 });
 
             _context.SaveChanges();
@@ -146,13 +128,13 @@ namespace VeloTimerWeb.Api.Util
             return existing;
         }
 
-        //private void AddNewSegment(Segment segment)
-        //{
-        //    if (_context.Segments.SingleOrDefault(s => s.Start == segment.Start && s.End == segment.End) == null)
-        //    {
-        //        _context.Add(segment);
-        //    }
-        //}
+        private void AddNewSegment(TrackSegment segment)
+        {
+            if (_context.Set<TrackSegment>().SingleOrDefault(s => s.Start == segment.Start && s.End == segment.End) == null)
+            {
+                _context.Add(segment);
+            }
+        }
 
         private void AddNewTimingSystem(TransponderType system)
         {

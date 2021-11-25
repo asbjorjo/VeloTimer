@@ -171,10 +171,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnType("bigint")
                         .HasColumnName("start_id");
 
-                    b.Property<long?>("TrackId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("track_id");
-
                     b.HasKey("Id")
                         .HasName("pk_track_segment");
 
@@ -183,9 +179,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
 
                     b.HasIndex("StartId")
                         .HasDatabaseName("ix_track_segment_start_id");
-
-                    b.HasIndex("TrackId")
-                        .HasDatabaseName("ix_track_segment_track_id");
 
                     b.ToTable("track_segment");
                 });
@@ -308,7 +301,7 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .WithMany()
                         .HasForeignKey("EndId")
                         .HasConstraintName("fk_track_segment_timing_loop_end_id")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("VeloTimer.Shared.Models.TimingLoop", "Start")
@@ -317,11 +310,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasConstraintName("fk_track_segment_timing_loop_start_id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("VeloTimer.Shared.Models.Track", null)
-                        .WithMany("Segments")
-                        .HasForeignKey("TrackId")
-                        .HasConstraintName("fk_track_segment_track_track_id");
 
                     b.Navigation("End");
 
@@ -369,8 +357,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
 
             modelBuilder.Entity("VeloTimer.Shared.Models.Track", b =>
                 {
-                    b.Navigation("Segments");
-
                     b.Navigation("TimingLoops");
                 });
 

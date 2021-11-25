@@ -24,9 +24,11 @@ namespace VeloTimerWeb.Api.Data
                         v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
                 x.HasOne(p => p.Transponder)
                     .WithMany(t => t.Passings)
+                    .HasForeignKey(p => p.TransponderId)
                     .IsRequired();
                 x.HasOne(p => p.Loop)
                     .WithMany(t => t.Passings)
+                    .HasForeignKey(p => p.LoopId)
                     .IsRequired();
                 x.HasAlternateKey(p => new { p.Time, p.TransponderId, p.LoopId });
                 x.HasIndex(p => p.SourceId);
@@ -52,8 +54,6 @@ namespace VeloTimerWeb.Api.Data
 
             builder.Entity<Track>(x =>
             {
-                x.HasMany(t => t.Segments)
-                    .WithOne();
             });
 
             builder.Entity<TrackSegment>(x =>
@@ -63,7 +63,9 @@ namespace VeloTimerWeb.Api.Data
                     .IsRequired();
                 x.HasOne(s => s.End)
                     .WithMany()
-                    .IsRequired();
+                    .IsRequired()
+                    .OnDelete(DeleteBehavior.Restrict);
+                x.HasAlternateKey(k => new { k.StartId, k.EndId });
             });
 
             builder.Entity<Transponder>(x =>
