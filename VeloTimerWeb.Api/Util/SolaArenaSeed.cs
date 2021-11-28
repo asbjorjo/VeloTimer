@@ -100,6 +100,11 @@ namespace VeloTimerWeb.Api.Util
                 },
                 new StatisticsItem
                 {
+                    Distance = 750,
+                    Label = "750m"
+                },
+                new StatisticsItem
+                {
                     Distance = 1000,
                     Label = "1800m"
                 },
@@ -242,6 +247,88 @@ namespace VeloTimerWeb.Api.Util
                         {
                             Segment = segments.Single(s => s.Start.Description == "Red"),
                             Order = 10
+                        }
+                    }
+                },
+                new TrackStatisticsItem
+                {
+                    StatisticsItem = _context.Set<StatisticsItem>().Single(s => s.Distance == 1000.0),
+                    Segments = new List<TrackStatisticsSegment>
+                    {
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 1
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 2
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 3
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 4
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 5
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 6
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 7
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 8
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 9
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 10
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 11
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 12
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 13
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 14
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 15
                         }
                     }
                 },
@@ -558,6 +645,313 @@ namespace VeloTimerWeb.Api.Util
                             Order = 40
                         }
 
+                    }
+                },
+                new TrackStatisticsItem
+                {
+                    StatisticsItem = _context.Set<StatisticsItem>().Single(s => s.Distance == 3000.0),
+                    Segments = new List<TrackStatisticsSegment>
+                    {
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 1
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 2
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 3
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 4
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 5
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 6
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 7
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 8
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 9
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 10
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 11
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 12
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 13
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 14
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 15
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 16
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 17
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 18
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 19
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 20
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 21
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 22
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 23
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 24
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 25
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 26
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 27
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 28
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 29
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 30
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 31
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 32
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 33
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 34
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 35
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 36
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 37
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 38
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 39
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 40
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 41
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 42
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 43
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 44
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 45
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 46
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 47
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 48
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 49
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 50
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 51
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 52
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 53
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 54
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 55
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Finish"),
+                            Order = 56
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "200m"),
+                            Order = 57
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Green"),
+                            Order = 58
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "100m"),
+                            Order = 59
+                        },
+                        new TrackStatisticsSegment
+                        {
+                            Segment = segments.Single(s => s.Start.Description == "Red"),
+                            Order = 60
+                        }
                     }
                 },
                 new TrackStatisticsItem
