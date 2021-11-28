@@ -12,6 +12,8 @@ using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
+    [Route("api/[controller]")]
+    [ApiController]
     public class TranspondersController : ControllerBase
     {
         private readonly VeloTimerDbContext _context;
@@ -60,17 +62,19 @@ namespace VeloTimerWeb.Api.Controllers
         [AllowAnonymous]
         [Route("times")]
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetTimes(long SegmentId, [FromQuery] IEnumerable<long> TransponderId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int? Count)
+        public async Task<ActionResult<IEnumerable<double>>> GetTimes(long SegmentId, [FromQuery] IEnumerable<long> TransponderId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int? Count)
         {
-            var times = Enumerable.Empty<SegmentTimeRider>();
+            var times = Enumerable.Empty<double>();
 
-            //foreach (var transponderId in TransponderId)
-            //{
-            //    var onetimes = await _segmentService.GetSegmentTimes(SegmentId, FromTime, ToTime);
-            //    times = times.Concat(onetimes);
-            //}
+            var fromtime = FromTime ?? DateTimeOffset.MinValue;
+            var totimes = ToTime ?? DateTimeOffset.MaxValue;
 
-            return Ok(times.OrderByDescending(t => t.PassingTime));
+            var Transponder = await _context.Set<Transponder>().SingleOrDefaultAsync(x => x.Id == TransponderId.First());
+            var Segment = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Id == SegmentId);
+
+            times = await _service.GetFastest(Transponder, Segment, fromtime, totimes);
+
+            return Ok(times);
         }
     }
 }

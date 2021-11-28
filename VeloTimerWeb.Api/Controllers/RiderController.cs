@@ -19,13 +19,15 @@ namespace VeloTimerWeb.Api.Controllers
     public class RiderController : ControllerBase
     {
         private readonly IRiderService _riderService;
+        private readonly ITransponderService _transponderService;
         private readonly ILogger<RiderController> _logger;
         private readonly VeloTimerDbContext _context;
         private readonly DbSet<Rider> _dbset;
 
-        public RiderController(IRiderService riderService, ILogger<RiderController> logger, VeloTimerDbContext context) : base()
+        public RiderController(IRiderService riderService, ITransponderService transponderService, ILogger<RiderController> logger, VeloTimerDbContext context) : base()
         {
             _riderService = riderService;
+            _transponderService = transponderService;
             _logger = logger;
             _context = context;
             _dbset = _context.Set<Rider>();
@@ -82,6 +84,19 @@ namespace VeloTimerWeb.Api.Controllers
                 })
                 .ToListAsync();
             return transponders;
+        }
+
+        [HttpGet]
+        [Route("{rider}/fastest/{statsitem}")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<ActionResult<IEnumerable<TransponderOwnershipWeb>>> GetFastest(string rider, long statsitem)
+        {
+            var Rider = await _context.Set<Rider>().SingleAsync(x => x.UserId == rider);
+            var StatsItem = await _context.Set<StatisticsItem>().SingleAsync(x => x.Id == statsitem);
+
+            var times = await _transponderService.GetFastestForOwner(Rider, StatsItem, DateTimeOffset.MinValue, null);
+            return Ok(times);
         }
 
         [HttpPost]

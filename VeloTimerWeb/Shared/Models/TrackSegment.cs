@@ -8,12 +8,24 @@ namespace VeloTimer.Shared.Models
 {
     public class TrackSegment
     {
-        public long Id { get; set; }
-        public long StartId { get; set; }
-        public long EndId { get; set; }
-        public TimingLoop Start { get; set; }
-        public TimingLoop End { get; set; }
+        public TrackSegment()
+        {
+        }
 
-        public double Length { get => End.Distance - Start.Distance; }
+        public TrackSegment(TimingLoop Start, TimingLoop End)
+        {
+            this.Start = Start;
+            this.End = End;
+
+            Length = End.Distance > Start.Distance ? End.Distance-Start.Distance : End.Distance - Start.Distance + Start.Track.Length;
+        }
+
+        public long Id { get; private set; }
+        public long StartId { get; private set; }
+        public long EndId { get; private set; }
+        public TimingLoop Start { get; private set; }
+        public TimingLoop End { get; private set; }
+
+        public double Length { get; private set; }
     }
 }

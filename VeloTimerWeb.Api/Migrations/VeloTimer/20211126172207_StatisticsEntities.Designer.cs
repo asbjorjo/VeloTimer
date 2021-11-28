@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VeloTimerWeb.Api.Data;
 
 namespace VeloTimerWeb.Api.Migrations.VeloTimer
 {
     [DbContext(typeof(VeloTimerDbContext))]
-    partial class VeloTimerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20211126172207_StatisticsEntities")]
+    partial class StatisticsEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -368,46 +370,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.ToTable("transponder_ownership");
                 });
 
-            modelBuilder.Entity("VeloTimer.Shared.Models.TransponderStatisticsItem", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
-
-                    b.Property<long>("StatisticsItemId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("statistics_item_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_transponder_statistics_item");
-
-                    b.HasIndex("StatisticsItemId")
-                        .HasDatabaseName("ix_transponder_statistics_item_statistics_item_id");
-
-                    b.ToTable("transponder_statistics_item");
-                });
-
-            modelBuilder.Entity("VeloTimer.Shared.Models.TransponderStatisticsSegment", b =>
-                {
-                    b.Property<long>("transponder_statistics_item_id")
-                        .HasColumnType("bigint")
-                        .HasColumnName("transponder_statistics_item_id");
-
-                    b.Property<long>("track_segment_passing_id")
-                        .HasColumnType("bigint")
-                        .HasColumnName("track_segment_passing_id");
-
-                    b.HasKey("transponder_statistics_item_id", "track_segment_passing_id")
-                        .HasName("pk_transponder_statistics_segment");
-
-                    b.HasIndex("track_segment_passing_id")
-                        .HasDatabaseName("ix_transponder_statistics_segment_track_segment_passing_id");
-
-                    b.ToTable("transponder_statistics_segment");
-                });
-
             modelBuilder.Entity("VeloTimer.Shared.Models.TransponderType", b =>
                 {
                     b.Property<string>("System")
@@ -566,39 +528,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.Navigation("Transponder");
                 });
 
-            modelBuilder.Entity("VeloTimer.Shared.Models.TransponderStatisticsItem", b =>
-                {
-                    b.HasOne("VeloTimer.Shared.Models.TrackStatisticsItem", "StatisticsItem")
-                        .WithMany()
-                        .HasForeignKey("StatisticsItemId")
-                        .HasConstraintName("fk_transponder_statistics_item_track_statistics_item_statistics_item_id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("StatisticsItem");
-                });
-
-            modelBuilder.Entity("VeloTimer.Shared.Models.TransponderStatisticsSegment", b =>
-                {
-                    b.HasOne("VeloTimer.Shared.Models.TrackSegmentPassing", "SegmentPassing")
-                        .WithMany()
-                        .HasForeignKey("track_segment_passing_id")
-                        .HasConstraintName("fk_transponder_statistics_segment_track_segment_passing_track_segment_passing_id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("VeloTimer.Shared.Models.TransponderStatisticsItem", "TransponderStatisticsItem")
-                        .WithMany("segmentpassinglist")
-                        .HasForeignKey("transponder_statistics_item_id")
-                        .HasConstraintName("fk_transponder_statistics_segment_transponder_statistics_item_transponder_statistics_item_id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("SegmentPassing");
-
-                    b.Navigation("TransponderStatisticsItem");
-                });
-
             modelBuilder.Entity("VeloTimer.Shared.Models.Rider", b =>
                 {
                     b.Navigation("Transponders");
@@ -629,11 +558,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.Navigation("Owners");
 
                     b.Navigation("Passings");
-                });
-
-            modelBuilder.Entity("VeloTimer.Shared.Models.TransponderStatisticsItem", b =>
-                {
-                    b.Navigation("segmentpassinglist");
                 });
 #pragma warning restore 612, 618
         }

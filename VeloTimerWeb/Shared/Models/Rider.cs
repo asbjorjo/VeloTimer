@@ -8,7 +8,7 @@ namespace VeloTimer.Shared.Models
 {
     public class Rider
     {
-        public long Id { get; set; }
+        public long Id { get; private set; }
         public string Name { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }

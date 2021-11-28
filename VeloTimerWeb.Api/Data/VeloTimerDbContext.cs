@@ -18,6 +18,8 @@ namespace VeloTimerWeb.Api.Data
 
             builder.Entity<Passing>(x =>
             {
+                x.Property(x => x.SourceId)
+                    .IsRequired();
                 x.Property(p => p.Time)
                     .HasConversion(
                         v => v,
@@ -40,6 +42,25 @@ namespace VeloTimerWeb.Api.Data
                 x.HasAlternateKey(p => p.UserId);
             });
 
+            builder.Entity<StatisticsItem>(x =>
+            {
+                x.HasMany(p => p.Elements)
+                    .WithOne(e => e.StatisticsItem);
+            });
+
+            //builder.Entity<TimingElement>(x => 
+            //{
+            //    x.HasOne(p => p.StartLoop)
+            //        .WithMany()
+            //        .IsRequired();
+            //    x.HasOne(p => p.EndLoop)
+            //        .WithMany()
+            //        .IsRequired()
+            //        .OnDelete(DeleteBehavior.Restrict);
+            //    x.HasMany<TimingPoint>("IntermediateLoops")
+            //        .WithMany(x => x.)
+            //});
+
             builder.Entity<TimingLoop>(x =>
             {
                 x.Property(p => p.LoopId)
@@ -58,6 +79,8 @@ namespace VeloTimerWeb.Api.Data
 
             builder.Entity<TrackSegment>(x =>
             {
+                x.Property(p => p.Length)
+                    .IsRequired();
                 x.HasOne(s => s.Start)
                     .WithMany()
                     .IsRequired();
@@ -68,6 +91,48 @@ namespace VeloTimerWeb.Api.Data
                 x.HasAlternateKey(k => new { k.StartId, k.EndId });
             });
 
+            builder.Entity<TrackSegmentPassing>(x =>
+            {
+                x.Property(x => x.Time)
+                    .IsRequired();
+                x.HasOne(x => x.TrackSegment)
+                    .WithMany()
+                    .IsRequired()
+                    .OnDelete(DeleteBehavior.Restrict);
+                x.HasOne(x => x.Start)
+                    .WithMany()
+                    .IsRequired();
+                x.HasOne(x => x.End)
+                    .WithMany()
+                    .IsRequired()
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<TrackStatisticsItem>(x => {
+                x.HasOne(x => x.StatisticsItem)
+                    .WithMany(i => i.Elements)
+                    .IsRequired();
+                x.HasMany(x => x.Segments)
+                    .WithOne(s => s.Element)
+                    .IsRequired();
+
+                x.Ignore(x => x.Start);
+                x.Ignore(x => x.End);
+                x.Ignore(x => x.Intermediates);
+            });
+
+            builder.Entity<TrackStatisticsSegment>(x =>
+            {
+                x.Property(x => x.Order)
+                    .IsRequired();
+                x.HasOne(x => x.Element)
+                    .WithMany(x => x.Segments)
+                    .IsRequired();
+                x.HasOne(x => x.Segment)
+                    .WithMany()
+                    .IsRequired();
+            });
+
             builder.Entity<Transponder>(x =>
             {
                 x.Property(t => t.TimingSystem)
@@ -76,6 +141,23 @@ namespace VeloTimerWeb.Api.Data
                 x.HasOne(t => t.TimingSystemRelation)
                     .WithMany()
                     .HasForeignKey(t => t.TimingSystem);
+            });
+
+            builder.Entity<TransponderStatisticsItem>(x =>
+            {
+                x.HasOne(x => x.StatisticsItem)
+                    .WithMany()
+                    .IsRequired();
+
+                x.Ignore(x => x.SegmentPassings);
+            });
+
+            builder.Entity<TransponderStatisticsSegment>(x =>
+            {
+                x.HasOne(x => x.TransponderStatisticsItem).WithMany("segmentpassinglist").HasForeignKey("transponder_statistics_item_id");
+                x.HasOne(x => x.SegmentPassing).WithMany().HasForeignKey("track_segment_passing_id");
+
+                x.HasKey("transponder_statistics_item_id", "track_segment_passing_id");
             });
 
             builder.Entity<TransponderOwnership>(x =>

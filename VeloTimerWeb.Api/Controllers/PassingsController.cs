@@ -50,6 +50,16 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<Passing>> Register(PassingRegister passing)
         {
+            var existing = await _context.Set<Passing>().SingleOrDefaultAsync(x => 
+                x.SourceId == passing.Source 
+                && x.Loop.LoopId == passing.LoopId 
+                && x.Time == passing.Time.UtcDateTime);
+
+            if (existing != null)
+            {
+                return Conflict(existing);
+            }
+
             var newpassing = new Passing
             {
                 SourceId = passing.Source,
@@ -70,7 +80,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             await _passingService.RegisterNew(newpassing, TransponderType.TimingSystem.Mylaps_X2, passing.TransponderId);
 
-            return Ok();
+            return Ok(newpassing);
         }
     }
 }

@@ -4,10 +4,10 @@ namespace VeloTimer.Shared.Models
 {
     public class TimingLoop
     {   
-        public long Id { get; set; }
+        public long Id { get; private set; }
+        public long TrackId { get; private set; }
+
         public int LoopId { get; set; }
-        public long TrackId { get; set; }
-        
         public double Distance { get; set; }
         public string Description { get; set; }
 

@@ -6,14 +6,13 @@ namespace VeloTimer.Shared.Models
 {
     public class Passing
     {
-        public long Id { get; set; }
+        public long Id { get; private set; }
         public Transponder Transponder { get; set; }
         public TimingLoop Loop { get; set; }
         public DateTime Time { get; set; }
-        [Required]
         public string SourceId { get; set; }
 
-        public long TransponderId { get; set; }
-        public long LoopId { get; set; }
+        public long TransponderId { get; private set; }
+        public long LoopId { get; private set; }
     }
 }

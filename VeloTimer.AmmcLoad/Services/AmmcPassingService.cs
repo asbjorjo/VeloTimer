@@ -48,7 +48,7 @@ namespace VeloTimer.AmmcLoad.Services
 
             var builder = Builders<Passing>.Filter;
             var filter = builder.Ne(p => p.LoopId, BAD_LOOP_ID) & builder.Gt(p => p.Id, id);
-            var passings = _passings.Find<Passing>(filter).Limit(100);
+            var passings = _passings.Find<Passing>(filter).Limit(10000);
 
             return await passings.ToListAsync();
         }
