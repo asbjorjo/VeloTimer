@@ -1394,7 +1394,7 @@ namespace VeloTimerWeb.Api.Util
 
         private void AddInitialPassing()
         {
-            var passing = _context.Set<Passing>().SingleOrDefault(p => p.SourceId == "6140844fda0ce99d3ae9c9a3");
+            var passing = _context.Set<Passing>().SingleOrDefault(p => p.SourceId == "617ac814b7c51f1d4a6da859");
             
             if (passing == null) 
             {
