@@ -113,10 +113,9 @@ namespace VeloTimerWeb.Api.Services
             {
                 var previous = await _context.Set<Passing>()
                     .Where(p => p.Transponder == passing.Transponder)
+                    .Where(p => p.Time < passing.Time)
                     .OrderByDescending(p => p.Time)
-                    .Skip(1)
                     .Include(s => s.Loop)
-                    .Include(s => s.Transponder)
                     .FirstOrDefaultAsync();
 
                 if (previous != null && previous.Loop == trackSegment.Start)
