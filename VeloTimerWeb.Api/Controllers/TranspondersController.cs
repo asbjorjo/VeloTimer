@@ -66,13 +66,15 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var times = Enumerable.Empty<double>();
 
-            var fromtime = FromTime ?? DateTimeOffset.MinValue;
-            var totimes = ToTime ?? DateTimeOffset.MaxValue;
+            var fromtime = FromTime.HasValue ? FromTime.Value : DateTimeOffset.MinValue;
+            var totime = ToTime.HasValue ? ToTime.Value : DateTimeOffset.MaxValue;
 
             var Transponder = await _context.Set<Transponder>().SingleOrDefaultAsync(x => x.Id == TransponderId.First());
+            if (Transponder == null) { return NotFound(Transponder); }
             var Segment = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Id == SegmentId);
-
-            times = await _service.GetFastest(Transponder, Segment, fromtime, totimes);
+            if (Segment == null) { return NotFound(Segment);}
+            
+            times = await _service.GetFastest(Transponder, Segment, fromtime, totime);
 
             return Ok(times);
         }

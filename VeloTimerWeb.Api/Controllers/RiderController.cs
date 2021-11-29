@@ -90,12 +90,21 @@ namespace VeloTimerWeb.Api.Controllers
         [Route("{rider}/fastest/{statsitem}")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
-        public async Task<ActionResult<IEnumerable<TransponderOwnershipWeb>>> GetFastest(string rider, long statsitem)
+        public async Task<ActionResult<IEnumerable<TransponderOwnershipWeb>>> GetFastest(
+            string rider, 
+            long statsitem, 
+            DateTimeOffset? FromTime,
+            DateTimeOffset? ToTime)
         {
-            var Rider = await _context.Set<Rider>().SingleAsync(x => x.UserId == rider);
-            var StatsItem = await _context.Set<StatisticsItem>().SingleAsync(x => x.Id == statsitem);
+            var fromtime = FromTime.HasValue ? FromTime.Value : DateTimeOffset.MinValue;
+            var totime = ToTime.HasValue ? ToTime.Value : DateTimeOffset.MaxValue;
 
-            var times = await _transponderService.GetFastestForOwner(Rider, StatsItem, DateTimeOffset.MinValue, null);
+            var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
+            if (Rider == null) { return NotFound($"Rider: {rider}"); }
+            var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Id == statsitem);
+            if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
+
+            var times = await _transponderService.GetFastestForOwner(Rider, StatsItem, fromtime, totime);
             return Ok(times);
         }
 
