@@ -252,7 +252,7 @@ namespace VeloTimerWeb.Api.Util
                 },
                 new TrackStatisticsItem
                 {
-                    StatisticsItem = _context.Set<StatisticsItem>().Single(s => s.Distance == 1000.0),
+                    StatisticsItem = _context.Set<StatisticsItem>().Single(s => s.Distance == 750.0),
                     Segments = new List<TrackStatisticsSegment>
                     {
                         new TrackStatisticsSegment
