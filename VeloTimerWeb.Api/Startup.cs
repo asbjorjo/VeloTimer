@@ -158,7 +158,11 @@ namespace VeloTimerWeb.Api
 
             services.AddSignalR();
             services.AddRazorPages();
-            services.AddControllers();
+            services.AddControllers()
+                .AddJsonOptions(o =>
+                {
+                    o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+                });
 
             services.AddSwaggerGen(c =>
             {
