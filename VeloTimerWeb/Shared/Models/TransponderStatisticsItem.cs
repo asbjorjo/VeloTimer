@@ -12,7 +12,12 @@ namespace VeloTimer.Shared.Models
         public TrackStatisticsItem StatisticsItem { get; set; }
         private List<TransponderStatisticsSegment> segmentpassinglist { get; set; } = new();
 
-        public IReadOnlyCollection<TrackSegmentPassing> SegmentPassings => segmentpassinglist.Select(x => x.SegmentPassing).ToList().AsReadOnly();
+        public Transponder Transponder { get; private set; }
+        public DateTime StartTime { get; private set; }
+        public DateTime EndTime { get; private set; }
+        public double Time { get; private set; }
+
+        public IReadOnlyCollection<TrackSegmentPassing> SegmentPassings => segmentpassinglist.Select(x => x.SegmentPassing).OrderBy(x => x.StartTime).ToList().AsReadOnly();
 
         public static object Create(TrackStatisticsItem statisticsItem, List<TrackSegmentPassing> trackSegmentPassings)
         {
@@ -22,6 +27,11 @@ namespace VeloTimer.Shared.Models
             {
                 item.segmentpassinglist.Add(new TransponderStatisticsSegment { SegmentPassing = segment });
             }
+
+            item.Transponder = trackSegmentPassings.First().Transponder;
+            item.Time = trackSegmentPassings.Sum(x => x.Time);
+            item.StartTime = trackSegmentPassings.First().StartTime;
+            item.EndTime = trackSegmentPassings.Last().EndTime;
 
             return item;
         }

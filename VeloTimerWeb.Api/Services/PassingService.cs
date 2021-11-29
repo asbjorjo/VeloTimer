@@ -71,11 +71,11 @@ namespace VeloTimerWeb.Api.Services
                 if (statisticsItems.Count > 0)
                 {
                     var transponderPassings = await _context.Set<TrackSegmentPassing>()
-                        .Where(p => p.End.Transponder == passing.Transponder && p.End.Time <= passing.Time)
-                        .Include(p => p.TrackSegment)
-                        .OrderByDescending(p => p.End.Time)
+                        .Where(x => x.Transponder == passing.Transponder && x.EndTime <= passing.Time)
+                        .Include(x => x.TrackSegment)
+                        .OrderByDescending(x => x.EndTime)
                         .Take(statisticsItems.First().Segments.Count())
-                        .OrderBy(p => p.End.Time)
+                        .OrderBy(x => x.EndTime)
                         .ToListAsync();
 
                     foreach (var statisticsItem in statisticsItems)

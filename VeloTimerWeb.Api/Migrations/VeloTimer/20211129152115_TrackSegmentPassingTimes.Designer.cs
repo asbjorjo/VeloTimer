@@ -3,15 +3,17 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VeloTimerWeb.Api.Data;
 
 namespace VeloTimerWeb.Api.Migrations.VeloTimer
 {
     [DbContext(typeof(VeloTimerDbContext))]
-    partial class VeloTimerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20211129152115_TrackSegmentPassingTimes")]
+    partial class TrackSegmentPassingTimes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -391,34 +393,15 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnName("id")
                         .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
 
-                    b.Property<DateTime>("EndTime")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("end_time");
-
-                    b.Property<DateTime>("StartTime")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("start_time");
-
                     b.Property<long>("StatisticsItemId")
                         .HasColumnType("bigint")
                         .HasColumnName("statistics_item_id");
-
-                    b.Property<double>("Time")
-                        .HasColumnType("float")
-                        .HasColumnName("time");
-
-                    b.Property<long?>("TransponderId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("transponder_id");
 
                     b.HasKey("Id")
                         .HasName("pk_transponder_statistics_item");
 
                     b.HasIndex("StatisticsItemId")
                         .HasDatabaseName("ix_transponder_statistics_item_statistics_item_id");
-
-                    b.HasIndex("TransponderId")
-                        .HasDatabaseName("ix_transponder_statistics_item_transponder_id");
 
                     b.ToTable("transponder_statistics_item");
                 });
@@ -616,14 +599,7 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("VeloTimer.Shared.Models.Transponder", "Transponder")
-                        .WithMany()
-                        .HasForeignKey("TransponderId")
-                        .HasConstraintName("fk_transponder_statistics_item_transponder_transponder_id");
-
                     b.Navigation("StatisticsItem");
-
-                    b.Navigation("Transponder");
                 });
 
             modelBuilder.Entity("VeloTimer.Shared.Models.TransponderStatisticsSegment", b =>

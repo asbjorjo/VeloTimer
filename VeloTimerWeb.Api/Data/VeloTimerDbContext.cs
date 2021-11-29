@@ -93,6 +93,14 @@ namespace VeloTimerWeb.Api.Data
 
             builder.Entity<TrackSegmentPassing>(x =>
             {
+                x.Property(p => p.StartTime)
+                    .HasConversion(
+                        v => v,
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
+                x.Property(p => p.EndTime)
+                    .HasConversion(
+                        v => v,
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
                 x.Property(x => x.Time)
                     .IsRequired();
                 x.HasOne(x => x.TrackSegment)
@@ -145,6 +153,15 @@ namespace VeloTimerWeb.Api.Data
 
             builder.Entity<TransponderStatisticsItem>(x =>
             {
+                x.Property(p => p.StartTime)
+                    .HasConversion(
+                        v => v,
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
+                x.Property(p => p.EndTime)
+                    .HasConversion(
+                        v => v,
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
+
                 x.HasOne(x => x.StatisticsItem)
                     .WithMany()
                     .IsRequired();

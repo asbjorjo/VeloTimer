@@ -62,21 +62,33 @@ namespace VeloTimerWeb.Api.Services
 
             var times = Enumerable.Empty<double>();
 
-            var query = from tss in _context.Set<TransponderStatisticsSegment>()
-                        join tsp in _context.Set<TrackSegmentPassing>() on tss.SegmentPassing equals tsp
-                        join town in _context.Set<TransponderOwnership>() on tsp.Start.Transponder equals town.Transponder
-                        where 
-                            tss.TransponderStatisticsItem.StatisticsItem.StatisticsItem == statisticsItem
-                            && town.Owner == rider
-                            && tsp.Start.Time >= fromtime
-                            && tsp.Start.Time <= totime
-                            && town.OwnedFrom <= tsp.Start.Time
-                            && town.OwnedUntil >= tsp.Start.Time
-                        group tsp by tss.TransponderStatisticsItem.Id into grouping
-                        select grouping.Sum(x => x.Time) into time
-                        orderby time
-                        select time;
+            //var query = from tss in _context.Set<TransponderStatisticsSegment>()
+            //            join tsp in _context.Set<TrackSegmentPassing>() on tss.SegmentPassing equals tsp
+            //            join town in _context.Set<TransponderOwnership>() on tsp.Transponder equals town.Transponder
+            //            where 
+            //                tss.TransponderStatisticsItem.StatisticsItem.StatisticsItem == statisticsItem
+            //                && town.Owner == rider
+            //                && tsp.StartTime >= fromtime
+            //                && tsp.StartTime <= totime
+            //                && town.OwnedFrom <= tsp.StartTime
+            //                && town.OwnedUntil >= tsp.StartTime
+            //            group tsp by tss.TransponderStatisticsItem.Id into grouping
+            //            select grouping.Sum(x => x.Time) into time
+            //            orderby time
+            //            select time;
 
+            var query = from tsi in _context.Set<TransponderStatisticsItem>()
+                        join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                        where
+                            tsi.StatisticsItem.StatisticsItem == statisticsItem
+                            && tsi.StartTime >= fromtime
+                            && tsi.EndTime <= totime
+                            && town.Owner == rider
+                            && town.OwnedFrom <= tsi.StartTime
+                            && town.OwnedUntil >= tsi.EndTime
+                        orderby tsi.Time
+                        select tsi.Time;
+                            
             _logger.LogDebug(query.Take(Count).ToQueryString());
 
             times = await query.Take(Count).ToListAsync();
