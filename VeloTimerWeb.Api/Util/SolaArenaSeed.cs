@@ -1399,10 +1399,10 @@ namespace VeloTimerWeb.Api.Util
             if (passing == null) 
             {
                 var loop = _context.Set<TimingLoop>().SingleOrDefault(l => l.LoopId == 1 && l.Track.Name == "Sola Arena");
-                var transponder = _context.Set<Transponder>().SingleOrDefault(t => t.SystemId == "115509543" && t.TimingSystem == TransponderType.TimingSystem.Mylaps_X2)
-                ?? new Transponder { SystemId = "115509543", TimingSystem = TransponderType.TimingSystem.Mylaps_X2 };
+                var transponder = _context.Set<Transponder>().SingleOrDefault(t => t.SystemId == "115458410" && t.TimingSystem == TransponderType.TimingSystem.Mylaps_X2)
+                ?? new Transponder { SystemId = "115458410", TimingSystem = TransponderType.TimingSystem.Mylaps_X2 };
 
-                _context.Add(new Passing { Transponder = transponder, Loop = loop, SourceId = "6140844fda0ce99d3ae9c9a3", Time = DateTime.MinValue });
+                _context.Add(new Passing { Transponder = transponder, Loop = loop, SourceId = "617ac814b7c51f1d4a6da859", Time = DateTime.MinValue });
             }
         }
 
