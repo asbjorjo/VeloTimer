@@ -42,10 +42,11 @@ namespace VeloTimerWeb.Api.Services
             var times = Enumerable.Empty<double>();
 
             var query = _context.Set<TransponderStatisticsItem>()
+                .Where(x => x.StartTime >= fromtime && x.EndTime <= totime)
+                .Where(p => p.Transponder == transponder)
                 .Where(p => p.StatisticsItem.StatisticsItem == statisticsItem)
-                .Where(p => EF.Property<ICollection<TransponderStatisticsSegment>>(p, "segmentpassinglist").First().SegmentPassing.Start.Transponder == transponder)
-                .Select(p => EF.Property<ICollection<TransponderStatisticsSegment>>(p, "segmentpassinglist").Select(p => p.SegmentPassing.Time).Sum())
-                .OrderBy(p => p)
+                .OrderBy(p => p.Time)
+                .Select(x => x.Time)
                 .Take(Count);
 
             _logger.LogDebug(query.ToQueryString());

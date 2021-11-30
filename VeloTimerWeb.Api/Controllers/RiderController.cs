@@ -132,7 +132,7 @@ namespace VeloTimerWeb.Api.Controllers
                 var existing = _dbset.Where(r => r.Transponders.Where(
                     t => t.Transponder.SystemId == transponderId
                         && t.Transponder.TimingSystem == TransponderType.TimingSystem.Mylaps_X2
-                        && (ownerWeb.OwnedFrom < t.OwnedUntil && t.OwnedFrom < ownerWeb.OwnedUntil)
+                        && (ownerWeb.OwnedFrom <= t.OwnedUntil && t.OwnedFrom <= ownerWeb.OwnedUntil)
                     ).Any());
 
                 if (existing.Any())
