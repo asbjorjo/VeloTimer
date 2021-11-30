@@ -96,13 +96,19 @@ namespace VeloTimerWeb.Api.Data
                 x.Property(p => p.StartTime)
                     .HasConversion(
                         v => v,
-                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc))
+                    .IsRequired();
                 x.Property(p => p.EndTime)
                     .HasConversion(
                         v => v,
-                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc))
+                    .IsRequired();
                 x.Property(x => x.Time)
                     .IsRequired();
+                x.HasOne(x => x.Transponder)
+                    .WithMany()
+                    .IsRequired()
+                    .OnDelete(DeleteBehavior.Restrict);
                 x.HasOne(x => x.TrackSegment)
                     .WithMany()
                     .IsRequired()
@@ -156,11 +162,20 @@ namespace VeloTimerWeb.Api.Data
                 x.Property(p => p.StartTime)
                     .HasConversion(
                         v => v,
-                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc))
+                    .IsRequired();
                 x.Property(p => p.EndTime)
                     .HasConversion(
                         v => v,
-                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc))
+                    .IsRequired();
+                x.Property(x => x.Time)
+                    .IsRequired();
+
+                x.HasOne(x => x.Transponder)
+                    .WithMany()
+                    .IsRequired()
+                    .OnDelete(DeleteBehavior.Restrict);
 
                 x.HasOne(x => x.StatisticsItem)
                     .WithMany()
