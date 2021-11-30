@@ -62,21 +62,6 @@ namespace VeloTimerWeb.Api.Services
 
             var times = Enumerable.Empty<double>();
 
-            //var query = from tss in _context.Set<TransponderStatisticsSegment>()
-            //            join tsp in _context.Set<TrackSegmentPassing>() on tss.SegmentPassing equals tsp
-            //            join town in _context.Set<TransponderOwnership>() on tsp.Transponder equals town.Transponder
-            //            where 
-            //                tss.TransponderStatisticsItem.StatisticsItem.StatisticsItem == statisticsItem
-            //                && town.Owner == rider
-            //                && tsp.StartTime >= fromtime
-            //                && tsp.StartTime <= totime
-            //                && town.OwnedFrom <= tsp.StartTime
-            //                && town.OwnedUntil >= tsp.StartTime
-            //            group tsp by tss.TransponderStatisticsItem.Id into grouping
-            //            select grouping.Sum(x => x.Time) into time
-            //            orderby time
-            //            select time;
-
             var query = from tsi in _context.Set<TransponderStatisticsItem>()
                         join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                         where
