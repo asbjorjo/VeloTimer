@@ -89,7 +89,7 @@ namespace VeloTimerWeb.Api.Services
                             if (relevantPassings.Select(s => s.TrackSegment.Id).SequenceEqual(segments.Select(s => s.Segment.Id)))
                             {
 
-                                var transponderStats = TransponderStatisticsItem.Create(statisticsItem, relevantPassings.ToList());
+                                var transponderStats = TransponderStatisticsItem.Create(statisticsItem, passing.Transponder, relevantPassings.ToList());
                                 _context.Add(transponderStats);
                             }
                         }
