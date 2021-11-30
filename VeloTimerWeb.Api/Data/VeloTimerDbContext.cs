@@ -181,6 +181,9 @@ namespace VeloTimerWeb.Api.Data
                     .WithMany()
                     .IsRequired();
 
+                x.HasIndex(x => new { x.EndTime, x.StartTime })
+                    .IncludeProperties("StatisticsItemId", "Time", "TransponderId");
+
                 x.Ignore(x => x.SegmentPassings);
             });
 
