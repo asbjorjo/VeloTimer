@@ -142,6 +142,7 @@ namespace VeloTimerWeb.Api
 
             services.AddScoped<IPassingService, PassingService>();
             services.AddScoped<IRiderService, RiderService>();
+            services.AddScoped<ITrackService, TrackService>();
             services.AddScoped<ITransponderService, TransponderService>();
 
             services.AddCors(options =>
