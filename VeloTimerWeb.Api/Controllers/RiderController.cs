@@ -67,8 +67,6 @@ namespace VeloTimerWeb.Api.Controllers
         
         [HttpGet]
         [Route("{rider}/transponders")]
-        [ProducesResponseType(StatusCodes.Status201Created)]
-        [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult<IEnumerable<TransponderOwnershipWeb>>> GetTransponders(string rider)
         {
             var transponders = await _context.Set<TransponderOwnership>()
@@ -92,7 +90,7 @@ namespace VeloTimerWeb.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult<IEnumerable<TransponderOwnershipWeb>>> GetFastest(
             string rider, 
-            long statsitem, 
+            string statsitem, 
             DateTimeOffset? FromTime,
             DateTimeOffset? ToTime)
         {
@@ -101,7 +99,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
-            var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Id == statsitem);
+            var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Label == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
             var times = await _transponderService.GetFastestForOwner(Rider, StatsItem, fromtime, totime);

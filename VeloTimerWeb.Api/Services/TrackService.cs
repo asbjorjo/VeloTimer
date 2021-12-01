@@ -20,36 +20,62 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<SegmentTime>> GetFastest(StatisticsItem StatisticsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
+        public async Task<IEnumerable<SegmentTime>> GetFastest(TrackStatisticsItem StatisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count)
         {
-            var fromtime = DateTime.MinValue;
-            var totime = DateTime.MaxValue;
             var times = Enumerable.Empty<SegmentTime>();
-
-            if (FromTime.HasValue)
-                fromtime = FromTime.Value.UtcDateTime;
-            if (ToTime.HasValue)
-                totime = ToTime.Value.UtcDateTime;
-
-            if (fromtime >= totime)
+            
+            if (FromTime >= ToTime)
                 return times;
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
                 join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                 where
-                    tsi.StatisticsItem.StatisticsItem == StatisticsItem
-                    && tsi.StartTime >= fromtime
-                    && tsi.EndTime <= totime
+                    tsi.StatisticsItem == StatisticsItem
+                    && tsi.StartTime >= FromTime
+                    && tsi.EndTime <= ToTime
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
-                group tsi.Time by new { town.Owner.Id, town.Owner.Name } into ridertimes
+                group tsi.Time by new { town.Owner.Id, town.Owner.Name, tsi.StatisticsItem.StatisticsItem.Distance } into ridertimes
                 orderby ridertimes.Min() ascending
                 select new SegmentTime
                 {
                     Rider = ridertimes.Key.Name,
                     Time = ridertimes.Min(),
-                    Speed = StatisticsItem.Distance / ridertimes.Min() * 3.6
+                    Speed = ridertimes.Key.Distance / ridertimes.Min() * 3.6
+                };
+
+            var list = await query
+                .Take(Count)
+                .AsNoTracking()
+                .ToListAsync();
+
+            return list;
+        }
+
+        public async Task<IEnumerable<SegmentTime>> GetRecent(TrackStatisticsItem StatisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count = 50)
+        {
+            var times = Enumerable.Empty<SegmentTime>();
+
+            if (FromTime >= ToTime)
+                return times;
+
+            var query =
+                from tsi in _context.Set<TransponderStatisticsItem>()
+                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                where
+                    tsi.StatisticsItem == StatisticsItem
+                    && tsi.StartTime >= FromTime
+                    && tsi.EndTime <= ToTime
+                    && town.OwnedFrom <= tsi.StartTime
+                    && town.OwnedUntil >= tsi.EndTime
+                orderby tsi.EndTime descending
+                select new SegmentTime
+                {
+                    Rider = town.Owner.Name,
+                    Time = tsi.Time,
+                    Speed = tsi.StatisticsItem.StatisticsItem.Distance / tsi.Time * 3.6,
+                    PassingTime = tsi.EndTime
                 };
 
             var list = await query

@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
@@ -46,17 +48,57 @@ namespace VeloTimerWeb.Api.Controllers
 
         [AllowAnonymous]
         [HttpGet]
-        [Route("fastest/{StatisticsItem}")]
-        public async Task<ActionResult<IEnumerable<SegmentTime>>> Fastest(string StatisticsItem)
+        [Route("{Track}/fastest/{StatisticsItem}")]
+        public async Task<ActionResult<IEnumerable<SegmentTime>>> Fastest(long Track, string StatisticsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10)
         {
-            var statsitem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Label == StatisticsItem);
+            var track = await _context.Set<Track>().FindAsync(Track);
+            if (track == null)
+            {
+                return NotFound($"Track: {Track}"); 
+            }
+
+            var statsitem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Segments.First().Segment.Start.Track == track && x.StatisticsItem.Label == StatisticsItem);
 
             if (statsitem == null)
             {
                 return NotFound($"StatisticsItem: {StatisticsItem}");
             }
 
-            var times = await _trackService.GetFastest(statsitem, null, null);
+            var fromtime = DateTimeOffset.MinValue;
+            var totime = DateTimeOffset.MaxValue;
+
+            if (FromTime.HasValue) fromtime = FromTime.Value;
+            if (ToTime.HasValue) totime = ToTime.Value;
+            
+            var times = await _trackService.GetFastest(statsitem, fromtime, totime, Count);
+
+            return Ok(times);
+        }
+
+        [HttpGet]
+        [Route("{Track}/recent/{StatisticsItem}")]
+        public async Task<ActionResult<IEnumerable<SegmentTime>>> Recent(long Track, string StatisticsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 50)
+        {
+            var track = await _context.Set<Track>().FindAsync(Track);
+            if (track == null)
+            {
+                return NotFound($"Track: {Track}");
+            }
+
+            var statsitem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Segments.First().Segment.Start.Track == track && x.StatisticsItem.Label == StatisticsItem);
+
+            if (statsitem == null)
+            {
+                return NotFound($"StatisticsItem: {StatisticsItem}");
+            }
+
+            var fromtime = DateTimeOffset.Now.AddHours(-1);
+            var totime = DateTimeOffset.MaxValue;
+
+            if (FromTime.HasValue) fromtime = FromTime.Value;
+            if (ToTime.HasValue) totime = ToTime.Value;
+
+            var times = await _trackService.GetRecent(statsitem, fromtime, totime, Count);
 
             return Ok(times);
         }
