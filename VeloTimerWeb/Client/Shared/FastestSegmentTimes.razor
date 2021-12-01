@@ -7,12 +7,8 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-@if (segment != null && segment.Start != null && segment.End !=null)
+@if (true)
 {
-    @if (segment.Intermediates.Count() > 0 && !ShowIntermediate.HasValue)
-    {
-        <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Skjul" : "Vis") mellomtider</button>
-    }
     <table class="table table-striped">
         <thead>
             <tr>
@@ -24,15 +20,7 @@
                 {
                     <th scope="col" class="mw-100">Rytter</th>    
                 }
-                @if (showintermediate && !segment.Intermediates.Where(i => i.Loop == null).Any())
-                {
-                    @foreach (var intermediate in segment.Intermediates)
-                    {
-                        <th scope="col" class="text-right">@intermediate.Loop.Description</th>
-                        <th scope="col" class="d-none d-md-block text-right">Fart</th>
-                    }
-                }
-                <th scope="col" class="text-right">@segment.End.Description</th>
+                <th scope="col" class="text-right">Tid</th>
                 <th scope="col" class="text-right">Fart</th>
             </tr>
         </thead>
@@ -58,34 +46,8 @@
                         {
                             <td>@segment.Rider</td>    
                         }
-                        @if (showintermediate && !this.segment.Intermediates.Where(i => i.Loop == null).Any())
-                        {
-                            @foreach (var intermediate in this.segment.Intermediates)
-                            {
-                                <td class="text-right">
-                                    @(
-                                        segment.Intermediates.Where(i => i.Loop == intermediate.Loop.Id).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
-                                        String.Format(
-                                            "{0:00.000}", 
-                                            segment.Intermediates.Where(i => i.Loop == intermediate.Loop.Id).Select(i => i.Segmenttime).SingleOrDefault()
-                                        ) : 
-                                        "--"
-                                    )
-                                </td>
-                                <td class="d-none d-md-block text-right">
-                                    @(
-                                        segment.Intermediates.Where(i => i.Loop == intermediate.Loop.Id).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
-                                        String.Format(
-                                            "{0:00.000}", 
-                                            segment.Intermediates.Where(i => i.Loop == intermediate.Loop.Id).Select(i => i.Segmentspeed).SingleOrDefault()
-                                        ) : 
-                                        "--"
-                                    )
-                                </td>
-                            }
-                        }
-                        <td class="text-right">@String.Format("{0:00.000}", segment.Segmenttime)</td>
-                        <td class="text-right">@String.Format("{0:00.000}", segment.Segmentspeed)</td>
+                        <td class="text-right">@String.Format("{0:00.000}", segment.Time)</td>
+                        <td class="text-right">@String.Format("{0:00.000}", segment.Speed)</td>
                     </tr>
                 }
             }
@@ -94,14 +56,10 @@
 }
 
 @code {
-    protected IEnumerable<SegmentTimeRider> segmentTimes;
+    protected IEnumerable<SegmentTime> segmentTimes;
 
     [Parameter]
-    public long Segment { get; set; }
-    [Parameter]
-    public long? Transponder { get; set; }
-    [Parameter]
-    public bool? ShowIntermediate { get; set; }
+    public string StatsItem { get; set; }
     [Parameter]
     public DateTimeOffset? FromTime { get; set; }
     [Parameter]
@@ -113,9 +71,7 @@
     [Parameter]
     public bool OnePerRider { get; set; } = false;
 
-    protected Segment segment;
-    protected long? transponder;
-    protected bool showintermediate = false;
+    protected string statsitem;
     protected DateTimeOffset? fromtime;
     protected DateTimeOffset? totime;
     protected int count;
@@ -131,35 +87,18 @@
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Segment != segment?.Id || Transponder != transponder || Count != count || Rider != rider) {
-            if (segment != null)
-            {
-                await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
-            }
-
-            segment = await Http.GetFromJsonAsync<Segment>($"segments/{Segment}");
-
-            transponder = Transponder;
+        if (StatsItem != statsitem || Count != count || Rider != rider) {
+            
             fromtime = FromTime?.ToUniversalTime();
             totime = ToTime?.ToUniversalTime();
             count = Count;
             rider = Rider;
 
-            if (totime == null)
-            {
-                await hubConnection.InvokeAsync("AddToSegmentGroup", segment.Id);
-            }
-
-            await LoadSegmentTimes();
-        }
-
-        if (ShowIntermediate.HasValue)
-        {
-            showintermediate = ShowIntermediate.Value;
+            await LoadTimes();
         }
     }
 
-    protected async Task LoadSegmentTimes()
+    protected async Task LoadTimes()
     {
         segmentTimes = await Api.GetBestTimes(segment.Id, fromtime, totime, Count: count, RiderId: rider, OnePerRider: OnePerRider);
 
