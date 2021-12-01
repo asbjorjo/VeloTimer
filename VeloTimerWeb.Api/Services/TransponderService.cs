@@ -56,12 +56,16 @@ namespace VeloTimerWeb.Api.Services
             return times;
         }
 
-        public async Task<IEnumerable<double>> GetFastestForOwner(Rider rider, StatisticsItem statisticsItem, DateTimeOffset FromTime, DateTimeOffset? ToTime, int Count)
+        public async Task<IEnumerable<SegmentTime>> GetFastestForOwner(Rider rider, StatisticsItem statisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count)
         {
+            var times = Enumerable.Empty<SegmentTime>();
             var fromtime = FromTime.UtcDateTime;
-            var totime = ToTime.HasValue ? ToTime.Value.UtcDateTime : DateTime.MaxValue;
+            var totime = ToTime.UtcDateTime;
 
-            var times = Enumerable.Empty<double>();
+            if (totime <= fromtime)
+            {
+                return times;
+            }
 
             var query = from tsi in _context.Set<TransponderStatisticsItem>()
                         join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
@@ -73,7 +77,12 @@ namespace VeloTimerWeb.Api.Services
                             && town.OwnedFrom <= tsi.StartTime
                             && town.OwnedUntil >= tsi.EndTime
                         orderby tsi.Time
-                        select tsi.Time;
+                        select new SegmentTime
+                        {
+                            PassingTime = tsi.EndTime,
+                            Speed = tsi.StatisticsItem.StatisticsItem.Distance / tsi.Time * 3.6,
+                            Time = tsi.Time
+                        };
                             
             _logger.LogDebug(query.Take(Count).ToQueryString());
 

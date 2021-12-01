@@ -23,8 +23,10 @@ namespace VeloTimerWeb.Api.Services
         public async Task<IEnumerable<SegmentTime>> GetFastest(TrackStatisticsItem StatisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count)
         {
             var times = Enumerable.Empty<SegmentTime>();
+            var fromtime = FromTime.UtcDateTime;
+            var totime = ToTime.UtcDateTime;
             
-            if (FromTime >= ToTime)
+            if (fromtime >= totime)
                 return times;
 
             var query =
@@ -32,8 +34,8 @@ namespace VeloTimerWeb.Api.Services
                 join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                 where
                     tsi.StatisticsItem == StatisticsItem
-                    && tsi.StartTime >= FromTime
-                    && tsi.EndTime <= ToTime
+                    && tsi.StartTime >= fromtime
+                    && tsi.EndTime <= totime
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
                 group tsi.Time by new { town.Owner.Id, town.Owner.Name, tsi.StatisticsItem.StatisticsItem.Distance } into ridertimes
@@ -56,8 +58,10 @@ namespace VeloTimerWeb.Api.Services
         public async Task<IEnumerable<SegmentTime>> GetRecent(TrackStatisticsItem StatisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count = 50)
         {
             var times = Enumerable.Empty<SegmentTime>();
+            var fromtime = FromTime.UtcDateTime;
+            var totime = ToTime.UtcDateTime;
 
-            if (FromTime >= ToTime)
+            if (fromtime >= totime)
                 return times;
 
             var query =
@@ -65,8 +69,8 @@ namespace VeloTimerWeb.Api.Services
                 join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                 where
                     tsi.StatisticsItem == StatisticsItem
-                    && tsi.StartTime >= FromTime
-                    && tsi.EndTime <= ToTime
+                    && tsi.StartTime >= fromtime
+                    && tsi.EndTime <= totime
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
                 orderby tsi.EndTime descending

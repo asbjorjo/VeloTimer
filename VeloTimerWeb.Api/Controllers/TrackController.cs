@@ -72,7 +72,7 @@ namespace VeloTimerWeb.Api.Controllers
             
             var times = await _trackService.GetFastest(statsitem, fromtime, totime, Count);
 
-            return Ok(times);
+            return times.ToList();
         }
 
         [HttpGet]
@@ -100,7 +100,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             var times = await _trackService.GetRecent(statsitem, fromtime, totime, Count);
 
-            return Ok(times);
+            return times.ToList();
         }
     }
 }
