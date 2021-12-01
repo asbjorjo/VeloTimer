@@ -122,7 +122,8 @@ namespace VeloTimerWeb.Api.Data
                     .OnDelete(DeleteBehavior.Restrict);
 
                 x.HasIndex(x => new { x.StartTime, x.EndTime })
-                    .IncludeProperties("TransponderId");
+                    .IncludeProperties("TransponderId")
+                    .IncludeProperties("StatisticsItemId");
             });
 
             builder.Entity<TrackStatisticsItem>(x => {
