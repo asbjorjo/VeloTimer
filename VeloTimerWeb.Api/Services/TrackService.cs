@@ -52,7 +52,10 @@ namespace VeloTimerWeb.Api.Services
                     Speed = StatisticsItem.Distance / ridertimes.Min() * 3.6
                 };
 
-            var list = await query.Take(Count).ToListAsync();
+            var list = await query
+                .Take(Count)
+                .AsNoTracking()
+                .ToListAsync();
 
             return list;
         }
