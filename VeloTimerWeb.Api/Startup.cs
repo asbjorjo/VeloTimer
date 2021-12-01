@@ -40,9 +40,9 @@ namespace VeloTimerWeb.Api
 
             services.AddDbContext<VeloTimerDbContext>(options =>
             {
-                options.UseSqlServer(
+                options.UseNpgsql(
                     Configuration
-                        .GetConnectionString("Azure"), sqloptions =>
+                        .GetConnectionString("PgSql"), sqloptions =>
                         {
                             sqloptions.CommandTimeout((int)TimeSpan.FromMinutes(5).TotalSeconds);
                         });
