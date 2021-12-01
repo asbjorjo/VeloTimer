@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
@@ -13,12 +15,17 @@ namespace VeloTimerWeb.Api.Controllers
     [ApiController]
     public class TrackController : ControllerBase
     {
-        private ILogger<TrackController> _logger;
-        private VeloTimerDbContext _context;
-        private DbSet<Track> _dbset;
+        private readonly ITrackService _trackService;
+        private readonly ILogger<TrackController> _logger;
+        private readonly VeloTimerDbContext _context;
+        private readonly DbSet<Track> _dbset;
 
-        public TrackController(ILogger<TrackController> logger, VeloTimerDbContext context) : base()
+        public TrackController(
+            ITrackService trackService,
+            ILogger<TrackController> logger, 
+            VeloTimerDbContext context) : base()
         {
+            _trackService = trackService;
             _logger = logger;
             _context = context;
             _dbset = _context.Set<Track>();
@@ -35,6 +42,23 @@ namespace VeloTimerWeb.Api.Controllers
             }
 
             return value;
+        }
+
+        [AllowAnonymous]
+        [HttpGet]
+        [Route("fastest/{StatisticsItem}")]
+        public async Task<ActionResult<IEnumerable<SegmentTime>>> Fastest(string StatisticsItem)
+        {
+            var statsitem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Label == StatisticsItem);
+
+            if (statsitem == null)
+            {
+                return NotFound($"StatisticsItem: {StatisticsItem}");
+            }
+
+            var times = await _trackService.GetFastest(statsitem, null, null);
+
+            return Ok(times);
         }
     }
 }
