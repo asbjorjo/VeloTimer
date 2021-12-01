@@ -16,7 +16,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
     {
         private readonly VeloTimerDbContext _context;
 
-        public Queue<SegmentTimeRider> times { get; set; }
+        //public Queue<SegmentTimeRider> times { get; set; }
         
         public LapTimesModel(VeloTimerDbContext context)
         {

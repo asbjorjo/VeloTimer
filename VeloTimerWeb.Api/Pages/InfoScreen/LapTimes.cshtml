@@ -12,25 +12,25 @@
         </thead>
         <tbody>
 @{
-            if (Model.times == null)
-            {
-                <tr>
-                    <td colspan="3">
-                        Laster...
-                    </td>
-                </tr>
-            }
-            else
-            {
-                foreach (var segment in Model.times)
-                {
-                    <tr>
-                        <td>@segment.Rider</td>    
-                        <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
-                        <td>@String.Format("{0:00.000}", segment.Segmentspeed)</td>
-                    </tr>
-                }
-            }
+            //if (Model.times == null)
+            //{
+            //    <tr>
+            //        <td colspan="3">
+            //            Laster...
+            //        </td>
+            //    </tr>
+            //}
+            //else
+            //{
+            //    foreach (var segment in Model.times)
+            //    {
+            //        <tr>
+            //            <td>@segment.Rider</td>    
+            //            <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
+            //            <td>@String.Format("{0:00.000}", segment.Segmentspeed)</td>
+            //        </tr>
+            //    }
+            //}
     }
         </tbody>
     </table>
