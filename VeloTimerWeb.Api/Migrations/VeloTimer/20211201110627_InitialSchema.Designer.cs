@@ -2,25 +2,25 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VeloTimerWeb.Api.Data;
 
 namespace VeloTimerWeb.Api.Migrations.VeloTimer
 {
     [DbContext(typeof(VeloTimerDbContext))]
-    [Migration("20211130122335_TransponderStatsIndex")]
-    partial class TransponderStatsIndex
+    [Migration("20211201110627_InitialSchema")]
+    partial class InitialSchema
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("velotimer")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128)
+                .HasAnnotation("Relational:MaxIdentifierLength", 63)
                 .HasAnnotation("ProductVersion", "5.0.12")
-                .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
             modelBuilder.Entity("VeloTimer.Shared.Models.Passing", b =>
                 {
@@ -28,7 +28,7 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
                     b.Property<long>("LoopId")
                         .HasColumnType("bigint")
@@ -36,11 +36,11 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
 
                     b.Property<string>("SourceId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("text")
                         .HasColumnName("source_id");
 
                     b.Property<DateTime>("Time")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("time");
 
                     b.Property<long>("TransponderId")
@@ -74,23 +74,23 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
                     b.Property<string>("FirstName")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("first_name");
 
                     b.Property<string>("LastName")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("last_name");
 
                     b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("name");
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("text")
                         .HasColumnName("user_id");
 
                     b.HasKey("Id")
@@ -108,14 +108,14 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
                     b.Property<double>("Distance")
-                        .HasColumnType("float")
+                        .HasColumnType("double precision")
                         .HasColumnName("distance");
 
                     b.Property<string>("Label")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("label");
 
                     b.HasKey("Id")
@@ -130,18 +130,18 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
                     b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("description");
 
                     b.Property<double>("Distance")
-                        .HasColumnType("float")
+                        .HasColumnType("double precision")
                         .HasColumnName("distance");
 
                     b.Property<int>("LoopId")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("loop_id");
 
                     b.Property<long>("TrackId")
@@ -163,14 +163,14 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
                     b.Property<double>("Length")
-                        .HasColumnType("float")
+                        .HasColumnType("double precision")
                         .HasColumnName("length");
 
                     b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("name");
 
                     b.HasKey("Id")
@@ -185,14 +185,14 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
                     b.Property<long>("EndId")
                         .HasColumnType("bigint")
                         .HasColumnName("end_id");
 
                     b.Property<double>("Length")
-                        .HasColumnType("float")
+                        .HasColumnType("double precision")
                         .HasColumnName("length");
 
                     b.Property<long>("StartId")
@@ -217,14 +217,14 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
                     b.Property<long>("EndId")
                         .HasColumnType("bigint")
                         .HasColumnName("end_id");
 
                     b.Property<DateTime>("EndTime")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("end_time");
 
                     b.Property<long>("StartId")
@@ -232,11 +232,11 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnName("start_id");
 
                     b.Property<DateTime>("StartTime")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("start_time");
 
                     b.Property<double>("Time")
-                        .HasColumnType("float")
+                        .HasColumnType("double precision")
                         .HasColumnName("time");
 
                     b.Property<long>("TrackSegmentId")
@@ -262,6 +262,10 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.HasIndex("TransponderId")
                         .HasDatabaseName("ix_track_segment_passing_transponder_id");
 
+                    b.HasIndex("StartTime", "EndTime")
+                        .HasDatabaseName("ix_track_segment_passing_start_time_end_time")
+                        .HasAnnotation("SqlServer:Include", new[] { "TransponderId" });
+
                     b.ToTable("track_segment_passing");
                 });
 
@@ -271,7 +275,7 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
                     b.Property<long>("StatisticsItemId")
                         .HasColumnType("bigint")
@@ -292,14 +296,14 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
                     b.Property<long>("ElementId")
                         .HasColumnType("bigint")
                         .HasColumnName("element_id");
 
                     b.Property<int>("Order")
-                        .HasColumnType("int")
+                        .HasColumnType("integer")
                         .HasColumnName("order");
 
                     b.Property<long>("SegmentId")
@@ -324,20 +328,20 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
                     b.Property<string>("Label")
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("text")
                         .HasColumnName("label");
 
                     b.Property<string>("SystemId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("text")
                         .HasColumnName("system_id");
 
                     b.Property<string>("TimingSystem")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("text")
                         .HasColumnName("timing_system");
 
                     b.HasKey("Id")
@@ -355,14 +359,14 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
                     b.Property<DateTime>("OwnedFrom")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("owned_from");
 
                     b.Property<DateTime>("OwnedUntil")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("owned_until");
 
                     b.Property<long?>("OwnerId")
@@ -391,14 +395,14 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
                     b.Property<DateTime>("EndTime")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("end_time");
 
                     b.Property<DateTime>("StartTime")
-                        .HasColumnType("datetime2")
+                        .HasColumnType("timestamp without time zone")
                         .HasColumnName("start_time");
 
                     b.Property<long>("StatisticsItemId")
@@ -406,7 +410,7 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnName("statistics_item_id");
 
                     b.Property<double>("Time")
-                        .HasColumnType("float")
+                        .HasColumnType("double precision")
                         .HasColumnName("time");
 
                     b.Property<long>("TransponderId")
@@ -451,7 +455,7 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
             modelBuilder.Entity("VeloTimer.Shared.Models.TransponderType", b =>
                 {
                     b.Property<string>("System")
-                        .HasColumnType("nvarchar(450)")
+                        .HasColumnType("text")
                         .HasColumnName("system");
 
                     b.HasKey("System")
@@ -620,7 +624,7 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.HasOne("VeloTimer.Shared.Models.TrackStatisticsItem", "StatisticsItem")
                         .WithMany()
                         .HasForeignKey("StatisticsItemId")
-                        .HasConstraintName("fk_transponder_statistics_item_track_statistics_item_statistics_item_id")
+                        .HasConstraintName("fk_transponder_statistics_item_track_statistics_item_statistic~")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -641,14 +645,14 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.HasOne("VeloTimer.Shared.Models.TrackSegmentPassing", "SegmentPassing")
                         .WithMany()
                         .HasForeignKey("track_segment_passing_id")
-                        .HasConstraintName("fk_transponder_statistics_segment_track_segment_passing_track_segment_passing_id")
+                        .HasConstraintName("fk_transponder_statistics_segment_track_segment_passing_track_~")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("VeloTimer.Shared.Models.TransponderStatisticsItem", "TransponderStatisticsItem")
                         .WithMany("segmentpassinglist")
                         .HasForeignKey("transponder_statistics_item_id")
-                        .HasConstraintName("fk_transponder_statistics_segment_transponder_statistics_item_transponder_statistics_item_id")
+                        .HasConstraintName("fk_transponder_statistics_segment_transponder_statistics_item_~")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
