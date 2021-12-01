@@ -106,17 +106,17 @@ namespace VeloTimerWeb.Api.Util
                 new StatisticsItem
                 {
                     Distance = 1000,
-                    Label = "1800m"
+                    Label = "1000m"
                 },
                 new StatisticsItem
                 {
                     Distance = 2000,
-                    Label = "2080m"
+                    Label = "2000m"
                 },
                 new StatisticsItem
                 {
                     Distance = 3000,
-                    Label = "3800m"
+                    Label = "3000m"
                 },
                 new StatisticsItem
                 {
