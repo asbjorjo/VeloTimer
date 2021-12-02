@@ -13,8 +13,8 @@ using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class TrackController : ControllerBase
     {
         private readonly ITrackService _trackService;
@@ -48,6 +48,39 @@ namespace VeloTimerWeb.Api.Controllers
 
         [AllowAnonymous]
         [HttpGet]
+        [Route("{Track}/count/{StatisticsItem}")]
+        public async Task<ActionResult<IEnumerable<KeyValuePair<string, long>>>> Count(string Track, string StatisticsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10)
+        {
+            if (Track == null || StatisticsItem == null)
+            {
+                return BadRequest();
+            }
+
+            var track = await _context.Set<Track>().FindAsync(long.Parse(Track));
+            if (track == null)
+            {
+                return NotFound($"Track: {Track}");
+            }
+
+            var statsitem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Segments.First().Segment.Start.Track == track && x.StatisticsItem.Label == StatisticsItem);
+            if (statsitem == null)
+            {
+                return NotFound($"StatisticsItem: {StatisticsItem}");
+            }
+
+            var fromtime = DateTimeOffset.MinValue;
+            var totime = DateTimeOffset.MaxValue;
+
+            if (FromTime.HasValue) fromtime = FromTime.Value;
+            if (ToTime.HasValue) totime = ToTime.Value;
+
+            var counts = await _trackService.GetCount(statsitem, fromtime, totime, Count);
+
+            return Ok(counts);
+        }
+
+        [AllowAnonymous]
+        [HttpGet]
         [Route("{Track}/fastest/{StatisticsItem}")]
         public async Task<ActionResult<IEnumerable<SegmentTime>>> Fastest(long Track, string StatisticsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10)
         {
@@ -72,7 +105,7 @@ namespace VeloTimerWeb.Api.Controllers
             
             var times = await _trackService.GetFastest(statsitem, fromtime, totime, Count);
 
-            return times.ToList();
+            return Ok(times);
         }
 
         [HttpGet]
@@ -100,7 +133,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             var times = await _trackService.GetRecent(statsitem, fromtime, totime, Count);
 
-            return times.ToList();
+            return Ok(times);
         }
     }
 }
