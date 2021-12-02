@@ -90,5 +90,40 @@ namespace VeloTimerWeb.Api.Services
 
             return times;
         }
+
+        public async Task<IEnumerable<SegmentTime>> GetTimesForOwner(Rider rider, StatisticsItem statisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count)
+        {
+            var times = Enumerable.Empty<SegmentTime>();
+            var fromtime = FromTime.UtcDateTime;
+            var totime = ToTime.UtcDateTime;
+
+            if (totime <= fromtime)
+            {
+                return times;
+            }
+
+            var query = from tsi in _context.Set<TransponderStatisticsItem>()
+                        join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                        where
+                            tsi.StatisticsItem.StatisticsItem == statisticsItem
+                            && tsi.StartTime >= fromtime
+                            && tsi.EndTime <= totime
+                            && town.Owner == rider
+                            && town.OwnedFrom <= tsi.StartTime
+                            && town.OwnedUntil >= tsi.EndTime
+                        orderby tsi.EndTime descending
+                        select new SegmentTime
+                        {
+                            PassingTime = tsi.EndTime,
+                            Speed = tsi.StatisticsItem.StatisticsItem.Distance / tsi.Time * 3.6,
+                            Time = tsi.Time
+                        };
+
+            _logger.LogDebug(query.Take(Count).ToQueryString());
+
+            times = await query.Take(Count).ToListAsync();
+
+            return times;
+        }
     }
 }

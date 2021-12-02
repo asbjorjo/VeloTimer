@@ -120,7 +120,7 @@ namespace VeloTimerWeb.Api.Controllers
             var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Label == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
-            var times = await _transponderService.GetFastestForOwner(Rider, StatsItem, fromtime, totime);
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, fromtime, totime);
             return times.ToList();
         }
 
