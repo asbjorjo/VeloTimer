@@ -142,6 +142,7 @@ namespace VeloTimerWeb.Api
 
             services.AddScoped<IPassingService, PassingService>();
             services.AddScoped<IRiderService, RiderService>();
+            services.AddScoped<IStatisticsService, StatisticsService>();
             services.AddScoped<ITrackService, TrackService>();
             services.AddScoped<ITransponderService, TransponderService>();
 
@@ -160,9 +161,9 @@ namespace VeloTimerWeb.Api
             services.AddSignalR();
             services.AddRazorPages();
             services.AddControllers()
-                .AddJsonOptions(o =>
+                .AddNewtonsoftJson(o =>
                 {
-                    o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+                    o.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
                 });
 
             services.AddSwaggerGen(c =>
