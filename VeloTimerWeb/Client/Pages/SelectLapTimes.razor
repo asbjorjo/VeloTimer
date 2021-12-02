@@ -1,4 +1,5 @@
-﻿@page "/track/segmenttimes/{Label}"
+﻿@page "/track/segmenttimes"
+@page "/track/segmenttimes/{Label}"
 @layout MainLayout
 @using VeloTimer.Shared.Models
 @inject NavigationManager NavigationManager
@@ -7,7 +8,7 @@
 
 <h3>Passeringstider</h3>
 
-@if (segments == null)
+@if (segments == null || label == null)
 {
     <p>Laster...</p>
 }
@@ -19,7 +20,7 @@ else
             <option value="@segment.StatisticsItem.Label" selected="@(segment.StatisticsItem.Label == this.label)">@segment.StatisticsItem.Label</option>
         }
     </select>
-    <SegmentTimes Segment=label FromTime=DateTimeOffset.Now.Date.AddHours(-24) Count=100 />
+    <SegmentTimes Label=@label FromTime=DateTimeOffset.Now.Date.AddHours(-24) Count=100 />
 }
 
 @code {

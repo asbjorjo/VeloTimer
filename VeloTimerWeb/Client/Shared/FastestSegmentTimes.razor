@@ -1,5 +1,6 @@
 ﻿@using VeloTimer.Shared.Hub
 @using VeloTimer.Shared.Models
+@using VeloTimer.Shared.Util
 @inherits ComponentBase
 @implements IDisposable
 @inject HttpClient Http
@@ -12,7 +13,7 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                @if (rider.HasValue)
+                @if (rider != null)
                 {
                     <th scope="col" class="mw-100">Dato</th>    
                 }
@@ -38,7 +39,7 @@
                 @foreach (var segment in segmentTimes)
                 {
                     <tr>
-                        @if (rider.HasValue)
+                        @if (rider != null)
                         {
                             <td>@segment.PassingTime.LocalDateTime</td>
                         }
@@ -46,7 +47,7 @@
                         {
                             <td>@segment.Rider</td>    
                         }
-                        <td class="text-right">@String.Format("{0:00.000}", segment.Time)</td>
+                        <td class="text-right">@Formatters.FormatTime(segment.Time)</td>
                         <td class="text-right">@String.Format("{0:00.000}", segment.Speed)</td>
                     </tr>
                 }
@@ -67,7 +68,7 @@
     [Parameter]
     public int Count { get; set; }
     [Parameter]
-    public long? Rider { get; set; }
+    public string Rider { get; set; }
     [Parameter]
     public bool OnePerRider { get; set; } = false;
 
@@ -75,7 +76,7 @@
     protected DateTimeOffset? fromtime;
     protected DateTimeOffset? totime;
     protected int count;
-    protected long? rider;
+    protected string rider;
 
     protected override void OnInitialized()
     {
@@ -100,7 +101,7 @@
 
     protected async Task LoadTimes()
     {
-        segmentTimes = await Api.GetBestTimes(StatsItem, fromtime, totime, Count: count, RiderId: rider, OnePerRider: OnePerRider);
+        segmentTimes = await Api.GetBestTimes(StatsItem, fromtime, totime, Count: count, Rider: rider, OnePerRider: OnePerRider);
 
         StateHasChanged();
     }

@@ -109,7 +109,7 @@ namespace VeloTimerWeb.Api.Controllers
         }
 
         [HttpGet]
-        [Route("{Track}/recent/{StatisticsItem}")]
+        [Route("{Track}/times/{StatisticsItem}")]
         public async Task<ActionResult<IEnumerable<SegmentTime>>> Recent(long Track, string StatisticsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 50)
         {
             var track = await _context.Set<Track>().FindAsync(Track);

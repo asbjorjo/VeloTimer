@@ -1,4 +1,5 @@
-﻿@using VeloTimer.Shared.Hub
+﻿@using VeloTimer.Shared.Util
+@using VeloTimer.Shared.Hub
 @using VeloTimer.Shared.Models
 @inherits ComponentBase
 @implements IDisposable
@@ -7,7 +8,7 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-@if (segment != null && segment.Start != null && segment.End !=null)
+@if (segment != null)
 {
     @*@if (segment.Intermediates.Count() > 0 && !ShowIntermediate.HasValue && segment.DisplayIntermediates)
     {
@@ -16,7 +17,7 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                @if (rider.HasValue)
+                @if (rider != null)
                 {
                     <th scope="col">Dato</th>    
                 }
@@ -50,7 +51,7 @@
                 @foreach (var segment in segmentTimes)
                 {
                     <tr>
-                        @if (rider.HasValue)
+                        @if (rider != null)
                         {
                             <td>@segment.PassingTime.LocalDateTime</td>
                         }
@@ -84,7 +85,7 @@
                                 </td>
                             }
                         }*@
-                        <td>@String.Format("{0:00.000}", segment.Time)</td>
+                        <td>@Formatters.FormatTime(segment.Time)</td>
                         <td>@String.Format("{0:00.000}", segment.Speed)</td>
                     </tr>
                 }
@@ -109,11 +110,11 @@
     [Parameter]
     public int Count { get; set; }
     [Parameter]
-    public long? Rider { get; set; }
+    public string Rider { get; set; }
 
     protected TrackStatisticsItem segment;
     protected long? transponder;
-    protected long? rider;
+    protected string rider;
     protected bool showintermediate = false;
     protected DateTimeOffset? fromtime;
     protected DateTimeOffset? totime;
@@ -161,7 +162,7 @@
 
     protected async Task LoadSegmentTimes()
     {
-        segmentTimes = await Api.GetTimes(segment.StatisticsItem.Label, fromtime, totime, Count: Count, RiderId: rider);
+        segmentTimes = await Api.GetTimes(segment.StatisticsItem.Label, fromtime, totime, Count: Count, Rider: rider);
 
         StateHasChanged();
     }

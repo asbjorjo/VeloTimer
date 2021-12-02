@@ -1,5 +1,6 @@
 ﻿@using VeloTimer.Shared.Hub
 @using VeloTimer.Shared.Models
+@using VeloTimer.Shared.Util
 @inherits ComponentBase
 @implements IDisposable
 @inject IApiClient Api
@@ -22,7 +23,7 @@
             @String.Format("{0:00.000}", segmentTime.Speed)
             </div>
             <div class="col-2 col-md-2 col-xl">
-            @String.Format("{0:00.000}", segmentTime.Time)
+            @Formatters.FormatTime(segmentTime.Time)
             </div>
         </div>
     }
