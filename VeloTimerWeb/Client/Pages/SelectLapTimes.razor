@@ -1,7 +1,8 @@
-﻿@page "/track/segmenttimes/{SegmentId:long?}"
+﻿@page "/track/segmenttimes/{Label}"
 @layout MainLayout
 @using VeloTimer.Shared.Models
 @inject NavigationManager NavigationManager
+@inject IApiClient Api
 @inject HttpClient Http
 
 <h3>Passeringstider</h3>
@@ -15,35 +16,35 @@ else
     <select @onchange="ChangeSegment">
         @foreach (var segment in segments)
         {
-            <option value="@segment.Id" selected="@(segment.Id == this.segment)">@segment.Label</option>
+            <option value="@segment.StatisticsItem.Label" selected="@(segment.StatisticsItem.Label == this.label)">@segment.StatisticsItem.Label</option>
         }
     </select>
-    <SegmentTimes Segment=segment FromTime=DateTimeOffset.Now.Date.AddHours(-24) Count=100 />
+    <SegmentTimes Segment=label FromTime=DateTimeOffset.Now.Date.AddHours(-24) Count=100 />
 }
 
 @code {
     [Parameter]
-    public long? SegmentId { get; set; }
-    private Segment[] segments;
-    private long segment;
+    public string Label { get; set; }
+    private IEnumerable<TrackStatisticsItem> segments;
+    private string label;
 
     protected override void OnParametersSet()
     {
-        if (SegmentId.HasValue && SegmentId.Value != segment)
+        if (Label != null && Label != label)
         {
-            segment = SegmentId.Value;
+            label = Label;
         }
     }
 
     protected override async Task OnInitializedAsync()
     {
-        segments = await Http.GetFromJsonAsync<Segment[]>("segments");
-        segment = segments.First().Id;
+        segments = await Api.GetStatisticsItems("1");
+        label = segments.First().StatisticsItem.Label;
     }
 
     private void ChangeSegment(ChangeEventArgs e)
     {
-        var selected = long.Parse(e.Value.ToString());
+        var selected = e.Value.ToString();
         NavigationManager.NavigateTo($"track/segmenttimes/{selected}");
     }
 }

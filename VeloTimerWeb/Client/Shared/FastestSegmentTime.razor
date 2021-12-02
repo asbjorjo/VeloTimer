@@ -7,37 +7,32 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-@if (segment != null && segment.Start != null && segment.End !=null)
+@if (segment != null)
 {
-    @if (segment.Intermediates.Count() > 0 && !ShowIntermediate.HasValue)
-    {
-        <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Skjul" : "Vis") mellomtider</button>
-    }
-    
     @if (segmentTime != null)
     {
         <div class="row">
             <div class="col-3 col-md-2 col-xl font-weight-bold">
-            @segment.Label
+            @Label
             </div>
             <div class="col-7 col-md-6 col-xl">
             @segmentTime.Rider
             </div>
             <div class="d-none d-md-block col-md-2 col-xl">
-            @String.Format("{0:00.000}", segmentTime.Segmentspeed)
+            @String.Format("{0:00.000}", segmentTime.Speed)
             </div>
             <div class="col-2 col-md-2 col-xl">
-            @String.Format("{0:00.000}", segmentTime.Segmenttime)
+            @String.Format("{0:00.000}", segmentTime.Time)
             </div>
         </div>
     }
 }
 
 @code {
-    protected SegmentTimeRider segmentTime;
+    protected SegmentTime segmentTime;
 
     [Parameter]
-    public long Segment { get; set; }
+    public string Label { get; set; }
     [Parameter]
     public long? Transponder { get; set; }
     [Parameter]
@@ -49,7 +44,7 @@
     [Parameter]
     public bool RequireIntermediates { get; set; } = true;
 
-    protected Segment segment;
+    protected TrackStatisticsItem segment;
     protected long? transponder;
     protected bool showintermediate = false;
     protected DateTimeOffset? fromtime;
@@ -59,21 +54,21 @@
 
     protected override void OnInitialized()
     {
-        hubConnection.On(Strings.Events.NewSegmentRun, async () =>
-        {
-            await LoadSegmentTimes();
-        });
+        //hubConnection.On(Strings.Events.NewSegmentRun, async () =>
+        //{
+        //    await LoadSegmentTimes();
+        //});
     }
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Segment != segment?.Id || Transponder != transponder) {
+        if (Label != segment?.StatisticsItem.Label || Transponder != transponder) {
             if (segment != null)
             {
                 await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
             }
 
-            segment = await Http.GetFromJsonAsync<Segment>($"segments/{Segment}");
+            segment = await Api.GetStatisticsItem(Label, "1");
 
             transponder = Transponder;
             fromtime = FromTime?.ToUniversalTime();
@@ -96,7 +91,7 @@
 
     protected async Task LoadSegmentTimes()
     {
-        var segmentTimes = await Api.GetBestTimes(segment.Id, fromtime, totime, Count: count);
+        var segmentTimes = await Api.GetBestTimes(Label, fromtime, totime, Count: count);
 
         segmentTime = segmentTimes.FirstOrDefault();
 

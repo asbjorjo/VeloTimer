@@ -35,7 +35,7 @@
     protected IEnumerable<KeyValuePair<string, int>> passingcounts;
 
     [Parameter]
-    public long Segment { get; set; }
+    public string StatsItem { get; set; }
     [Parameter]
     public long? Transponder { get; set; }
     [Parameter]
@@ -47,7 +47,7 @@
     [Parameter]
     public long? Rider { get; set; }
 
-    protected Segment segment;
+    protected TrackStatisticsItem segment;
     protected long? transponder;
     protected DateTimeOffset? fromtime;
     protected DateTimeOffset? totime;
@@ -64,13 +64,13 @@
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Segment != segment?.Id || Transponder != transponder || Rider != rider) {
+        if (StatsItem != segment?.StatisticsItem.Label || Transponder != transponder || Rider != rider) {
             if (segment != null)
             {
                 await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
             }
 
-            segment = await Http.GetFromJsonAsync<Segment>($"segments/{Segment}");
+            segment = await Api.GetStatisticsItem(StatsItem, "1");
 
             transponder = Transponder;
             fromtime = FromTime?.ToUniversalTime();
@@ -93,12 +93,7 @@
 
     protected async Task LoadSegmentPassingCount()
     {
-        var counts = await Http.GetFromJsonAsync<Dictionary<string, int>>(
-        $"segments/passingcount?segmentId={segment.Id}"
-            + $"&transponderid={transponder}"
-            + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&count={count}");
+        var counts = await Api.GetCount(StatsItem, fromtime, totime, count);
 
         passingcounts = counts;
 
@@ -107,7 +102,7 @@
 
     private double Distance(long lapcount)
     {
-        return lapcount * ((segment.Start.Distance < segment.End.Distance) ? segment.End.Distance - segment.Start.Distance : segment.Start.Track.Length - segment.Start.Distance + segment.End.Distance) / 1000;
+        return lapcount * (segment.StatisticsItem.Distance) / 1000;
     }
 
     public void Dispose()

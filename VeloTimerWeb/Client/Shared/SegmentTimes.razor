@@ -9,10 +9,10 @@
 
 @if (segment != null && segment.Start != null && segment.End !=null)
 {
-    @if (segment.Intermediates.Count() > 0 && !ShowIntermediate.HasValue && segment.DisplayIntermediates)
+    @*@if (segment.Intermediates.Count() > 0 && !ShowIntermediate.HasValue && segment.DisplayIntermediates)
     {
         <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Skjul" : "Vis") mellomtider</button>
-    }
+    }*@
     <table class="table table-striped">
         <thead>
             <tr>
@@ -24,15 +24,15 @@
                 {
                     <th scope="col">Rytter</th>    
                 }
-                @if (showintermediate && !segment.Intermediates.Where(i => i.Loop == null).Any())
+                @*@if (showintermediate && !segment.Intermediates.Where(i => i.Loop == null).Any())
                 {
                     @foreach (var intermediate in segment.Intermediates)
                     {
                         <th>@intermediate.Loop.Description</th>
                         <th>Fart</th>
                     }
-                }
-                <th>@segment.End.Description</th>
+                }*@
+                <th>@Label</th>
                 <th>Fart</th>
             </tr>
         </thead>
@@ -58,7 +58,7 @@
                         {
                             <td>@segment.Rider</td>    
                         }
-                        @if (showintermediate && this.segment.DisplayIntermediates && !this.segment.Intermediates.Where(i => i.Loop == null).Any())
+@*                        @if (showintermediate && this.segment.DisplayIntermediates && !this.segment.Intermediates.Where(i => i.Loop == null).Any())
                         {
                             @foreach (var intermediate in this.segment.Intermediates)
                             {
@@ -83,9 +83,9 @@
                                     )
                                 </td>
                             }
-                        }
-                        <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
-                        <td>@String.Format("{0:00.000}", segment.Segmentspeed)</td>
+                        }*@
+                        <td>@String.Format("{0:00.000}", segment.Time)</td>
+                        <td>@String.Format("{0:00.000}", segment.Speed)</td>
                     </tr>
                 }
             }
@@ -94,10 +94,10 @@
 }
 
 @code {
-    protected IEnumerable<SegmentTimeRider> segmentTimes;
+    protected IEnumerable<SegmentTime> segmentTimes;
 
     [Parameter]
-    public long Segment { get; set; }
+    public string Label { get; set; }
     [Parameter]
     public long? Transponder { get; set; }
     [Parameter]
@@ -111,7 +111,7 @@
     [Parameter]
     public long? Rider { get; set; }
 
-    protected Segment segment;
+    protected TrackStatisticsItem segment;
     protected long? transponder;
     protected long? rider;
     protected bool showintermediate = false;
@@ -120,21 +120,21 @@
 
     protected override void OnInitialized()
     {
-        hubConnection.On(Strings.Events.NewSegmentRun, async () =>
-        {
-            await LoadSegmentTimes();
-        });
+        //hubConnection.On(Strings.Events.NewSegmentRun, async () =>
+        //{
+        //    await LoadSegmentTimes();
+        //});
     }
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Segment != segment?.Id || Transponder != transponder || Rider != rider) {
+        if (Label != segment?.StatisticsItem.Label || Transponder != transponder || Rider != rider) {
             if (segment != null)
             {
                 await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
             }
 
-            segment = await Http.GetFromJsonAsync<Segment>($"segments/{Segment}");
+            segment = await Api.GetStatisticsItem(Label, "1");
 
             transponder = Transponder;
             fromtime = FromTime?.ToUniversalTime();
@@ -152,15 +152,16 @@
         if (ShowIntermediate.HasValue)
         {
             showintermediate = ShowIntermediate.Value;
-        } else
-        {
-            showintermediate = segment.DisplayIntermediates;
-        }
+        } 
+        //else
+        //{
+        //    showintermediate = segment.DisplayIntermediates;
+        //}
     }
 
     protected async Task LoadSegmentTimes()
     {
-        segmentTimes = await Api.GetSegmentTimes(segment.Id, fromtime, totime, Count: Count, RiderId: rider);
+        segmentTimes = await Api.GetTimes(segment.StatisticsItem.Label, fromtime, totime, Count: Count, RiderId: rider);
 
         StateHasChanged();
     }
@@ -172,7 +173,7 @@
 
     public void Dispose()
     {
-        hubConnection.Remove(Strings.Events.NewSegmentRun);
+        //hubConnection.Remove(Strings.Events.NewSegmentRun);
         if (segment != null)
         {
             hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);

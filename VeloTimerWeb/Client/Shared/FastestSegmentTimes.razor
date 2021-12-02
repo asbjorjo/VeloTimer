@@ -81,7 +81,7 @@
     {
         hubConnection.On(Strings.Events.NewPassings, async () =>
         {
-            await LoadSegmentTimes();
+            await LoadTimes();
         });
     }
 
@@ -100,15 +100,15 @@
 
     protected async Task LoadTimes()
     {
-        segmentTimes = await Api.GetBestTimes(segment.Id, fromtime, totime, Count: count, RiderId: rider, OnePerRider: OnePerRider);
+        segmentTimes = await Api.GetBestTimes(StatsItem, fromtime, totime, Count: count, RiderId: rider, OnePerRider: OnePerRider);
 
         StateHasChanged();
     }
 
-    protected void ToogleIntermediates()
-    {
-        showintermediate = !showintermediate;
-    }
+    //protected void ToogleIntermediates()
+    //{
+    //    showintermediate = !showintermediate;
+    //}
 
     public void Dispose()
     {

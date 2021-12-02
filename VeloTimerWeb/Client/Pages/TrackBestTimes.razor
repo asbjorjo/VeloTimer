@@ -16,7 +16,7 @@
             </div>
             <div class="row">
                  <div class="col">
-                <FastestSegmentTimes Segment=2 FromTime=DateTimeOffset.MinValue ShowIntermediate=false Count=10 OnePerRider=true />
+                <FastestSegmentTimes StatsItem=250m FromTime=DateTimeOffset.MinValue Count=10 OnePerRider=true />
                 </div>
             </div>
         </div>
@@ -29,12 +29,12 @@
             </div>
             <div class="row">
                  <div class="col">
-                <FastestSegmentTimes Segment=1 FromTime=DateTimeOffset.MinValue ShowIntermediate=false Count=10 OnePerRider=true />
+                <FastestSegmentTimes StatsItem=200m FromTime=DateTimeOffset.MinValue Count=10 OnePerRider=true />
                 </div>
             </div>
         </div>
     </div>  
-@*    <div class="row">
+    <div class="row">
         <div class="col">
             <div class="row text-center">
                  <div class="col">
@@ -43,7 +43,7 @@
             </div>
             <div class="row">
                  <div class="col">
-                <FastestSegmentTimes Segment=1 FromTime=DateTimeOffset.MinValue RequireIntermediates=true ShowIntermediate=false Count=10 />
+                <FastestSegmentTimes StatsItem=3000m FromTime=DateTimeOffset.MinValue Count=10 />
                 </div>
             </div>
         </div>
@@ -56,18 +56,18 @@
             </div>
             <div class="row">
                  <div class="col">
-                <FastestSegmentTimes Segment=1 FromTime=DateTimeOffset.MinValue RequireIntermediates=true ShowIntermediate=false Count=10 />
+                <FastestSegmentTimes StatsItem=4000m FromTime=DateTimeOffset.MinValue Count=10 />
                 </div>
             </div>
         </div>
-    </div>*@
+    </div>
     <div class="row justify-content-center">
         <div class="col text-center">
             <h4>Rundejeger</h4>
         </div>
         <div class="w-100"/>
         <div class="col col-lg-6">
-            <SegmentPassingCount Segment="2" FromTime=DateTimeOffset.MinValue Count=10 />
+            <SegmentPassingCount StatsItem=250m FromTime=DateTimeOffset.MinValue Count=10 />
         </div>
     </div>
 

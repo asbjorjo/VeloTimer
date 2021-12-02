@@ -1,4 +1,4 @@
-﻿@page "/rider/segmenttimes/{SegmentId:long?}"
+﻿@page "/rider/segmenttimes/{Label}"
 @layout MainLayout
 @using VeloTimer.Shared.Models
 @inject NavigationManager NavigationManager
@@ -16,20 +16,20 @@ else
     <select @onchange="ChangeSegment">
         @foreach (var segment in segments)
         {
-            <option value="@segment.Id" selected="@(segment.Id == this.segment)">@segment.Label</option>
+            <option value="@segment.StatisticsItem.Label" selected="@(segment.StatisticsItem.Label == this.label)">@segment.StatisticsItem.Label</option>
         }
     </select>
-    <SegmentTimes Segment=segment FromTime=DateTimeOffset.Now.Date.AddHours(-24) Count=100 Rider=@rider.Id />
+    <SegmentTimes Segment=label FromTime=DateTimeOffset.Now.Date.AddHours(-24) Count=100 Rider=@rider.Id />
 }
 
 @code {
     [CascadingParameter]
     private Task<AuthenticationState> authenticationStateTask { get; set; }
     [Parameter]
-    public long? SegmentId { get; set; }
+    public string Label { get; set; }
 
-    private Segment[] segments;
-    private long segment;
+    private IEnumerable<TrackStatisticsItem> segments;
+    private string label;
     private Rider rider;
 
     protected async override Task OnParametersSetAsync()
@@ -46,21 +46,21 @@ else
 
     protected override void OnParametersSet()
     {
-        if (SegmentId.HasValue && SegmentId.Value != segment)
+        if (Label != null && Label != label)
         {
-            segment = SegmentId.Value;
+            label = Label;
         }
     }
 
     protected override async Task OnInitializedAsync()
     {
-        segments = await Http.GetFromJsonAsync<Segment[]>("segments");
-        segment = segments.First().Id;
+        segments = await Api.GetStatisticsItems("1");
+        label = segments.First().StatisticsItem.Label;
     }
 
     private void ChangeSegment(ChangeEventArgs e)
     {
-        var selected = long.Parse(e.Value.ToString());
+        var selected = e.Value.ToString();
         NavigationManager.NavigateTo($"rider/segmenttimes/{selected}");
     }
 }
