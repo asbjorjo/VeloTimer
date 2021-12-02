@@ -3,12 +3,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
-using System.Web;
 using VeloTimer.Shared.Models;
 
 namespace VeloTimerWeb.Client.Services
@@ -20,8 +18,8 @@ namespace VeloTimerWeb.Client.Services
         private readonly ILogger<ApiClient> _logger;
 
         public ApiClient(
-            HttpClient client, 
-            IConfiguration config, 
+            HttpClient client,
+            IConfiguration config,
             AuthenticationStateProvider authStateProvider,
             ILogger<ApiClient> logger)
         {
@@ -35,7 +33,7 @@ namespace VeloTimerWeb.Client.Services
         public async Task<int> GetActiveRiderCount(DateTimeOffset fromtime, DateTimeOffset? totime)
         {
             using var response = await _client.GetAsync($"rider/activecount?fromtime={TimeFormatter(fromtime)}&totime={TimeFormatter(totime)}", HttpCompletionOption.ResponseHeadersRead);
-            
+
             response.EnsureSuccessStatusCode();
 
             var content = await response.Content.ReadAsStreamAsync();
@@ -77,9 +75,9 @@ namespace VeloTimerWeb.Client.Services
             return riders;
         }
 
-        public async Task<IEnumerable<SegmentTime>> GetBestTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, long? RiderId, bool OnePerRider)
+        public async Task<IEnumerable<SegmentTime>> GetBestTimes(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, long? RiderId, bool OnePerRider)
         {
-            using var response = await _client.GetAsync($"segments/fastest?SegmentId={SegmentId}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}&RiderId={RiderId}&OnePerRider={OnePerRider}");
+            using var response = await _client.GetAsync($"track/1/fastest/{StatsItem}?FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}&RiderId={RiderId}&OnePerRider={OnePerRider}");
             response.EnsureSuccessStatusCode();
 
             var times = await response.Content.ReadFromJsonAsync<IEnumerable<SegmentTime>>();
@@ -107,9 +105,9 @@ namespace VeloTimerWeb.Client.Services
             return rider;
         }
 
-        public async Task<IEnumerable<SegmentTime>> GetSegmentTimes(long SegmentId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, long? RiderId)
+        public async Task<IEnumerable<SegmentTime>> GetTimes(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, long? RiderId)
         {
-            using var response = await _client.GetAsync($"segments/times?SegmentId={SegmentId}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}&RiderId={RiderId}");
+            using var response = await _client.GetAsync($"track/1/times/{StatsItem}?FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}&RiderId={RiderId}");
             response.EnsureSuccessStatusCode();
 
             var times = await response.Content.ReadFromJsonAsync<IEnumerable<SegmentTime>>();
@@ -122,9 +120,9 @@ namespace VeloTimerWeb.Client.Services
             return time?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         }
 
-        public async Task<IEnumerable<SegmentTime>> GetSegmentTimesForTransponder(long SegmentId, long TransponderId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
+        public async Task<IEnumerable<SegmentTime>> GetTimesForTransponder(string StatsItem, long TransponderId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
         {
-            using var reponse = await _client.GetAsync($"transponders/times?SegmentId={SegmentId}&TransponderId{TransponderId}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}");
+            using var reponse = await _client.GetAsync($"transponders/times?StatsItem={StatsItem}&TransponderId{TransponderId}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}");
             reponse.EnsureSuccessStatusCode();
 
             var times = await reponse.Content.ReadFromJsonAsync<IEnumerable<SegmentTime>>();
@@ -132,14 +130,77 @@ namespace VeloTimerWeb.Client.Services
             return times;
         }
 
-        public async Task<IEnumerable<SegmentTime>> GetSegmentTimesForTransponders(long SegmentId, IEnumerable<long> TransponderIds, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
+        public async Task<IEnumerable<SegmentTime>> GetTimesForTransponders(string StatsItem, IEnumerable<long> TransponderIds, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
         {
-            using var reponse = await _client.GetAsync($"transponders/times?SegmentId={SegmentId}&TransponderId={string.Join("&TransponderIds=", TransponderIds)}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}");
+            using var reponse = await _client.GetAsync($"transponders/times?StatsItem={StatsItem}&TransponderId={string.Join("&TransponderIds=", TransponderIds)}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}");
             reponse.EnsureSuccessStatusCode();
 
             var times = await reponse.Content.ReadFromJsonAsync<IEnumerable<SegmentTime>>();
 
             return times;
+        }
+
+        public async Task<IEnumerable<TrackSegment>> GetTrackSegments(string Track)
+        {
+            using var response = await _client.GetAsync($"tracksegment/{Track}");
+            response.EnsureSuccessStatusCode();
+
+            var segments = await response.Content.ReadFromJsonAsync<IEnumerable<TrackSegment>>();
+
+            return segments;
+        }
+
+        public async Task<TrackStatisticsItem> GetStatisticsItem(string Label, string Track)
+        {
+            string url;
+
+            if (Track != null)
+            {
+                url = $"statisticsitem/{Label}/track/{Track}";
+            }
+            else
+            {
+                url = $"statisticsitem/{Label}";
+            }
+
+            using var response = await _client.GetAsync(url);
+
+            response.EnsureSuccessStatusCode();
+
+            var item = await response.Content.ReadFromJsonAsync<TrackStatisticsItem>();
+
+            return item;
+        }
+
+        public async Task<IEnumerable<TrackStatisticsItem>> GetStatisticsItems(string Track)
+        {
+            string url;
+
+            if (Track != null)
+            {
+                url = $"statisticsitem/track/{Track}";
+            } else
+            {
+                url = $"statisticsitem";
+            }
+
+            using var response = await _client.GetAsync(url);
+
+            response.EnsureSuccessStatusCode();
+
+            var items = await response.Content.ReadFromJsonAsync<IEnumerable<TrackStatisticsItem>>();
+
+            return items;
+        }
+
+        public async Task<Dictionary<string, int>> GetCount(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
+        {
+            using var response = await _client.GetAsync($"track/1/count/{StatsItem}?FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}");
+            response.EnsureSuccessStatusCode();
+            
+            var counts = await response.Content.ReadFromJsonAsync<Dictionary<string, int>>();
+
+            return counts;
         }
     }
 }
