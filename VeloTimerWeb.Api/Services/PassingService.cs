@@ -59,41 +59,64 @@ namespace VeloTimerWeb.Api.Services
             var transponderPassing = await RegisterTrackSegmentPassing(passing);
 
             if (transponderPassing != null) {
-                var statsquery = _context.Set<TrackStatisticsItem>()
-                    .Where(t => t.Segments.OrderBy(s => s.Order).Last().Segment.End == passing.Loop)
-                    .OrderByDescending(s => s.Segments.Count())
-                    .Include(s => s.StatisticsItem)
-                    .Include(s => s.Segments)
-                        .ThenInclude(s => s.Segment);
+                var layoutquery = _context.Set<TrackLayout>()
+                    .Where(x => x.Segments.OrderByDescending(x => x.Order).First().Segment.End == passing.Loop)
+                    .OrderByDescending(x => x.Segments.Count)
+                    .Include(x => x.Segments)
+                        .ThenInclude(x => x.Segment);
 
-                var statisticsItems = await statsquery.ToListAsync();
+                var layouts = await layoutquery.ToListAsync();
 
-                if (statisticsItems.Count > 0)
+                if (layouts.Any())
                 {
                     var transponderPassings = await _context.Set<TrackSegmentPassing>()
                         .Where(x => x.Transponder == passing.Transponder && x.EndTime <= passing.Time)
                         .Include(x => x.TrackSegment)
                         .OrderByDescending(x => x.EndTime)
-                        .Take(statisticsItems.First().Segments.Count())
+                        .Take(layouts.First().Segments.Count)
                         .OrderBy(x => x.EndTime)
                         .ToListAsync();
 
-                    foreach (var statisticsItem in statisticsItems)
+                    foreach (var layout in layouts)
                     {
-                        if (statisticsItem.Segments.Count() <= transponderPassings.Count)
+                        if (layout.Segments.Count <= transponderPassings.Count)
                         {
-                            var relevantPassings = transponderPassings.TakeLast(statisticsItem.Segments.Count());
+                            var relevantPassings = transponderPassings.TakeLast(layout.Segments.Count);
+                            var segments = layout.Segments.OrderBy(x => x.Order);
 
-                            var segments = statisticsItem.Segments.OrderBy(x => x.Order);
-
-                            if (relevantPassings.Select(s => s.TrackSegment.Id).SequenceEqual(segments.Select(s => s.Segment.Id)))
+                            if (relevantPassings.Select(x => x.TrackSegment.Id).SequenceEqual(segments.Select(x => x.Segment.Id)))
                             {
+                                var layoutPassing = TrackLayoutPassing.Create(layout, passing.Transponder, relevantPassings);
+                                _context.Add(layoutPassing);
 
-                                var transponderStats = TransponderStatisticsItem.Create(statisticsItem, passing.Transponder, relevantPassings.ToList());
-                                _context.Add(transponderStats);
+                                var statsItems = await _context.Set<TrackStatisticsItem>()
+                                    .Where(x => x.Layout == layout)
+                                    .OrderByDescending(x => x.Laps)
+                                    .ToListAsync();
+
+                                if (statsItems.Any())
+                                {
+                                    var layoutPassings = await _context.Set<TrackLayoutPassing>()
+                                        .Where(x => x.TrackLayout == layout && x.Transponder == passing.Transponder)
+                                        .OrderByDescending(x => x.EndTime)
+                                        .Take(statsItems.First().Laps - 1)
+                                        .OrderBy(x => x.EndTime)
+                                        .ToListAsync();
+                                    layoutPassings.Add(layoutPassing);
+
+                                    foreach (var item in statsItems)
+                                    {
+                                        if (item.Laps <= layoutPassings.Count)
+                                        {
+                                            var tsi = TransponderStatisticsItem.Create(item, passing.Transponder, layoutPassings.TakeLast(item.Laps));
+                                            _context.Add(tsi);
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
+
                 }
             }
 

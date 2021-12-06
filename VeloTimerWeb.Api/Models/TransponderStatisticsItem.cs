@@ -9,37 +9,39 @@ namespace VeloTimer.Shared.Models
     public class TransponderStatisticsItem
     {
         public long Id { get; set; }
-        public TrackStatisticsItem StatisticsItem { get; set; }
-        private List<TransponderStatisticsSegment> segmentpassinglist { get; set; } = new();
+        public TrackStatisticsItem StatisticsItem { get; private set; }
+        private List<TransponderStatisticsLayout> LayoutPassingList { get; set; } = new();
 
         public Transponder Transponder { get; private set; }
         public DateTime StartTime { get; private set; }
         public DateTime EndTime { get; private set; }
         public double Time { get; private set; }
 
-        public IReadOnlyCollection<TrackSegmentPassing> SegmentPassings => segmentpassinglist.Select(x => x.SegmentPassing).OrderBy(x => x.StartTime).ToList().AsReadOnly();
+        public IReadOnlyCollection<TrackLayoutPassing> LayoutPassings => LayoutPassingList.Select(x => x.LayoutPassing).OrderBy(x => x.EndTime).ToList().AsReadOnly();
 
-        public static object Create(TrackStatisticsItem statisticsItem, Transponder transponder, List<TrackSegmentPassing> trackSegmentPassings)
+        public static TransponderStatisticsItem Create(TrackStatisticsItem statisticsItem, Transponder transponder, IEnumerable<TrackLayoutPassing> passings)
         {
-            var item = new TransponderStatisticsItem();
-            item.StatisticsItem = statisticsItem;
-            foreach (var segment in trackSegmentPassings)
+            var item = new TransponderStatisticsItem
             {
-                item.segmentpassinglist.Add(new TransponderStatisticsSegment { SegmentPassing = segment });
+                StatisticsItem = statisticsItem
+            };
+            foreach (var layout in passings)
+            {
+                item.LayoutPassingList.Add(new TransponderStatisticsLayout { LayoutPassing = layout });
             }
 
             item.Transponder = transponder;
-            item.Time = trackSegmentPassings.Sum(x => x.Time);
-            item.StartTime = trackSegmentPassings.First().StartTime;
-            item.EndTime = trackSegmentPassings.Last().EndTime;
+            item.Time = passings.Sum(x => x.Time);
+            item.StartTime = passings.First().StartTime;
+            item.EndTime = passings.Last().EndTime;
 
             return item;
         }
     }
 
-    public class TransponderStatisticsSegment
+    public class TransponderStatisticsLayout
     {
         public TransponderStatisticsItem TransponderStatisticsItem { get; set; }
-        public TrackSegmentPassing SegmentPassing { get; set; }
+        public TrackLayoutPassing LayoutPassing { get; set; }
     }
 }

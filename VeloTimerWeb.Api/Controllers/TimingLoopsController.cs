@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
@@ -33,6 +35,22 @@ namespace VeloTimerWeb.Api.Controllers
             }
 
             return value;
+        }
+
+        [HttpGet]
+        [Route("track/{Track}")]
+        public async Task<ActionResult<IEnumerable<TimingLoop>>> GetTrack(string Track)
+        {
+            var track = await _context.Set<Track>().FindAsync(long.Parse(Track));
+
+            if (track == null)
+            {
+                return NotFound();
+            }
+
+            var loops = await _context.Set<TimingLoop>().Where(x => x.Track == track).ToListAsync();
+
+            return loops;
         }
     }
 }

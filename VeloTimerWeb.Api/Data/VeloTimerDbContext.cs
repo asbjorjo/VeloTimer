@@ -44,8 +44,8 @@ namespace VeloTimerWeb.Api.Data
 
             builder.Entity<StatisticsItem>(x =>
             {
-                x.HasMany(p => p.Elements)
-                    .WithOne(e => e.StatisticsItem);
+                //x.HasMany(p => p.Elements)
+                //    .WithOne(e => e.StatisticsItem);
             });
 
             //builder.Entity<TimingElement>(x => 
@@ -75,6 +75,58 @@ namespace VeloTimerWeb.Api.Data
 
             builder.Entity<Track>(x =>
             {
+                x.HasMany(x => x.Layouts)
+                    .WithOne(x => x.Track);
+            });
+
+            builder.Entity<TrackLayout>(x =>
+            {
+                x.HasOne(x => x.Track)
+                    .WithMany(x => x.Layouts)
+                    .IsRequired();
+                x.HasMany(x => x.Segments)
+                    .WithOne(x => x.Layout);
+                x.Property(x => x.Name)
+                    .IsRequired();
+            });
+
+            builder.Entity<TrackLayoutPassing>(x =>
+            {
+                x.HasOne(x => x.TrackLayout)
+                    .WithMany()
+                    .IsRequired();
+                x.HasOne(x => x.Transponder)
+                    .WithMany()
+                    .IsRequired();
+
+                x.Property(p => p.StartTime)
+                    .HasConversion(
+                        v => v,
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc))
+                    .IsRequired();
+                x.Property(p => p.EndTime)
+                    .HasConversion(
+                        v => v,
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc))
+                    .IsRequired();
+                x.Property(x => x.Time)
+                    .IsRequired();
+            });
+
+            builder.Entity<TrackLayoutSegment>(x =>
+            {
+                x.HasOne(x => x.Layout)
+                    .WithMany(x => x.Segments)
+                    .IsRequired();
+                x.HasOne(x => x.Segment)
+                    .WithMany()
+                    .IsRequired();
+
+                x.Property(x => x.Order)
+                    .IsRequired();
+
+                x.HasIndex("LayoutId", "SegmentId", "Order")
+                    .IsUnique();
             });
 
             builder.Entity<TrackSegment>(x =>
@@ -127,27 +179,13 @@ namespace VeloTimerWeb.Api.Data
 
             builder.Entity<TrackStatisticsItem>(x => {
                 x.HasOne(x => x.StatisticsItem)
-                    .WithMany(i => i.Elements)
-                    .IsRequired();
-                x.HasMany(x => x.Segments)
-                    .WithOne(s => s.Element)
-                    .IsRequired();
-
-                x.Ignore(x => x.Start);
-                x.Ignore(x => x.End);
-                x.Ignore(x => x.Intermediates);
-            });
-
-            builder.Entity<TrackStatisticsSegment>(x =>
-            {
-                x.Property(x => x.Order)
-                    .IsRequired();
-                x.HasOne(x => x.Element)
-                    .WithMany(x => x.Segments)
-                    .IsRequired();
-                x.HasOne(x => x.Segment)
                     .WithMany()
                     .IsRequired();
+                x.HasOne(x => x.Layout)
+                    .WithMany();
+                x.Property(x => x.Laps)
+                    .IsRequired()
+                    .HasDefaultValue(1);
             });
 
             builder.Entity<Transponder>(x =>
@@ -187,15 +225,15 @@ namespace VeloTimerWeb.Api.Data
                 x.HasIndex(x => new { x.EndTime, x.StartTime })
                     .IncludeProperties("StatisticsItemId", "Time", "TransponderId");
 
-                x.Ignore(x => x.SegmentPassings);
+                x.Ignore(x => x.LayoutPassings);
             });
 
-            builder.Entity<TransponderStatisticsSegment>(x =>
+            builder.Entity<TransponderStatisticsLayout>(x =>
             {
-                x.HasOne(x => x.TransponderStatisticsItem).WithMany("segmentpassinglist").HasForeignKey("transponder_statistics_item_id");
-                x.HasOne(x => x.SegmentPassing).WithMany().HasForeignKey("track_segment_passing_id");
+                x.HasOne(x => x.TransponderStatisticsItem).WithMany("LayoutPassingList").HasForeignKey("transponder_statistics_item_id");
+                x.HasOne(x => x.LayoutPassing).WithMany().HasForeignKey("track_layout_passing_id");
 
-                x.HasKey("transponder_statistics_item_id", "track_segment_passing_id");
+                x.HasKey("transponder_statistics_item_id", "track_layout_passing_id");
             });
 
             builder.Entity<TransponderOwnership>(x =>

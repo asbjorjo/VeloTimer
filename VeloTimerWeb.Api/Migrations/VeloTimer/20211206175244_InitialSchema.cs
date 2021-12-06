@@ -72,27 +72,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 });
 
             migrationBuilder.CreateTable(
-                name: "track_statistics_item",
-                schema: "velotimer",
-                columns: table => new
-                {
-                    id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    statistics_item_id = table.Column<long>(type: "bigint", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_track_statistics_item", x => x.id);
-                    table.ForeignKey(
-                        name: "fk_track_statistics_item_statistics_item_statistics_item_id",
-                        column: x => x.statistics_item_id,
-                        principalSchema: "velotimer",
-                        principalTable: "statistics_item",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "timing_loop",
                 schema: "velotimer",
                 columns: table => new
@@ -110,6 +89,28 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     table.UniqueConstraint("ak_timing_loop_track_id_loop_id", x => new { x.track_id, x.loop_id });
                     table.ForeignKey(
                         name: "fk_timing_loop_track_track_id",
+                        column: x => x.track_id,
+                        principalSchema: "velotimer",
+                        principalTable: "track",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "track_layout",
+                schema: "velotimer",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    name = table.Column<string>(type: "text", nullable: false),
+                    track_id = table.Column<long>(type: "bigint", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_track_layout", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_track_layout_track_track_id",
                         column: x => x.track_id,
                         principalSchema: "velotimer",
                         principalTable: "track",
@@ -173,6 +174,36 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 });
 
             migrationBuilder.CreateTable(
+                name: "track_statistics_item",
+                schema: "velotimer",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    statistics_item_id = table.Column<long>(type: "bigint", nullable: false),
+                    layout_id = table.Column<long>(type: "bigint", nullable: true),
+                    laps = table.Column<int>(type: "integer", nullable: false, defaultValue: 1)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_track_statistics_item", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_track_statistics_item_statistics_item_statistics_item_id",
+                        column: x => x.statistics_item_id,
+                        principalSchema: "velotimer",
+                        principalTable: "statistics_item",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "fk_track_statistics_item_track_layout_layout_id",
+                        column: x => x.layout_id,
+                        principalSchema: "velotimer",
+                        principalTable: "track_layout",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "passing",
                 schema: "velotimer",
                 columns: table => new
@@ -197,6 +228,38 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "fk_passing_transponder_transponder_id",
+                        column: x => x.transponder_id,
+                        principalSchema: "velotimer",
+                        principalTable: "transponder",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "track_layout_passing",
+                schema: "velotimer",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    track_layout_id = table.Column<long>(type: "bigint", nullable: false),
+                    transponder_id = table.Column<long>(type: "bigint", nullable: false),
+                    time = table.Column<double>(type: "double precision", nullable: false),
+                    start_time = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
+                    end_time = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_track_layout_passing", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_track_layout_passing_track_layout_track_layout_id",
+                        column: x => x.track_layout_id,
+                        principalSchema: "velotimer",
+                        principalTable: "track_layout",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "fk_track_layout_passing_transponder_transponder_id",
                         column: x => x.transponder_id,
                         principalSchema: "velotimer",
                         principalTable: "transponder",
@@ -236,6 +299,36 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 });
 
             migrationBuilder.CreateTable(
+                name: "track_layout_segment",
+                schema: "velotimer",
+                columns: table => new
+                {
+                    id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    layout_id = table.Column<long>(type: "bigint", nullable: false),
+                    segment_id = table.Column<long>(type: "bigint", nullable: false),
+                    order = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_track_layout_segment", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_track_layout_segment_track_layout_layout_id",
+                        column: x => x.layout_id,
+                        principalSchema: "velotimer",
+                        principalTable: "track_layout",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "fk_track_layout_segment_track_segment_segment_id",
+                        column: x => x.segment_id,
+                        principalSchema: "velotimer",
+                        principalTable: "track_segment",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "transponder_statistics_item",
                 schema: "velotimer",
                 columns: table => new
@@ -268,36 +361,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 });
 
             migrationBuilder.CreateTable(
-                name: "track_statistics_segment",
-                schema: "velotimer",
-                columns: table => new
-                {
-                    id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    order = table.Column<int>(type: "integer", nullable: false),
-                    segment_id = table.Column<long>(type: "bigint", nullable: false),
-                    element_id = table.Column<long>(type: "bigint", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_track_statistics_segment", x => x.id);
-                    table.ForeignKey(
-                        name: "fk_track_statistics_segment_track_segment_segment_id",
-                        column: x => x.segment_id,
-                        principalSchema: "velotimer",
-                        principalTable: "track_segment",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "fk_track_statistics_segment_track_statistics_item_element_id",
-                        column: x => x.element_id,
-                        principalSchema: "velotimer",
-                        principalTable: "track_statistics_item",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "track_segment_passing",
                 schema: "velotimer",
                 columns: table => new
@@ -310,7 +373,8 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     start_time = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     end_time = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
                     start_id = table.Column<long>(type: "bigint", nullable: false),
-                    end_id = table.Column<long>(type: "bigint", nullable: false)
+                    end_id = table.Column<long>(type: "bigint", nullable: false),
+                    track_layout_passing_id = table.Column<long>(type: "bigint", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -330,6 +394,13 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
+                        name: "fk_track_segment_passing_track_layout_passing_track_layout_pas~",
+                        column: x => x.track_layout_passing_id,
+                        principalSchema: "velotimer",
+                        principalTable: "track_layout_passing",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
                         name: "fk_track_segment_passing_track_segment_track_segment_id",
                         column: x => x.track_segment_id,
                         principalSchema: "velotimer",
@@ -346,25 +417,25 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 });
 
             migrationBuilder.CreateTable(
-                name: "transponder_statistics_segment",
+                name: "transponder_statistics_layout",
                 schema: "velotimer",
                 columns: table => new
                 {
                     transponder_statistics_item_id = table.Column<long>(type: "bigint", nullable: false),
-                    track_segment_passing_id = table.Column<long>(type: "bigint", nullable: false)
+                    track_layout_passing_id = table.Column<long>(type: "bigint", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_transponder_statistics_segment", x => new { x.transponder_statistics_item_id, x.track_segment_passing_id });
+                    table.PrimaryKey("pk_transponder_statistics_layout", x => new { x.transponder_statistics_item_id, x.track_layout_passing_id });
                     table.ForeignKey(
-                        name: "fk_transponder_statistics_segment_track_segment_passing_track_~",
-                        column: x => x.track_segment_passing_id,
+                        name: "fk_transponder_statistics_layout_track_layout_passing_track_la~",
+                        column: x => x.track_layout_passing_id,
                         principalSchema: "velotimer",
-                        principalTable: "track_segment_passing",
+                        principalTable: "track_layout_passing",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "fk_transponder_statistics_segment_transponder_statistics_item_~",
+                        name: "fk_transponder_statistics_layout_transponder_statistics_item_t~",
                         column: x => x.transponder_statistics_item_id,
                         principalSchema: "velotimer",
                         principalTable: "transponder_statistics_item",
@@ -397,6 +468,37 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 column: "transponder_id");
 
             migrationBuilder.CreateIndex(
+                name: "ix_track_layout_track_id",
+                schema: "velotimer",
+                table: "track_layout",
+                column: "track_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_track_layout_passing_track_layout_id",
+                schema: "velotimer",
+                table: "track_layout_passing",
+                column: "track_layout_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_track_layout_passing_transponder_id",
+                schema: "velotimer",
+                table: "track_layout_passing",
+                column: "transponder_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_track_layout_segment_layout_id_segment_id_order",
+                schema: "velotimer",
+                table: "track_layout_segment",
+                columns: new[] { "layout_id", "segment_id", "order" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_track_layout_segment_segment_id",
+                schema: "velotimer",
+                table: "track_layout_segment",
+                column: "segment_id");
+
+            migrationBuilder.CreateIndex(
                 name: "ix_track_segment_end_id",
                 schema: "velotimer",
                 table: "track_segment",
@@ -421,6 +523,12 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 columns: new[] { "start_time", "end_time" });
 
             migrationBuilder.CreateIndex(
+                name: "ix_track_segment_passing_track_layout_passing_id",
+                schema: "velotimer",
+                table: "track_segment_passing",
+                column: "track_layout_passing_id");
+
+            migrationBuilder.CreateIndex(
                 name: "ix_track_segment_passing_track_segment_id",
                 schema: "velotimer",
                 table: "track_segment_passing",
@@ -433,22 +541,16 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 column: "transponder_id");
 
             migrationBuilder.CreateIndex(
+                name: "ix_track_statistics_item_layout_id",
+                schema: "velotimer",
+                table: "track_statistics_item",
+                column: "layout_id");
+
+            migrationBuilder.CreateIndex(
                 name: "ix_track_statistics_item_statistics_item_id",
                 schema: "velotimer",
                 table: "track_statistics_item",
                 column: "statistics_item_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_track_statistics_segment_element_id",
-                schema: "velotimer",
-                table: "track_statistics_segment",
-                column: "element_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_track_statistics_segment_segment_id",
-                schema: "velotimer",
-                table: "track_statistics_segment",
-                column: "segment_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_transponder_ownership_owner_id",
@@ -481,28 +583,16 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 column: "transponder_id");
 
             migrationBuilder.CreateIndex(
-                name: "ix_transponder_statistics_segment_track_segment_passing_id",
+                name: "ix_transponder_statistics_layout_track_layout_passing_id",
                 schema: "velotimer",
-                table: "transponder_statistics_segment",
-                column: "track_segment_passing_id");
+                table: "transponder_statistics_layout",
+                column: "track_layout_passing_id");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "track_statistics_segment",
-                schema: "velotimer");
-
-            migrationBuilder.DropTable(
-                name: "transponder_ownership",
-                schema: "velotimer");
-
-            migrationBuilder.DropTable(
-                name: "transponder_statistics_segment",
-                schema: "velotimer");
-
-            migrationBuilder.DropTable(
-                name: "rider",
+                name: "track_layout_segment",
                 schema: "velotimer");
 
             migrationBuilder.DropTable(
@@ -510,7 +600,11 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 schema: "velotimer");
 
             migrationBuilder.DropTable(
-                name: "transponder_statistics_item",
+                name: "transponder_ownership",
+                schema: "velotimer");
+
+            migrationBuilder.DropTable(
+                name: "transponder_statistics_layout",
                 schema: "velotimer");
 
             migrationBuilder.DropTable(
@@ -522,6 +616,22 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 schema: "velotimer");
 
             migrationBuilder.DropTable(
+                name: "rider",
+                schema: "velotimer");
+
+            migrationBuilder.DropTable(
+                name: "track_layout_passing",
+                schema: "velotimer");
+
+            migrationBuilder.DropTable(
+                name: "transponder_statistics_item",
+                schema: "velotimer");
+
+            migrationBuilder.DropTable(
+                name: "timing_loop",
+                schema: "velotimer");
+
+            migrationBuilder.DropTable(
                 name: "track_statistics_item",
                 schema: "velotimer");
 
@@ -530,11 +640,11 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 schema: "velotimer");
 
             migrationBuilder.DropTable(
-                name: "timing_loop",
+                name: "statistics_item",
                 schema: "velotimer");
 
             migrationBuilder.DropTable(
-                name: "statistics_item",
+                name: "track_layout",
                 schema: "velotimer");
 
             migrationBuilder.DropTable(

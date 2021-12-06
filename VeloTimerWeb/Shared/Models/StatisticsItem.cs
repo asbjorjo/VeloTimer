@@ -12,7 +12,5 @@ namespace VeloTimer.Shared.Models
 
         public string Label { get; set; }
         public double Distance { get; set; }
-
-        public ICollection<TrackStatisticsItem> Elements { get; private set; } = new List<TrackStatisticsItem>();
     }
 }

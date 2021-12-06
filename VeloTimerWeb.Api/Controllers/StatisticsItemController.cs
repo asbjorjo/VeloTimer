@@ -36,8 +36,8 @@ namespace VeloTimerWeb.Api.Controllers
 
             var item = await _context.Set<TrackStatisticsItem>()
                 .Include(x => x.StatisticsItem)
-                .Include(x => x.Segments)
-                .Where(x => x.Segments.First().Segment.Start.Track == track)
+                .Include(x => x.Layout)
+                .Where(x => x.Layout.Track == track)
                 .Where(x => x.StatisticsItem.Label == Label)
                 .SingleOrDefaultAsync();
 
@@ -57,8 +57,8 @@ namespace VeloTimerWeb.Api.Controllers
 
             var items = await _context.Set<TrackStatisticsItem>()
                 .Include(x => x.StatisticsItem)
-                .Include(x => x.Segments)
-                .Where(x => x.Segments.First().Segment.Start.Track == track)
+                .Include(x => x.Layout)
+                .Where(x => x.Layout.Track == track)
                 .ToListAsync();
 
             return items;

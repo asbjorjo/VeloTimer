@@ -8,14 +8,30 @@ namespace VeloTimer.Shared.Models
 {
     public class TrackStatisticsItem
     {
-        public long Id { get; set; }
+        public long Id { get; private set; }
 
-        public StatisticsItem StatisticsItem { get; set; }
+        public StatisticsItem StatisticsItem { get; private set; }
 
-        public ICollection<TrackStatisticsSegment> Segments { get; set; } = new List<TrackStatisticsSegment>();
+        public TrackLayout Layout { get; private set; }
 
-        public TrackSegment Start { get => Segments.OrderBy(s => s.Order).Select(s => s.Segment).First(); }
-        public TrackSegment End { get => Segments.OrderBy(s => s.Order).Select(s => s.Segment).Last(); }
-        public IReadOnlyList<TrackSegment> Intermediates { get => Segments.OrderBy(s => s.Order).Select(s => s.Segment).Skip(1).SkipLast(1).ToList().AsReadOnly(); }
+        public int Laps { get; private set; } = 0;
+
+        public static TrackStatisticsItem Create(StatisticsItem statistics, TrackLayout layout, int laps)
+        {
+            var distance = layout.Segments.Sum(x => x.Segment.Length) * laps;
+            if (distance != statistics.Distance)
+            {
+                return null;
+            }
+
+            var item = new TrackStatisticsItem
+            {
+                StatisticsItem = statistics,
+                Layout = layout,
+                Laps = laps
+            };
+
+            return item;
+        }
     }
 }

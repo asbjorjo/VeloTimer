@@ -23,15 +23,16 @@ namespace VeloTimer.Shared.Models
 
         public static TrackSegmentPassing Create (TrackSegment segment, Passing start, Passing end)
         {
-            var transponderPassing = new TrackSegmentPassing();
-
-            transponderPassing.Start = start;
-            transponderPassing.End = end;
-            transponderPassing.TrackSegment = segment;
-            transponderPassing.Transponder = start.Transponder;
-            transponderPassing.StartTime = start.Time;
-            transponderPassing.EndTime = end.Time;
-            transponderPassing.Time = (end.Time - start.Time).TotalSeconds;
+            var transponderPassing = new TrackSegmentPassing
+            {
+                TrackSegment = segment,
+                Transponder = start.Transponder,
+                Start = start,
+                End = end,
+                StartTime = start.Time,
+                EndTime = end.Time,
+                Time = (end.Time - start.Time).TotalSeconds
+            };
 
             return transponderPassing;
         }
