@@ -28,7 +28,7 @@
             <select @onchange="ChangeSegment">
                 @foreach (var segment in segments)
                 {
-                    <option value="@segment.Id" selected="@(segment == this.segment)">@segment.Start.Description</option>
+                    <option value="@segment.Id" selected="@(segment == this.segment)">@segment.Description</option>
                 }
             </select>
             <div class="w-100"/>
@@ -75,8 +75,8 @@
 @code {
     private IEnumerable<Transponder> transponders;
     private IEnumerable<Rider> riders;
-    private IEnumerable<TrackSegment> segments;
-    private TrackSegment segment;
+    private IEnumerable<TimingLoop> segments;
+    private TimingLoop segment;
     private List<Transponder> selectedtransponders = new List<Transponder>();
     private DateTimeOffset starttime = DateTimeOffset.Now;
     private Dictionary<string, SegmentTime> times;
@@ -88,7 +88,7 @@
     {
         transponders = await Api.GetActiveTransponders(DateTimeOffset.Now.AddMinutes (-15), null);
         //riders = await Api.GetActiveRiders(DateTimeOffset.Now.AddHours(-15), null);
-        segments = await Api.GetTrackSegments("1");
+        segments = await Api.GetTimingPoints("1");
     }
 
     private void StartTiming()
@@ -106,7 +106,7 @@
         //hubConnection.On<SegmentRun, Transponder>(Strings.Events.NewSegmentRun, RefreshTimes);
     }
 
-    //private void RefreshTimes(SegmentRun segmentRun, Transponder transponder)
+    //private void RefreshTimes(Passing passing, Transponder transponder)
     //{
     //    Console.WriteLine("Refreshing times");
 

@@ -292,6 +292,16 @@ namespace VeloTimerWeb.Client.Services
             return counts;
         }
 
+        public async Task<IEnumerable<TimingLoop>> GetTimingPoints(string Track)
+        {
+            using var response = await _client.GetAsync($"timingloops/track/{Track}");
+            response.EnsureSuccessStatusCode();
+
+            var loops = await response.Content.ReadFromJsonAsync<IEnumerable<TimingLoop>>();
+
+            return loops;
+        }
+
         private static string TimeFormatter(DateTimeOffset? time)
         {
             return time?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
