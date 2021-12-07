@@ -53,7 +53,7 @@ namespace VeloTimerWeb.Api.Services
             return counts;
         }
 
-        public async Task<IEnumerable<SegmentTime>> GetFastest(TrackStatisticsItem StatisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count)
+        public async Task<IEnumerable<SegmentTime>> GetFastest(IEnumerable<TrackStatisticsItem> StatisticsItems, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count)
         {
             var times = Enumerable.Empty<SegmentTime>();
             var fromtime = FromTime.UtcDateTime;
@@ -66,7 +66,7 @@ namespace VeloTimerWeb.Api.Services
                 from tsi in _context.Set<TransponderStatisticsItem>()
                 join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                 where
-                    tsi.StatisticsItem == StatisticsItem
+                    StatisticsItems.Contains(tsi.StatisticsItem)
                     && tsi.StartTime >= fromtime
                     && tsi.EndTime <= totime
                     && town.OwnedFrom <= tsi.StartTime

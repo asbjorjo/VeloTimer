@@ -85,6 +85,12 @@ namespace VeloTimerWeb.Api.Util
             ICollection<StatisticsItem> stats = new List<StatisticsItem> {
                 new StatisticsItem
                 {
+                    Distance = 0,
+                    Label = "Runde",
+                    IsLapCounter = true
+                },
+                new StatisticsItem
+                {
                     Distance = 200,
                     Label = "200m"
                 },
@@ -150,14 +156,16 @@ namespace VeloTimerWeb.Api.Util
                 AddNewLayout(layout);
             }
             _context.SaveChanges();
+            Layouts = _context.Set<TrackLayout>().Where(x => x.Track == track).Include(x => x.Segments).ToList();
 
             ICollection<TrackStatisticsItem> trackStatisticsItems = new List<TrackStatisticsItem>
             {
                 TrackStatisticsItem.Create(_context.Set<StatisticsItem>().Single(s => s.Distance == 200.0), Layouts.Single(x => x.Name == "200m"), 1),
+                TrackStatisticsItem.Create(_context.Set<StatisticsItem>().Single(s => s.Label == "Runde"), Layouts.Single(x => x.Name == "Runde"), 1)
             };
 
             var laps = new int[] { 1, 2, 3, 4, 6, 8, 12, 16};
-            foreach (var layout in Layouts.Where(x => x.Name != "200m"))
+            foreach (var layout in Layouts.Where(x => x.Name != "200m" && x.Name != "Runde"))
             {
                 foreach (var lap in laps)
                 {
@@ -188,7 +196,10 @@ namespace VeloTimerWeb.Api.Util
             if (existing == null)
             {
                 _context.Add(layout);
-            } 
+            } else
+            {
+                layout = existing;
+            }
         }
 
         private void AddNewStatsItem(StatisticsItem item)

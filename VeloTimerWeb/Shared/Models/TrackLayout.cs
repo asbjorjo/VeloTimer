@@ -10,6 +10,7 @@ namespace VeloTimer.Shared.Models
         public string Name { get; set; }
         public Track Track { get; private set; }
         public ICollection<TrackLayoutSegment> Segments { get; private set; } = new List<TrackLayoutSegment>();
+        public double Distance { get; private set; }
 
         public static TrackLayout Create(Track track, string name, IOrderedEnumerable<TrackSegment> segments)
         {
@@ -26,6 +27,8 @@ namespace VeloTimer.Shared.Models
                 trackLayout.Segments.Add(layoutSegment);
                 order++;
             }
+
+            trackLayout.Distance = trackLayout.Segments.Sum(x => x.Segment.Length);
 
             return trackLayout;
         }

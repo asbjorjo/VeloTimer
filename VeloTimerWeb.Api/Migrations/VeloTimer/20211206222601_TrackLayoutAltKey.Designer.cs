@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VeloTimerWeb.Api.Data;
@@ -9,9 +10,10 @@ using VeloTimerWeb.Api.Data;
 namespace VeloTimerWeb.Api.Migrations.VeloTimer
 {
     [DbContext(typeof(VeloTimerDbContext))]
-    partial class VeloTimerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20211206222601_TrackLayoutAltKey")]
+    partial class TrackLayoutAltKey
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -112,10 +114,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnType("double precision")
                         .HasColumnName("distance");
 
-                    b.Property<bool>("IsLapCounter")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_lap_counter");
-
                     b.Property<string>("Label")
                         .HasColumnType("text")
                         .HasColumnName("label");
@@ -188,10 +186,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnType("bigint")
                         .HasColumnName("id")
                         .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
-
-                    b.Property<double>("Distance")
-                        .HasColumnType("double precision")
-                        .HasColumnName("distance");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -396,7 +390,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnName("laps");
 
                     b.Property<long?>("LayoutId")
-                        .IsRequired()
                         .HasColumnType("bigint")
                         .HasColumnName("layout_id");
 
@@ -407,11 +400,11 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.HasKey("Id")
                         .HasName("pk_track_statistics_item");
 
-                    b.HasAlternateKey("StatisticsItemId", "LayoutId")
-                        .HasName("ak_track_statistics_item_statistics_item_id_layout_id");
-
                     b.HasIndex("LayoutId")
                         .HasDatabaseName("ix_track_statistics_item_layout_id");
+
+                    b.HasIndex("StatisticsItemId")
+                        .HasDatabaseName("ix_track_statistics_item_statistics_item_id");
 
                     b.ToTable("track_statistics_item");
                 });
@@ -715,9 +708,7 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.HasOne("VeloTimer.Shared.Models.TrackLayout", "Layout")
                         .WithMany()
                         .HasForeignKey("LayoutId")
-                        .HasConstraintName("fk_track_statistics_item_track_layout_layout_id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasConstraintName("fk_track_statistics_item_track_layout_layout_id");
 
                     b.HasOne("VeloTimer.Shared.Models.StatisticsItem", "StatisticsItem")
                         .WithMany()

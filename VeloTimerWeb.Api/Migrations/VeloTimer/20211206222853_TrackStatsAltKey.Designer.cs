@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VeloTimerWeb.Api.Data;
@@ -9,9 +10,10 @@ using VeloTimerWeb.Api.Data;
 namespace VeloTimerWeb.Api.Migrations.VeloTimer
 {
     [DbContext(typeof(VeloTimerDbContext))]
-    partial class VeloTimerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20211206222853_TrackStatsAltKey")]
+    partial class TrackStatsAltKey
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -112,10 +114,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnType("double precision")
                         .HasColumnName("distance");
 
-                    b.Property<bool>("IsLapCounter")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_lap_counter");
-
                     b.Property<string>("Label")
                         .HasColumnType("text")
                         .HasColumnName("label");
@@ -188,10 +186,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnType("bigint")
                         .HasColumnName("id")
                         .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
-
-                    b.Property<double>("Distance")
-                        .HasColumnType("double precision")
-                        .HasColumnName("distance");
 
                     b.Property<string>("Name")
                         .IsRequired()

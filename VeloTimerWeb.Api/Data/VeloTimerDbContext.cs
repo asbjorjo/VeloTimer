@@ -88,6 +88,7 @@ namespace VeloTimerWeb.Api.Data
                     .WithOne(x => x.Layout);
                 x.Property(x => x.Name)
                     .IsRequired();
+                x.HasAlternateKey("TrackId", "Name");
             });
 
             builder.Entity<TrackLayoutPassing>(x =>
@@ -186,6 +187,7 @@ namespace VeloTimerWeb.Api.Data
                 x.Property(x => x.Laps)
                     .IsRequired()
                     .HasDefaultValue(1);
+                x.HasAlternateKey("StatisticsItemId", "LayoutId");
             });
 
             builder.Entity<Transponder>(x =>

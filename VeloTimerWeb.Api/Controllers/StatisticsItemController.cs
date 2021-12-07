@@ -25,7 +25,7 @@ namespace VeloTimerWeb.Api.Controllers
 
         [HttpGet]
         [Route("{Label}/track/{Track}")]
-        public async Task<ActionResult<TrackStatisticsItem>> GetForTrack(string Label, string Track)
+        public async Task<ActionResult<IEnumerable<TrackStatisticsItem>>> GetForTrack(string Label, string Track)
         {
             var track = await _context.Set<Track>().FindAsync(long.Parse(Track));
 
@@ -34,14 +34,14 @@ namespace VeloTimerWeb.Api.Controllers
                 return NotFound();
             }
 
-            var item = await _context.Set<TrackStatisticsItem>()
+            var items = await _context.Set<TrackStatisticsItem>()
                 .Include(x => x.StatisticsItem)
                 .Include(x => x.Layout)
                 .Where(x => x.Layout.Track == track)
                 .Where(x => x.StatisticsItem.Label == Label)
-                .SingleOrDefaultAsync();
+                .ToListAsync();
 
-            return item != null ? item : NotFound();
+            return items.Count > 0 ? items : NotFound();
         }
 
         [HttpGet]

@@ -90,9 +90,11 @@ namespace VeloTimerWeb.Api.Controllers
                 return NotFound($"Track: {Track}"); 
             }
 
-            var statsitem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Layout.Track == track && x.StatisticsItem.Label == StatisticsItem);
+            var statsitems = await _context.Set<TrackStatisticsItem>()
+                .Where(x => x.Layout.Track == track && x.StatisticsItem.Label == StatisticsItem)
+                .ToListAsync();
 
-            if (statsitem == null)
+            if (!statsitems.Any())
             {
                 return NotFound($"StatisticsItem: {StatisticsItem}");
             }
@@ -103,7 +105,7 @@ namespace VeloTimerWeb.Api.Controllers
             if (FromTime.HasValue) fromtime = FromTime.Value;
             if (ToTime.HasValue) totime = ToTime.Value;
             
-            var times = await _trackService.GetFastest(statsitem, fromtime, totime, Count);
+            var times = await _trackService.GetFastest(statsitems, fromtime, totime, Count);
 
             return Ok(times);
         }

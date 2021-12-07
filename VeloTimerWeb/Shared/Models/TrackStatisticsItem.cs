@@ -11,25 +11,24 @@ namespace VeloTimer.Shared.Models
         public long Id { get; private set; }
 
         public StatisticsItem StatisticsItem { get; private set; }
-
         public TrackLayout Layout { get; private set; }
-
         public int Laps { get; private set; } = 0;
 
         public static TrackStatisticsItem Create(StatisticsItem statistics, TrackLayout layout, int laps)
         {
-            var distance = layout.Segments.Sum(x => x.Segment.Length) * laps;
-            if (distance != statistics.Distance)
-            {
-                return null;
-            }
+            TrackStatisticsItem item = null;
 
-            var item = new TrackStatisticsItem
+            var distance = layout.Segments.Sum(x => x.Segment.Length) * laps;
+
+            if ((!statistics.IsLapCounter && distance == statistics.Distance) || (statistics.IsLapCounter && laps == 1))
             {
-                StatisticsItem = statistics,
-                Layout = layout,
-                Laps = laps
-            };
+                item = new TrackStatisticsItem
+                {
+                    StatisticsItem = statistics,
+                    Layout = layout,
+                    Laps = laps,
+                };
+            }
 
             return item;
         }

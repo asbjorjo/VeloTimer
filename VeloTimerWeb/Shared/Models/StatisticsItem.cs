@@ -12,5 +12,6 @@ namespace VeloTimer.Shared.Models
 
         public string Label { get; set; }
         public double Distance { get; set; }
+        public bool IsLapCounter { get; set; } = false;
     }
 }
