@@ -84,7 +84,19 @@ namespace VeloTimerWeb.Api.Services
                             var relevantPassings = transponderPassings.TakeLast(layout.Segments.Count);
                             var segments = layout.Segments.OrderBy(x => x.Order);
 
-                            if (relevantPassings.Select(x => x.TrackSegment.Id).SequenceEqual(segments.Select(x => x.Segment.Id)))
+                            var continuouslayout = relevantPassings.Select(x => x.TrackSegment.Id).SequenceEqual(segments.Select(x => x.Segment.Id));
+                            var previousrelevant = relevantPassings.First();
+
+                            foreach (var relevantPassing in relevantPassings.Skip(1))
+                            {
+                                if (previousrelevant.EndTime != relevantPassing.StartTime)
+                                {
+                                    continuouslayout = false;
+                                }
+                                previousrelevant = relevantPassing;
+                            }
+
+                            if (continuouslayout)
                             {
                                 var layoutPassing = TrackLayoutPassing.Create(layout, passing.Transponder, relevantPassings);
                                 _context.Add(layoutPassing);
@@ -112,22 +124,22 @@ namespace VeloTimerWeb.Api.Services
                                         if (item.Laps <= layoutPassings.Count)
                                         {
                                             var laps = layoutPassings.TakeLast(item.Laps);
-                                            bool continuous = true;
+                                            bool continuouslap = true;
 
                                             if (item.Laps > 1)
                                             {
-                                                var previous = laps.First();
+                                                var previouslappass = laps.First();
                                                 foreach (var lap in laps.Skip(1))
                                                 {
-                                                    if (previous.EndTime != lap.StartTime)
+                                                    if (previouslappass.EndTime != lap.StartTime)
                                                     {
-                                                        continuous = false;
+                                                        continuouslap = false;
                                                     }
-                                                    previous = lap;
+                                                    previouslappass = lap;
                                                 }
                                             }
                                             
-                                            if (continuous)
+                                            if (continuouslap)
                                             {
                                                 var tsi = TransponderStatisticsItem.Create(item, passing.Transponder, laps);
                                                 _context.Add(tsi);
