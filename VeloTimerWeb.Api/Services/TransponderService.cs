@@ -21,9 +21,10 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<int> GetActiveCount(DateTimeOffset fromtime, DateTimeOffset? totime)
+        public async Task<int> GetActiveCount(DateTimeOffset FromTime, DateTimeOffset? ToTime)
         {
-            totime ??= DateTimeOffset.MaxValue;
+            var fromtime = FromTime.UtcDateTime;
+            var totime = ToTime.HasValue ? ToTime.Value.UtcDateTime : DateTimeOffset.MaxValue.UtcDateTime;
 
             var active = await _context.Set<Passing>()
                 .AsNoTracking()

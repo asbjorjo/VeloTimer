@@ -34,8 +34,11 @@ namespace VeloTimerWeb.Api.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task<IEnumerable<Rider>> GetActive(DateTimeOffset fromtime, DateTimeOffset? totime)
+        public async Task<IEnumerable<Rider>> GetActive(DateTimeOffset FromTime, DateTimeOffset? ToTime)
         {
+            var fromtime = FromTime.UtcDateTime;
+            var totime = ToTime.HasValue ? ToTime.Value.UtcDateTime : DateTimeOffset.MaxValue.UtcDateTime;
+
             var active = await FindActiveRiderIds(fromtime, totime);
 
             var riders = await _context.Set<Rider>()
@@ -53,13 +56,10 @@ namespace VeloTimerWeb.Api.Services
             return active.Keys.Count();
         }
 
-        private async Task<Dictionary<long, DateTime>> FindActiveRiderIds(DateTimeOffset fromtime, DateTimeOffset? ToTime)
+        private async Task<Dictionary<long, DateTime>> FindActiveRiderIds(DateTimeOffset FromTime, DateTimeOffset? ToTime)
         {
-            var totime = DateTimeOffset.MaxValue;
-            if (ToTime.HasValue)
-            {
-                totime = ToTime.Value;
-            }
+            var fromtime = FromTime.UtcDateTime;
+            var totime = ToTime.HasValue ? ToTime.Value.UtcDateTime : DateTimeOffset.MaxValue.UtcDateTime;
 
             var query = from t in _context.Set<TransponderOwnership>()
                         from p in _context.Set<Passing>()
