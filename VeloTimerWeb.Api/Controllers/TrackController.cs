@@ -49,7 +49,7 @@ namespace VeloTimerWeb.Api.Controllers
         [AllowAnonymous]
         [HttpGet]
         [Route("{Track}/count/{StatisticsItem}")]
-        public async Task<ActionResult<IEnumerable<KeyValuePair<string, long>>>> Count(string Track, string StatisticsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10)
+        public async Task<ActionResult<IEnumerable<SegmentDistance>>> Count(string Track, string StatisticsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10)
         {
             if (Track == null || StatisticsItem == null)
             {

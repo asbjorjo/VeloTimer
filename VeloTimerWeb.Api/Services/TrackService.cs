@@ -20,14 +20,18 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
-        public async Task<IEnumerable<KeyValuePair<string, int>>> GetCount(TrackStatisticsItem statisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count = 10)
+        public async Task<IEnumerable<SegmentDistance>> GetCount(TrackStatisticsItem statisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count = 10)
         {
-            var counts = new Dictionary<string, int>();
+            var counts = Enumerable.Empty<SegmentDistance>();
             var fromtime = FromTime.UtcDateTime;
             var totime = ToTime.UtcDateTime;
 
             if (fromtime >= totime)
                 return counts;
+
+            await _context.Entry(statisticsItem)
+                .Reference(x => x.Layout)
+                .LoadAsync();
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
@@ -40,15 +44,16 @@ namespace VeloTimerWeb.Api.Services
                     && town.OwnedUntil >= tsi.EndTime
                 group tsi by new { town.Owner.Id, town.Owner.Name } into g
                 orderby g.Count() descending
-                select new
+                select new SegmentDistance
                 {
                     Rider = g.Key.Name,
-                    Count = g.Count()
+                    Count = g.Count(),
+                    Distance = g.Count() * statisticsItem.Layout.Distance / 1000
                 };
 
             counts = await query
                 .Take(Count)
-                .ToDictionaryAsync(k => k.Rider, v => v.Count);
+                .ToListAsync();
 
             return counts;
         }

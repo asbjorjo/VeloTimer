@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
@@ -243,7 +244,8 @@ namespace VeloTimerWeb.Client.Services
 
             response.EnsureSuccessStatusCode();
 
-            var item = await response.Content.ReadFromJsonAsync<TrackStatisticsItem>();
+            var items = await response.Content.ReadFromJsonAsync<IEnumerable<TrackStatisticsItem>>();
+            var item = items.First();
 
             return item;
         }
@@ -269,7 +271,7 @@ namespace VeloTimerWeb.Client.Services
             return items;
         }
 
-        public async Task<Dictionary<string, int>> GetCount(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
+        public async Task<IEnumerable<SegmentDistance>> GetCount(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
         {
             var url = new StringBuilder();
 
@@ -287,7 +289,7 @@ namespace VeloTimerWeb.Client.Services
             using var response = await _client.GetAsync($"track/1/count/{StatsItem}?FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}");
             response.EnsureSuccessStatusCode();
             
-            var counts = await response.Content.ReadFromJsonAsync<Dictionary<string, int>>();
+            var counts = await response.Content.ReadFromJsonAsync<IEnumerable<SegmentDistance>>();
 
             return counts;
         }

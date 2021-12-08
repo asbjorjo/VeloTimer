@@ -20,7 +20,7 @@ namespace VeloTimerWeb.Client.Services
         Task<IEnumerable<SegmentTime>> GetTimesForTransponders(string StatsItem, IEnumerable<long> TransponderIds, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 50);
         Task<Passing> GetLastPassing();
 
-        Task<Dictionary<string, int>> GetCount(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10);
+        Task<IEnumerable<SegmentDistance>> GetCount(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10);
 
         Task<IEnumerable<TrackSegment>> GetTrackSegments(string Track);
         Task<TrackStatisticsItem> GetStatisticsItem(string Label, string Track);
