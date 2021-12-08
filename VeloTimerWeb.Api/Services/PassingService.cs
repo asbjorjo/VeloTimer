@@ -97,7 +97,10 @@ namespace VeloTimerWeb.Api.Services
                                 if (statsItems.Any())
                                 {
                                     var layoutPassings = await _context.Set<TrackLayoutPassing>()
-                                        .Where(x => x.TrackLayout == layout && x.Transponder == passing.Transponder)
+                                        .Where(x => 
+                                            x.TrackLayout == layout 
+                                            && x.Transponder == passing.Transponder 
+                                            && x.EndTime < passing.Time)
                                         .OrderByDescending(x => x.EndTime)
                                         .Take(statsItems.First().Laps - 1)
                                         .OrderBy(x => x.EndTime)
@@ -108,8 +111,27 @@ namespace VeloTimerWeb.Api.Services
                                     {
                                         if (item.Laps <= layoutPassings.Count)
                                         {
-                                            var tsi = TransponderStatisticsItem.Create(item, passing.Transponder, layoutPassings.TakeLast(item.Laps));
-                                            _context.Add(tsi);
+                                            var laps = layoutPassings.TakeLast(item.Laps);
+                                            bool continuous = true;
+
+                                            if (item.Laps > 1)
+                                            {
+                                                var previous = laps.First();
+                                                foreach (var lap in laps.Skip(1))
+                                                {
+                                                    if (previous.EndTime != lap.StartTime)
+                                                    {
+                                                        continuous = false;
+                                                    }
+                                                    previous = lap;
+                                                }
+                                            }
+                                            
+                                            if (continuous)
+                                            {
+                                                var tsi = TransponderStatisticsItem.Create(item, passing.Transponder, laps);
+                                                _context.Add(tsi);
+                                            }
                                         }
                                     }
                                 }
