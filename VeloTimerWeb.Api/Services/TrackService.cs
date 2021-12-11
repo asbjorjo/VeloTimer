@@ -76,7 +76,7 @@ namespace VeloTimerWeb.Api.Services
                     && tsi.EndTime <= totime
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
-                group tsi.Time by new { town.Owner.Id, town.Owner.Name, tsi.StatisticsItem.StatisticsItem.Distance } into ridertimes
+                group tsi.Time by new { town.Owner.Id, town.Owner.Name, tsi.StatisticsItem.Layout.Distance } into ridertimes
                 orderby ridertimes.Min() ascending
                 select new SegmentTime
                 {
@@ -116,7 +116,7 @@ namespace VeloTimerWeb.Api.Services
                 {
                     Rider = town.Owner.Name,
                     Time = tsi.Time,
-                    Speed = tsi.StatisticsItem.StatisticsItem.Distance / tsi.Time * 3.6,
+                    Speed = tsi.StatisticsItem.Layout.Distance / tsi.Time * 3.6,
                     PassingTime = tsi.EndTime
                 };
 
