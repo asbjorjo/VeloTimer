@@ -120,7 +120,7 @@ namespace VeloTimerWeb.Api.Controllers
                 return NotFound($"Track: {Track}");
             }
 
-            var statsitem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Layout.Track == track && x.StatisticsItem.Label == StatisticsItem);
+            var statsitem = await _context.Set<TrackStatisticsItem>().Where(x => x.Layout.Track == track && x.StatisticsItem.Label == StatisticsItem).ToListAsync();
 
             if (statsitem == null)
             {

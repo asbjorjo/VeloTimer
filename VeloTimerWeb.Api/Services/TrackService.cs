@@ -127,5 +127,40 @@ namespace VeloTimerWeb.Api.Services
 
             return list;
         }
+
+        public async Task<IEnumerable<SegmentTime>> GetRecent(IEnumerable<TrackStatisticsItem> statisticsItems, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count = 50)
+        {
+            var times = Enumerable.Empty<SegmentTime>();
+            var fromtime = FromTime.UtcDateTime;
+            var totime = ToTime.UtcDateTime;
+
+            if (fromtime >= totime)
+                return times;
+
+            var query =
+                from tsi in _context.Set<TransponderStatisticsItem>()
+                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                where
+                    statisticsItems.Contains(tsi.StatisticsItem)
+                    && tsi.StartTime >= fromtime
+                    && tsi.EndTime <= totime
+                    && town.OwnedFrom <= tsi.StartTime
+                    && town.OwnedUntil >= tsi.EndTime
+                orderby tsi.EndTime descending
+                select new SegmentTime
+                {
+                    Rider = town.Owner.Name,
+                    Time = tsi.Time,
+                    Speed = tsi.StatisticsItem.Layout.Distance / tsi.Time * 3.6,
+                    PassingTime = tsi.EndTime
+                };
+
+            var list = await query
+                .Take(Count)
+                .AsNoTracking()
+                .ToListAsync();
+
+            return list;
+        }
     }
 }
