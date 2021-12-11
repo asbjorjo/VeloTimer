@@ -8,11 +8,11 @@ namespace VeloTimer.Shared.Models
 {
     public class TrackStatisticsItem
     {
-        public long Id { get; private set; }
+        public long Id { get; set; }
 
-        public StatisticsItem StatisticsItem { get; private set; }
-        public TrackLayout Layout { get; private set; }
-        public int Laps { get; private set; } = 0;
+        public StatisticsItem StatisticsItem { get; set; }
+        public TrackLayout Layout { get; set; }
+        public int Laps { get; set; } = 0;
 
         public static TrackStatisticsItem Create(StatisticsItem statistics, TrackLayout layout, int laps)
         {
