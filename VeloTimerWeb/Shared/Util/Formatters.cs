@@ -16,11 +16,16 @@ namespace VeloTimer.Shared.Util
             }
             else
             {
-                var minutes = time / 60;
+                var minutes = (int) time / 60;
                 var seconds = time % 60;
 
                 return string.Format("{0:0}:{1:00.000}", minutes, seconds);
             }
+        }
+
+        public static string FormatSpeed(double speed)
+        {
+            return string.Format("{0:00.000}", speed);
         }
     }
 }

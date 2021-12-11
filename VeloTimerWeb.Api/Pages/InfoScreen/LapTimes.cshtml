@@ -1,4 +1,5 @@
 ﻿@page "{Track}/{Label}"
+@using VeloTimer.Shared.Util
 
 @model VeloTimerWeb.Api.Pages.InfoScreen.LapTimesModel
 
@@ -26,8 +27,8 @@
                 {
                     <tr>
                         <td>@segment.Rider</td>    
-                        <td>@String.Format("{0:00.000}", segment.Time)</td>
-                        <td>@String.Format("{0:00.000}", segment.Speed)</td>
+                        <td>@Formatters.FormatTime(segment.Time)</td>
+                        <td>@Formatters.FormatSpeed(segment.Speed)</td>
                     </tr>
                 }
             }

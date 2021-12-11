@@ -48,7 +48,7 @@
                             <td>@segment.Rider</td>    
                         }
                         <td class="text-right">@Formatters.FormatTime(segment.Time)</td>
-                        <td class="text-right">@String.Format("{0:00.000}", segment.Speed)</td>
+                        <td class="text-right">@Formatters.FormatSpeed(segment.Speed)</td>
                     </tr>
                 }
             }
