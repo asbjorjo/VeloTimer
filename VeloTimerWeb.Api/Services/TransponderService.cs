@@ -81,7 +81,7 @@ namespace VeloTimerWeb.Api.Services
                         select new SegmentTime
                         {
                             PassingTime = tsi.EndTime,
-                            Speed = tsi.StatisticsItem.StatisticsItem.Distance / tsi.Time * 3.6,
+                            Speed = tsi.StatisticsItem.Layout.Distance / tsi.Time * 3.6,
                             Time = tsi.Time
                         };
                             
@@ -116,7 +116,7 @@ namespace VeloTimerWeb.Api.Services
                         select new SegmentTime
                         {
                             PassingTime = tsi.EndTime,
-                            Speed = tsi.StatisticsItem.StatisticsItem.Distance / tsi.Time * 3.6,
+                            Speed = tsi.StatisticsItem.Layout.Distance / tsi.Time * 3.6,
                             Time = tsi.Time
                         };
 
