@@ -116,7 +116,7 @@ namespace VeloTimerWeb.Api.Services
                 {
                     Rider = town.Owner.Name,
                     Time = tsi.Time,
-                    Speed = tsi.StatisticsItem.Layout.Distance / tsi.Time * 3.6,
+                    Speed = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps / tsi.Time * 3.6,
                     PassingTime = tsi.EndTime
                 };
 
@@ -151,7 +151,7 @@ namespace VeloTimerWeb.Api.Services
                 {
                     Rider = town.Owner.Name,
                     Time = tsi.Time,
-                    Speed = tsi.StatisticsItem.Layout.Distance / tsi.Time * 3.6,
+                    Speed = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps / tsi.Time * 3.6,
                     PassingTime = tsi.EndTime
                 };
 
