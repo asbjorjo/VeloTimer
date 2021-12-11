@@ -56,6 +56,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         segments = await Api.GetStatisticsItems("1");
+        segments = segments.GroupBy(x => x.StatisticsItem.Label).Select(x => x.First()).OrderBy(x => x.StatisticsItem.Distance);
         label = segments.First().StatisticsItem.Label;
     }
 
