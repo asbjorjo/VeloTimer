@@ -1,0 +1,44 @@
+﻿@page "{Track}/{FromDate}/{ToDate}"
+@model VeloTimerWeb.Api.Pages.InfoScreen.HighScoreModel
+@using VeloTimer.Shared.Util
+
+@{
+    if (Model.times.Count > 0)
+    {
+        foreach (var time in Model.times)
+        {
+            <div class="col-6">
+                <div class="row text-center">
+                    <div class="col">
+                    <h3>@time.Key</h3>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th scope="col" class="mw-100">Rytter</th>    
+                                    <th scope="col" class="text-right">Tid</th>
+                                    <th scope="col" class="text-right">Fart</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int position = 0; position < time.Value.Count(); position++)
+                                {
+                                    <tr>
+                                        <td>@(position+1)</td>
+                                        <td>@time.Value.ElementAt(position).Rider</td>    
+                                        <td class="text-right">@Formatters.FormatTime(time.Value.ElementAt(position).Time)</td>
+                                        <td class="text-right">@Formatters.FormatSpeed(time.Value.ElementAt(position).Speed)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+}
