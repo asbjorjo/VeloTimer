@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Components.Authorization;
+﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
@@ -17,17 +18,20 @@ namespace VeloTimerWeb.Client.Services
     {
         private readonly HttpClient _client;
         private readonly AuthenticationStateProvider _authStateProvider;
+        private readonly NavigationManager _navigation;
         private readonly ILogger<ApiClient> _logger;
 
         public ApiClient(
             HttpClient client,
             IConfiguration config,
+            NavigationManager navigation,
             AuthenticationStateProvider authStateProvider,
             ILogger<ApiClient> logger)
         {
             _client = client;
-            _client.BaseAddress = new Uri(new Uri(config["VELOTIMER_API_URL"]), "api/");
             _authStateProvider = authStateProvider;
+            _navigation = navigation;
+            _client.BaseAddress = new Uri(new Uri(navigation.BaseUri), "api/");
             _logger = logger;
             _logger.LogDebug(_client.BaseAddress.ToString());
         }
