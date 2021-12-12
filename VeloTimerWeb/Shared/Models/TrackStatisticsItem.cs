@@ -13,7 +13,9 @@ namespace VeloTimer.Shared.Models
         public StatisticsItem StatisticsItem { get; set; }
         public TrackLayout Layout { get; set; }
         public int Laps { get; set; } = 0;
-
+        public double MinTime { get; set; } = 0;
+        public double MaxTime { get; set; } = double.MaxValue;
+        
         public static TrackStatisticsItem Create(StatisticsItem statistics, TrackLayout layout, int laps)
         {
             TrackStatisticsItem item = null;
