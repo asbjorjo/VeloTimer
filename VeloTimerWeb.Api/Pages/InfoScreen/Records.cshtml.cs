@@ -11,7 +11,7 @@ using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Pages.InfoScreen
 {
-    public class HighScoreModel : PageModel
+    public class RecordsModel : PageModel
     {
         private readonly ITrackService _service;
         private readonly VeloTimerDbContext _context;
@@ -20,7 +20,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
         public Dictionary<string, IEnumerable<SegmentTime>> times { get; set; } = new Dictionary<string, IEnumerable<SegmentTime>>();
 
-        public HighScoreModel(ITrackService trackService, VeloTimerDbContext context)
+        public RecordsModel(ITrackService trackService, VeloTimerDbContext context)
         {
             _service = trackService;
             _context = context;
@@ -28,7 +28,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
         public async Task<IActionResult> OnGetAsync(string Track, DateTime? FromDate, DateTime? ToDate)
         {
-            ViewData["Title"] = "HighScore";
+            ViewData["Title"] = "Rekorder";
 
             var track = await _context.Set<Track>().FindAsync(long.Parse(Track));
             if (track == null)
