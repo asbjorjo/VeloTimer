@@ -48,7 +48,7 @@ namespace VeloTimerWeb.Api.Services
                 {
                     Rider = g.Key.Name,
                     Count = g.Count(),
-                    Distance = g.Count() * statisticsItem.Layout.Distance / 1000
+                    Distance = g.Count() * statisticsItem.Layout.Distance * statisticsItem.Laps / 1000
                 };
 
             counts = await query
@@ -76,7 +76,43 @@ namespace VeloTimerWeb.Api.Services
                     && tsi.EndTime <= totime
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
-                group tsi.Time by new { town.Owner.Id, town.Owner.Name, tsi.StatisticsItem.Layout.Distance } into ridertimes
+                group tsi.Time by new { town.Owner.Id, town.Owner.Name, Distance = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps } into ridertimes
+                orderby ridertimes.Min() ascending
+                select new SegmentTime
+                {
+                    Rider = ridertimes.Key.Name,
+                    Time = ridertimes.Min(),
+                    Speed = ridertimes.Key.Distance / ridertimes.Min() * 3.6
+                };
+
+            var list = await query
+                .Take(Count)
+                .AsNoTracking()
+                .ToListAsync();
+
+            return list;
+        }
+
+        public async Task<IEnumerable<SegmentTime>> GetFastest(Track Track, string Label, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count = 10)
+        {
+            var times = Enumerable.Empty<SegmentTime>();
+            var fromtime = FromTime.UtcDateTime;
+            var totime = ToTime.UtcDateTime;
+
+            if (fromtime >= totime)
+                return times;
+
+            var query =
+                from tsi in _context.Set<TransponderStatisticsItem>()
+                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                where
+                    tsi.StatisticsItem.Layout.Track == Track
+                    && tsi.StatisticsItem.StatisticsItem.Label == Label
+                    && tsi.StartTime >= fromtime
+                    && tsi.EndTime <= totime
+                    && town.OwnedFrom <= tsi.StartTime
+                    && town.OwnedUntil >= tsi.EndTime
+                group tsi.Time by new { town.Owner.Id, town.Owner.Name, Distance = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps } into ridertimes
                 orderby ridertimes.Min() ascending
                 select new SegmentTime
                 {
