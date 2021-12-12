@@ -35,6 +35,8 @@ namespace VeloTimerWeb.Api.Services
                             tsi.StatisticsItem.StatisticsItem == StatisticsItem
                             && tsi.StartTime >= fromtime
                             && tsi.EndTime <= totime
+                            && tsi.Time >= tsi.StatisticsItem.MinTime
+                            && tsi.Time <= tsi.StatisticsItem.MaxTime
                             && town.OwnedFrom <= tsi.StartTime
                             && town.OwnedUntil >= tsi.EndTime
                         group tsi.Time by new { town.Owner.Id, town.Owner.Name, tsi.StatisticsItem.StatisticsItem.Distance } into ridertimes
@@ -70,6 +72,8 @@ namespace VeloTimerWeb.Api.Services
                     tsi.StatisticsItem.StatisticsItem == StatisticsItem
                     && tsi.StartTime >= fromtime
                     && tsi.EndTime <= totime
+                    && tsi.Time >= tsi.StatisticsItem.MinTime
+                    && tsi.Time <= tsi.StatisticsItem.MaxTime
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
                 group tsi by new { town.Owner.Id, town.Owner.Name, Length = tsi.StatisticsItem.Layout.Distance } into g
