@@ -16,8 +16,8 @@ env:
   AMMC_WORKING_DIRECTORY: VeloTimer.AmmcLoad
   AzureVault: https://velotimer-dev-vault.vault.azure.net/
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
     - uses: azure/login@v1
@@ -51,11 +51,13 @@ jobs:
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        slot-name: 'github-ci'
         package: ${{ env.AZURE_API_PACKAGE_PATH }}
     - name: Deploy to Azure AmmcLoader
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_AMMC_NAME }}
+        slot-name: 'github-ci'
         package: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
     - name: Publish API Artifacts
       uses: actions/upload-artifact@v1.0.0
