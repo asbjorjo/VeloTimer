@@ -42,7 +42,7 @@ namespace VeloTimerWeb.Client
 
             builder.Services.AddApiAuthorization(options =>
             {
-                options.ProviderOptions.ConfigurationEndpoint = builder.HostEnvironment.BaseAddress + "/_configuration / VeloTimerWeb.Client";
+                options.ProviderOptions.ConfigurationEndpoint = builder.HostEnvironment.BaseAddress + "_configuration/VeloTimerWeb.Client";
             })
                 .AddAccountClaimsPrincipalFactory<RolesClaimsPrincipalFactory>();
 
