@@ -4,7 +4,7 @@ on:
     branches:
     - feature-multi-lap-stats
 env:
-  AZURE_WEBAPP_NAME: 'velotime-dev(github-ci)'
+  AZURE_WEBAPP_NAME: 'velotime-dev'
   AZURE_API_PACKAGE_PATH: VeloTimerWeb.Api/publish
   AZURE_AMMC_NAME: 'velotime-dev-ammcload(github-ci)'
   AZURE_AMMC_PACKAGE_PATH: VeloTimer.AmccLoad/publish
