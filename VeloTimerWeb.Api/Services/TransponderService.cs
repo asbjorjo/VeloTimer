@@ -116,8 +116,9 @@ namespace VeloTimerWeb.Api.Services
                         select new SegmentTime
                         {
                             PassingTime = tsi.EndTime,
-                            Speed = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps / tsi.Time * 3.6,
-                            Time = tsi.Time
+                            Speed = tsi.Speed * 3.6,
+                            Time = tsi.Time,
+                            Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select( x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time})
                         };
 
             _logger.LogDebug(query.Take(Count).ToQueryString());

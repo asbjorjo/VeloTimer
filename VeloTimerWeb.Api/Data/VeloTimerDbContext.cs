@@ -84,7 +84,7 @@ namespace VeloTimerWeb.Api.Data
                 x.HasOne(x => x.Track)
                     .WithMany(x => x.Layouts)
                     .IsRequired();
-                x.HasMany(x => x.Segments)
+                x.HasMany(x => x.Sectors)
                     .WithOne(x => x.Layout);
                 x.Property(x => x.Name)
                     .IsRequired();
@@ -99,6 +99,8 @@ namespace VeloTimerWeb.Api.Data
                 x.HasOne(x => x.Transponder)
                     .WithMany()
                     .IsRequired();
+                x.HasMany(x => x.Passings)
+                    .WithMany(x => x.LayoutPassings);
 
                 x.Property(p => p.StartTime)
                     .HasConversion(
@@ -114,19 +116,19 @@ namespace VeloTimerWeb.Api.Data
                     .IsRequired();
             });
 
-            builder.Entity<TrackLayoutSegment>(x =>
+            builder.Entity<TrackLayoutSector>(x =>
             {
                 x.HasOne(x => x.Layout)
-                    .WithMany(x => x.Segments)
+                    .WithMany(x => x.Sectors)
                     .IsRequired();
-                x.HasOne(x => x.Segment)
+                x.HasOne(x => x.Sector)
                     .WithMany()
                     .IsRequired();
 
                 x.Property(x => x.Order)
                     .IsRequired();
 
-                x.HasIndex("LayoutId", "SegmentId", "Order")
+                x.HasIndex("LayoutId", "SectorId", "Order")
                     .IsUnique();
             });
 
@@ -142,6 +144,59 @@ namespace VeloTimerWeb.Api.Data
                     .IsRequired()
                     .OnDelete(DeleteBehavior.Restrict);
                 x.HasAlternateKey(k => new { k.StartId, k.EndId });
+            });
+
+            builder.Entity<TrackSector>(x =>
+            {
+                x.HasMany(x => x.Segments)
+                    .WithOne(x => x.Sector);
+
+            });
+
+            builder.Entity<TrackSectorPassing>(x =>
+            {
+                x.HasOne(x => x.TrackSector)
+                    .WithMany()
+                    .IsRequired();
+                x.HasOne(x => x.Transponder)
+                    .WithMany()
+                    .IsRequired();
+                x.Property(x => x.StartTime)
+                    .HasConversion(
+                        v => v,
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc))
+                    .IsRequired();
+                x.Property(x => x.EndTime)
+                    .HasConversion(
+                        v => v,
+                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc))
+                    .IsRequired();
+                x.Property(x => x.Time)
+                    .IsRequired();
+            });
+
+            builder.Entity<TrackSectorSegment>(x =>
+            {
+                x.HasOne(x => x.Sector)
+                    .WithMany()
+                    .IsRequired();
+                x.HasOne(x => x.Segment)
+                    .WithMany()
+                    .IsRequired();
+                x.Property(x => x.Order)
+                    .IsRequired();
+                x.HasKey("SectorId", "SegmentId");
+            });
+
+            builder.Entity<TrackSectorSegmentPassing>(x =>
+            {
+                x.HasOne(x => x.SectorPassing)
+                    .WithMany(x => x.SegmentPassings)
+                    .IsRequired();
+                x.HasOne(x => x.SegmentPassing)
+                    .WithMany()
+                    .IsRequired();
+                x.HasKey("SectorPassingId", "SegmentPassingId");
             });
 
             builder.Entity<TrackSegmentPassing>(x =>

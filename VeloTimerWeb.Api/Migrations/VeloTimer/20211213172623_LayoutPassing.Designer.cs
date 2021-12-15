@@ -10,8 +10,8 @@ using VeloTimerWeb.Api.Data;
 namespace VeloTimerWeb.Api.Migrations.VeloTimer
 {
     [DbContext(typeof(VeloTimerDbContext))]
-    [Migration("20211207125909_StatsLapCounter")]
-    partial class StatsLapCounter
+    [Migration("20211213172623_LayoutPassing")]
+    partial class LayoutPassing
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -21,6 +21,25 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 .HasAnnotation("Relational:MaxIdentifierLength", 63)
                 .HasAnnotation("ProductVersion", "5.0.12")
                 .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            modelBuilder.Entity("TrackLayoutPassingTrackSectorPassing", b =>
+                {
+                    b.Property<long>("LayoutPassingsId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("layout_passings_id");
+
+                    b.Property<long>("PassingsId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("passings_id");
+
+                    b.HasKey("LayoutPassingsId", "PassingsId")
+                        .HasName("pk_track_layout_passing_track_sector_passing");
+
+                    b.HasIndex("PassingsId")
+                        .HasDatabaseName("ix_track_layout_passing_track_sector_passing_passings_id");
+
+                    b.ToTable("track_layout_passing_track_sector_passing");
+                });
 
             modelBuilder.Entity("VeloTimer.Shared.Models.Passing", b =>
                 {
@@ -191,6 +210,10 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnName("id")
                         .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
+                    b.Property<double>("Distance")
+                        .HasColumnType("double precision")
+                        .HasColumnName("distance");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
@@ -249,13 +272,17 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.ToTable("track_layout_passing");
                 });
 
-            modelBuilder.Entity("VeloTimer.Shared.Models.TrackLayoutSegment", b =>
+            modelBuilder.Entity("VeloTimer.Shared.Models.TrackLayoutSector", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("id")
                         .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+                    b.Property<bool>("Intermediate")
+                        .HasColumnType("boolean")
+                        .HasColumnName("intermediate");
 
                     b.Property<long>("LayoutId")
                         .HasColumnType("bigint")
@@ -265,21 +292,132 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnType("integer")
                         .HasColumnName("order");
 
+                    b.Property<long>("SectorId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sector_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_track_layout_sector");
+
+                    b.HasIndex("SectorId")
+                        .HasDatabaseName("ix_track_layout_sector_sector_id");
+
+                    b.HasIndex("LayoutId", "SectorId", "Order")
+                        .IsUnique()
+                        .HasDatabaseName("ix_track_layout_sector_layout_id_sector_id_order");
+
+                    b.ToTable("track_layout_sector");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.TrackSector", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+                    b.Property<double>("Length")
+                        .HasColumnType("double precision")
+                        .HasColumnName("length");
+
+                    b.HasKey("Id")
+                        .HasName("pk_track_sector");
+
+                    b.ToTable("track_sector");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.TrackSectorPassing", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id")
+                        .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("end_time");
+
+                    b.Property<double>("Speed")
+                        .HasColumnType("double precision")
+                        .HasColumnName("speed");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("start_time");
+
+                    b.Property<double>("Time")
+                        .HasColumnType("double precision")
+                        .HasColumnName("time");
+
+                    b.Property<long>("TrackSectorId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("track_sector_id");
+
+                    b.Property<long>("TransponderId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("transponder_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_track_sector_passing");
+
+                    b.HasIndex("TrackSectorId")
+                        .HasDatabaseName("ix_track_sector_passing_track_sector_id");
+
+                    b.HasIndex("TransponderId")
+                        .HasDatabaseName("ix_track_sector_passing_transponder_id");
+
+                    b.ToTable("track_sector_passing");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.TrackSectorSegment", b =>
+                {
+                    b.Property<long>("SectorId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sector_id");
+
                     b.Property<long>("SegmentId")
                         .HasColumnType("bigint")
                         .HasColumnName("segment_id");
 
-                    b.HasKey("Id")
-                        .HasName("pk_track_layout_segment");
+                    b.Property<int>("Order")
+                        .HasColumnType("integer")
+                        .HasColumnName("order");
+
+                    b.Property<long?>("TrackSectorId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("track_sector_id");
+
+                    b.HasKey("SectorId", "SegmentId")
+                        .HasName("pk_track_sector_segment");
 
                     b.HasIndex("SegmentId")
-                        .HasDatabaseName("ix_track_layout_segment_segment_id");
+                        .HasDatabaseName("ix_track_sector_segment_segment_id");
 
-                    b.HasIndex("LayoutId", "SegmentId", "Order")
-                        .IsUnique()
-                        .HasDatabaseName("ix_track_layout_segment_layout_id_segment_id_order");
+                    b.HasIndex("TrackSectorId")
+                        .HasDatabaseName("ix_track_sector_segment_track_sector_id");
 
-                    b.ToTable("track_layout_segment");
+                    b.ToTable("track_sector_segment");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.TrackSectorSegmentPassing", b =>
+                {
+                    b.Property<long>("SectorPassingId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("sector_passing_id");
+
+                    b.Property<long>("SegmentPassingId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("segment_passing_id");
+
+                    b.HasKey("SectorPassingId", "SegmentPassingId")
+                        .HasName("pk_track_sector_segment_passing");
+
+                    b.HasIndex("SegmentPassingId")
+                        .HasDatabaseName("ix_track_sector_segment_passing_segment_passing_id");
+
+                    b.ToTable("track_sector_segment_passing");
                 });
 
             modelBuilder.Entity("VeloTimer.Shared.Models.TrackSegment", b =>
@@ -330,6 +468,10 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("end_time");
 
+                    b.Property<double>("Speed")
+                        .HasColumnType("double precision")
+                        .HasColumnName("speed");
+
                     b.Property<long>("StartId")
                         .HasColumnType("bigint")
                         .HasColumnName("start_id");
@@ -341,10 +483,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.Property<double>("Time")
                         .HasColumnType("double precision")
                         .HasColumnName("time");
-
-                    b.Property<long?>("TrackLayoutPassingId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("track_layout_passing_id");
 
                     b.Property<long>("TrackSegmentId")
                         .HasColumnType("bigint")
@@ -362,9 +500,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
 
                     b.HasIndex("StartId")
                         .HasDatabaseName("ix_track_segment_passing_start_id");
-
-                    b.HasIndex("TrackLayoutPassingId")
-                        .HasDatabaseName("ix_track_segment_passing_track_layout_passing_id");
 
                     b.HasIndex("TrackSegmentId")
                         .HasDatabaseName("ix_track_segment_passing_track_segment_id");
@@ -397,6 +532,14 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .IsRequired()
                         .HasColumnType("bigint")
                         .HasColumnName("layout_id");
+
+                    b.Property<double>("MaxTime")
+                        .HasColumnType("double precision")
+                        .HasColumnName("max_time");
+
+                    b.Property<double>("MinTime")
+                        .HasColumnType("double precision")
+                        .HasColumnName("min_time");
 
                     b.Property<long>("StatisticsItemId")
                         .HasColumnType("bigint")
@@ -556,6 +699,23 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.ToTable("transponder_type");
                 });
 
+            modelBuilder.Entity("TrackLayoutPassingTrackSectorPassing", b =>
+                {
+                    b.HasOne("VeloTimer.Shared.Models.TrackLayoutPassing", null)
+                        .WithMany()
+                        .HasForeignKey("LayoutPassingsId")
+                        .HasConstraintName("fk_track_layout_passing_track_sector_passing_track_layout_passin~")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VeloTimer.Shared.Models.TrackSectorPassing", null)
+                        .WithMany()
+                        .HasForeignKey("PassingsId")
+                        .HasConstraintName("fk_track_layout_passing_track_sector_passing_track_sector_passin~")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("VeloTimer.Shared.Models.Passing", b =>
                 {
                     b.HasOne("VeloTimer.Shared.Models.TimingLoop", "Loop")
@@ -622,25 +782,93 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.Navigation("Transponder");
                 });
 
-            modelBuilder.Entity("VeloTimer.Shared.Models.TrackLayoutSegment", b =>
+            modelBuilder.Entity("VeloTimer.Shared.Models.TrackLayoutSector", b =>
                 {
                     b.HasOne("VeloTimer.Shared.Models.TrackLayout", "Layout")
-                        .WithMany("Segments")
+                        .WithMany("Sectors")
                         .HasForeignKey("LayoutId")
-                        .HasConstraintName("fk_track_layout_segment_track_layout_layout_id")
+                        .HasConstraintName("fk_track_layout_sector_track_layout_layout_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VeloTimer.Shared.Models.TrackSector", "Sector")
+                        .WithMany()
+                        .HasForeignKey("SectorId")
+                        .HasConstraintName("fk_track_layout_sector_track_sector_sector_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Layout");
+
+                    b.Navigation("Sector");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.TrackSectorPassing", b =>
+                {
+                    b.HasOne("VeloTimer.Shared.Models.TrackSector", "TrackSector")
+                        .WithMany()
+                        .HasForeignKey("TrackSectorId")
+                        .HasConstraintName("fk_track_sector_passing_track_sector_track_sector_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VeloTimer.Shared.Models.Transponder", "Transponder")
+                        .WithMany()
+                        .HasForeignKey("TransponderId")
+                        .HasConstraintName("fk_track_sector_passing_transponder_transponder_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TrackSector");
+
+                    b.Navigation("Transponder");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.TrackSectorSegment", b =>
+                {
+                    b.HasOne("VeloTimer.Shared.Models.TrackSector", "Sector")
+                        .WithMany()
+                        .HasForeignKey("SectorId")
+                        .HasConstraintName("fk_track_sector_segment_track_sector_sector_id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("VeloTimer.Shared.Models.TrackSegment", "Segment")
                         .WithMany()
                         .HasForeignKey("SegmentId")
-                        .HasConstraintName("fk_track_layout_segment_track_segment_segment_id")
+                        .HasConstraintName("fk_track_sector_segment_track_segment_segment_id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Layout");
+                    b.HasOne("VeloTimer.Shared.Models.TrackSector", null)
+                        .WithMany("Segments")
+                        .HasForeignKey("TrackSectorId")
+                        .HasConstraintName("fk_track_sector_segment_track_sector_track_sector_id");
+
+                    b.Navigation("Sector");
 
                     b.Navigation("Segment");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.TrackSectorSegmentPassing", b =>
+                {
+                    b.HasOne("VeloTimer.Shared.Models.TrackSectorPassing", "SectorPassing")
+                        .WithMany("SegmentPassings")
+                        .HasForeignKey("SectorPassingId")
+                        .HasConstraintName("fk_track_sector_segment_passing_track_sector_passing_sector_pa~")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VeloTimer.Shared.Models.TrackSegmentPassing", "SegmentPassing")
+                        .WithMany()
+                        .HasForeignKey("SegmentPassingId")
+                        .HasConstraintName("fk_track_sector_segment_passing_track_segment_passing_segment_pa~")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SectorPassing");
+
+                    b.Navigation("SegmentPassing");
                 });
 
             modelBuilder.Entity("VeloTimer.Shared.Models.TrackSegment", b =>
@@ -679,11 +907,6 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasConstraintName("fk_track_segment_passing_passing_start_id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("VeloTimer.Shared.Models.TrackLayoutPassing", null)
-                        .WithMany("Passings")
-                        .HasForeignKey("TrackLayoutPassingId")
-                        .HasConstraintName("fk_track_segment_passing_track_layout_passing_track_layout_pas~");
 
                     b.HasOne("VeloTimer.Shared.Models.TrackSegment", "TrackSegment")
                         .WithMany()
@@ -819,12 +1042,17 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
 
             modelBuilder.Entity("VeloTimer.Shared.Models.TrackLayout", b =>
                 {
+                    b.Navigation("Sectors");
+                });
+
+            modelBuilder.Entity("VeloTimer.Shared.Models.TrackSector", b =>
+                {
                     b.Navigation("Segments");
                 });
 
-            modelBuilder.Entity("VeloTimer.Shared.Models.TrackLayoutPassing", b =>
+            modelBuilder.Entity("VeloTimer.Shared.Models.TrackSectorPassing", b =>
                 {
-                    b.Navigation("Passings");
+                    b.Navigation("SegmentPassings");
                 });
 
             modelBuilder.Entity("VeloTimer.Shared.Models.Transponder", b =>

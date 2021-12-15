@@ -9,10 +9,10 @@ namespace VeloTimer.Shared.Models
         public long Id { get; private set; }
         public string Name { get; set; }
         public Track Track { get; private set; }
-        public ICollection<TrackLayoutSegment> Segments { get; private set; } = new List<TrackLayoutSegment>();
+        public ICollection<TrackLayoutSector> Sectors { get; private set; } = new List<TrackLayoutSector>();
         public double Distance { get; private set; }
 
-        public static TrackLayout Create(Track track, string name, IOrderedEnumerable<TrackSegment> segments)
+        public static TrackLayout Create(Track track, string name, IOrderedEnumerable<TrackSector> sectors)
         {
             TrackLayout trackLayout = new()
             {
@@ -21,45 +21,38 @@ namespace VeloTimer.Shared.Models
             };
 
             int order = 1;
-            foreach(var segment in segments)
+            foreach(var sector in sectors)
             {
-                var layoutSegment = TrackLayoutSegment.Create(trackLayout, segment, order);
-                trackLayout.Segments.Add(layoutSegment);
+                var layoutSegment = TrackLayoutSector.Create(trackLayout, sector, order);
+                trackLayout.Sectors.Add(layoutSegment);
                 order++;
             }
 
-            trackLayout.Distance = trackLayout.Segments.Sum(x => x.Segment.Length);
+            trackLayout.Distance = trackLayout.Sectors.Sum(x => x.Sector.Length);
 
             return trackLayout;
         }
     }
 
-    public class TrackLayoutSegment
+    public class TrackLayoutSector
     {
         public long Id { get; private set; }
         public TrackLayout Layout { get; private set; }
-        public TrackSegment Segment { get; private set; }
+        public TrackSector Sector { get; private set; }
         public int Order { get; private set; }
+        public bool Intermediate { get; private set; }
 
-        public static TrackLayoutSegment Create(TrackLayout layout, TrackSegment segment, int order)
+        public static TrackLayoutSector Create(TrackLayout layout, TrackSector sector, int order)
         {
-            var layoutsegment = new TrackLayoutSegment
+            var layoutsector = new TrackLayoutSector
             {
                 Layout = layout,
-                Segment = segment,
+                Sector = sector,
                 Order = order
             };
 
-            return layoutsegment;
+            return layoutsector;
         }
-    }
-
-    public class TrackLayoutSegmentPassing
-    {
-        public long Id { get; private set; }
-        public TrackLayoutSegment Segment { get; private set; }
-        public Passing Passing { get; private set; }
-
     }
 
     public class TrackLayoutPassing
@@ -67,13 +60,14 @@ namespace VeloTimer.Shared.Models
         public long Id { get; private set; }
         public TrackLayout TrackLayout { get; private set; }
         public Transponder Transponder { get; private set; }
-        public ICollection<TrackSegmentPassing> Passings { get; private set; } = new List<TrackSegmentPassing>();
+        public ICollection<TrackSectorPassing> Passings { get; private set; } = new List<TrackSectorPassing>();
 
         public double Time { get; private set; }
+        public double Speed { get; private set; }
         public DateTime StartTime { get; private set; }
         public DateTime EndTime { get; private set; }
 
-        public static TrackLayoutPassing Create(TrackLayout layout, Transponder transponder, IEnumerable<TrackSegmentPassing> passings)
+        public static TrackLayoutPassing Create(TrackLayout layout, Transponder transponder, IEnumerable<TrackSectorPassing> passings)
         {
             var orderedPassings = passings.OrderBy(x => x.StartTime);
 
@@ -82,10 +76,11 @@ namespace VeloTimer.Shared.Models
                 TrackLayout = layout,
                 Transponder = transponder,
                 Passings = passings.ToList(),
+                Time = orderedPassings.Sum(x => x.Time),
                 StartTime = orderedPassings.First().StartTime,
                 EndTime = orderedPassings.Last().EndTime
             };
-            layoutPassing.Time = (layoutPassing.EndTime - layoutPassing.StartTime).TotalSeconds;
+            layoutPassing.Speed = layout.Distance / layoutPassing.Time;
 
             return layoutPassing;
         }

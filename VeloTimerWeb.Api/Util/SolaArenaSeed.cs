@@ -143,12 +143,20 @@ namespace VeloTimerWeb.Api.Util
 
             var segments = _context.Set<TrackSegment>().ToList();
 
+            var s200100 = AddNewTrackSector(segments.Where(x => x.Start.Distance >= 50 && x.Start.Distance < 150).OrderBy(x => x.Start.Distance));
+            var s100fin = AddNewTrackSector(segments.Where(x => x.Start.Distance >= 150 && x.Start.Distance < 250).OrderBy(x => x.Start.Distance));
+            var redgrn = AddNewTrackSector(segments.Where(x => x.Start.Distance >= 235 || x.Start.Distance < 110).OrderBy(x => !(x.Start.Distance >= 235)).ThenBy(x => x.Start.Distance));
+            var grnred = AddNewTrackSector(segments.Except(redgrn.Segments.Select(x => x.Segment)).OrderBy(x => x.Start.Distance));
+            var runde = AddNewTrackSector(segments.OrderBy(x => !(x.Start.Distance > 0)).ThenBy(x => x.End.Distance));
+
+            _context.SaveChanges();
+
             ICollection<TrackLayout> Layouts = new List<TrackLayout>
             {
-                TrackLayout.Create(track, "200m", segments.Where(x => x.Start.Distance != 250.0).OrderBy(x => !(x.Start.Distance >= 50)).ThenBy(x => x.End.Distance)),
-                TrackLayout.Create(track, "Runde", segments.OrderBy(x => !(x.Start.Distance > 0)).ThenBy(x => x.End.Distance)),
-                TrackLayout.Create(track, "Pursuit bakside", segments.OrderBy(x => !(x.Start.Distance >= 110)).ThenBy(x => x.Start.Distance)),
-                TrackLayout.Create(track, "Pursuit framside", segments.OrderBy(x => !(x.Start.Distance >= 235)).ThenBy(x => x.Start.Distance))
+                TrackLayout.Create(track, "200m", new List<TrackSector> { s200100, s100fin}.OrderBy(x => x.Segments.OrderBy(x => x.Order).First().Segment.Start.Distance)),
+                TrackLayout.Create(track, "Runde", new List<TrackSector> { runde }.OrderBy(x => x.Length)),
+                TrackLayout.Create(track, "Pursuit bakside", new List<TrackSector> { grnred, redgrn}.OrderBy(x => x.Segments.OrderBy(x => x.Order).First().Segment.Start.Distance)),
+                TrackLayout.Create(track, "Pursuit framside", new List<TrackSector> { grnred, redgrn}.OrderByDescending(x => x.Segments.OrderBy(x => x.Order).First().Segment.Start.Distance))
             };
 
             foreach (var layout in Layouts)
@@ -156,7 +164,7 @@ namespace VeloTimerWeb.Api.Util
                 AddNewLayout(layout);
             }
             _context.SaveChanges();
-            Layouts = _context.Set<TrackLayout>().Where(x => x.Track == track).Include(x => x.Segments).ToList();
+            Layouts = _context.Set<TrackLayout>().Where(x => x.Track == track).Include(x => x.Sectors).ToList();
 
             ICollection<TrackStatisticsItem> trackStatisticsItems = new List<TrackStatisticsItem>
             {
@@ -179,6 +187,27 @@ namespace VeloTimerWeb.Api.Util
                 AddNewTrackStatistics(tsi);
             }
             _context.SaveChanges();
+        }
+
+        private TrackSector AddNewTrackSector(IOrderedEnumerable<TrackSegment> trackSegments)
+        {
+            var sectors = _context.Set<TrackSector>().Include(x => x.Segments).ThenInclude(x => x.Segment).ToList();
+            TrackSector existing = null;
+
+            foreach (var sector in sectors)
+            {
+                if (sector.Segments.OrderBy(s => s.Order).Select(s => s.Segment.Id).SequenceEqual(trackSegments.Select(s => s.Id)))
+                {
+                    existing = sector;
+                }
+            }
+
+            if (existing == null)
+            {
+                existing = TrackSector.Create(trackSegments);
+                _context.Add(existing);
+            }
+            return existing;
         }
 
         private void AddNewTrackStatistics(TrackStatisticsItem tsi)

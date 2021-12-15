@@ -20,7 +20,7 @@ namespace VeloTimer.Shared.Models
         {
             TrackStatisticsItem item = null;
 
-            var distance = layout.Segments.Sum(x => x.Segment.Length) * laps;
+            var distance = layout.Sectors.Sum(x => x.Sector.Length) * laps;
 
             if ((!statistics.IsLapCounter && distance == statistics.Distance) || (statistics.IsLapCounter && laps == 1))
             {

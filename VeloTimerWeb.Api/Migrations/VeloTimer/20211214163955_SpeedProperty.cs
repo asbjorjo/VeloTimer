@@ -2,22 +2,22 @@
 
 namespace VeloTimerWeb.Api.Migrations.VeloTimer
 {
-    public partial class Timelimits : Migration
+    public partial class SpeedProperty : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<double>(
-                name: "max_time",
+                name: "speed",
                 schema: "velotimer",
-                table: "track_statistics_item",
+                table: "transponder_statistics_item",
                 type: "double precision",
                 nullable: false,
                 defaultValue: 0.0);
 
             migrationBuilder.AddColumn<double>(
-                name: "min_time",
+                name: "speed",
                 schema: "velotimer",
-                table: "track_statistics_item",
+                table: "track_layout_passing",
                 type: "double precision",
                 nullable: false,
                 defaultValue: 0.0);
@@ -26,14 +26,14 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "max_time",
+                name: "speed",
                 schema: "velotimer",
-                table: "track_statistics_item");
+                table: "transponder_statistics_item");
 
             migrationBuilder.DropColumn(
-                name: "min_time",
+                name: "speed",
                 schema: "velotimer",
-                table: "track_statistics_item");
+                table: "track_layout_passing");
         }
     }
 }

@@ -5,8 +5,15 @@ namespace VeloTimer.Shared.Models
 {
     public class SegmentTime
     {
-        public String Rider { get; set; }
+        public string Rider { get; set; }
         public DateTimeOffset PassingTime { get; set; }
+        public double Time { get; set; }
+        public double Speed { get; set; }
+        public IEnumerable<Intermediate> Intermediates { get; set; }
+    }
+
+    public class Intermediate
+    {
         public double Time { get; set; }
         public double Speed { get; set; }
     }

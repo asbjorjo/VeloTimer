@@ -28,4 +28,45 @@ namespace VeloTimer.Shared.Models
 
         public double Length { get; private set; }
     }
+
+    public class TrackSector
+    {
+        public long Id { get; private set; }
+        public ICollection<TrackSectorSegment> Segments { get; private set; } = new List<TrackSectorSegment>();
+
+        public double Length { get; private set; }
+
+        public static TrackSector Create(IOrderedEnumerable<TrackSegment> segments)
+        {
+            var sector = new TrackSector();
+            
+            int order = 1;
+            foreach (var segment in segments)
+            {
+                sector.Segments.Add(TrackSectorSegment.Create(sector, segment, order));
+                order++;
+            }
+            sector.Length = sector.Segments.Sum(x => x.Segment.Length);
+
+            return sector;
+        }
+    }
+
+    public class TrackSectorSegment
+    {
+        public TrackSector Sector { get; private set; }
+        public TrackSegment Segment { get; private set; }
+        public int Order { get; private set; }
+
+        public static TrackSectorSegment Create(TrackSector sector, TrackSegment segment, int order)
+        {
+            var sectorsegment = new TrackSectorSegment
+            {
+                Sector = sector,
+                Segment = segment,
+                Order = order
+            };
+            return sectorsegment;
+        }
+    }
 }
