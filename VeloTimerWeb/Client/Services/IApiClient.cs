@@ -8,7 +8,8 @@ namespace VeloTimerWeb.Client.Services
     public interface IApiClient
     {
         Task<Rider> GetRiderByUserId(string userId);
-        
+        Task RemoveTransponderRegistration(string owner, string label, DateTimeOffset from, DateTimeOffset until);
+
         Task<int> GetActiveTransponderCount(DateTimeOffset fromtime, DateTimeOffset? totime);
         Task<int> GetActiveRiderCount(DateTimeOffset fromtime, DateTimeOffset? totime);
         Task<IEnumerable<Transponder>> GetActiveTransponders(DateTimeOffset fromtime, DateTimeOffset? totime);

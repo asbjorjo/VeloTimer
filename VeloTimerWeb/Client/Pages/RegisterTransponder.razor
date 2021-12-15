@@ -5,6 +5,7 @@
 @using VeloTimer.Shared.Models
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
+@inject IApiClient Api
 @inject HttpClient Http
 @inject ILogger<RegisterTransponder> Logger
 
@@ -41,6 +42,7 @@
                     <th>Transponder</th>
                     <th>Gyldig fra</th>
                     <th>Gyldig til</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -52,6 +54,12 @@
                             <td>@transpondername.TransponderLabel</td>
                             <td>@transpondername.OwnedFrom.Date.ToShortDateString()</td>
                             <td>@transpondername.OwnedUntil.Date.ToShortDateString()</td>
+                            <button
+                                value="@transpondername.TransponderLabel" 
+                                @onclick="@(e => 
+                                    RemoveRegistration(e, transpondername.TransponderLabel, transpondername.OwnedFrom, transpondername.OwnedUntil))">
+                                Avregistrer
+                            </button>
                         </tr>
                     }
                 }
@@ -61,7 +69,7 @@
 </AuthorizeView>
 
 @code {
-    private TransponderOwnershipWeb transponderName = new();
+    private TransponderOwnershipWebForm transponderName = new();
     private IEnumerable<TransponderOwnershipWeb> transpondernames;
     private ServerValidator serverValidator;
 
@@ -95,6 +103,21 @@
         {
             serverValidator.Validate(result, transponderName);
             Console.WriteLine($"{result.StatusCode}");
+        }
+    }
+
+    private async void RemoveRegistration(EventArgs e, string label, DateTimeOffset from, DateTimeOffset until)
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity.IsAuthenticated)
+        {
+            var owner = user.FindFirst(c => c.Type == "sub")?.Value;
+            await Api.RemoveTransponderRegistration(owner, label, from, until);
+
+            await LoadTransponderNames();
+            StateHasChanged();
         }
     }
 }

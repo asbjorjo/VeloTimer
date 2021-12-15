@@ -14,6 +14,8 @@
     {
         <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Skjul" : "Vis") mellomtider</button>
     }*@
+    <div class="table-responsive">
+    
     <table class="table table-striped">
         <thead>
             <tr>
@@ -25,16 +27,15 @@
                 {
                     <th scope="col">Rytter</th>    
                 }
-                @*@if (showintermediate && !segment.Intermediates.Where(i => i.Loop == null).Any())
-                {
-                    @foreach (var intermediate in segment.Intermediates)
-                    {
-                        <th>@intermediate.Loop.Description</th>
-                        <th>Fart</th>
-                    }
-                }*@
                 <th>@Label</th>
                 <th>Fart</th>
+                @if (segmentTimes.First().Intermediates?.Count() > 1)
+                {
+                    for (int i = 1; i <= segmentTimes.First().Intermediates.Count(); i++)
+                    {
+                        <th>@($"{i}")</th>
+                    }
+                }
             </tr>
         </thead>
         <tbody>
@@ -59,39 +60,21 @@
                         {
                             <td>@segment.Rider</td>    
                         }
-@*                        @if (showintermediate && this.segment.DisplayIntermediates && !this.segment.Intermediates.Where(i => i.Loop == null).Any())
-                        {
-                            @foreach (var intermediate in this.segment.Intermediates)
-                            {
-                                <td>
-                                    @(
-                                        segment.Intermediates.Where(i => i.Loop == intermediate.Loop.Id).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
-                                        String.Format(
-                                            "{0:00.000}", 
-                                            segment.Intermediates.Where(i => i.Loop == intermediate.Loop.Id).Select(i => i.Segmenttime).SingleOrDefault()
-                                        ) : 
-                                        "--"
-                                    )
-                                </td>
-                                <td>
-                                    @(
-                                        segment.Intermediates.Where(i => i.Loop == intermediate.Loop.Id).Select(i => i.Segmenttime).SingleOrDefault() > 0 ? 
-                                        String.Format(
-                                            "{0:00.000}", 
-                                            segment.Intermediates.Where(i => i.Loop == intermediate.Loop.Id).Select(i => i.Segmentspeed).SingleOrDefault()
-                                        ) : 
-                                        "--"
-                                    )
-                                </td>
-                            }
-                        }*@
                         <td>@Formatters.FormatTime(segment.Time)</td>
                         <td>@String.Format("{0:00.000}", segment.Speed)</td>
+                        @if (segment.Intermediates?.Count() > 1)
+                        {
+                            @foreach (var intermediate in segment.Intermediates)
+                            {
+                                <td>@Formatters.FormatTime(intermediate.Time)</td>
+                            }
+                        }
                     </tr>
                 }
             }
         </tbody>
     </table>
+    </div>
 }
 
 @code {

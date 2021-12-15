@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using IdentityModel;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimer.Shared.Util;
@@ -69,18 +71,23 @@ namespace VeloTimerWeb.Api.Controllers
         [Route("{rider}/transponders")]
         public async Task<ActionResult<IEnumerable<TransponderOwnershipWeb>>> GetTransponders(string rider)
         {
-            var transponders = await _context.Set<TransponderOwnership>()
+            var transponders1 = await _context.Set<TransponderOwnership>()
                 .AsNoTracking()
                 .Where(to => to.Owner.UserId == rider)
                 .OrderByDescending(to => to.OwnedUntil)
-                .Select(to => new TransponderOwnershipWeb 
-                { 
-                    OwnedFrom = to.OwnedFrom, 
-                    OwnedUntil = to.OwnedUntil, 
-                    Owner = to.Owner.Name, 
-                    TransponderLabel = TransponderIdConverter.IdToCode(long.Parse(to.Transponder.SystemId)) 
-                })
+                .Include(x => x.Owner)
+                .Include(x => x.Transponder)
                 .ToListAsync();
+
+            var transponders = transponders1
+                .Select(to => new TransponderOwnershipWeb
+                {
+                    OwnedFrom = to.OwnedFrom,
+                    OwnedUntil = to.OwnedUntil,
+                    Owner = to.Owner.Name,
+                    TransponderLabel = TransponderIdConverter.IdToCode(long.Parse(to.Transponder.SystemId))
+                }).ToList();
+
             return transponders;
         }
 
@@ -128,7 +135,7 @@ namespace VeloTimerWeb.Api.Controllers
         [Route("{rider}/transponders")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
-        public async Task<ActionResult<TransponderOwnershipWeb>> RegisterTransponder(string rider, TransponderOwnershipWeb ownerWeb)
+        public async Task<ActionResult<TransponderOwnershipWebForm>> RegisterTransponder(string rider, TransponderOwnershipWebForm ownerWeb)
         {
             _logger.LogInformation($"Transponder: {ownerWeb.TransponderLabel}"
                                    + $" - Name: {ownerWeb.Owner}"
@@ -137,6 +144,8 @@ namespace VeloTimerWeb.Api.Controllers
             var transponderId = TransponderIdConverter.CodeToId(ownerWeb.TransponderLabel).ToString();
 
             var transponder = await _context.Set<Transponder>().SingleOrDefaultAsync(t => t.SystemId == transponderId && t.TimingSystem == TransponderType.TimingSystem.Mylaps_X2);
+            var ownfrom = ownerWeb.OwnedFrom.UtcDateTime;
+            var ownuntil = ownerWeb.OwnedUntil.UtcDateTime;
 
             if (transponder == null)
             {
@@ -148,7 +157,7 @@ namespace VeloTimerWeb.Api.Controllers
                 var existing = _dbset.Where(r => r.Transponders.Where(
                     t => t.Transponder.SystemId == transponderId
                         && t.Transponder.TimingSystem == TransponderType.TimingSystem.Mylaps_X2
-                        && (ownerWeb.OwnedFrom <= t.OwnedUntil && t.OwnedFrom <= ownerWeb.OwnedUntil)
+                        && (ownfrom <= t.OwnedUntil && t.OwnedFrom <= ownuntil)
                     ).Any());
 
                 if (existing.Any())
@@ -162,8 +171,8 @@ namespace VeloTimerWeb.Api.Controllers
             
             var value = new TransponderOwnership
             {
-                OwnedFrom = ownerWeb.OwnedFrom.UtcDateTime,
-                OwnedUntil = ownerWeb.OwnedUntil.UtcDateTime,
+                OwnedFrom = ownfrom,
+                OwnedUntil = ownuntil,
                 Owner = dbrider,
                 Transponder = transponder
             };
@@ -171,6 +180,33 @@ namespace VeloTimerWeb.Api.Controllers
             await _context.AddAsync(value);
             await _context.SaveChangesAsync();
             ownerWeb.Owner = dbrider.Name;
+
+            return Ok();
+        }
+
+        [HttpDelete]
+        [Route("{rider}/transponder/{label}/{from}/{until}")]
+        public async Task<ActionResult> RemoveTransponderOwnership(string rider, string label, DateTimeOffset from, DateTimeOffset until)
+        {
+            if (string.IsNullOrWhiteSpace(rider)) return BadRequest();
+            if (string.IsNullOrWhiteSpace(label)) return BadRequest();
+
+            if (Request.HttpContext.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != rider) return Unauthorized();
+
+            var ownershipsq = _context.Set<TransponderOwnership>()
+                .Where(x => x.Owner.UserId == rider)
+                .Where(x => x.Transponder.SystemId == TransponderIdConverter.CodeToId(label).ToString())
+                .Where(x => x.OwnedFrom == from.UtcDateTime)
+                .Where(x => x.OwnedUntil == until.UtcDateTime);
+
+            _logger.LogDebug(ownershipsq.ToQueryString());
+
+            var ownerships = await ownershipsq.ToListAsync();
+
+            if (!ownerships.Any()) return NotFound();
+
+            _context.RemoveRange(ownerships);
+            await _context.SaveChangesAsync();
 
             return Ok();
         }

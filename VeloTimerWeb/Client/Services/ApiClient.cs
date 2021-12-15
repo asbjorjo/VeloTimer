@@ -312,5 +312,11 @@ namespace VeloTimerWeb.Client.Services
         {
             return time?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         }
+
+        public async Task RemoveTransponderRegistration(string owner, string label, DateTimeOffset from, DateTimeOffset until)
+        {
+            using var response = await _client.DeleteAsync($"rider/{owner}/transponder/{label}/{TimeFormatter(from)}/{TimeFormatter(until)}");
+            response.EnsureSuccessStatusCode();
+        }
     }
 }
