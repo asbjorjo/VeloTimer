@@ -36,8 +36,6 @@ namespace VeloTimerWeb.Api
 
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddApplicationInsightsTelemetry();
-
             services.AddDbContext<VeloTimerDbContext>(options =>
             {
                 options.UseNpgsql(
@@ -59,12 +57,12 @@ namespace VeloTimerWeb.Api
                 .AddRoles<Role>()
                 .AddEntityFrameworkStores<VeloIdentityDbContext>();
 
-            services.Configure<JwtBearerOptions>(
-                IdentityServerJwtConstants.IdentityServerJwtBearerScheme,
-                options =>
-                {
-                    options.Authority = Configuration["VELOTIMER_API_URL"];
-                });
+            //services.Configure<JwtBearerOptions>(
+            //    IdentityServerJwtConstants.IdentityServerJwtBearerScheme,
+            //    options =>
+            //    {
+            //        options.Authority = Configuration["VELOTIMER_API_URL"];
+            //    });
 
             var identitybuilder = services.AddIdentityServer(options =>
             {
