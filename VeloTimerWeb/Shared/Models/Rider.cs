@@ -12,6 +12,7 @@ namespace VeloTimer.Shared.Models
         public string Name { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
+        public bool IsPublic { get; set; }
 
         public string UserId { get; set; }
         public IEnumerable<TransponderOwnership> Transponders { get; set; }
