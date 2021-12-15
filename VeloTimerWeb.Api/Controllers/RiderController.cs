@@ -92,8 +92,8 @@ namespace VeloTimerWeb.Api.Controllers
             DateTimeOffset? FromTime,
             DateTimeOffset? ToTime)
         {
-            var fromtime = FromTime.HasValue ? FromTime.Value : DateTimeOffset.MinValue;
-            var totime = ToTime.HasValue ? ToTime.Value : DateTimeOffset.MaxValue;
+            var fromtime = FromTime ?? DateTimeOffset.MinValue;
+            var totime = ToTime ?? DateTimeOffset.MaxValue;
 
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
@@ -112,8 +112,8 @@ namespace VeloTimerWeb.Api.Controllers
             DateTimeOffset? FromTime,
             DateTimeOffset? ToTime)
         {
-            var fromtime = FromTime.HasValue ? FromTime.Value : DateTimeOffset.MinValue;
-            var totime = ToTime.HasValue ? ToTime.Value : DateTimeOffset.MaxValue;
+            var fromtime = FromTime ?? DateTimeOffset.MinValue;
+            var totime = ToTime ?? DateTimeOffset.MaxValue;
 
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
