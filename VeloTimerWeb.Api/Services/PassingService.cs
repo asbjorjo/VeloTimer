@@ -9,6 +9,7 @@ using VeloTimer.Shared.Hub;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
+using VeloTimerWeb.Api.Models;
 using static VeloTimer.Shared.Models.TransponderType;
 
 namespace VeloTimerWeb.Api.Services

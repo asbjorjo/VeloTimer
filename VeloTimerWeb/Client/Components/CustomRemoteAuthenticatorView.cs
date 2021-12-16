@@ -16,7 +16,6 @@ namespace VeloTimerWeb.Client.Components
             if (Action == RemoteAuthenticationActions.Profile && ApplicationPaths.RemoteProfilePath != null)
             {
                 UserProfile ??= LoggingIn;
-                await RedirectToProfile();
             }
             else if (Action == RemoteAuthenticationActions.Register && ApplicationPaths.RemoteRegisterPath != null)
             {

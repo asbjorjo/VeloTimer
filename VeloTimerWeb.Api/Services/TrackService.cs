@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Models;
 
 namespace VeloTimerWeb.Api.Services
 {
@@ -44,6 +45,7 @@ namespace VeloTimerWeb.Api.Services
                     && tsi.Time <= tsi.StatisticsItem.MaxTime
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
+                    && town.Owner.IsPublic
                 group tsi by new { town.Owner.Id, town.Owner.Name } into g
                 orderby g.Count() descending
                 select new SegmentDistance
@@ -80,6 +82,7 @@ namespace VeloTimerWeb.Api.Services
                     && tsi.Time <= tsi.StatisticsItem.MaxTime
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
+                    && town.Owner.IsPublic
                 group tsi.Time by new { town.Owner.Id, town.Owner.Name, Distance = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps } into ridertimes
                 orderby ridertimes.Min() ascending
                 select new SegmentTime
@@ -118,6 +121,7 @@ namespace VeloTimerWeb.Api.Services
                     && tsi.Time <= tsi.StatisticsItem.MaxTime
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
+                    && town.Owner.IsPublic
                 group tsi.Time by new { town.Owner.Id, town.Owner.Name, Distance = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps } into ridertimes
                 orderby ridertimes.Min() ascending
                 select new SegmentTime
@@ -155,6 +159,7 @@ namespace VeloTimerWeb.Api.Services
                     && tsi.Time <= tsi.StatisticsItem.MaxTime
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
+                    && town.Owner.IsPublic
                 orderby tsi.EndTime descending
                 select new SegmentTime
                 {
@@ -192,6 +197,7 @@ namespace VeloTimerWeb.Api.Services
                     && tsi.Time <= tsi.StatisticsItem.MaxTime
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
+                    && town.Owner.IsPublic
                 orderby tsi.EndTime descending
                 select new SegmentTime
                 {

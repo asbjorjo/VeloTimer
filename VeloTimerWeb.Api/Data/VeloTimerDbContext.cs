@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using VeloTimer.Shared.Models;
+using VeloTimerWeb.Api.Models;
 using VeloTimerWeb.Api.Util;
 
 namespace VeloTimerWeb.Api.Data

@@ -1,0 +1,79 @@
+﻿@inherits ComponentBase
+@using VeloTimer.Shared.Models
+@using VeloTimerWeb.Client.Components
+@inject IApiClient Api
+@inject AuthenticationStateProvider authStatProvider
+
+<div>
+    @if (profile != null)
+    {
+        <EditForm Model="@profile" OnValidSubmit="@SaveProfile" Context="profilecontext">
+            <div class="form-row">
+                <label for="displayname" class="col-1 col-form-label">
+                    Navn til lister
+                </label>
+                <div class="col">
+                    <InputText id="displayname" @bind-Value="profile.RiderDisplayName" class="form-control" />
+                </div>
+            </div>
+            <div class="form-row">
+                <label for="firstname" class="col-1 col-form-label">
+                    Fornavn
+                </label>
+                <div class="col">
+                    <InputText id="firstname" @bind-Value="profile.RiderFirstName" class="form-control" />
+                </div>
+            </div>
+            <div class="form-row">
+                <label for="lastname" class="col-1 col-form-label">
+                    Etternavn
+                </label>
+                <div class="col">
+                    <InputText id="lastname" @bind-Value="profile.RiderLastName" class="form-control" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-check">
+                    <InputCheckbox id="ispublic" @bind-Value="profile.RiderIsPublic" class="form-check-input" />
+                    <label for="ispublic" class="form-check-label">
+                        Vis i statistikk
+                    </label>
+                </div>
+            </div>
+            <div class="form-row">
+                <InputText id="userid" hidden="true" @bind-Value="profile.UserId" />
+                <button type="submit" class="btn btn-primary">Lagre</button>
+                <button class="btn btn-danger" @onclick="@DeleteProfile">Slett</button>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private RiderWeb profile;
+
+    protected async override Task OnInitializedAsync()
+    {
+        await LoadProfile();
+    }
+
+    private async Task LoadProfile()
+    {
+        var authstate = await authStatProvider.GetAuthenticationStateAsync();
+
+        if (authstate.User.Identity.IsAuthenticated)
+        {
+            profile = await Api.GetRiderByUserId(authstate.User.Claims.First(x => x.Type == "sub").Value);
+        }
+    }
+
+    private async void SaveProfile()
+    {
+        await Api.SaveRiderProfile(profile);
+    }
+
+    private async void DeleteProfile()
+    {
+        await Api.DeleteRiderProfile(profile.UserId);
+    }
+}

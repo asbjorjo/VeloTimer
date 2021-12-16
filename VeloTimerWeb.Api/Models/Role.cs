@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace VeloTimer.Shared.Models
+namespace VeloTimerWeb.Api.Models
 {
     public class Role : IdentityRole<Guid>
     {

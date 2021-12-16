@@ -35,8 +35,9 @@ namespace VeloTimerWeb.Api.Controllers
             _dbset = _context.Set<Rider>();
         }
 
+        [HttpGet]
         [Route("{userId}")]
-        public async Task<ActionResult<Rider>> Get(string userId)
+        public async Task<ActionResult<RiderWeb>> Get(string userId)
         {
             var rider = await _context.Set<Rider>().AsNoTracking().SingleOrDefaultAsync(r => r.UserId == userId);
 
@@ -45,16 +46,50 @@ namespace VeloTimerWeb.Api.Controllers
                 return NotFound();
             }
 
-            return rider;
+            return RiderWeb.Create(rider);
+        }
+
+        [HttpDelete]
+        [Route("{userId}")]
+        public async Task<ActionResult> Delete(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId)) return BadRequest();
+            if (!User.Identity.IsAuthenticated || User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != userId) return Unauthorized();
+
+            await _riderService.DeleteRider(userId);
+
+            return Ok();
+        }
+
+        [HttpPut]
+        [Route("{userid}")]
+        public async Task<ActionResult<RiderWeb>> Update(string userId, RiderWeb profile)
+        {
+            if (string.IsNullOrWhiteSpace(userId)) return BadRequest();
+            if (userId != profile.UserId) return BadRequest();
+            if (!User.Identity.IsAuthenticated || User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != userId) return Unauthorized();
+
+            var rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == userId);
+
+            if (rider == null) return NotFound();
+
+            rider.Name = profile.RiderDisplayName;
+            rider.FirstName = profile.RiderFirstName;
+            rider.LastName = profile.RiderLastName;
+            rider.IsPublic = profile.RiderIsPublic;
+
+            await _context.SaveChangesAsync();
+
+            return RiderWeb.Create(rider);
         }
 
         [Route("active")]
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Rider>>> GetActive(DateTimeOffset fromtime, DateTimeOffset? totime)
+        public async Task<ActionResult<IEnumerable<RiderWeb>>> GetActive(DateTimeOffset fromtime, DateTimeOffset? totime)
         {
             var active = await _riderService.GetActive(fromtime, totime);
 
-            return active.ToList();
+            return active.Select(x => RiderWeb.Create(x)).ToList();
         }
 
         [AllowAnonymous]
@@ -193,15 +228,12 @@ namespace VeloTimerWeb.Api.Controllers
 
             if (Request.HttpContext.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != rider) return Unauthorized();
 
-            var ownershipsq = _context.Set<TransponderOwnership>()
+            var ownerships = await _context.Set<TransponderOwnership>()
                 .Where(x => x.Owner.UserId == rider)
                 .Where(x => x.Transponder.SystemId == TransponderIdConverter.CodeToId(label).ToString())
                 .Where(x => x.OwnedFrom == from.UtcDateTime)
-                .Where(x => x.OwnedUntil == until.UtcDateTime);
-
-            _logger.LogDebug(ownershipsq.ToQueryString());
-
-            var ownerships = await ownershipsq.ToListAsync();
+                .Where(x => x.OwnedUntil == until.UtcDateTime)
+                .ToListAsync();
 
             if (!ownerships.Any()) return NotFound();
 

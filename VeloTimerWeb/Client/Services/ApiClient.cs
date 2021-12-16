@@ -58,7 +58,7 @@ namespace VeloTimerWeb.Client.Services
             return riders;
         }
 
-        public async Task<IEnumerable<Rider>> GetActiveRiders(DateTimeOffset fromtime, DateTimeOffset? totime)
+        public async Task<IEnumerable<RiderWeb>> GetActiveRiders(DateTimeOffset fromtime, DateTimeOffset? totime)
         {
             var url = new StringBuilder();
 
@@ -72,7 +72,7 @@ namespace VeloTimerWeb.Client.Services
             using var response = await _client.GetAsync(url.ToString(), HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
 
-            var riders = await response.Content.ReadFromJsonAsync<IEnumerable<Rider>>();
+            var riders = await response.Content.ReadFromJsonAsync<IEnumerable<RiderWeb>>();
 
             return riders;
         }
@@ -159,12 +159,12 @@ namespace VeloTimerWeb.Client.Services
             return passing;
         }
 
-        public async Task<Rider> GetRiderByUserId(string userId)
+        public async Task<RiderWeb> GetRiderByUserId(string userId)
         {
             using var response = await _client.GetAsync($"rider/{userId}");
             response.EnsureSuccessStatusCode();
 
-            var rider = await response.Content.ReadFromJsonAsync<Rider>();
+            var rider = await response.Content.ReadFromJsonAsync<RiderWeb>();
 
             return rider;
         }
@@ -316,6 +316,19 @@ namespace VeloTimerWeb.Client.Services
         public async Task RemoveTransponderRegistration(string owner, string label, DateTimeOffset from, DateTimeOffset until)
         {
             using var response = await _client.DeleteAsync($"rider/{owner}/transponder/{label}/{TimeFormatter(from)}/{TimeFormatter(until)}");
+            response.EnsureSuccessStatusCode();
+        }
+
+        public async Task SaveRiderProfile(RiderWeb riderWeb)
+        {
+            var userid = riderWeb.UserId;
+            using var response = await _client.PutAsJsonAsync($"rider/{userid}", riderWeb);
+            response.EnsureSuccessStatusCode();
+        }
+
+        public async Task DeleteRiderProfile(string userid)
+        {
+            using var response = await _client.DeleteAsync($"rider/{userid}");
             response.EnsureSuccessStatusCode();
         }
     }

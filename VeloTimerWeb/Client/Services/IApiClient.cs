@@ -7,13 +7,15 @@ namespace VeloTimerWeb.Client.Services
 {
     public interface IApiClient
     {
-        Task<Rider> GetRiderByUserId(string userId);
+        Task<RiderWeb> GetRiderByUserId(string userId);
         Task RemoveTransponderRegistration(string owner, string label, DateTimeOffset from, DateTimeOffset until);
+        Task DeleteRiderProfile(string userid);
+        Task SaveRiderProfile(RiderWeb riderWeb);
 
         Task<int> GetActiveTransponderCount(DateTimeOffset fromtime, DateTimeOffset? totime);
         Task<int> GetActiveRiderCount(DateTimeOffset fromtime, DateTimeOffset? totime);
         Task<IEnumerable<Transponder>> GetActiveTransponders(DateTimeOffset fromtime, DateTimeOffset? totime);
-        Task<IEnumerable<Rider>> GetActiveRiders(DateTimeOffset fromtime, DateTimeOffset? totime);
+        Task<IEnumerable<RiderWeb>> GetActiveRiders(DateTimeOffset fromtime, DateTimeOffset? totime);
 
         Task<IEnumerable<SegmentTime>> GetBestTimes(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10, string Rider = null, bool OnePerRider = false);
         Task<IEnumerable<SegmentTime>> GetTimes(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 50, string Rider = null);

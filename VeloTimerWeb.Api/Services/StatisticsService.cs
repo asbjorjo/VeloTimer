@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Models;
 
 namespace VeloTimerWeb.Api.Services
 {
@@ -39,6 +40,7 @@ namespace VeloTimerWeb.Api.Services
                             && tsi.Time <= tsi.StatisticsItem.MaxTime
                             && town.OwnedFrom <= tsi.StartTime
                             && town.OwnedUntil >= tsi.EndTime
+                            && town.Owner.IsPublic
                         group tsi.Time by new { town.Owner.Id, town.Owner.Name, tsi.StatisticsItem.StatisticsItem.Distance } into ridertimes
                         orderby ridertimes.Min() ascending
                         select new SegmentTime
@@ -76,6 +78,7 @@ namespace VeloTimerWeb.Api.Services
                     && tsi.Time <= tsi.StatisticsItem.MaxTime
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
+                    && town.Owner.IsPublic
                 group tsi by new { town.Owner.Id, town.Owner.Name, Length = tsi.StatisticsItem.Layout.Distance } into g
                 orderby g.Key.Length * g.Count() descending
                 select new

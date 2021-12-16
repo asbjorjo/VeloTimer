@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -6,30 +7,43 @@ using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Models;
 
 namespace VeloTimerWeb.Api.Services
 {
     public class RiderService : IRiderService
     {
         private readonly VeloTimerDbContext _context;
+        private readonly UserManager<User> _userManager;
         private readonly ILogger<RiderService> _logger;
 
-        public RiderService(VeloTimerDbContext context, ILogger<RiderService> logger)
+        public RiderService(VeloTimerDbContext context, UserManager<User> userManager, ILogger<RiderService> logger)
         {
             _context = context;
+            _userManager = userManager;
             _logger = logger;
         }
 
         public async Task DeleteRider(string userId)
         {
-            var user = await _context.Set<Rider>().SingleOrDefaultAsync(r => r.UserId == userId);
+            var rider = await _context.Set<Rider>().Include(x => x.Transponders).SingleOrDefaultAsync(r => r.UserId == userId);
 
-            if (user == null)
+            if (rider == null)
             {
                 throw new ArgumentNullException(nameof(userId));
             }
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user != null)
+            {
+                var result = await _userManager.DeleteAsync(user);
+                
+                if (!result.Succeeded)
+                {
+                    _logger.LogError(result.ToString());
+                }
+            }
 
-            _context.Remove(user);
+            _context.Remove(rider);
 
             await _context.SaveChangesAsync();
         }
@@ -44,6 +58,7 @@ namespace VeloTimerWeb.Api.Services
             var riders = await _context.Set<Rider>()
                 .AsNoTracking()
                 .Where(r => active.Keys.Contains(r.Id))
+                .Where(r => r.IsPublic)
                 .ToListAsync();
 
             return riders;

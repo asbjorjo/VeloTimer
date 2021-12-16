@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+using VeloTimerWeb.Api.Models;
 using VeloTimerWeb.Api.Util;
 
 namespace VeloTimerWeb.Api.Data
