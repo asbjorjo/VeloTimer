@@ -40,7 +40,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
                 return NotFound($"StatisticsItem: {Label}");
             }
 
-            ViewData["Title"] = $"Passeringstider<br/>{Label}";
+            ViewData["Title"] = $"{Label}";
 
             var seedtimes = await _service.GetRecent(statsitem, DateTimeOffset.Now.AddDays(-7), DateTimeOffset.MaxValue, 35);
             times = new Queue<SegmentTime>(seedtimes);
