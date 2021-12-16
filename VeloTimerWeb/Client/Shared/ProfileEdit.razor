@@ -11,26 +11,26 @@
     {
         <EditForm Model="@profile" OnValidSubmit="@SaveProfile" Context="profilecontext">
             <div class="form-row">
-                <label for="displayname" class="col-1 col-form-label">
-                    Navn til lister
+                <label for="displayname" class="col-3 col-lg-1 col-form-label">
+                    Navn til statistikk
                 </label>
-                <div class="col">
+                <div class="col col-lg-6">
                     <InputText id="displayname" @bind-Value="profile.RiderDisplayName" class="form-control" />
                 </div>
             </div>
             <div class="form-row">
-                <label for="firstname" class="col-1 col-form-label">
+                <label for="firstname" class="col-3 col-lg-1 col-form-label">
                     Fornavn
                 </label>
-                <div class="col">
+                <div class="col col-lg-6">
                     <InputText id="firstname" @bind-Value="profile.RiderFirstName" class="form-control" />
                 </div>
             </div>
             <div class="form-row">
-                <label for="lastname" class="col-1 col-form-label">
+                <label for="lastname" class="col-3 col-lg-1 col-form-label">
                     Etternavn
                 </label>
-                <div class="col">
+                <div class="col col-lg-6">
                     <InputText id="lastname" @bind-Value="profile.RiderLastName" class="form-control" />
                 </div>
             </div>
