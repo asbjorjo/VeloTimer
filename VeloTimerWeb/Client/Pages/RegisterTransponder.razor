@@ -17,31 +17,40 @@
             <ServerValidator @ref="serverValidator" />
             <ValidationSummary />
 
-            <label>
-                Transponder
-                <InputText id="label" @bind-Value="transponderName.TransponderLabel" />
-            </label>
-            <InputText id="name" @bind-Value="transponderName.Owner" hidden="true" />
-           
-            <label>
-                Gyldig fra
-                <InputDate id="validFrom" @bind-Value="transponderName.OwnedFrom"></InputDate>
-            </label>
-            <label>
-                Gyldig til
-                <InputDate id="validUntil" @bind-Value="transponderName.OwnedUntil"></InputDate>
-            </label>
-
-            <button type="submit">Registrer</button>
+            <div class="form-row">
+                <label for="label" class="col-1 col-form-label">
+                    Transponder
+                </label>
+                <InputText id="label" @bind-Value="transponderName.TransponderLabel" class="form-control" />
+            </div>
+            <div class="form-row">
+                <div class="col">
+                    <label for="validFrom">
+                        Gyldig fra
+                    </label>
+                    <InputDate id="validFrom" @bind-Value="transponderName.OwnedFrom" class="form-control" />
+                </div>
+                <div class="col">
+                    <label for="validUntil">
+                        Gyldig til
+                    </label>
+                    <InputDate id="validUntil" @bind-Value="transponderName.OwnedUntil" class="form-control" />
+                </div>
+            </div>
+            <div class="form-row">
+                <InputText id="name" @bind-Value="transponderName.Owner" hidden="true" />
+                <button class="btn btn-primary" type="submit">Registrer</button>
+                <button class="btn btn-secondary" type="reset" @onclick="@ResetForm" @onclick:preventDefault>Nullstill</button>
+            </div>
         </EditForm>
-
+        <div class="w-100" />
         <table class="table table-bordered table-striped">
             <thead>
                 <tr>
                     <th>Transponder</th>
                     <th>Gyldig fra</th>
                     <th>Gyldig til</th>
-                    <th></th>
+                    <th>Slett registrering</th>
                 </tr>
             </thead>
             <tbody>
@@ -53,12 +62,14 @@
                             <td>@transpondername.TransponderLabel</td>
                             <td>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</td>
                             <td>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</td>
-                            <button
-                                value="@transpondername.TransponderLabel" 
-                                @onclick="@(e => 
-                                    RemoveRegistration(e, transpondername.TransponderLabel, transpondername.OwnedFrom, transpondername.OwnedUntil))">
-                                Avregistrer
-                            </button>
+                            <td>
+                                <button class="btn btn-danger"
+                                    value="@transpondername.TransponderLabel" 
+                                    @onclick="@(e => 
+                                        RemoveRegistration(e, transpondername.TransponderLabel, transpondername.OwnedFrom, transpondername.OwnedUntil))">
+                                    Slett
+                                </button>
+                            </td>
                         </tr>
                     }
                 }
@@ -73,6 +84,7 @@
     private TransponderOwnershipWebForm transponderName = new();
     private IEnumerable<TransponderOwnershipWeb> transpondernames;
     private ServerValidator serverValidator;
+    private string userId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -81,7 +93,8 @@
 
         if (user.Identity.IsAuthenticated)
         {
-            transponderName.Owner = user.FindFirst(c => c.Type == "sub")?.Value;
+            userId = user.FindFirst(c => c.Type == "sub")?.Value;
+            transponderName.Owner = userId;
         }
 
         await LoadTransponderNames();
@@ -107,18 +120,20 @@
         }
     }
 
+    private void ResetForm()
+    {
+        transponderName = new();
+        transponderName.Owner = userId;
+    }
+
     private async void RemoveRegistration(EventArgs e, string label, DateTimeOffset from, DateTimeOffset until)
     {
         var authState = await authenticationStateTask;
         var user = authState.User;
 
-        if (user.Identity.IsAuthenticated)
-        {
-            var owner = user.FindFirst(c => c.Type == "sub")?.Value;
-            await Api.RemoveTransponderRegistration(owner, label, from, until);
+        await Api.RemoveTransponderRegistration(userId, label, from, until);
 
-            await LoadTransponderNames();
-            StateHasChanged();
-        }
+        await LoadTransponderNames();
+        StateHasChanged();
     }
 }
