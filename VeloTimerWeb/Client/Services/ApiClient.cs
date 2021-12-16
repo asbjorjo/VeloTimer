@@ -310,7 +310,7 @@ namespace VeloTimerWeb.Client.Services
 
         private static string TimeFormatter(DateTimeOffset? time)
         {
-            return time?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+            return time?.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
         }
 
         public async Task RemoveTransponderRegistration(string owner, string label, DateTimeOffset from, DateTimeOffset until)
