@@ -52,8 +52,8 @@
                     {
                         <tr>
                             <td>@transpondername.TransponderLabel</td>
-                            <td>@transpondername.OwnedFrom.Date.ToShortDateString()</td>
-                            <td>@transpondername.OwnedUntil.Date.ToShortDateString()</td>
+                            <td>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</td>
+                            <td>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</td>
                             <button
                                 value="@transpondername.TransponderLabel" 
                                 @onclick="@(e => 
