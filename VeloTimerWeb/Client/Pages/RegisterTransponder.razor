@@ -11,7 +11,7 @@
 <AuthorizeView>
     <Authorized>
         <h3>Registrer transponder</h3>
-        <div class="col">
+        <div class="col col-lg-8 col-xl-6">
             <EditForm Model="@transponderName" OnValidSubmit="@HandleValidSubmit" Context="formcontext">
                 <DataAnnotationsValidator />
                 <ServerValidator @ref="serverValidator" />
@@ -44,8 +44,8 @@
                 </div>
             </EditForm>
         </div>
-        <div class="col table-responsive">
-            <table class="table table-bordered table-striped align-middle">
+        <div class="col col-xl-6 table-responsive">
+            <table class="table table-bordered table-striped align-middle text-nowrap">
                 <thead>
                     <tr>
                         <th scope="col">Transponder</th>
