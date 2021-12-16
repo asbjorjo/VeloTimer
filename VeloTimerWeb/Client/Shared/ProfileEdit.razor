@@ -1,8 +1,10 @@
 ﻿@inherits ComponentBase
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
 @using VeloTimer.Shared.Models
 @using VeloTimerWeb.Client.Components
 @inject IApiClient Api
-@inject AuthenticationStateProvider authStatProvider
+@inject NavigationManager Navigation
+@inject SignOutSessionStateManager SignOutManager
 
 <div>
     @if (profile != null)
@@ -43,13 +45,15 @@
             <div class="form-row">
                 <InputText id="userid" hidden="true" @bind-Value="profile.UserId" />
                 <button type="submit" class="btn btn-primary">Lagre</button>
-                <button class="btn btn-danger" @onclick="@DeleteProfile">Slett</button>
+                <button class="btn btn-danger" @onclick="@DeleteProfile">Slett profil</button>
             </div>
         </EditForm>
     }
 </div>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
     private RiderWeb profile;
 
     protected async override Task OnInitializedAsync()
@@ -59,12 +63,9 @@
 
     private async Task LoadProfile()
     {
-        var authstate = await authStatProvider.GetAuthenticationStateAsync();
+        var authstate = await authenticationStateTask;
 
-        if (authstate.User.Identity.IsAuthenticated)
-        {
-            profile = await Api.GetRiderByUserId(authstate.User.Claims.First(x => x.Type == "sub").Value);
-        }
+        profile = await Api.GetRiderByUserId(authstate.User.Claims.First(x => x.Type == "sub").Value);
     }
 
     private async void SaveProfile()
@@ -75,5 +76,7 @@
     private async void DeleteProfile()
     {
         await Api.DeleteRiderProfile(profile.UserId);
+        await SignOutManager.SetSignOutState();
+        Navigation.NavigateTo("authentication/logout");
     }
 }
