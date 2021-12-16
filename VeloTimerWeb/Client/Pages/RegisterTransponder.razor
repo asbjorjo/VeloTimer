@@ -3,7 +3,6 @@
 @inherits ComponentBase
 @using Microsoft.Extensions.Logging
 @using VeloTimer.Shared.Models
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @inject IApiClient Api
 @inject HttpClient Http
@@ -69,13 +68,15 @@
 </AuthorizeView>
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
     private TransponderOwnershipWebForm transponderName = new();
     private IEnumerable<TransponderOwnershipWeb> transpondernames;
     private ServerValidator serverValidator;
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var authState = await authenticationStateTask;
         var user = authState.User;
 
         if (user.Identity.IsAuthenticated)
@@ -108,7 +109,7 @@
 
     private async void RemoveRegistration(EventArgs e, string label, DateTimeOffset from, DateTimeOffset until)
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var authState = await authenticationStateTask;
         var user = authState.User;
 
         if (user.Identity.IsAuthenticated)
