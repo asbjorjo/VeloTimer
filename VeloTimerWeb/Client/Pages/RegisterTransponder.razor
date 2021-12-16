@@ -11,70 +11,72 @@
 <AuthorizeView>
     <Authorized>
         <h3>Registrer transponder</h3>
+        <div class="col">
+            <EditForm Model="@transponderName" OnValidSubmit="@HandleValidSubmit" Context="formcontext">
+                <DataAnnotationsValidator />
+                <ServerValidator @ref="serverValidator" />
+                <ValidationSummary />
 
-        <EditForm Model="@transponderName" OnValidSubmit="@HandleValidSubmit" Context="formcontext">
-            <DataAnnotationsValidator />
-            <ServerValidator @ref="serverValidator" />
-            <ValidationSummary />
-
-            <div class="form-row">
-                <label for="label" class="col-1 col-form-label">
-                    Transponder
-                </label>
-                <InputText id="label" @bind-Value="transponderName.TransponderLabel" class="form-control" />
-            </div>
-            <div class="form-row">
-                <div class="col">
-                    <label for="validFrom">
-                        Gyldig fra
+                <div class="form-row">
+                    <label for="label" class="col-1 col-form-label">
+                        Transponder
                     </label>
-                    <InputDate id="validFrom" @bind-Value="transponderName.OwnedFrom" class="form-control" />
+                    <InputText id="label" @bind-Value="transponderName.TransponderLabel" class="form-control" />
                 </div>
-                <div class="col">
-                    <label for="validUntil">
-                        Gyldig til
-                    </label>
-                    <InputDate id="validUntil" @bind-Value="transponderName.OwnedUntil" class="form-control" />
+                <div class="form-row">
+                    <div class="col">
+                        <label for="validFrom">
+                            Gyldig fra
+                        </label>
+                        <InputDate id="validFrom" @bind-Value="transponderName.OwnedFrom" class="form-control" />
+                    </div>
+                    <div class="col">
+                        <label for="validUntil">
+                            Gyldig til
+                        </label>
+                        <InputDate id="validUntil" @bind-Value="transponderName.OwnedUntil" class="form-control" />
+                    </div>
                 </div>
-            </div>
-            <div class="form-row">
-                <InputText id="name" @bind-Value="transponderName.Owner" hidden="true" />
-                <button class="btn btn-primary" type="submit">Registrer</button>
-                <button class="btn btn-secondary" type="reset" @onclick="@ResetForm" @onclick:preventDefault>Nullstill</button>
-            </div>
-        </EditForm>
-        <div class="w-100" />
-        <table class="table table-bordered table-striped">
-            <thead>
-                <tr>
-                    <th>Transponder</th>
-                    <th>Gyldig fra</th>
-                    <th>Gyldig til</th>
-                    <th>Slett registrering</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if(transpondernames != null)
-                {
-                    @foreach(var transpondername in transpondernames)
+                <div class="form-row">
+                    <InputText id="name" @bind-Value="transponderName.Owner" hidden="true" />
+                    <button class="btn btn-primary" type="submit">Registrer</button>
+                    <button class="btn btn-secondary" type="reset" @onclick="@ResetForm" @onclick:preventDefault>Nullstill</button>
+                </div>
+            </EditForm>
+        </div>
+        <div class="col table-responsive">
+            <table class="table table-bordered table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">Transponder</th>
+                        <th scope="col">Gyldig fra</th>
+                        <th scope="col">Gyldig til</th>
+                        <th scope="col">Slett registrering</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if(transpondernames != null)
                     {
-                        <tr>
-                            <td>@transpondername.TransponderLabel</td>
-                            <td>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</td>
-                            <td>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</td>
-                            <td>
-                                <button class="btn btn-danger"
-                                    value="@transpondername.TransponderLabel" 
-                                    @onclick="@(e => 
-                                        RemoveRegistration(e, transpondername.TransponderLabel, transpondername.OwnedFrom, transpondername.OwnedUntil))">
-                                    Slett
-                                </button>
-                            </td>
-                        </tr>
+                        @foreach(var transpondername in transpondernames)
+                        {
+                            <tr>
+                                <th scope="row">@transpondername.TransponderLabel</th>
+                                <td>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</td>
+                                <td>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</td>
+                                <td>
+                                    <button class="btn btn-danger pt-0 pb-0"
+                                        value="@transpondername.TransponderLabel" 
+                                        @onclick="@(e => 
+                                            RemoveRegistration(e, transpondername.TransponderLabel, transpondername.OwnedFrom, transpondername.OwnedUntil))">
+                                        Slett
+                                    </button>
+                                </td>
+                            </tr>
+                        }
                     }
-                }
-            </tbody>
-        </table>
+                </tbody>
+            </table>
+        </div>
     </Authorized>
 </AuthorizeView>
 

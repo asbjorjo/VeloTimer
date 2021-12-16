@@ -6,9 +6,9 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th scope="col">Rytter</th>    
-                <th>Tid</th>
-                <th>Fart</th>
+                <th scope="col" class="mw-100">Rytter</th>    
+                <th scope="col" class="text-right">Tid</th>
+                <th scope="col" class="text-right">Fart</th>
             </tr>
         </thead>
         <tbody>
@@ -27,8 +27,8 @@
                 {
                     <tr>
                         <td>@segment.Rider</td>    
-                        <td>@Formatters.FormatTime(segment.Time)</td>
-                        <td>@Formatters.FormatSpeed(segment.Speed)</td>
+                        <td class="text-right">@Formatters.FormatTime(segment.Time)</td>
+                        <td class="text-right">@Formatters.FormatSpeed(segment.Speed)</td>
                     </tr>
                 }
             }

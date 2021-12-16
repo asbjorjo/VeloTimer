@@ -28,7 +28,7 @@
                                 @for (int position = 0; position < time.Value.Count(); position++)
                                 {
                                     <tr>
-                                        <td>@(position+1)</td>
+                                        <th scope="row">@(position+1)</th>
                                         <td>@time.Value.ElementAt(position).Rider</td>    
                                         <td class="text-right">@Formatters.FormatTime(time.Value.ElementAt(position).Time)</td>
                                         <td class="text-right">@Formatters.FormatSpeed(time.Value.ElementAt(position).Speed)</td>
