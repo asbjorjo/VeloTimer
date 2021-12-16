@@ -8,7 +8,7 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-@if (segment != null && segmentTimes != null)
+@if (segment != null && segmentTimes != null && segmentTimes.Any())
 {
     @*@if (segment.Intermediates.Count() > 0 && !ShowIntermediate.HasValue && segment.DisplayIntermediates)
     {
