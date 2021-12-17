@@ -16,7 +16,7 @@ env:
   AzureVault: https://velotime-vault.vault.azure.net/
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
     - uses: azure/login@v1
@@ -65,10 +65,5 @@ jobs:
       with:
         name: ammcload
         path: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
-#    - name: Publish WebApp Artifacts
-#      uses: actions/upload-artifact@v1.0.0
-#      with:
-#        name: webapp
-#        path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
     - name: Azure Logout
       run: az logout
