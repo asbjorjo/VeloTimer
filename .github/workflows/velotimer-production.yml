@@ -2,7 +2,7 @@ name: Build and deploy to Azure production environment
 on:
   push:
     branches:
-    - master   
+    - staging   
 env:
   AZURE_WEBAPP_NAME: velotime
   AZURE_AMMC_NAME: velotime-ammcload
