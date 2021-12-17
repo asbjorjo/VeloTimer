@@ -85,12 +85,12 @@ namespace VeloTimer.AmmcLoad.Services
             }
 
 
-            _logger.LogInformation("Most recent passing found {0}", mostRecent?.Source);
+            _logger.LogInformation("Most recent passing found {0}", mostRecent?.SourceId);
         }
 
         private async Task RefreshPassings()
         {
-            var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent.Source));
+            var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent.SourceId));
 
             if (!passings.Any())
             {
@@ -107,7 +107,7 @@ namespace VeloTimer.AmmcLoad.Services
             foreach (var passing in passings)
             {
                 var posted = await _httpClient.PostAsJsonAsync("passings/register", new PassingRegister
-                {
+               {
                     LoopId = passing.LoopId,
                     Source = passing.Id,
                     Time = passing.UtcTime,

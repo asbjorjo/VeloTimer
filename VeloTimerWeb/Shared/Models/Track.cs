@@ -6,11 +6,13 @@ using System.Threading.Tasks;
 
 namespace VeloTimer.Shared.Models
 {
-    public class Track : Entity
+    public class Track
     {
+        public long Id { get; set; }
         public string Name { get; set; }
         public double Length { get; set; }
 
-        public IEnumerable<TimingLoop> TimingLoops { get; set; }
+        public List<TrackLayout> Layouts { get; private set; } = new();
+        public List<TimingLoop> TimingLoops { get; private set; } = new();
     }
 }

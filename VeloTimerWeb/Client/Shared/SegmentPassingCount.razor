@@ -7,7 +7,7 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-@if (segment != null && passingcounts != null)
+@if (statsItem != null && passingcounts != null)
 {
     <table class="table">
         <thead>
@@ -21,9 +21,9 @@
         @foreach (var count in passingcounts)
         {
             <tr>
-                <td>@count.Key</td>
-                <td class="text-right">@count.Value</td>
-                <td class="text-right">@String.Format("{0:0.00}", Distance(count.Value))</td>
+                <td>@count.Rider</td>
+                <td class="text-right">@count.Count</td>
+                <td class="text-right">@String.Format("{0:0.00}", count.Distance)</td>
             </tr>
         }
         </tbody>
@@ -32,10 +32,10 @@
 
 @code {
     protected long passingcount;
-    protected IEnumerable<KeyValuePair<string, int>> passingcounts;
+    protected IEnumerable<SegmentDistance> passingcounts;
 
     [Parameter]
-    public long Segment { get; set; }
+    public string StatsItem { get; set; }
     [Parameter]
     public long? Transponder { get; set; }
     [Parameter]
@@ -47,7 +47,7 @@
     [Parameter]
     public long? Rider { get; set; }
 
-    protected Segment segment;
+    protected string statsItem;
     protected long? transponder;
     protected DateTimeOffset? fromtime;
     protected DateTimeOffset? totime;
@@ -64,28 +64,13 @@
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Segment != segment?.Id || Transponder != transponder || Rider != rider) {
-            if (segment != null)
-            {
-                await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
-            }
-
-            segment = await Http.GetFromJsonAsync<Segment>($"segments/{Segment}");
-
-            segment.Start = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.StartId}");
-            segment.Start.Track = await Http.GetFromJsonAsync<Track>($"track/{segment.Start.TrackId}");
-            segment.End = await Http.GetFromJsonAsync<TimingLoop>($"timingloops/{segment.EndId}");
-            segment.End.Track = segment.Start.Track;
-
+        if (StatsItem != statsItem || Transponder != transponder || Rider != rider) {
+            statsItem = StatsItem;
             transponder = Transponder;
-            fromtime = FromTime?.ToUniversalTime();
-            totime = ToTime?.ToUniversalTime();
+            fromtime = FromTime;
+            totime = ToTime;
             rider = Rider;
 
-            if (totime == null)
-            {
-                await hubConnection.InvokeAsync("AddToSegmentGroup", segment.Id);
-            }
             if (Count.HasValue)
             {
                 count = Count.Value;
@@ -98,30 +83,14 @@
 
     protected async Task LoadSegmentPassingCount()
     {
-        var counts = await Http.GetFromJsonAsync<Dictionary<string, int>>(
-        $"segments/passingcount?segmentId={segment.Id}"
-            + $"&transponderid={transponder}"
-            + $"&fromtime={fromtime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&totime={totime?.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")}"
-            + $"&count={count}");
+        var counts = await Api.GetCount(StatsItem, fromtime, totime, count);
 
         passingcounts = counts;
 
         StateHasChanged();
     }
 
-    private double Distance(long lapcount)
-    {
-        return lapcount * ((segment.Start.Distance < segment.End.Distance) ? segment.End.Distance - segment.Start.Distance : segment.Start.Track.Length - segment.Start.Distance + segment.End.Distance) / 1000;
-    }
-
     public void Dispose()
     {
-        hubConnection.Remove(Strings.Events.NewPassings);
-        if (segment != null)
-        {
-            hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
-        }
     }
 }
-        

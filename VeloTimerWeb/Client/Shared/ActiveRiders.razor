@@ -14,7 +14,7 @@
 
     @foreach(var rider in activeriders)
     {
-        <div class="col-3">@rider.Name</div>
+        <div class="col-3">@rider.RiderDisplayName</div>
     }
 }
 
@@ -24,7 +24,7 @@
     [Parameter]
     public DateTimeOffset? ToTime { get; set; }
 
-    private IEnumerable<Rider> activeriders;
+    private IEnumerable<RiderWeb> activeriders;
     private DateTimeOffset fromtime;
     private DateTimeOffset? totime;
 

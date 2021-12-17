@@ -44,7 +44,7 @@ namespace VeloTimerWeb.Client.Services
             _authStateProvider.AuthenticationStateChanged += _authenticationStateChangedHandler;
 
             ConfigureHandler(
-                authorizedUrls: new[] { _config["VELOTIMER_API_URL"] }
+                authorizedUrls: new[] { navigation.BaseUri }
                 );
         }
 

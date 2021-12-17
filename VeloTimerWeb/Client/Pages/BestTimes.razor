@@ -20,7 +20,7 @@
             </div>
             <div class="row">
                 <div class="col">
-                    <FastestSegmentTimes Segment=2 FromTime=DateTimeOffset.MinValue ShowIntermediate=false Count=10 Rider=@rider.Id />
+                    <FastestSegmentTimes StatsItem=Runde FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
                 </div>
             </div>
         </div>
@@ -33,12 +33,12 @@
             </div>
             <div class="row">
                 <div class="col">
-                    <FastestSegmentTimes Segment=1 FromTime=DateTimeOffset.MinValue ShowIntermediate=false Count=10 Rider=@rider.Id />
+                    <FastestSegmentTimes StatsItem=200m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
                 </div>
             </div>
         </div>
     </div>  
-@*    <div class="row">
+    <div class="row">
         <div class="col">
             <div class="row text-center">
                 <div class="col">
@@ -47,7 +47,7 @@
             </div>
             <div class="row">
                 <div class="col">
-                    <FastestSegmentTimes Segment=1 FromTime=DateTimeOffset.MinValue RequireIntermediates=true ShowIntermediate=false Count=10 Rider=@rider.Id />
+                    <FastestSegmentTimes StatsItem=3000m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
                 </div>
             </div>
         </div>
@@ -60,17 +60,17 @@
             </div>
             <div class="row">
                 <div class="col">
-                    <FastestSegmentTimes Segment=1 FromTime=DateTimeOffset.MinValue RequireIntermediates=true ShowIntermediate=false Count=10 Rider=@rider.Id />
+                    <FastestSegmentTimes StatsItem=4000m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
                 </div>
             </div>
         </div>
-    </div>*@
+    </div>
 }
 
 @code{
     [CascadingParameter]
     private Task<AuthenticationState> authenticationStateTask { get; set; }
-    private Rider rider;
+    private RiderWeb rider;
 
     protected async override Task OnParametersSetAsync()
     {

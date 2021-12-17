@@ -12,15 +12,19 @@ using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    public class TranspondersController : GenericController<Transponder>
+    [Route("api/[controller]")]
+    [ApiController]
+    public class TranspondersController : ControllerBase
     {
+        private readonly VeloTimerDbContext _context;
+        private readonly ILogger<TranspondersController> _logger;
         private readonly ITransponderService _service;
-        private readonly ISegmentService _segmentService;
-
-        public TranspondersController(ITransponderService service, ISegmentService segmentService, ILogger<GenericController<Transponder>> logger, VeloTimerDbContext context) : base(logger, context)
+        
+        public TranspondersController(ITransponderService service, ILogger<TranspondersController> logger, VeloTimerDbContext context) : base()
         {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _service = service ?? throw new ArgumentNullException(nameof(service));
-            _segmentService = segmentService ?? throw new ArgumentNullException(nameof(segmentService));
         }
 
         [AllowAnonymous]
@@ -58,17 +62,21 @@ namespace VeloTimerWeb.Api.Controllers
         [AllowAnonymous]
         [Route("times")]
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<SegmentTimeRider>>> GetTimes(long SegmentId, [FromQuery] IEnumerable<long> TransponderId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int? Count)
+        public async Task<ActionResult<IEnumerable<double>>> GetTimes(long SegmentId, [FromQuery] IEnumerable<long> TransponderId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int? Count)
         {
-            var times = Enumerable.Empty<SegmentTimeRider>();
+            var times = Enumerable.Empty<double>();
 
-            foreach (var transponderId in TransponderId)
-            {
-                var onetimes = await _segmentService.GetSegmentTimes(SegmentId, FromTime, ToTime);
-                times = times.Concat(onetimes);
-            }
+            var fromtime = FromTime.HasValue ? FromTime.Value : DateTimeOffset.MinValue;
+            var totime = ToTime.HasValue ? ToTime.Value : DateTimeOffset.MaxValue;
 
-            return Ok(times.OrderByDescending(t => t.PassingTime));
+            var Transponder = await _context.Set<Transponder>().SingleOrDefaultAsync(x => x.Id == TransponderId.First());
+            if (Transponder == null) { return NotFound(Transponder); }
+            var Segment = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Id == SegmentId);
+            if (Segment == null) { return NotFound(Segment);}
+            
+            times = await _service.GetFastest(Transponder, Segment, fromtime, totime);
+
+            return Ok(times);
         }
     }
 }

@@ -10,15 +10,15 @@ namespace VeloTimerWeb.Api.Hubs
 {
     public class PassingHub : Hub<IPassingClient>
     {
-        public async Task NotifySegmentOfNewRun(SegmentRun segment)
-        {
-            await Clients.Groups($"segment_{segment.SegmentId}").NewSegmentRun(segment);
-        }
+        //public async Task NotifySegmentOfNewRun(SegmentRun segment)
+        //{
+        //    await Clients.Groups($"segment_{segment.Segment.Id}").NewSegmentRun(segment);
+        //}
 
-        public async Task NotifyTransponderOfNewRun(Transponder transponder, SegmentRun segment)
-        {
-            await Clients.Groups($"segment_{segment.SegmentId}_transponder_{transponder.Id}").NewSegmentRun(segment, transponder);
-        }
+        //public async Task NotifyTransponderOfNewRun(Transponder transponder, SegmentRun segment)
+        //{
+        //    await Clients.Groups($"segment_{segment.Segment.Id}_transponder_{transponder.Id}").NewSegmentRun(segment, transponder);
+        //}
 
         public async Task RegisterPassingWithClients(Passing passing)
         {
@@ -27,7 +27,7 @@ namespace VeloTimerWeb.Api.Hubs
 
         public async Task RegisterLoopPassing(Passing passing)
         {
-            await Clients.Group(passing.LoopId.ToString()).RegisterPassing(passing);
+            await Clients.Group(passing.Loop.Id.ToString()).RegisterPassing(passing);
         }
 
         public async Task SendLastPassingToClients(Passing passing)

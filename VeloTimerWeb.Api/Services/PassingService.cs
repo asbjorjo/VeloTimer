@@ -2,12 +2,14 @@
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Hub;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
+using VeloTimerWeb.Api.Models;
 using static VeloTimer.Shared.Models.TransponderType;
 
 namespace VeloTimerWeb.Api.Services
@@ -19,14 +21,14 @@ namespace VeloTimerWeb.Api.Services
         private readonly ILogger<PassingService> _logger;
 
         public PassingService(
-            VeloTimerDbContext context, 
-            IHubContext<PassingHub, IPassingClient> hubContext, 
+            VeloTimerDbContext context,
+            IHubContext<PassingHub, IPassingClient> hubContext,
             ILogger<PassingService> logger)
         {
             _context = context;
             _hubContext = hubContext;
             _logger = logger;
-        } 
+        }
 
         public async Task<Passing> RegisterNew(Passing passing, TimingSystem? timingSystem, string transponderId)
         {
@@ -43,7 +45,7 @@ namespace VeloTimerWeb.Api.Services
                         SystemId = transponderId,
                         TimingSystem = timingSystem.Value
                     };
-                
+
                     _context.Add(transponder);
                 }
 
@@ -51,42 +53,218 @@ namespace VeloTimerWeb.Api.Services
             }
 
             _context.Add(passing);
+            await _context.SaveChangesAsync();
 
-            var segments = await _context.Set<Segment>()
-                .Where(s => s.EndId == passing.LoopId)
-                .ToListAsync();
+            await _hubContext.Clients.Group($"timingloop_{passing.Loop.Id}").NewPassings();
+            await _hubContext.Clients.Group($"transponder_{passing.Transponder.Id}").NewPassings();
 
-            foreach (var segment in segments)
+            var transponderPassing = await RegisterTransponderPassing(passing);
+
+            if (transponderPassing != null)
             {
-                var startpassing = await _context.Set<Passing>()
-                    .Where(p =>
-                        p.TransponderId == passing.TransponderId
-                        && p.LoopId == segment.StartId
-                        && p.Time < passing.Time
-                    )
-                    .OrderByDescending(p => p.Time)
-                    .FirstOrDefaultAsync();
+                var sectorPassings = await RegisterTrackSectorPassings(transponderPassing);
 
-                if (startpassing != null)
+                if (sectorPassings.Any())
                 {
-                    var segmentrun = new SegmentRun 
-                    { 
-                        Segment = segment, 
-                        Start = startpassing, 
-                        End = passing, 
-                        Time = (passing.Time - startpassing.Time).TotalSeconds
-                    };
+                    await _context.SaveChangesAsync();
 
-                    _context.Add(segmentrun);
+                    var layoutpassings = Enumerable.Empty<TrackLayoutPassing>();
 
-                    await _hubContext.Clients.Group($"segment_{segment.Id}").NewSegmentRun(segmentrun);
-                    await _hubContext.Clients.Group($"segment_{segment.Id}_transponder_{passing.Transponder.Id}").NewSegmentRun(segmentrun, passing.Transponder);
+                    foreach (var sectorPassing in sectorPassings)
+                    {
+                        var lp = await RegisterLayoutPassings(sectorPassing);
+                        layoutpassings = layoutpassings.Concat(lp);
+                    }
+
+                    if (layoutpassings.Any())
+                    {
+                        await _context.SaveChangesAsync();
+                        
+                        var transponderstats = Enumerable.Empty<TransponderStatisticsItem>();
+                        foreach (var layoutpassing in layoutpassings)
+                        {
+                            var tsi = await RegisterStatistics(layoutpassing);
+                            transponderstats = transponderstats.Concat(tsi);
+                        }
+
+                        if (transponderstats.Any())
+                        {
+                            await _context.SaveChangesAsync();
+                        }
+                    }
                 }
             }
 
             await _context.SaveChangesAsync();
 
             return passing;
+        }
+
+        private async Task<IEnumerable<TransponderStatisticsItem>> RegisterStatistics(TrackLayoutPassing layoutPassing)
+        {
+            var transponderstats = Enumerable.Empty<TransponderStatisticsItem>();
+
+            var statsitems = await _context.Set<TrackStatisticsItem>()
+                .Where(x => x.Layout == layoutPassing.TrackLayout)
+                .OrderByDescending(x => x.Laps)
+                .ToListAsync();
+
+            if (statsitems.Any())
+            {
+                var layoutPassings = await _context.Set<TrackLayoutPassing>()
+                    .Where(x =>
+                        x.TrackLayout == layoutPassing.TrackLayout
+                        && x.Transponder == layoutPassing.Transponder
+                        && x.EndTime <= layoutPassing.EndTime)
+                    .OrderByDescending(x => x.EndTime)
+                    .Take(statsitems.First().Laps)
+                    .OrderBy(x => x.EndTime)
+                    .ToListAsync();
+
+                foreach (var item in statsitems)
+                {
+                    if (item.Laps <= layoutPassings.Count)
+                    {
+                        var laps = layoutPassings.TakeLast(item.Laps);
+                        bool continuouslap = true;
+
+                        if (item.Laps > 1)
+                        {
+                            var previouslappass = laps.First();
+                            foreach (var lap in laps.Skip(1))
+                            {
+                                if (previouslappass.EndTime != lap.StartTime)
+                                {
+                                    continuouslap = false;
+                                }
+                                previouslappass = lap;
+                            }
+                        }
+
+                        if (continuouslap)
+                        {
+                            var tsi = TransponderStatisticsItem.Create(item, layoutPassing.Transponder, laps);
+                            _context.Add(tsi);
+                        }
+                    }
+                }
+            }
+
+            return transponderstats;
+        }
+
+        private async Task<IEnumerable<TrackLayoutPassing>> RegisterLayoutPassings(TrackSectorPassing sectorPassing)
+        {
+            var passings = Enumerable.Empty<TrackLayoutPassing>();
+
+            var layouts = await _context.Set<TrackLayout>()
+                .Where(x => x.Sectors.OrderByDescending(x => x.Order).First().Sector == sectorPassing.TrackSector)
+                .Include(x => x.Sectors)
+                .ThenInclude(x => x.Sector)
+                .ToListAsync();
+
+            if (layouts.Any())
+            {
+                foreach (var layout in layouts)
+                {
+                    var transponderpassings = await _context.Set<TrackSectorPassing>()
+                        .Where(x => x.Transponder == sectorPassing.Transponder)
+                        .Where(x => x.EndTime <= sectorPassing.EndTime)
+                        .Where(x => layout.Sectors.Select(x => x.Sector).Contains(x.TrackSector))
+                        .OrderByDescending(x => x.EndTime)
+                        .Take(layout.Sectors.Count)
+                        .OrderBy(x => x.EndTime)
+                        .ToListAsync();
+
+                    var sectors = layout.Sectors.OrderBy(x => x.Order).Select(x => x.Sector);
+
+                    var continuous = transponderpassings.Select(x => x.TrackSector.Id).SequenceEqual(sectors.Select(x => x.Id));
+
+                    var previous = transponderpassings.First();
+                    foreach (var transponderpassing in transponderpassings.Skip(1))
+                    {
+                        if (previous.EndTime != transponderpassing.StartTime)
+                        {
+                            continuous = false;
+                        }
+                        previous = transponderpassing;
+                    }
+
+                    if (continuous)
+                    {
+                        var passing = TrackLayoutPassing.Create(layout, sectorPassing.Transponder, transponderpassings);
+                        _context.Add(passing);
+                        passings = passings.Append(passing);
+                    }
+                }
+            }
+
+            return passings;
+        }
+
+        private async Task<IEnumerable<TrackSectorPassing>> RegisterTrackSectorPassings(TrackSegmentPassing transponderPassing)
+        {
+            var passings = Enumerable.Empty<TrackSectorPassing>();
+            var trackSectors = await _context.Set<TrackSector>()
+                .Where(x => x.Segments.OrderByDescending(x => x.Order).First().Segment == transponderPassing.TrackSegment)
+                .Include(x => x.Segments)
+                .ThenInclude(x => x.Segment)
+                .ToListAsync();
+            
+            if (trackSectors.Any())
+            {
+                var segmentpassings = await _context.Set<TrackSegmentPassing>()
+                    .Where(x => x.Transponder == transponderPassing.Transponder)
+                    .Where(x => x.EndTime <= transponderPassing.StartTime)
+                    .OrderByDescending(x => x.EndTime)
+                    .Take(trackSectors.Max(x => x.Segments.Count))
+                    .OrderBy(x => x.EndTime)
+                    .Include(x => x.TrackSegment)
+                    .ToListAsync();
+
+                segmentpassings.Add(transponderPassing);
+
+                foreach (var sector in trackSectors)
+                {
+                    var relevant = segmentpassings.TakeLast(sector.Segments.Count);
+                    var sectorPassing = TrackSectorPassing.Create(sector, transponderPassing.Transponder, relevant);
+                    if (sectorPassing != null)
+                    {
+                        passings = passings.Append(sectorPassing);
+                        _context.Add(sectorPassing);
+                    }
+                }
+            }
+
+            return passings;
+        }
+
+        public async Task<TrackSegmentPassing> RegisterTransponderPassing(Passing passing)
+        {
+            var trackSegment = await _context.Set<TrackSegment>()
+                .Include(s => s.Start)
+                .Include(s => s.End)
+                .SingleOrDefaultAsync(s => s.End == passing.Loop);
+
+            if (trackSegment != null)
+            {
+                var previous = await _context.Set<Passing>()
+                    .Where(p => p.Transponder == passing.Transponder)
+                    .Where(p => p.Time < passing.Time)
+                    .OrderByDescending(p => p.Time)
+                    .Include(s => s.Loop)
+                    .FirstOrDefaultAsync();
+
+                if (previous != null && previous.Loop == trackSegment.Start)
+                {
+                    var transponderPassing = TrackSegmentPassing.Create(trackSegment, previous, passing);
+                    _context.Add(transponderPassing);
+                    await _context.SaveChangesAsync();
+                    return transponderPassing;
+                }
+            }
+
+            return null;
         }
     }
 }

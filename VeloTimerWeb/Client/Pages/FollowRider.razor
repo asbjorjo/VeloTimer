@@ -28,7 +28,7 @@
             <select @onchange="ChangeSegment">
                 @foreach (var segment in segments)
                 {
-                    <option value="@segment.Id" selected="@(segment == this.segment)">@segment.Label</option>
+                    <option value="@segment.Id" selected="@(segment == this.segment)">@segment.Description</option>
                 }
             </select>
             <div class="w-100"/>
@@ -75,11 +75,11 @@
 @code {
     private IEnumerable<Transponder> transponders;
     private IEnumerable<Rider> riders;
-    private IEnumerable<Segment> segments;
-    private Segment segment;
+    private IEnumerable<TimingLoop> segments;
+    private TimingLoop segment;
     private List<Transponder> selectedtransponders = new List<Transponder>();
     private DateTimeOffset starttime = DateTimeOffset.Now;
-    private Dictionary<string, SegmentTimeRider> times;
+    private Dictionary<string, SegmentTime> times;
     private List<double[]> tabletimes = new List<double[]>();
     private DateTimeOffset lastpassing;
     private List<Transponder> thisround = new List<Transponder>();
@@ -88,7 +88,7 @@
     {
         transponders = await Api.GetActiveTransponders(DateTimeOffset.Now.AddMinutes (-15), null);
         //riders = await Api.GetActiveRiders(DateTimeOffset.Now.AddHours(-15), null);
-        segments = await Api.GetSegments(1L);
+        segments = await Api.GetTimingPoints("1");
     }
 
     private void StartTiming()
@@ -103,32 +103,32 @@
         tabletimes.Clear();
         tabletimes.Add(new double[selectedtransponders.Count]);
 
-        hubConnection.On<SegmentRun, Transponder>(Strings.Events.NewSegmentRun, RefreshTimes);
+        //hubConnection.On<SegmentRun, Transponder>(Strings.Events.NewSegmentRun, RefreshTimes);
     }
 
-    private void RefreshTimes(SegmentRun segmentRun, Transponder transponder)
-    {
-        Console.WriteLine("Refreshing times");
+    //private void RefreshTimes(Passing passing, Transponder transponder)
+    //{
+    //    Console.WriteLine("Refreshing times");
 
-        Console.WriteLine("Created row");
+    //    Console.WriteLine("Created row");
 
-        // Second time a transponder i seen has to be new round.
-        // TODO: Deal with potentially dropped transponders.
-        if (thisround.Select(t => t.Id).Contains(transponder.Id))
-        {
-            var newrow = new double[selectedtransponders.Count];
-            tabletimes.Insert(0, newrow);
-            thisround.Clear();
-        }
+    //    // Second time a transponder i seen has to be new round.
+    //    // TODO: Deal with potentially dropped transponders.
+    //    if (thisround.Select(t => t.Id).Contains(transponder.Id))
+    //    {
+    //        var newrow = new double[selectedtransponders.Count];
+    //        tabletimes.Insert(0, newrow);
+    //        thisround.Clear();
+    //    }
 
-        var index = selectedtransponders.FindIndex(t => t.Id == transponder.Id);
+    //    var index = selectedtransponders.FindIndex(t => t.Id == transponder.Id);
 
-        var row = tabletimes.ElementAt(0);
-        row[index] = segmentRun.Time;
-        thisround.Add(transponder);
+    //    var row = tabletimes.ElementAt(0);
+    //    row[index] = segmentRun.Time;
+    //    thisround.Add(transponder);
 
-        StateHasChanged();
-    }
+    //    StateHasChanged();
+    //}
 
     private void ChangeSegment(ChangeEventArgs e)
     {
@@ -153,7 +153,7 @@
 
     public void Dispose()
     {
-        hubConnection.Remove(Strings.Events.NewSegmentRun);
+        //hubConnection.Remove(Strings.Events.NewSegmentRun);
 
         if (segment != null && transponders?.Count() > 0)
         {

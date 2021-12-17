@@ -19,12 +19,12 @@
 
     <div>
         <div>Tider å slå denne måneden:</div>
-        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Segment=1 ShowIntermediate=false />
-        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Segment=2 ShowIntermediate=false />
+        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Label=250m ShowIntermediate=false />
+        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Label=200m ShowIntermediate=false />
     </div>
     <div>
         <div>Beste tider forrige måned:</div>
-        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Segment=1 ShowIntermediate=false />
-        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Segment=2 ShowIntermediate=false />
+        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Label=250m ShowIntermediate=false />
+        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Label=200m ShowIntermediate=false />
     </div>
 </div>

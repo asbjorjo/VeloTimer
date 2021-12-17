@@ -23,7 +23,7 @@ namespace VeloTimerWeb.Client
 
             builder.Services.AddHttpClient(
                     "VeloTimerWeb.ServerAPI",
-                    client => client.BaseAddress = new Uri(new Uri(builder.Configuration["VELOTIMER_API_URL"]), "api/"))
+                    client => client.BaseAddress = new Uri(new Uri(builder.HostEnvironment.BaseAddress), "api/"))
                 .AddHttpMessageHandler<VeloTimerAuthorizationMessageHandler>();
 
             builder.Services.AddHttpClient<IApiClient, ApiClient>()
@@ -35,14 +35,13 @@ namespace VeloTimerWeb.Client
             builder.Services.AddSingleton<HubConnection>(sp =>
             {
                 var navigationManager = sp.GetRequiredService<NavigationManager>();
-                return new HubConnectionBuilder().WithUrl(new Uri(new Uri(builder.Configuration["VELOTIMER_API_URL"]), Strings.hubUrl))
+                return new HubConnectionBuilder().WithUrl(new Uri(new Uri(builder.HostEnvironment.BaseAddress), Strings.hubUrl))
                                                  .WithAutomaticReconnect()
                                                  .Build();
             });
 
             builder.Services.AddApiAuthorization(options =>
             {
-                builder.Configuration.Bind("oidc", options.ProviderOptions);
             })
                 .AddAccountClaimsPrincipalFactory<RolesClaimsPrincipalFactory>();
 
