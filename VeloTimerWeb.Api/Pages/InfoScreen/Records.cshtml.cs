@@ -18,7 +18,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
         private readonly string[] items = { "Runde", "200m", "3000m", "4000m" };
 
-        public Dictionary<string, IEnumerable<SegmentTime>> times { get; set; } = new Dictionary<string, IEnumerable<SegmentTime>>();
+        public Dictionary<string, IEnumerable<SegmentTime>> Times { get; set; } = new Dictionary<string, IEnumerable<SegmentTime>>();
 
         public RecordsModel(ITrackService trackService, VeloTimerDbContext context)
         {
@@ -42,7 +42,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             foreach (var item in items)
             {
                 var time = await _service.GetFastest(track, item, fromdate, todate, 5);
-                times.Add(item, time);
+                Times.Add(item, time);
             }
 
             return Page();

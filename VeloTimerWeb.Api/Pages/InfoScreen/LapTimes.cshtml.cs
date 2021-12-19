@@ -17,7 +17,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
         private readonly VeloTimerDbContext _context;
         private readonly ITrackService _service;
 
-        public Queue<SegmentTime> times { get; set; }
+        public Queue<SegmentTime> Times { get; set; }
         
         public LapTimesModel(ITrackService trackService, VeloTimerDbContext context)
         {
@@ -43,7 +43,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             ViewData["Title"] = $"{Label}";
 
             var seedtimes = await _service.GetRecent(statsitem, DateTimeOffset.Now.AddDays(-7), DateTimeOffset.MaxValue, 35);
-            times = new Queue<SegmentTime>(seedtimes);
+            Times = new Queue<SegmentTime>(seedtimes);
 
             return Page();
         }

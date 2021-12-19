@@ -66,8 +66,8 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var times = Enumerable.Empty<double>();
 
-            var fromtime = FromTime.HasValue ? FromTime.Value : DateTimeOffset.MinValue;
-            var totime = ToTime.HasValue ? ToTime.Value : DateTimeOffset.MaxValue;
+            var fromtime = FromTime ?? DateTimeOffset.MinValue;
+            var totime = ToTime ?? DateTimeOffset.MaxValue;
 
             var Transponder = await _context.Set<Transponder>().SingleOrDefaultAsync(x => x.Id == TransponderId.First());
             if (Transponder == null) { return NotFound(Transponder); }
