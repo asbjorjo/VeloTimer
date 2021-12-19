@@ -5,10 +5,14 @@
 <MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar>
-        <LoginDisplay />
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <MudIconButton Icon="@Icons.Filled.Home" Color="Color.Inherit" Link="" />
+        <MudText Typo="Typo.h5" Class="ml-3">VeloTime</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Filled.Login" Color="Color.Inherit" Link="/authentication/login" />
     </MudAppBar>
-    <MudDrawer>
+    <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always" Variant="@DrawerVariant.Responsive" Elevation="2">
         <NavMenu />
     </MudDrawer>
     <MudMainContent>
@@ -16,19 +20,11 @@
     </MudMainContent>
 </MudLayout>
 
-@*<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+@code{
+    bool _drawerOpen = false;
 
-    <div class="main">
-        <div class="top-row px-4 auth">
-            <LoginDisplay />
-        </div>
-
-        <div class="content px-4">
-            @Body
-        </div>
-    </div>
-</div>
-*@
+    void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}

@@ -8,77 +8,67 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-@if (segment != null && segmentTimes != null && segmentTimes.Any())
-{
-    @*@if (segment.Intermediates.Count() > 0 && !ShowIntermediate.HasValue && segment.DisplayIntermediates)
-    {
-        <button class="btn" @onclick="ToogleIntermediates">@(showintermediate ? "Skjul" : "Vis") mellomtider</button>
-    }*@
-    <div class="table-responsive">
-    
-    <table class="table table-striped text-nowrap">
-        <thead>
-            <tr>
-                @if (rider != null)
+<MudTable Items="@segmentTimes" Loading="@_loading" LoadingProgressColor="Color.Info">
+    <HeaderContent>
+        @if (rider != null)
+        {
+            <MudTh>Rytter</MudTh>
+        }
+        else
+        {
+            <MudTh>Dato</MudTh>
+        }
+        <MudTh>@Label</MudTh>
+        <MudTh>Fart</MudTh>
+        @if (_hasIntermediate)
+        {
+            <MudTh></MudTh>
+        }
+    </HeaderContent>
+    <RowTemplate>
+        @if(rider != null)
+        {
+            <MudTd DataLabel="Dato">@context.PassingTime.LocalDateTime</MudTd>
+        }
+        else
+        {
+            <MudTd DataLabel="Rytter">@context.Rider</MudTd>
+        }
+        <MudTd DataLabel="@Label">@Formatters.FormatTime(context.Time)</MudTd>
+        <MudTd DataLabel="Fart">@String.Format("{0:00.000}", context.Speed)</MudTd>
+        @if (_hasIntermediate)
+        {
+            <MudTd><MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => ToogleIntermediates(context.PassingTime.Ticks))">@(context.ShowIntermediate ? "Skjul":"Vis") mellomtider</MudButton></MudTd>
+        }
+    </RowTemplate>
+    <ChildRowContent>
+        @if (context.ShowIntermediate)
+        {
+            <MudTr>
+                <td colspan="4">
+                <MudGrid>
+                @foreach(var inter in @context.Intermediates)
                 {
-                    <th scope="col">Dato</th>    
+                    <MudItem>@Formatters.FormatTime(inter.Time)</MudItem>
                 }
-                else
-                {
-                    <th scope="col">Rytter</th>    
-                }
-                <th>@Label</th>
-                <th>Fart</th>
-                @if (segmentTimes.First().Intermediates?.Count() > 1)
-                {
-                    for (int i = 1; i <= segmentTimes.First().Intermediates.Count(); i++)
-                    {
-                        <th>@($"{i}")</th>
-                    }
-                }
-            </tr>
-        </thead>
-        <tbody>
-            @if (segmentTimes == null)
-            {
-                <tr>
-                    <td colspan="3">
-                        Laster...
-                    </td>
-                </tr>
-            }
-            else
-            {
-                @foreach (var segment in segmentTimes)
-                {
-                    <tr>
-                        @if (rider != null)
-                        {
-                            <td>@segment.PassingTime.LocalDateTime</td>
-                        }
-                        else
-                        {
-                            <td>@segment.Rider</td>    
-                        }
-                        <td>@Formatters.FormatTime(segment.Time)</td>
-                        <td>@String.Format("{0:00.000}", segment.Speed)</td>
-                        @if (segment.Intermediates?.Count() > 1)
+                </MudGrid>
+                </td>
+            </MudTr>
+        }
+    </ChildRowContent>
+</MudTable>
+
+@*                      @if (segment.Intermediates?.Count() > 1)
                         {
                             @foreach (var intermediate in segment.Intermediates)
                             {
                                 <td>@Formatters.FormatTime(intermediate.Time)</td>
                             }
                         }
-                    </tr>
-                }
-            }
-        </tbody>
-    </table>
-    </div>
-}
+*@
 
 @code {
-    protected IEnumerable<SegmentTime> segmentTimes;
+    protected IEnumerable<SegmentTime> segmentTimes = Enumerable.Empty<SegmentTime>();
 
     [Parameter]
     public string Label { get; set; }
@@ -101,6 +91,8 @@
     protected bool showintermediate = false;
     protected DateTimeOffset? fromtime;
     protected DateTimeOffset? totime;
+    private bool _loading = true;
+    private bool _hasIntermediate = true;
 
     protected override void OnInitialized()
     {
@@ -113,6 +105,8 @@
     protected async override Task OnParametersSetAsync()
     {
         if (Label != segment?.StatisticsItem.Label || Transponder != transponder || Rider != rider) {
+            _loading = true;
+
             if (segment != null)
             {
                 await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
@@ -143,16 +137,19 @@
         //}
     }
 
-    protected async Task LoadSegmentTimes()
+    private async Task LoadSegmentTimes()
     {
+        _loading = true;
         segmentTimes = await Api.GetTimes(segment.StatisticsItem.Label, fromtime, totime, Count: Count, Rider: rider);
-
+        _loading = false;
+        _hasIntermediate = (segmentTimes.Any() && segmentTimes.First().Intermediates.Count() > 1);
         StateHasChanged();
     }
 
-    protected void ToogleIntermediates()
+    private void ToogleIntermediates(long ticks)
     {
-        showintermediate = !showintermediate;
+        SegmentTime time = segmentTimes.First(x => x.PassingTime.Ticks == ticks);
+        time.ShowIntermediate = !time.ShowIntermediate;
     }
 
     public void Dispose()
