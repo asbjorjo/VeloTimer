@@ -11,7 +11,7 @@ namespace VeloTimerWeb.Api
     {
         public static void Main(string[] args)
         {
-            CreateHostBuilder(args).Build().SeedData().Run();
+            CreateHostBuilder(args).Build().Run();
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
