@@ -59,7 +59,7 @@ namespace VeloTimerWeb.Client.Services
             }
 
             var authState = await _authStateProvider.GetAuthenticationStateAsync();
-            _logger.LogInformation($"Authentication User Identities: {authState.User.Identities.Select(c => c.Name.ToString() + " " + c.IsAuthenticated.ToString())}");
+            _logger.LogInformation($"Authentication User Identities: {authState.User?.Identity?.Name?.ToString() + " " + authState.User?.Identity?.IsAuthenticated.ToString()}");
             
             if (authState.User.Identity.IsAuthenticated && _authorizedUris.Any(uri => uri.IsBaseOf(request.RequestUri)))
             {
