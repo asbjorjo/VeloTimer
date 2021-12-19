@@ -67,7 +67,11 @@ namespace VeloTimerWeb.Api.Controllers
         {
             if (string.IsNullOrWhiteSpace(userId)) return BadRequest();
             if (userId != profile.UserId) return BadRequest();
-            if (!User.Identity.IsAuthenticated || User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != userId) return Unauthorized();
+            //if (!User.Identity.IsAuthenticated || User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != userId) return Unauthorized();
+            foreach (var claim in User.Claims)
+            {
+                _logger.LogInformation($"Claim: {claim.Type} - {claim.Value} - {claim.Subject}");
+            }
 
             var rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == userId);
 
@@ -226,7 +230,7 @@ namespace VeloTimerWeb.Api.Controllers
             if (string.IsNullOrWhiteSpace(rider)) return BadRequest();
             if (string.IsNullOrWhiteSpace(label)) return BadRequest();
 
-            if (Request.HttpContext.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != rider) return Unauthorized();
+            //if (Request.HttpContext.User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != rider) return Unauthorized();
 
             var ownerships = await _context.Set<TransponderOwnership>()
                 .Where(x => x.Owner.UserId == rider)
