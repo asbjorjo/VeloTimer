@@ -1,6 +1,22 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="page">
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar>
+        <LoginDisplay />
+    </MudAppBar>
+    <MudDrawer>
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent>
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+@*<div class="page">
     <div class="sidebar">
         <NavMenu />
     </div>
@@ -15,3 +31,4 @@
         </div>
     </div>
 </div>
+*@
