@@ -36,6 +36,8 @@ namespace VeloTimerWeb.Api
 
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddApplicationInsightsTelemetry();
+
             services.AddDbContext<VeloTimerDbContext>(options =>
             {
                 options.UseNpgsql(
