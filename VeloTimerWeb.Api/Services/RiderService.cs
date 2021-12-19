@@ -68,7 +68,7 @@ namespace VeloTimerWeb.Api.Services
         {
             var active = await FindActiveRiderIds(fromtime, totime);
 
-            return active.Keys.Count();
+            return active.Keys.Count;
         }
 
         private async Task<Dictionary<long, DateTime>> FindActiveRiderIds(DateTimeOffset FromTime, DateTimeOffset? ToTime)
