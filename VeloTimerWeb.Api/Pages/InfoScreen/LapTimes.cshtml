@@ -1,6 +1,11 @@
 ﻿@page "{Track}/{Label}"
 @using VeloTimer.Shared.Util
 
+@section head
+{
+    <meta http-equiv="refresh" content="20">
+}
+
 @model VeloTimerWeb.Api.Pages.InfoScreen.LapTimesModel
 
     <table class="table table-striped">
