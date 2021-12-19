@@ -68,6 +68,8 @@ namespace VeloTimerWeb.Api.Controllers
             if (string.IsNullOrWhiteSpace(userId)) return BadRequest();
             if (userId != profile.UserId) return BadRequest();
             //if (!User.Identity.IsAuthenticated || User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != userId) return Unauthorized();
+
+            _logger.LogInformation(User?.Identity.Name);
             foreach (var claim in User.Claims)
             {
                 _logger.LogInformation($"Claim: {claim.Type} - {claim.Value} - {claim.Subject}");
