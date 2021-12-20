@@ -8,53 +8,34 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-@if (true)
-{
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                @if (rider != null)
-                {
-                    <th scope="col" class="mw-100">Dato</th>    
-                }
-                else
-                {
-                    <th scope="col" class="mw-100">Rytter</th>    
-                }
-                <th scope="col" class="text-right">Tid</th>
-                <th scope="col" class="text-right">Fart</th>
-            </tr>
-        </thead>
-        <tbody>
-            @if (segmentTimes == null)
-            {
-                <tr>
-                    <td colspan="3">
-                        Laster...
-                    </td>
-                </tr>
-            }
-            else
-            {
-                @foreach (var segment in segmentTimes)
-                {
-                    <tr>
-                        @if (rider != null)
-                        {
-                            <td>@segment.PassingTime.LocalDateTime</td>
-                        }
-                        else
-                        {
-                            <td>@segment.Rider</td>    
-                        }
-                        <td class="text-right">@Formatters.FormatTime(segment.Time)</td>
-                        <td class="text-right">@Formatters.FormatSpeed(segment.Speed)</td>
-                    </tr>
-                }
-            }
-        </tbody>
-    </table>
-}
+<MudText Color="Color.Inherit" Typo="Typo.h6" Align="Align.Center">@StatsItem</MudText>
+
+<MudTable Items="@segmentTimes" Loading="@_loading" LoadingProgressColor="@Color.Info" Breakpoint="Breakpoint.None">
+    <HeaderContent>
+        @if (!string.IsNullOrWhiteSpace(_rider))
+        {
+            <MudTh>Dato</MudTh>
+        }
+        else
+        {
+            <MudTh>Rytter</MudTh>
+        }
+        <MudTh>Tid</MudTh>
+        <MudTh>Fart</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        @if(!string.IsNullOrWhiteSpace(_rider))
+        {
+            <MudTd DataLabel="Dato">@context.PassingTime.LocalDateTime</MudTd>
+        }
+        else
+        {
+            <MudTd DataLabel="Rytter">@context.Rider</MudTd>
+        }
+        <MudTd DataLabel="Tid">@Formatters.FormatTime(context.Time)</MudTd>
+        <MudTd DataLabel="Fart">@String.Format("{0:00.000}", context.Speed)</MudTd>
+    </RowTemplate>
+</MudTable>
 
 @code {
     protected IEnumerable<SegmentTime> segmentTimes;
@@ -72,11 +53,12 @@
     [Parameter]
     public bool OnePerRider { get; set; } = false;
 
-    protected string statsitem;
+    private string _statsitem;
     protected DateTimeOffset? fromtime;
     protected DateTimeOffset? totime;
     protected int count;
-    protected string rider;
+    private string _rider;
+    private bool _loading = true;
 
     protected override void OnInitialized()
     {
@@ -88,12 +70,13 @@
 
     protected async override Task OnParametersSetAsync()
     {
-        if (StatsItem != statsitem || Count != count || Rider != rider) {
-            
+        if (StatsItem != _statsitem || Count != count || Rider != _rider) {
+            _loading = true;
+
             fromtime = FromTime?.ToUniversalTime();
             totime = ToTime?.ToUniversalTime();
             count = Count;
-            rider = Rider;
+            _rider = Rider;
 
             await LoadTimes();
         }
@@ -101,8 +84,10 @@
 
     protected async Task LoadTimes()
     {
-        segmentTimes = await Api.GetBestTimes(StatsItem, fromtime, totime, Count: count, Rider: rider, OnePerRider: OnePerRider);
+        _loading = true;
+        segmentTimes = await Api.GetBestTimes(StatsItem, fromtime, totime, Count: count, Rider: _rider, OnePerRider: OnePerRider);
 
+        _loading = false;
         StateHasChanged();
     }
 

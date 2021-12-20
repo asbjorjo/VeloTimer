@@ -8,25 +8,21 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-<MudTable Items="@segmentTimes" Loading="@_loading" LoadingProgressColor="Color.Info">
+<MudTable Items="@segmentTimes" Loading="@_loading" LoadingProgressColor="Color.Info" Breakpoint="Breakpoint.None" T="SegmentTime" OnRowClick="@ToggleIntermediate">
     <HeaderContent>
-        @if (rider != null)
-        {
-            <MudTh>Rytter</MudTh>
-        }
-        else
+        @if (!string.IsNullOrWhiteSpace(_rider))
         {
             <MudTh>Dato</MudTh>
         }
+        else
+        {
+            <MudTh>Rytter</MudTh>
+        }
         <MudTh>@Label</MudTh>
         <MudTh>Fart</MudTh>
-        @if (_hasIntermediate)
-        {
-            <MudTh></MudTh>
-        }
     </HeaderContent>
     <RowTemplate>
-        @if(rider != null)
+        @if(!string.IsNullOrWhiteSpace(_rider))
         {
             <MudTd DataLabel="Dato">@context.PassingTime.LocalDateTime</MudTd>
         }
@@ -36,16 +32,13 @@
         }
         <MudTd DataLabel="@Label">@Formatters.FormatTime(context.Time)</MudTd>
         <MudTd DataLabel="Fart">@String.Format("{0:00.000}", context.Speed)</MudTd>
-        @if (_hasIntermediate)
-        {
-            <MudTd><MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => ToogleIntermediates(context.PassingTime.Ticks))">@(context.ShowIntermediate ? "Skjul":"Vis") mellomtider</MudButton></MudTd>
-        }
     </RowTemplate>
     <ChildRowContent>
         @if (context.ShowIntermediate)
         {
             <MudTr>
                 <td colspan="4">
+                    <MudChart ChartType="ChartType.Bar" ChartSeries="@ChartIntermediates(@context.Intermediates)" ChartOptions="@(new ChartOptions{DisableLegend = true, YAxisTicks=2})" />
                 <MudGrid>
                 @foreach(var inter in @context.Intermediates)
                 {
@@ -58,15 +51,6 @@
     </ChildRowContent>
 </MudTable>
 
-@*                      @if (segment.Intermediates?.Count() > 1)
-                        {
-                            @foreach (var intermediate in segment.Intermediates)
-                            {
-                                <td>@Formatters.FormatTime(intermediate.Time)</td>
-                            }
-                        }
-*@
-
 @code {
     protected IEnumerable<SegmentTime> segmentTimes = Enumerable.Empty<SegmentTime>();
 
@@ -74,8 +58,6 @@
     public string Label { get; set; }
     [Parameter]
     public long? Transponder { get; set; }
-    [Parameter]
-    public bool? ShowIntermediate { get; set; }
     [Parameter]
     public DateTimeOffset? FromTime { get; set; }
     [Parameter]
@@ -85,10 +67,9 @@
     [Parameter]
     public string Rider { get; set; }
 
-    protected TrackStatisticsItem segment;
+    private TrackStatisticsItem _statsItem;
     protected long? transponder;
-    protected string rider;
-    protected bool showintermediate = false;
+    protected string _rider;
     protected DateTimeOffset? fromtime;
     protected DateTimeOffset? totime;
     private bool _loading = true;
@@ -104,60 +85,64 @@
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Label != segment?.StatisticsItem.Label || Transponder != transponder || Rider != rider) {
+        if (Label != _statsItem?.StatisticsItem.Label || Transponder != transponder || Rider != _rider) {
             _loading = true;
 
-            if (segment != null)
+            if (_statsItem != null)
             {
-                await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
+                await hubConnection.InvokeAsync("RemoveFromSegmentGroup", _statsItem.Id);
             }
 
-            segment = await Api.GetStatisticsItem(Label, "1");
+            _statsItem = await Api.GetStatisticsItem(Label, "1");
 
             transponder = Transponder;
             fromtime = FromTime?.ToUniversalTime();
             totime = ToTime?.ToUniversalTime();
-            rider = Rider;
+            _rider = Rider;
 
             if (totime == null)
             {
-                await hubConnection.InvokeAsync("AddToSegmentGroup", segment.Id);
+                await hubConnection.InvokeAsync("AddToSegmentGroup", _statsItem.Id);
             }
 
             await LoadSegmentTimes();
         }
 
-        if (ShowIntermediate.HasValue)
-        {
-            showintermediate = ShowIntermediate.Value;
-        } 
-        //else
-        //{
-        //    showintermediate = segment.DisplayIntermediates;
-        //}
+        StateHasChanged();
+        _loading = false;
     }
 
     private async Task LoadSegmentTimes()
     {
-        _loading = true;
-        segmentTimes = await Api.GetTimes(segment.StatisticsItem.Label, fromtime, totime, Count: Count, Rider: rider);
-        _loading = false;
+        segmentTimes = await Api.GetTimes(_statsItem.StatisticsItem.Label, fromtime, totime, Count: Count, Rider: _rider);
         _hasIntermediate = (segmentTimes.Any() && segmentTimes.First().Intermediates.Count() > 1);
-        StateHasChanged();
     }
 
-    private void ToogleIntermediates(long ticks)
+    private void ToogleIntermediates(SegmentTime time)
     {
-        SegmentTime time = segmentTimes.First(x => x.PassingTime.Ticks == ticks);
+        //SegmentTime time = segmentTimes.First(x => x.PassingTime.Ticks == ticks);
         time.ShowIntermediate = !time.ShowIntermediate;
+    }
+
+    private void ToggleIntermediate(TableRowClickEventArgs<SegmentTime> trEvent)
+    {
+        trEvent.Item.ShowIntermediate = !trEvent.Item.ShowIntermediate;
+    }
+
+    private List<ChartSeries> ChartIntermediates(IEnumerable<Intermediate> intermediates)
+    {
+        List<ChartSeries> charts = new List<ChartSeries>();
+        var series = new ChartSeries { Name = "tider", Data = intermediates.Select(x => x.Time).ToArray() };
+        charts.Add(series);
+        return charts;
     }
 
     public void Dispose()
     {
         //hubConnection.Remove(Strings.Events.NewSegmentRun);
-        if (segment != null)
+        if (_statsItem != null)
         {
-            hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
+            hubConnection.InvokeAsync("RemoveFromSegmentGroup", _statsItem.Id);
         }
     }
 }
