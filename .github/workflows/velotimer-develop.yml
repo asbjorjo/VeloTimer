@@ -2,7 +2,7 @@ name: Build and deploy to Azure development environment
 on:
   push:
     branches:
-    - develop
+    - feature-mudblazor
 env:
   AZURE_WEBAPP_NAME: 'velotime-dev'
   AZURE_API_PACKAGE_PATH: VeloTimerWeb.Api/publish
