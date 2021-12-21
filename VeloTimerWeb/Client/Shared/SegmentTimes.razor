@@ -16,7 +16,7 @@ else
 <MudTable ServerData="@ReloadTimes" Loading="@_loading" LoadingProgressColor="Color.Info" Breakpoint="Breakpoint.None" T="SegmentTime" @ref="_table" OnRowClick="@ToggleIntermediate">
     <ToolBarContent>
         <MudSelect T="string" ValueChanged="@UpdateLabel" Value="@(_statisticsParameters.Label)">
-            @foreach (var label in _segments.GroupBy(x => x.StatisticsItem.Label).Select(x => x.First()).OrderBy(x => x.StatisticsItem.Distance).Select(x => x.StatisticsItem.Label))
+            @foreach (var label in _labels)
             {
                 <MudSelectItem T="string" Value="@label">@label</MudSelectItem>
             }
@@ -25,7 +25,7 @@ else
             @if (!string.IsNullOrWhiteSpace(_statisticsParameters.Label))
             {
                 <MudSelectItem T="string" Value="@(string.Empty)"></MudSelectItem>
-                @foreach (var track in _segments.Where(x => x.StatisticsItem.Label == _statisticsParameters.Label).GroupBy(x => x.Layout.Track.Id).Select(x => x.First()).Select(x => x.Layout.Track))
+                @foreach (var track in _tracks)
                 {
                     <MudSelectItem T="string" Value="@(track.Id.ToString())">@(track.Name)</MudSelectItem>
                 }
@@ -35,7 +35,7 @@ else
             @if (!string.IsNullOrWhiteSpace(_statisticsParameters.Track))
             {
                 <MudSelectItem T="string" Value="@(string.Empty)"></MudSelectItem>
-                @foreach (var layout in _segments.Where(x => x.StatisticsItem.Label == _statisticsParameters.Label).Where(x => x.Layout.Track.Id == long.Parse(_statisticsParameters.Track)).Select(x => x.Layout))
+                @foreach (var layout in _layouts)
                 {
                     <MudSelectItem T="string" Value="@(layout.Id.ToString())">@(layout.Name)</MudSelectItem>
                 }
@@ -92,22 +92,20 @@ else
     private IEnumerable<TrackStatisticsItem> _segments;
     private IEnumerable<SegmentTime> _pagedTimes;
     private MudTable<SegmentTime> _table;
+    private IEnumerable<string> _labels = Enumerable.Empty<string>();
+    private List<Track> _tracks = new List<Track>();
+    private List<TrackLayout> _layouts = new List<TrackLayout>();
 
-
+    [Parameter]
+    public string Rider { get => _rider; set => _rider = value; }
+    [Parameter]
+    public long? Transponder { get; set; }
     [Parameter]
     public EventCallback<StatisticsParameters> StatisticsParametersChanged { get; set; }
     [Parameter]
     public StatisticsParameters StatisticsParameters { get; set; }
     [Parameter]
-    public long? Transponder { get; set; }
-    [Parameter]
-    public DateTimeOffset? FromTime { get; set; }
-    [Parameter]
-    public DateTimeOffset? ToTime { get; set; }
-    [Parameter]
-    public int Count { get; set; }
-    [Parameter]
-    public string Rider { get; set; }
+    public TimeParameters TimeParameters { get => _timeParameters; set => _timeParameters = value; }
 
     protected long? transponder;
     protected string _rider;
@@ -125,14 +123,6 @@ else
 
     protected async override Task OnParametersSetAsync()
     {
-        if (Transponder != transponder || Rider != _rider) {
-            transponder = Transponder;
-            _rider = Rider;
-
-            if (FromTime.HasValue) _timeParameters.FromTime = FromTime.Value.DateTime;
-            if (ToTime.HasValue) _timeParameters.ToTime = ToTime.Value.DateTime;
-        }
-
         await base.OnParametersSetAsync();
 
         if (string.IsNullOrWhiteSpace(StatisticsParameters?.Label))
@@ -141,25 +131,34 @@ else
         } else {
             _statisticsParameters = StatisticsParameters;
         }
+
+        _labels = _segments.GroupBy(x => x.StatisticsItem.Label).Select(x => x.First()).OrderBy(x => x.StatisticsItem.Distance).Select(x => x.StatisticsItem.Label);
+        _tracks = _segments.Where(x => x.StatisticsItem.Label == _statisticsParameters.Label).GroupBy(x => x.Layout.Track.Id).Select(x => x.First()).Select(x => x.Layout.Track).ToList();
     }
 
     private async Task UpdateLabel(string label)
     {
         _statisticsParameters.Label = label;
-        await _table.ReloadServerData();
-        await StatisticsParametersChanged.InvokeAsync(_statisticsParameters);
+        _tracks = _segments.Where(x => x.StatisticsItem.Label == _statisticsParameters.Label).GroupBy(x => x.Layout.Track.Id).Select(x => x.First()).Select(x => x.Layout.Track).ToList();
+        _layouts.Clear();
+        await UpdateStatisticsParameters();
     }
 
     private async Task UpdateTrack(string track)
     {
         _statisticsParameters.Track = track;
-        await _table.ReloadServerData();
-        await StatisticsParametersChanged.InvokeAsync(_statisticsParameters);
+        _layouts = _segments.Where(x => x.StatisticsItem.Label == _statisticsParameters.Label).Where(x => x.Layout.Track.Id == long.Parse(_statisticsParameters.Track)).Select(x => x.Layout).ToList();
+        await UpdateStatisticsParameters();
     }
 
     private async Task UpdateLayout(string layout)
     {
         _statisticsParameters.Layout = layout;
+        await UpdateStatisticsParameters();
+    }
+
+    private async Task UpdateStatisticsParameters()
+    {
         await _table.ReloadServerData();
         await StatisticsParametersChanged.InvokeAsync(_statisticsParameters);
     }
@@ -180,11 +179,6 @@ else
         _hasIntermediate = (times.Any() && times.First().Intermediates.Count() > 1);
 
         return new TableData<SegmentTime> { TotalItems = page.TotalCount, Items = times };
-    }
-
-    private void ToogleIntermediates(SegmentTime time)
-    {
-        time.ShowIntermediate = !time.ShowIntermediate;
     }
 
     private void ToggleIntermediate(TableRowClickEventArgs<SegmentTime> trEvent)
