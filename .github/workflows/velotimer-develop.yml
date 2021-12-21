@@ -51,7 +51,6 @@ jobs:
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        slot-name: 'github-ci'
         package: ${{ env.AZURE_API_PACKAGE_PATH }}
     - name: Deploy to Azure AmmcLoader
       uses: azure/webapps-deploy@v2
