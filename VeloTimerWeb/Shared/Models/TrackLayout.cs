@@ -6,11 +6,11 @@ namespace VeloTimer.Shared.Models
 {
     public class TrackLayout
     {
-        public long Id { get; private set; }
+        public long Id { get; set; }
         public string Name { get; set; }
-        public Track Track { get; private set; }
+        public Track Track { get; set; }
         public ICollection<TrackLayoutSector> Sectors { get; private set; } = new List<TrackLayoutSector>();
-        public double Distance { get; private set; }
+        public double Distance { get; set; }
 
         public static TrackLayout Create(Track track, string name, IOrderedEnumerable<TrackSector> sectors)
         {

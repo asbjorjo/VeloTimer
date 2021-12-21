@@ -170,7 +170,7 @@ namespace VeloTimerWeb.Client.Services
             return rider;
         }
 
-        public async Task<PaginatedResponse<SegmentTime>> GetTimes(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, PagingParameters pagingParameters, string Rider)
+        public async Task<PaginatedResponse<SegmentTime>> GetTimes(StatisticsParameters statisticsParameters, TimeParameters timeParameters, PaginationParameters pagingParameters, string Rider)
         {
             var url = new StringBuilder();
 
@@ -183,17 +183,8 @@ namespace VeloTimerWeb.Client.Services
                 url.Append($"track/1");
             }
 
-            url.Append($"/times/{StatsItem}?PageNumber={pagingParameters.PageNumber}&PageSize={pagingParameters.PageSize}");
-
-            if (FromTime.HasValue)
-            {
-                url.Append($"&FromTime={TimeFormatter(FromTime.Value)}");
-            }
-            if (ToTime.HasValue)
-            {
-                url.Append($"&ToTime={TimeFormatter(ToTime.Value)}");
-            }
-            
+            url.Append($"/times/{statisticsParameters.ToPathString()}?{pagingParameters.ToQueryString()}&{timeParameters.ToQueryString()}");
+                        
             using var response = await _client.GetAsync(url.ToString());
             response.EnsureSuccessStatusCode();
 

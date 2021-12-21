@@ -152,19 +152,62 @@ namespace VeloTimerWeb.Api.Controllers
         public async Task<IActionResult> GetTimes(
             string rider,
             string statsitem,
-            DateTimeOffset? FromTime,
-            DateTimeOffset? ToTime,
-            [FromQuery] PagingParameters pagingParameters)
+            [FromQuery] TimeParameters timeParameters,
+            [FromQuery] PaginationParameters pagingParameters)
         {
-            var fromtime = FromTime ?? DateTimeOffset.MinValue;
-            var totime = ToTime ?? DateTimeOffset.MaxValue;
-
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
             var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Label == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
-            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, fromtime, totime, pagingParameters);
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters);
+
+            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
+
+            return Ok(times);
+        }
+
+        [HttpGet]
+        [Route("{rider}/times/{statsitem}/{track}")]
+        public async Task<IActionResult> GetTimes(
+            string rider,
+            string statsitem,
+            string track,
+            [FromQuery] TimeParameters timeParameters,
+            [FromQuery] PaginationParameters pagingParameters)
+        {
+            var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
+            if (Rider == null) { return NotFound($"Rider: {rider}"); }
+            var Track = await _context.Set<Track>().FindAsync(long.Parse(track));
+            if (Track == null) { return NotFound($"Track: {track}"); }
+            var StatsItems = await _context.Set<TrackStatisticsItem>().Where(x => x.StatisticsItem.Label == statsitem).Where(x => x.Layout.Track == Track).ToListAsync();
+            if (!StatsItems.Any()) { return NotFound($"StatsItem: {statsitem}"); }
+
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItems, timeParameters, pagingParameters);
+
+            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
+
+            return Ok(times);
+        }
+
+        [HttpGet]
+        [Route("{rider}/times/{statsitem}/{track}/{layout}")]
+        public async Task<IActionResult> GetTimes(
+            string rider,
+            string statsitem,
+            string track,
+            string layout,
+            [FromQuery] TimeParameters timeParameters,
+            [FromQuery] PaginationParameters pagingParameters)
+        {
+            var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
+            if (Rider == null) { return NotFound($"Rider: {rider}"); }
+            var Layout = await _context.Set<TrackLayout>().FindAsync(long.Parse(layout));
+            if (Layout == null) { return NotFound($"Layout: {layout}"); }
+            var StatsItem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Layout == Layout && x.StatisticsItem.Label == statsitem);
+            if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
+
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters);
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
 

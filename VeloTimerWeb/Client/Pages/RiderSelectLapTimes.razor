@@ -1,12 +1,15 @@
 ﻿@page "/rider/segmenttimes"
 @page "/rider/segmenttimes/{Label}"
+@page "/rider/segmenttimes/{Label}/{Track}"
+@page "/rider/segmenttimes/{Label}/{Track}/{Layout}"
 @layout MainLayout
+@using System.Text
 @using VeloTimer.Shared.Models
 @inject NavigationManager NavigationManager
 @inject IApiClient Api
 @inject HttpClient Http
 
-<h3>Mine passeringstider</h3>
+<MudText Typo="Typo.h5" Color="Color.Inherit" Align="Align.Center">Mine passeringstider</MudText>
 
 @if (_rider == null)
 {
@@ -14,7 +17,7 @@
 }
 else
 {
-    <SegmentTimes Label="@_label" FromTime=DateTimeOffset.MinValue Count=100 Rider=@_rider />
+    <SegmentTimes @bind-StatisticsParameters="@StatisticsParameters" Rider=@_rider />
 }
 
 @code {
@@ -22,19 +25,37 @@ else
     private Task<AuthenticationState> authenticationStateTask { get; set; }
     [Parameter]
     public string Label { get; set; }
+    [Parameter]
+    public string Track { get; set; }
+    [Parameter]
+    public string Layout { get; set; }
+
+    private StatisticsParameters StatisticsParameters
+    {
+        get 
+        {
+            return _statisticsParameters;
+        }
+        set
+        {
+            _statisticsParameters = value;
+            UpdateNavigation();
+        }
+    }
 
     private IEnumerable<TrackStatisticsItem> segments;
-    private string _label;
+    private StatisticsParameters _statisticsParameters;
     private string _rider;
 
     protected override void OnParametersSet()
     {
-        if (Label != null && _label != Label)
-        {
-            _label = Label;
-        }
-
         base.OnParametersSet();
+        StatisticsParameters = new StatisticsParameters
+        {
+            Label = Label,
+            Track = Track,
+            Layout = Layout
+        };
     }
 
     protected override async Task OnInitializedAsync()
@@ -44,9 +65,12 @@ else
         _rider = user.FindFirst(c => c.Type == "sub")?.Value;
     }
 
-    private void ChangeSegment(string segment)
+    private void UpdateNavigation()
     {
-        var selected = segment;
-        NavigationManager.NavigateTo($"rider/segmenttimes/{selected}");
+        var sb = new StringBuilder("rider/segmenttimes/");
+
+        sb.Append(_statisticsParameters.ToPathString());
+
+        NavigationManager.NavigateTo(sb.ToString());
     }
 }

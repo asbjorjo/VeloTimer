@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace VeloTimer.Shared.Models
 {
-    public class PagingParameters
+    public class PaginationParameters
     {
         const int maxPageSize = 50;
         private int _pageNumber = 1;
@@ -32,6 +32,11 @@ namespace VeloTimer.Shared.Models
             {
                 _pageSize = (value > maxPageSize) ? maxPageSize : value;
             }
+        }
+
+        public string ToQueryString()
+        {
+            return $"PageNumber={PageNumber}&PageSize={PageSize}";
         }
     }
 }
