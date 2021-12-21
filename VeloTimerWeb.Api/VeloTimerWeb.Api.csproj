@@ -45,7 +45,6 @@
   <ItemGroup>
     <Folder Include="Migrations\Identity\" />
     <Folder Include="Migrations\VeloTimer\" />
-    <Folder Include="Models\" />
   </ItemGroup>
 
 </Project>

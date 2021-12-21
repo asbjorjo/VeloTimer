@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -148,11 +149,12 @@ namespace VeloTimerWeb.Api.Controllers
 
         [HttpGet]
         [Route("{rider}/times/{statsitem}")]
-        public async Task<ActionResult<IEnumerable<SegmentTime>>> GetTimes(
+        public async Task<IActionResult> GetTimes(
             string rider,
             string statsitem,
             DateTimeOffset? FromTime,
-            DateTimeOffset? ToTime)
+            DateTimeOffset? ToTime,
+            [FromQuery] PagingParameters pagingParameters)
         {
             var fromtime = FromTime ?? DateTimeOffset.MinValue;
             var totime = ToTime ?? DateTimeOffset.MaxValue;
@@ -162,8 +164,11 @@ namespace VeloTimerWeb.Api.Controllers
             var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Label == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
-            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, fromtime, totime);
-            return times.ToList();
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, fromtime, totime, pagingParameters);
+
+            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
+
+            return Ok(times);
         }
 
         [HttpPost]

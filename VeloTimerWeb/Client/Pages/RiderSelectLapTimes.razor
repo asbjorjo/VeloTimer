@@ -8,19 +8,13 @@
 
 <h3>Mine passeringstider</h3>
 
-@if (segments == null || label == null || rider == null)
+@if (_rider == null)
 {
     <p>Laster...</p>
 }
 else
 {
-    <select @onchange="ChangeSegment">
-        @foreach (var segment in segments)
-        {
-            <option value="@segment.StatisticsItem.Label" selected="@(segment.StatisticsItem.Label == this.label)">@segment.StatisticsItem.Label</option>
-        }
-    </select>
-    <SegmentTimes Label=@label FromTime=DateTimeOffset.MinValue Count=100 Rider=@rider.UserId />
+    <SegmentTimes Label="@_label" FromTime=DateTimeOffset.MinValue Count=100 Rider=@_rider />
 }
 
 @code {
@@ -30,39 +24,29 @@ else
     public string Label { get; set; }
 
     private IEnumerable<TrackStatisticsItem> segments;
-    private string label;
-    private RiderWeb rider;
-
-    protected async override Task OnParametersSetAsync()
-    {
-        await base.OnParametersSetAsync();
-
-        var user = (await authenticationStateTask).User;
-
-        if (user.Identity.IsAuthenticated)
-        {
-            rider = await Api.GetRiderByUserId(user.FindFirst(c => c.Type == "sub")?.Value);
-        }
-    }
+    private string _label;
+    private string _rider;
 
     protected override void OnParametersSet()
     {
-        if (Label != null && Label != label)
+        if (Label != null && _label != Label)
         {
-            label = Label;
+            _label = Label;
         }
+
+        base.OnParametersSet();
     }
 
     protected override async Task OnInitializedAsync()
     {
-        segments = await Api.GetStatisticsItems("1");
-        segments = segments.GroupBy(x => x.StatisticsItem.Label).Select(x => x.First()).OrderBy(x => x.StatisticsItem.Distance);
-        label = segments.First().StatisticsItem.Label;
+        var user = (await authenticationStateTask).User;
+
+        _rider = user.FindFirst(c => c.Type == "sub")?.Value;
     }
 
-    private void ChangeSegment(ChangeEventArgs e)
+    private void ChangeSegment(string segment)
     {
-        var selected = e.Value.ToString();
+        var selected = segment;
         NavigationManager.NavigateTo($"rider/segmenttimes/{selected}");
     }
 }

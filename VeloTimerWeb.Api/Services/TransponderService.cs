@@ -93,15 +93,14 @@ namespace VeloTimerWeb.Api.Services
             return times;
         }
 
-        public async Task<IEnumerable<SegmentTime>> GetTimesForOwner(Rider rider, StatisticsItem statisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count)
+        public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, StatisticsItem statisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, PagingParameters pagingParameters)
         {
-            var times = Enumerable.Empty<SegmentTime>();
             var fromtime = FromTime.UtcDateTime;
             var totime = ToTime.UtcDateTime;
 
             if (totime <= fromtime)
             {
-                return times;
+                return null;
             }
 
             var query = from tsi in _context.Set<TransponderStatisticsItem>()
@@ -122,9 +121,7 @@ namespace VeloTimerWeb.Api.Services
                             Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select( x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time})
                         };
 
-            _logger.LogDebug(query.Take(Count).ToQueryString());
-
-            times = await query.Take(Count).ToListAsync();
+            var times = await query.ToPaginatedListAsync(pagingParameters.PageNumber, pagingParameters.PageSize);
 
             return times;
         }

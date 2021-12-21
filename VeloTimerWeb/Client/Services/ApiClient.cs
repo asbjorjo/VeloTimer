@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
+using VeloTimerWeb.Client.Components;
 
 namespace VeloTimerWeb.Client.Services
 {
@@ -169,7 +170,7 @@ namespace VeloTimerWeb.Client.Services
             return rider;
         }
 
-        public async Task<IEnumerable<SegmentTime>> GetTimes(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, string Rider)
+        public async Task<PaginatedResponse<SegmentTime>> GetTimes(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, PagingParameters pagingParameters, string Rider)
         {
             var url = new StringBuilder();
 
@@ -182,7 +183,7 @@ namespace VeloTimerWeb.Client.Services
                 url.Append($"track/1");
             }
 
-            url.Append($"/times/{StatsItem}?Count={Count}");
+            url.Append($"/times/{StatsItem}?PageNumber={pagingParameters.PageNumber}&PageSize={pagingParameters.PageSize}");
 
             if (FromTime.HasValue)
             {
@@ -196,7 +197,11 @@ namespace VeloTimerWeb.Client.Services
             using var response = await _client.GetAsync(url.ToString());
             response.EnsureSuccessStatusCode();
 
-            var times = await response.Content.ReadFromJsonAsync<IEnumerable<SegmentTime>>();
+            var times = new PaginatedResponse<SegmentTime>
+            {
+                Items = await response.Content.ReadFromJsonAsync<List<SegmentTime>>(),
+                Pagination = JsonSerializer.Deserialize<Pagination>(response.Headers.GetValues("X-Pagination").First())
+            };
 
             return times;
         }
