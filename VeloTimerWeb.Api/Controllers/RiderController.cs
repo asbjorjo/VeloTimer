@@ -227,8 +227,8 @@ namespace VeloTimerWeb.Api.Controllers
             var transponderId = TransponderIdConverter.CodeToId(ownerWeb.TransponderLabel).ToString();
 
             var transponder = await _context.Set<Transponder>().SingleOrDefaultAsync(t => t.SystemId == transponderId && t.TimingSystem == TransponderType.TimingSystem.Mylaps_X2);
-            var ownfrom = ownerWeb.OwnedFrom.UtcDateTime;
-            var ownuntil = ownerWeb.OwnedUntil.UtcDateTime;
+            var ownfrom = ownerWeb.OwnedFrom?.ToUniversalTime();
+            var ownuntil = ownerWeb.OwnedUntil?.ToUniversalTime();
 
             if (transponder == null)
             {
@@ -254,8 +254,8 @@ namespace VeloTimerWeb.Api.Controllers
             
             var value = new TransponderOwnership
             {
-                OwnedFrom = ownfrom,
-                OwnedUntil = ownuntil,
+                OwnedFrom = ownfrom.Value,
+                OwnedUntil = ownuntil.Value,
                 Owner = dbrider,
                 Transponder = transponder
             };

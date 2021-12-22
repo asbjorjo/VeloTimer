@@ -10,40 +10,33 @@
 
 <AuthorizeView>
     <Authorized>
-        <h3>Registrer transponder</h3>
-        <div class="col col-lg-8 col-xl-6">
-            <EditForm Model="@transponderName" OnValidSubmit="@HandleValidSubmit" Context="formcontext">
-                <DataAnnotationsValidator />
-                <ServerValidator @ref="serverValidator" />
-                <ValidationSummary />
-
-                <div class="form-row">
-                    <label for="label" class="col-1 col-form-label">
-                        Transponder
-                    </label>
-                    <InputText id="label" @bind-Value="transponderName.TransponderLabel" class="form-control" />
-                </div>
-                <div class="form-row">
-                    <div class="col">
-                        <label for="validFrom">
-                            Gyldig fra
-                        </label>
-                        <InputDate id="validFrom" @bind-Value="transponderName.OwnedFrom" class="form-control" />
-                    </div>
-                    <div class="col">
-                        <label for="validUntil">
-                            Gyldig til
-                        </label>
-                        <InputDate id="validUntil" @bind-Value="transponderName.OwnedUntil" class="form-control" />
-                    </div>
-                </div>
-                <div class="form-row">
-                    <InputText id="name" @bind-Value="transponderName.Owner" hidden="true" />
-                    <button class="btn btn-primary" type="submit">Registrer</button>
-                    <button class="btn btn-secondary" type="reset" @onclick="@ResetForm" @onclick:preventDefault>Nullstill</button>
-                </div>
-            </EditForm>
-        </div>
+        <MudText Typo="Typo.h5" Color="Color.Inherit" Align="Align.Center"></MudText>
+        
+        <EditForm Model="@transponderName" OnValidSubmit="@HandleValidSubmit" Context="formcontext">
+            <DataAnnotationsValidator />
+            <ServerValidator @ref="serverValidator" />
+            <ValidationSummary />
+            <MudCard>
+                <MudCardHeader>
+                    Registrer transponder
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudTextField @bind-Value="transponderName.TransponderLabel" Label="Transponder" For="@(() => transponderName.TransponderLabel)"></MudTextField>
+                    <MudField Label="Gyldighet">
+                        <MudDatePicker @bind-Date="transponderName.OwnedFrom" Label="Gyldig fra" For="@(() => transponderName.OwnedFrom)"></MudDatePicker>
+                        <MudDatePicker @bind-Date="transponderName.OwnedUntil" Label="Gyldig til" For="@(() => transponderName.OwnedUntil)"/>
+                    </MudField>
+                    <MudHidden Breakpoint="Breakpoint.None" Invert="true">
+                        <MudTextField @bind-Value="transponderName.Owner" ReadOnly="true" hidden="true" For="@(() => transponderName.Owner)"/>
+                    </MudHidden>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary">Registrer</MudButton>
+                    <MudButton ButtonType="ButtonType.Reset" Variant="Variant.Filled" Color="Color.Secondary" OnClick="@ResetForm">Nullstill</MudButton>
+                </MudCardActions>
+            </MudCard>
+        </EditForm>
+        
         <div class="col col-xl-6 table-responsive">
             <table class="table table-bordered table-striped align-middle text-nowrap">
                 <thead>
