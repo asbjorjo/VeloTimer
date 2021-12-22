@@ -10,6 +10,9 @@
         <MudIconButton Icon="@Icons.Filled.Home" Color="Color.Inherit" Link="#" />
         <MudText Typo="Typo.h5" Class="ml-3">VeloTime</MudText>
         <MudSpacer />
+        <AuthorizeView>
+            <MudIconButton Icon="@Icons.Filled.AccountCircle" Color="Color.Inherit" Link="/authentication/profile" />
+        </AuthorizeView>
         <MudIconButton Icon="@Icons.Filled.Login" Color="Color.Inherit" Link="/authentication/login" />
     </MudAppBar>
     <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always" Variant="@DrawerVariant.Responsive" Elevation="2">
