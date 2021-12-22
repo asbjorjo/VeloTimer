@@ -37,39 +37,25 @@
             </MudCard>
         </EditForm>
         
-        <div class="col col-xl-6 table-responsive">
-            <table class="table table-bordered table-striped align-middle text-nowrap">
-                <thead>
-                    <tr>
-                        <th scope="col">Transponder</th>
-                        <th scope="col">Gyldig fra</th>
-                        <th scope="col">Gyldig til</th>
-                        <th scope="col">Slett registrering</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if(transpondernames != null)
-                    {
-                        @foreach(var transpondername in transpondernames)
-                        {
-                            <tr>
-                                <th scope="row">@transpondername.TransponderLabel</th>
-                                <td>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</td>
-                                <td>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</td>
-                                <td>
-                                    <button class="btn btn-danger pt-0 pb-0"
-                                        value="@transpondername.TransponderLabel" 
-                                        @onclick="@(e => 
-                                            RemoveRegistration(e, transpondername.TransponderLabel, transpondername.OwnedFrom, transpondername.OwnedUntil))">
-                                        Slett
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    }
-                </tbody>
-            </table>
-        </div>
+        <MudTable Items="@transpondernames">
+            <HeaderContent>
+                <MudTh>Transponder</MudTh>
+                <MudTh>Gyldig fra</MudTh>
+                <MudTh>Gyldig til</MudTh>
+                <MudTh>Slett registrering</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="transpondername">
+                <MudTd>@transpondername.TransponderLabel</MudTd>
+                <MudTd>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</MudTd>
+                <MudTd>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</MudTd>
+                <MudTd>
+                    <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
+                        OnClick="@(() => RemoveRegistration(transpondername.TransponderLabel, transpondername.OwnedFrom, transpondername.OwnedFrom))">
+                        Slett
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
     </Authorized>
 </AuthorizeView>
 
@@ -121,7 +107,7 @@
         transponderName.Owner = userId;
     }
 
-    private async void RemoveRegistration(EventArgs e, string label, DateTimeOffset from, DateTimeOffset until)
+    private async void RemoveRegistration(string label, DateTimeOffset from, DateTimeOffset until)
     {
         var authState = await authenticationStateTask;
         var user = authState.User;
