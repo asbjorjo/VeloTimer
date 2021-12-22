@@ -5,6 +5,7 @@
 @inject IApiClient Api
 @inject NavigationManager Navigation
 @inject SignOutSessionStateManager SignOutManager
+@inject ISnackbar SnackBar
 
 <MudGrid>
     <MudItem xs="12" xl="7">
@@ -29,8 +30,8 @@
                 </MudForm>
             </MudCardContent>
             <MudCardActions>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(async () => await SaveProfile())">Lagre</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(async () => await DeleteProfile())">Slett profil</MudButton>
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary" OnClick="@(async () => await SaveProfile())">Lagre</MudButton>
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(async () => await DeleteProfile())">Slett profil</MudButton>
             </MudCardActions>
         </MudCard>
     }
@@ -57,6 +58,7 @@
     private async Task SaveProfile()
     {
         await Api.SaveRiderProfile(profile);
+        SnackBar.Add("Profil lagret");
     }
 
     private async Task DeleteProfile()
@@ -64,5 +66,6 @@
         await Api.DeleteRiderProfile(profile.UserId);
         await SignOutManager.SetSignOutState();
         Navigation.NavigateTo("authentication/logout");
+        SnackBar.Add("Profil slettet");
     }
 }
