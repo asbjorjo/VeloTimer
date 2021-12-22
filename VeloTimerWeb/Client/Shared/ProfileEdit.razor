@@ -6,55 +6,36 @@
 @inject NavigationManager Navigation
 @inject SignOutSessionStateManager SignOutManager
 
-<div>
+<MudGrid>
+    <MudItem xs="12" xl="7">
     @if (profile != null)
     {
-        <EditForm Model="@profile" OnValidSubmit="@SaveProfile" Context="profilecontext">
-            <div class="form-row">
-                <label for="displayname" class="col-3 col-lg-1 col-form-label">
-                    Navn til statistikk
-                </label>
-                <div class="col col-lg-6 col-xl-5">
-                    <InputText id="displayname" @bind-Value="profile.RiderDisplayName" class="form-control" />
-                </div>
-            </div>
-            <div class="form-row">
-                <label for="firstname" class="col-3 col-lg-1 col-form-label">
-                    Fornavn
-                </label>
-                <div class="col col-lg-6 col-xl-5">
-                    <InputText id="firstname" @bind-Value="profile.RiderFirstName" class="form-control" />
-                </div>
-            </div>
-            <div class="form-row">
-                <label for="lastname" class="col-3 col-lg-1 col-form-label">
-                    Etternavn
-                </label>
-                <div class="col col-lg-6 col-xl-5">
-                    <InputText id="lastname" @bind-Value="profile.RiderLastName" class="form-control" />
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-check">
-                    <InputCheckbox id="ispublic" @bind-Value="profile.RiderIsPublic" class="form-check-input" />
-                    <label for="ispublic" class="form-check-label">
-                        Vis i statistikk
-                    </label>
-                    <small id="ispublicHelp" class="form-text text-muted">
-                        Når du velger å inkluderes i offentlig statistikk vil navn og tider vises i statistikker og skjermer på velodromen.<br />
-                        Du vil også bli inkludert i listen med ryttere som er på banen nå.<br />
-                        Du kan fortsatt se dine egne tider og rekorder med privat profil.
-                    </small>
-                </div>
-            </div>
-            <div class="form-row">
-                <InputText id="userid" hidden="true" @bind-Value="profile.UserId" />
-                <button type="submit" class="btn btn-primary">Lagre</button>
-                <button class="btn btn-danger" @onclick="@DeleteProfile">Slett profil</button>
-            </div>
-        </EditForm>
+        <MudCard>
+            <MudCardContent>
+                <MudForm>
+                    <MudTextField @bind-Value="@profile.RiderDisplayName" Label="Navn til statistikk"/>
+                    <MudTextField @bind-Value="@profile.RiderFirstName" Label="Fornavn"/>
+                    <MudTextField @bind-Value="@profile.RiderLastName" Label="Etternavn"/>
+                    <MudField Label="Synglighet">
+                        <MudCheckBox @bind-Checked="@profile.RiderIsPublic" Label="Vis i statistikk"/>
+                        <MudPaper>
+                        <MudText Typo="Typo.caption">
+                            Når du velger å inkluderes i offentlig statistikk vil navn og tider vises i statistikker og skjermer på velodromen.<br />
+                            Du vil også bli inkludert i listen med ryttere som er på banen nå.<br />
+                            Du kan fortsatt se dine egne tider og rekorder med privat profil.
+                        </MudText>
+                        </MudPaper>
+                    </MudField>
+                </MudForm>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(async () => await SaveProfile())">Lagre</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@(async () => await DeleteProfile())">Slett profil</MudButton>
+            </MudCardActions>
+        </MudCard>
     }
-</div>
+    </MudItem>
+</MudGrid>
 
 @code {
     [CascadingParameter]
@@ -73,12 +54,12 @@
         profile = await Api.GetRiderByUserId(authstate.User.Claims.First(x => x.Type == "sub").Value);
     }
 
-    private async void SaveProfile()
+    private async Task SaveProfile()
     {
         await Api.SaveRiderProfile(profile);
     }
 
-    private async void DeleteProfile()
+    private async Task DeleteProfile()
     {
         await Api.DeleteRiderProfile(profile.UserId);
         await SignOutManager.SetSignOutState();

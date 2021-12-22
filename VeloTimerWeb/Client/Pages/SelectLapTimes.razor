@@ -1,53 +1,61 @@
-﻿@page "/track/segmenttimes"
-@page "/track/segmenttimes/{Label}"
+﻿@page "/times"
+@page "/times/{Label}"
+@page "/times/{Label}/{Track}"
+@page "/times/{Label}/{Track}/{Layout}"
 
 @layout MainLayout
+@using System.Text
 @using VeloTimer.Shared.Models
 @inject NavigationManager NavigationManager
 @inject IApiClient Api
 @inject HttpClient Http
 
-<h3>Passeringstider</h3>
+<MudText Typo="Typo.h5" Color="Color.Inherit" Align="Align.Center">Passeringstider</MudText>
 
-@if (segments == null || label == null)
-{
-    <p>Laster...</p>
-}
-else
-{
-    <select @onchange="ChangeSegment">
-        @foreach (var segment in segments)
-        {
-            <option value="@segment.StatisticsItem.Label" selected="@(segment.StatisticsItem.Label == this.label)">@segment.StatisticsItem.Label</option>
-        }
-    </select>
-    <SegmentTimes Label=@label FromTime=DateTimeOffset.Now.Date.AddHours(-24) Count=100 />
-}
+<SegmentTimes @bind-StatisticsParameters="@StatisticsParameters" />
 
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
     [Parameter]
     public string Label { get; set; }
-    private IEnumerable<TrackStatisticsItem> segments;
-    private string label;
+    [Parameter]
+    public string Track { get; set; }
+    [Parameter]
+    public string Layout { get; set; }
+
+    private StatisticsParameters StatisticsParameters
+    {
+        get 
+        {
+            return _statisticsParameters;
+        }
+        set
+        {
+            _statisticsParameters = value;
+            UpdateNavigation();
+        }
+    }
+
+    private StatisticsParameters _statisticsParameters;
 
     protected override void OnParametersSet()
     {
-        if (Label != null && Label != label)
+        base.OnParametersSet();
+        StatisticsParameters = new StatisticsParameters
         {
-            label = Label;
-        }
+            Label = Label,
+            Track = Track,
+            Layout = Layout
+        };
     }
 
-    protected override async Task OnInitializedAsync()
+    private void UpdateNavigation()
     {
-        segments = await Api.GetStatisticsItems("1");
-        segments = segments.GroupBy(x => x.StatisticsItem.Label).Select(x => x.First()).OrderBy(x => x.StatisticsItem.Distance);
-        label = segments.First().StatisticsItem.Label;
-    }
+        var sb = new StringBuilder("times/");
 
-    private void ChangeSegment(ChangeEventArgs e)
-    {
-        var selected = e.Value.ToString();
-        NavigationManager.NavigateTo($"track/segmenttimes/{selected}");
+        sb.Append(_statisticsParameters.ToPathString());
+
+        NavigationManager.NavigateTo(sb.ToString());
     }
 }

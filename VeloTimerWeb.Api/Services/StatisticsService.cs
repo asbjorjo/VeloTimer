@@ -58,6 +58,13 @@ namespace VeloTimerWeb.Api.Services
             return times;
         }
 
+        public async Task<StatisticsItem> GetItemBySlug(string slug)
+        {
+            var item = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Slug == slug);
+
+            return item;
+        }
+
         public async Task<IEnumerable<KeyValuePair<string, double>>> GetTopDistances(StatisticsItem StatisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count = 10)
         {
             var counts = new Dictionary<string, double>();
@@ -92,6 +99,29 @@ namespace VeloTimerWeb.Api.Services
                 .ToDictionaryAsync(k => k.Rider, v => v.Distance);
 
             return counts;
+        }
+
+        public async Task<TrackStatisticsItem> GetTrackItemBySlugs(string item, string track, string layout)
+        {
+            var Item = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.StatisticsItem.Slug == item && x.Layout.Slug == layout && x.Layout.Track.Slug == track);
+
+            return Item;
+        }
+
+        public async Task<IEnumerable<TrackStatisticsItem>> GetTrackItemsBySlugs(string track, string item)
+        {
+            var items = _context.Set<TrackStatisticsItem>()
+                .Include(x => x.StatisticsItem)
+                .Include(x => x.Layout)
+                .ThenInclude(x => x.Track)
+                .Where(x => x.Layout.Track.Slug == track);
+
+            if (!string.IsNullOrWhiteSpace(item))
+            {
+                items = items.Where(x => x.StatisticsItem.Slug == item);
+            }
+
+            return await items.ToListAsync();
         }
     }
 }

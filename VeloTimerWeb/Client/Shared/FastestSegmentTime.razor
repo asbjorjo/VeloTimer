@@ -45,7 +45,7 @@
     [Parameter]
     public bool RequireIntermediates { get; set; } = true;
 
-    protected TrackStatisticsItem segment;
+    protected TrackStatisticsItemWeb segment;
     protected long? transponder;
     protected bool showintermediate = false;
     protected DateTimeOffset? fromtime;
@@ -53,33 +53,15 @@
     protected int count = 1;
     protected bool requireintermediates;
 
-    protected override void OnInitialized()
-    {
-        //hubConnection.On(Strings.Events.NewSegmentRun, async () =>
-        //{
-        //    await LoadSegmentTimes();
-        //});
-    }
-
     protected async override Task OnParametersSetAsync()
     {
         if (Label != segment?.StatisticsItem.Label || Transponder != transponder) {
-            if (segment != null)
-            {
-                await hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
-            }
-
-            segment = await Api.GetStatisticsItem(Label, "1");
+            segment = await Api.GetStatisticsItem(Label.ToLower(), "sola-arena");
 
             transponder = Transponder;
             fromtime = FromTime?.ToUniversalTime();
             totime = ToTime?.ToUniversalTime();
             requireintermediates = RequireIntermediates;
-
-            if (totime == null)
-            {
-                await hubConnection.InvokeAsync("AddToSegmentGroup", segment.Id);
-            }
 
             await LoadSegmentTimes();
         }
@@ -92,7 +74,7 @@
 
     protected async Task LoadSegmentTimes()
     {
-        var segmentTimes = await Api.GetBestTimes(Label, fromtime, totime, Count: count);
+        var segmentTimes = await Api.GetBestTimes(segment.StatisticsItem.Slug, fromtime, totime, Count: count);
 
         segmentTime = segmentTimes.FirstOrDefault();
 

@@ -140,7 +140,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
-            var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Label == statsitem);
+            var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Slug == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
             var times = await _transponderService.GetFastestForOwner(Rider, StatsItem, fromtime, totime);
@@ -157,7 +157,7 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
-            var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Label == statsitem);
+            var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Slug == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
             var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters);
@@ -178,9 +178,9 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
-            var Track = await _context.Set<Track>().FindAsync(long.Parse(track));
+            var Track = await _context.Set<Track>().SingleOrDefaultAsync(x => x.Slug == track);
             if (Track == null) { return NotFound($"Track: {track}"); }
-            var StatsItems = await _context.Set<TrackStatisticsItem>().Where(x => x.StatisticsItem.Label == statsitem).Where(x => x.Layout.Track == Track).ToListAsync();
+            var StatsItems = await _context.Set<TrackStatisticsItem>().Where(x => x.StatisticsItem.Slug == statsitem).Where(x => x.Layout.Track == Track).ToListAsync();
             if (!StatsItems.Any()) { return NotFound($"StatsItem: {statsitem}"); }
 
             var times = await _transponderService.GetTimesForOwner(Rider, StatsItems, timeParameters, pagingParameters);
@@ -202,9 +202,9 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
-            var Layout = await _context.Set<TrackLayout>().FindAsync(long.Parse(layout));
+            var Layout = await _context.Set<TrackLayout>().SingleOrDefaultAsync(x => x.Slug == layout && x.Track.Slug == track);
             if (Layout == null) { return NotFound($"Layout: {layout}"); }
-            var StatsItem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Layout == Layout && x.StatisticsItem.Label == statsitem);
+            var StatsItem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Layout == Layout && x.StatisticsItem.Slug == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
             var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters);

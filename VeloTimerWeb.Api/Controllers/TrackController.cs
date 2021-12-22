@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,32 +19,30 @@ namespace VeloTimerWeb.Api.Controllers
     public class TrackController : ControllerBase
     {
         private readonly ITrackService _trackService;
+        private readonly IStatisticsService _statisticsService;
         private readonly ILogger<TrackController> _logger;
-        private readonly VeloTimerDbContext _context;
-        private readonly DbSet<Track> _dbset;
 
         public TrackController(
             ITrackService trackService,
-            ILogger<TrackController> logger, 
-            VeloTimerDbContext context) : base()
+            IStatisticsService statisticsService,
+            ILogger<TrackController> logger) : base()
         {
             _trackService = trackService;
+            _statisticsService = statisticsService;
             _logger = logger;
-            _context = context;
-            _dbset = _context.Set<Track>();
         }
 
         [AllowAnonymous]
-        public async Task<ActionResult<Track>> Get(long id)
+        public async Task<ActionResult<TrackWeb>> Get(string slug)
         {
-            var value = await _dbset.FindAsync(id);
+            var value = await _trackService.GetTrackBySlug(slug);
 
             if (value == null)
             {
                 return NotFound();
             }
 
-            return value;
+            return value.ToWeb();
         }
 
         [AllowAnonymous]
@@ -56,14 +55,8 @@ namespace VeloTimerWeb.Api.Controllers
                 return BadRequest();
             }
 
-            var track = await _context.Set<Track>().FindAsync(long.Parse(Track));
-            if (track == null)
-            {
-                return NotFound($"Track: {Track}");
-            }
-
-            var statsitem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Layout.Track == track && x.StatisticsItem.Label == StatisticsItem);
-            if (statsitem == null)
+            var statsitem = await _statisticsService.GetTrackItemsBySlugs(Track, StatisticsItem);
+            if (!statsitem.Any())
             {
                 return NotFound($"StatisticsItem: {StatisticsItem}");
             }
@@ -74,7 +67,7 @@ namespace VeloTimerWeb.Api.Controllers
             if (FromTime.HasValue) fromtime = FromTime.Value;
             if (ToTime.HasValue) totime = ToTime.Value;
 
-            var counts = await _trackService.GetCount(statsitem, fromtime, totime, Count);
+            var counts = await _trackService.GetCount(statsitem.First(), fromtime, totime, Count);
 
             return Ok(counts);
         }
@@ -82,17 +75,9 @@ namespace VeloTimerWeb.Api.Controllers
         [AllowAnonymous]
         [HttpGet]
         [Route("{Track}/fastest/{StatisticsItem}")]
-        public async Task<ActionResult<IEnumerable<SegmentTime>>> Fastest(long Track, string StatisticsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10)
+        public async Task<IActionResult> Fastest(string Track, string StatisticsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10)
         {
-            var track = await _context.Set<Track>().FindAsync(Track);
-            if (track == null)
-            {
-                return NotFound($"Track: {Track}"); 
-            }
-
-            var statsitems = await _context.Set<TrackStatisticsItem>()
-                .Where(x => x.Layout.Track == track && x.StatisticsItem.Label == StatisticsItem)
-                .ToListAsync();
+            var statsitems = await _statisticsService.GetTrackItemsBySlugs(Track, StatisticsItem);
 
             if (!statsitems.Any())
             {
@@ -112,28 +97,22 @@ namespace VeloTimerWeb.Api.Controllers
 
         [HttpGet]
         [Route("{Track}/times/{StatisticsItem}")]
-        public async Task<ActionResult<IEnumerable<SegmentTime>>> Recent(long Track, string StatisticsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 50)
+        public async Task<IActionResult> Recent(
+            string Track, 
+            string StatisticsItem, 
+            [FromQuery] TimeParameters timeParameters,
+            [FromQuery] PaginationParameters pagingParameters)
         {
-            var track = await _context.Set<Track>().FindAsync(Track);
-            if (track == null)
-            {
-                return NotFound($"Track: {Track}");
-            }
+            var statsitems = await _statisticsService.GetTrackItemsBySlugs(Track, StatisticsItem);
 
-            var statsitem = await _context.Set<TrackStatisticsItem>().Where(x => x.Layout.Track == track && x.StatisticsItem.Label == StatisticsItem).ToListAsync();
-
-            if (statsitem == null)
+            if (!statsitems.Any())
             {
                 return NotFound($"StatisticsItem: {StatisticsItem}");
             }
 
-            var fromtime = DateTimeOffset.Now.AddHours(-1);
-            var totime = DateTimeOffset.MaxValue;
-
-            if (FromTime.HasValue) fromtime = FromTime.Value;
-            if (ToTime.HasValue) totime = ToTime.Value;
-
-            var times = await _trackService.GetRecent(statsitem, fromtime, totime, Count);
+            var times = await _trackService.GetRecent(statsitems, timeParameters, pagingParameters);
+            
+            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
 
             return Ok(times);
         }

@@ -84,7 +84,7 @@
     {
         _loading = true;
 
-        var counts = await Api.GetCount(StatsItem, fromtime, totime, count);
+        var counts = await Api.GetCount(StatsItem.ToLower(), fromtime, totime, count);
 
         passingcounts = counts;
 

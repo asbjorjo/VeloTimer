@@ -34,5 +34,19 @@ namespace VeloTimer.Shared.Models
 
             return item;
         }
+
+        public TrackStatisticsItemWeb ToWeb()
+        {
+            var web = new TrackStatisticsItemWeb
+            {
+                StatisticsItem = StatisticsItem.ToWeb(),
+                TrackLayout = Layout.ToWeb(),
+                Laps = Laps,
+                MinTime = MinTime,
+                MaxTime = MaxTime
+            };
+
+            return web;
+        }
     }
 }
