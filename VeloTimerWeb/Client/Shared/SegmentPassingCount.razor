@@ -7,28 +7,20 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-@if (statsItem != null && passingcounts != null)
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th scope="col">Rytter</th>
-                <th scope="col" class="text-right">Runder</th>
-                <th scope="col" class="text-right">km</th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach (var count in passingcounts)
-        {
-            <tr>
-                <td>@count.Rider</td>
-                <td class="text-right">@count.Count</td>
-                <td class="text-right">@String.Format("{0:0.00}", count.Distance)</td>
-            </tr>
-        }
-        </tbody>
-    </table>
-}
+<MudText Typo="Typo.h6" Color="Color.Inherit" Align="Align.Center">@_heading</MudText>
+
+<MudTable Items="@passingcounts" Loading="@_loading" LoadingProgressColor="@Color.Info" Breakpoint="Breakpoint.None">
+    <HeaderContent>
+        <MudTh>Rytter</MudTh>
+        <MudTh>Runder</MudTh>
+        <MudTh>km</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Rider</MudTd>
+        <MudTd>@context.Count</MudTd>
+        <MudTd>@String.Format("{0:0.00}", @context.Distance)</MudTd>
+    </RowTemplate>
+</MudTable>
 
 @code {
     protected long passingcount;
@@ -46,6 +38,8 @@
     public int? Count { get; set; }
     [Parameter]
     public long? Rider { get; set; }
+    [Parameter]
+    public string Heading { get; set; }
 
     protected string statsItem;
     protected long? transponder;
@@ -53,6 +47,8 @@
     protected DateTimeOffset? totime;
     protected int count = 10;
     protected long? rider;
+    private bool _loading = true;
+    private string _heading;
 
     protected override void OnInitialized()
     {
@@ -65,11 +61,14 @@
     protected async override Task OnParametersSetAsync()
     {
         if (StatsItem != statsItem || Transponder != transponder || Rider != rider) {
+            _loading = true;
+
             statsItem = StatsItem;
             transponder = Transponder;
             fromtime = FromTime;
             totime = ToTime;
             rider = Rider;
+            _heading = Heading;
 
             if (Count.HasValue)
             {
@@ -83,9 +82,13 @@
 
     protected async Task LoadSegmentPassingCount()
     {
-        var counts = await Api.GetCount(StatsItem, fromtime, totime, count);
+        _loading = true;
+
+        var counts = await Api.GetCount(StatsItem.ToLower(), fromtime, totime, count);
 
         passingcounts = counts;
+
+        _loading = false;
 
         StateHasChanged();
     }

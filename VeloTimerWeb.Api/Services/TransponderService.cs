@@ -93,15 +93,14 @@ namespace VeloTimerWeb.Api.Services
             return times;
         }
 
-        public async Task<IEnumerable<SegmentTime>> GetTimesForOwner(Rider rider, StatisticsItem statisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count)
+        public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, StatisticsItem statisticsItem, TimeParameters timeParameters, PaginationParameters pagingParameters)
         {
-            var times = Enumerable.Empty<SegmentTime>();
-            var fromtime = FromTime.UtcDateTime;
-            var totime = ToTime.UtcDateTime;
+            var fromtime = timeParameters.FromTime;
+            var totime = timeParameters.ToTime;
 
             if (totime <= fromtime)
             {
-                return times;
+                return null;
             }
 
             var query = from tsi in _context.Set<TransponderStatisticsItem>()
@@ -122,9 +121,67 @@ namespace VeloTimerWeb.Api.Services
                             Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select( x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time})
                         };
 
-            _logger.LogDebug(query.Take(Count).ToQueryString());
+            var times = await query.ToPaginatedListAsync(pagingParameters.PageNumber, pagingParameters.PageSize);
 
-            times = await query.Take(Count).ToListAsync();
+            return times;
+        }
+
+        public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, TrackStatisticsItem statisticsItems, TimeParameters timeParameters, PaginationParameters paginationParameters)
+        {
+            var fromtime = timeParameters.FromTime;
+            var totime = timeParameters.ToTime;
+
+            if (totime <= fromtime) return null;
+
+            var query = from tsi in _context.Set<TransponderStatisticsItem>()
+                        join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                        where
+                            tsi.StatisticsItem == statisticsItems
+                            && tsi.StartTime >= fromtime
+                            && tsi.EndTime <= totime
+                            && town.Owner == rider
+                            && town.OwnedFrom <= tsi.StartTime
+                            && town.OwnedUntil >= tsi.EndTime
+                        orderby tsi.EndTime descending
+                        select new SegmentTime
+                        {
+                            PassingTime = tsi.EndTime,
+                            Speed = tsi.Speed * 3.6,
+                            Time = tsi.Time,
+                            Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select(x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time })
+                        };
+
+            var times = await query.ToPaginatedListAsync(paginationParameters.PageNumber, paginationParameters.PageSize);
+
+            return times;
+        }
+        
+        public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, ICollection<TrackStatisticsItem> statisticsItems, TimeParameters timeParameters, PaginationParameters paginationParameters)
+        {
+            var fromtime = timeParameters.FromTime;
+            var totime = timeParameters.ToTime;
+
+            if (totime <= fromtime) return null;
+
+            var query = from tsi in _context.Set<TransponderStatisticsItem>()
+                        join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                        where
+                            statisticsItems.Contains(tsi.StatisticsItem)
+                            && tsi.StartTime >= fromtime
+                            && tsi.EndTime <= totime
+                            && town.Owner == rider
+                            && town.OwnedFrom <= tsi.StartTime
+                            && town.OwnedUntil >= tsi.EndTime
+                        orderby tsi.EndTime descending
+                        select new SegmentTime
+                        {
+                            PassingTime = tsi.EndTime,
+                            Speed = tsi.Speed * 3.6,
+                            Time = tsi.Time,
+                            Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select(x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time })
+                        };
+
+            var times = await query.ToPaginatedListAsync(paginationParameters.PageNumber, paginationParameters.PageSize);
 
             return times;
         }

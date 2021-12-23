@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MudBlazor.Services;
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -18,6 +19,8 @@ namespace VeloTimerWeb.Client
             var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
             builder.RootComponents.Add<App>("#app");
+
+            builder.Services.AddMudServices();
 
             builder.Services.AddScoped<VeloTimerAuthorizationMessageHandler>();
 
@@ -42,6 +45,7 @@ namespace VeloTimerWeb.Client
 
             builder.Services.AddApiAuthorization(options =>
             {
+                options.AuthenticationPaths.LogOutSucceededPath = "/";
             })
                 .AddAccountClaimsPrincipalFactory<RolesClaimsPrincipalFactory>();
 

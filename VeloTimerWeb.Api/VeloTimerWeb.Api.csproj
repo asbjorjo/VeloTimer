@@ -34,6 +34,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="5.0.2" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="5.0.10" />
+    <PackageReference Include="Slugify.Core" Version="3.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.2.3" />
   </ItemGroup>
 
@@ -45,7 +46,6 @@
   <ItemGroup>
     <Folder Include="Migrations\Identity\" />
     <Folder Include="Migrations\VeloTimer\" />
-    <Folder Include="Models\" />
   </ItemGroup>
 
 </Project>

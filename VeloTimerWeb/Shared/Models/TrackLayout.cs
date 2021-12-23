@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Slugify;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -6,18 +7,35 @@ namespace VeloTimer.Shared.Models
 {
     public class TrackLayout
     {
-        public long Id { get; private set; }
+        public long Id { get; set; }
         public string Name { get; set; }
-        public Track Track { get; private set; }
+        public Track Track { get; set; }
         public ICollection<TrackLayoutSector> Sectors { get; private set; } = new List<TrackLayoutSector>();
-        public double Distance { get; private set; }
+        public double Distance { get; set; }
+        public string Slug { get; set; }
+
+        public TrackLayoutWeb ToWeb()
+        {
+            var web = new TrackLayoutWeb
+            {
+                Name = Name,
+                Slug = Slug,
+                Length = Distance,
+                Track = Track?.ToWeb()
+            };
+
+            return web;
+        }
 
         public static TrackLayout Create(Track track, string name, IOrderedEnumerable<TrackSector> sectors)
         {
+            var slugHelper = new SlugHelper();
+
             TrackLayout trackLayout = new()
             {
                 Name = name,
-                Track = track
+                Track = track,
+                Slug = slugHelper.GenerateSlug(name)
             };
 
             int order = 1;

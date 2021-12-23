@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
+using VeloTimerWeb.Client.Components;
 
 namespace VeloTimerWeb.Client.Services
 {
@@ -18,7 +19,7 @@ namespace VeloTimerWeb.Client.Services
         Task<IEnumerable<RiderWeb>> GetActiveRiders(DateTimeOffset fromtime, DateTimeOffset? totime);
 
         Task<IEnumerable<SegmentTime>> GetBestTimes(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10, string Rider = null, bool OnePerRider = false);
-        Task<IEnumerable<SegmentTime>> GetTimes(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 50, string Rider = null);
+        Task<PaginatedResponse<SegmentTime>> GetTimes(StatisticsParameters statisticsParameters, TimeParameters timeParameters, PaginationParameters pagingParameters, string Rider = null);
         Task<IEnumerable<SegmentTime>> GetTimesForTransponder(string StatsItem, long TransponderId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 50);
         Task<IEnumerable<SegmentTime>> GetTimesForTransponders(string StatsItem, IEnumerable<long> TransponderIds, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 50);
         Task<Passing> GetLastPassing();
@@ -26,8 +27,8 @@ namespace VeloTimerWeb.Client.Services
         Task<IEnumerable<SegmentDistance>> GetCount(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count = 10);
 
         Task<IEnumerable<TrackSegment>> GetTrackSegments(string Track);
-        Task<TrackStatisticsItem> GetStatisticsItem(string Label, string Track);
-        Task<IEnumerable<TrackStatisticsItem>> GetStatisticsItems(string Track);
+        Task<TrackStatisticsItemWeb> GetStatisticsItem(string Label, string Track);
+        Task<IEnumerable<TrackStatisticsItemWeb>> GetStatisticsItems(string Track);
 
         Task<IEnumerable<TimingLoop>> GetTimingPoints(string Track);
     }

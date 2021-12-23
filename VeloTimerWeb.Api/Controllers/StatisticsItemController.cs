@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
@@ -15,53 +16,31 @@ namespace VeloTimerWeb.Api.Controllers
     public class StatisticsItemController : ControllerBase
     {
         private readonly VeloTimerDbContext _context;
+        private readonly IStatisticsService _statisticsService;
         private readonly ILogger<StatisticsItemController> _logger;
 
-        public StatisticsItemController(VeloTimerDbContext context, ILogger<StatisticsItemController> logger)
+        public StatisticsItemController(IStatisticsService statisticsService, ILogger<StatisticsItemController> logger)
         {
-            _context = context;
+            _statisticsService = statisticsService;
             _logger = logger;
         }
 
         [HttpGet]
         [Route("{Label}/track/{Track}")]
-        public async Task<ActionResult<IEnumerable<TrackStatisticsItem>>> GetForTrack(string Label, string Track)
+        public async Task<ActionResult<IEnumerable<TrackStatisticsItemWeb>>> GetForTrack(string Label, string Track)
         {
-            var track = await _context.Set<Track>().FindAsync(long.Parse(Track));
+            var items = await _statisticsService.GetTrackItemsBySlugs(Track, Label);
 
-            if (track == null)
-            {
-                return NotFound();
-            }
-
-            var items = await _context.Set<TrackStatisticsItem>()
-                .Include(x => x.StatisticsItem)
-                .Include(x => x.Layout)
-                .Where(x => x.Layout.Track == track)
-                .Where(x => x.StatisticsItem.Label == Label)
-                .ToListAsync();
-
-            return items.Count > 0 ? items : NotFound();
+            return items.Any() ? items.Select(x => x.ToWeb()).ToList() : NotFound();
         }
 
         [HttpGet]
         [Route("track/{Track}")]
-        public async Task<ActionResult<IEnumerable<TrackStatisticsItem>>> GetForTrack(string Track)
+        public async Task<ActionResult<IEnumerable<TrackStatisticsItemWeb>>> GetForTrack(string Track)
         {
-            var track = await _context.Set<Track>().FindAsync(long.Parse(Track));
+            var items = await _statisticsService.GetTrackItemsBySlugs(Track);
 
-            if (track == null)
-            {
-                return NotFound();
-            }
-
-            var items = await _context.Set<TrackStatisticsItem>()
-                .Include(x => x.StatisticsItem)
-                .Include(x => x.Layout)
-                .Where(x => x.Layout.Track == track)
-                .ToListAsync();
-
-            return items;
+            return items.Any() ? items.Select(x => x.ToWeb()).ToList() : NotFound();
         }
     }
 }

@@ -166,7 +166,8 @@ namespace VeloTimerWeb.Api.Services
                     Rider = town.Owner.Name,
                     Time = tsi.Time,
                     Speed = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps / tsi.Time * 3.6,
-                    PassingTime = tsi.EndTime
+                    PassingTime = tsi.EndTime,
+                    Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select(x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time })
                 };
 
             var list = await query
@@ -177,14 +178,13 @@ namespace VeloTimerWeb.Api.Services
             return list;
         }
 
-        public async Task<IEnumerable<SegmentTime>> GetRecent(IEnumerable<TrackStatisticsItem> statisticsItems, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count = 50)
+        public async Task<PaginatedList<SegmentTime>> GetRecent(IEnumerable<TrackStatisticsItem> statisticsItems, TimeParameters time, PaginationParameters pagination)
         {
-            var times = Enumerable.Empty<SegmentTime>();
-            var fromtime = FromTime.UtcDateTime;
-            var totime = ToTime.UtcDateTime;
+            var fromtime = time.FromTime;
+            var totime = time.ToTime;
 
             if (fromtime >= totime)
-                return times;
+                return null;
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
@@ -204,15 +204,22 @@ namespace VeloTimerWeb.Api.Services
                     Rider = town.Owner.Name,
                     Time = tsi.Time,
                     Speed = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps / tsi.Time * 3.6,
-                    PassingTime = tsi.EndTime
+                    PassingTime = tsi.EndTime,
+                    Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select(x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time })
                 };
 
-            var list = await query
-                .Take(Count)
+            var times = await query
                 .AsNoTracking()
-                .ToListAsync();
+                .ToPaginatedListAsync(pagination.PageNumber, pagination.PageSize);
 
-            return list;
+            return times;
+        }
+
+        public async Task<Track> GetTrackBySlug(string slug)
+        {
+            var track = await _context.Set<Track>().SingleOrDefaultAsync(x => x.Slug == slug);
+
+            return track;
         }
     }
 }

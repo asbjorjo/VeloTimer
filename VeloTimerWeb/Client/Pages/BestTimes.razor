@@ -3,69 +3,28 @@
 @layout MainLayout
 @inject IApiClient Api
 
-    <div class="row">
-        <div class="col">
-            <h3>Mine bestetider</h3>
-        </div>
-    </div>
-    
+<MudText Typo="Typo.h5" Color="Color.Inherit" Align="Align.Center">Mine bestetider</MudText>
+
 @if (rider != null)
 {
-    <div class="row">
-        <div class="col">
-            <div class="row text-center">
-                <div class="col">
-                    <h4>Runde</h4>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col">
-                    <FastestSegmentTimes StatsItem=Runde FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
-                </div>
-            </div>
-        </div>
-        <div class="w-100 d-lg-none"></div>
-        <div class="col">
-            <div class="row text-center">
-                <div class="col">
-                    <h4>200 meter</h4>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col">
-                    <FastestSegmentTimes StatsItem=200m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
-                </div>
-            </div>
-        </div>
-    </div>  
-    <div class="row">
-        <div class="col">
-            <div class="row text-center">
-                <div class="col">
-                    <h4>3000 meter</h4>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col">
-                    <FastestSegmentTimes StatsItem=3000m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
-                </div>
-            </div>
-        </div>
-        <div class="w-100 d-lg-none"></div>
-        <div class="col">
-            <div class="row text-center">
-                <div class="col">
-                    <h4>4000 meter</h4>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col">
-                    <FastestSegmentTimes StatsItem=4000m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
-                </div>
-            </div>
-        </div>
-    </div>
-}
+    <MudGrid>
+        <MudItem>
+            <FastestSegmentTimes StatsItem=Runde FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
+        </MudItem>
+        <MudItem>
+            <FastestSegmentTimes StatsItem=200m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
+        </MudItem>
+        <MudItem>
+            <FastestSegmentTimes StatsItem=1000m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
+        </MudItem>
+        <MudItem>
+            <FastestSegmentTimes StatsItem=3000m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
+        </MudItem>
+        <MudItem>
+            <FastestSegmentTimes StatsItem=4000m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />        
+        </MudItem>
+    </MudGrid>    
+}    
 
 @code{
     [CascadingParameter]
