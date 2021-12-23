@@ -9,6 +9,7 @@ namespace VeloTimer.Shared.Models
         public DateTimeOffset PassingTime { get; set; }
         public double Time { get; set; }
         public double Speed { get; set; }
+        public bool ShowIntermediate { get; set; } = false;
         public IEnumerable<Intermediate> Intermediates { get; set; }
     }
 

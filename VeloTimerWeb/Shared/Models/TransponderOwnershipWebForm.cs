@@ -11,27 +11,27 @@ namespace VeloTimer.Shared.Models
 {
     public class TransponderOwnershipWebForm
     {
-        private DateTimeOffset _ownedFrom = DateTimeOffset.Now.StartOfDay();
-        private DateTimeOffset _ownedUntil = DateTimeOffset.Now.AddDays(365).EndOfDay();
+        private DateTime _ownedFrom = DateTime.Now.StartOfDay();
+        private DateTime _ownedUntil = DateTime.Now.AddDays(365).EndOfDay();
 
         [Required]
         public string TransponderLabel { get; set; }
         [Required]
         public string Owner { get; set; }
         [Required]
-        public DateTimeOffset OwnedFrom
+        public DateTime? OwnedFrom
         {
             get => _ownedFrom;
             set
             {
-                _ownedFrom = value.StartOfDay();
+                _ownedFrom = value.HasValue ? value.Value.StartOfDay() : DateTime.Now.StartOfDay();
             }
         }
         [EndDate(otherPropertyName = nameof(OwnedFrom), ErrorMessage = "End date has to be after start date.")]
-        public DateTimeOffset OwnedUntil { 
+        public DateTime? OwnedUntil { 
             get => _ownedUntil;
             set {
-                _ownedUntil = value.EndOfDay();
+                _ownedUntil = value.HasValue ? value.Value.EndOfDay() : DateTime.Now.AddDays(365).EndOfDay();
             }
         }
     }

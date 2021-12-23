@@ -27,5 +27,15 @@ namespace VeloTimer.Shared.Util
         {
             return StartOfDay(date).AddDays(1).AddTicks(-1);
         }
+
+        public static DateTime StartOfDay(this DateTime date)
+        {
+            return new DateTime(date.Year, date.Month, date.Day, 0, 0, 0, date.Kind);
+        }
+
+        public static DateTime EndOfDay(this DateTime date)
+        {
+            return StartOfDay(date).AddDays(1).AddTicks(-1);
+        }
     }
 }

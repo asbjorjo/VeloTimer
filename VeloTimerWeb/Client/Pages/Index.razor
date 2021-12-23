@@ -2,29 +2,37 @@
 @using System.Globalization
 @using VeloTimer.Shared.Util
 
-<div>
-    <div class="row">
-        <div class="col">
-            <ActiveTransponderCount FromTime=DateTimeOffset.Now.AddMinutes(-30) />
-        </div>
-    </div>
+<MudGrid>
+    <MudItem xs="12">
+        <ActiveTransponderCount FromTime=DateTimeOffset.Now.AddMinutes(-30) />
+    </MudItem>
 
     <AuthorizeView>
         <Authorized>
-            <div class="row">
+            <MudItem xs="12">
                 <ActiveRiders FromTime=DateTimeOffset.Now.AddMinutes(-30) />
-            </div>
+            </MudItem>
         </Authorized>
     </AuthorizeView>
 
-    <div>
-        <div>Tider å slå denne måneden:</div>
-        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Label=Runde ShowIntermediate=false />
-        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Label=200m ShowIntermediate=false />
-    </div>
-    <div>
-        <div>Beste tider forrige måned:</div>
-        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Label=Runde ShowIntermediate=false />
-        <FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Label=200m ShowIntermediate=false />
-    </div>
-</div>
+    <MudItem xs="12">
+        <MudPaper>
+            <MudText Typo="Typo.h6" Class="d-block">Tider å slå denne måneden</MudText>
+            <MudElement Class="d-block"><FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Label=Runde ShowIntermediate=false /></MudElement>
+            <MudElement Class="d-block"><FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Label=200m ShowIntermediate=false /></MudElement>
+            <MudElement Class="d-block"><FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Label=1000m ShowIntermediate=false /></MudElement>
+            <MudElement Class="d-block"><FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Label=3000m ShowIntermediate=false /></MudElement>
+            <MudElement Class="d-block"><FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now) Label=4000m ShowIntermediate=false /></MudElement>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12">
+        <MudPaper>
+            <MudText Typo="Typo.h6" Class="d-block">Beste tider forrige måned</MudText>
+            <MudElement Class="d-block"><FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Label=Runde ShowIntermediate=false /></MudElement>
+            <MudElement Class="d-block"><FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Label=200m ShowIntermediate=false /></MudElement>
+            <MudElement Class="d-block"><FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Label=1000m ShowIntermediate=false /></MudElement>
+            <MudElement Class="d-block"><FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Label=3000m ShowIntermediate=false /></MudElement>
+            <MudElement Class="d-block"><FastestSegmentTime FromTime=DateTimeUtils.StartOfMonth(DateTimeOffset.Now.AddMonths(-1)) ToTime=DateTimeUtils.EndOfMonth(DateTimeOffset.Now.AddMonths(-1)) Label=4000m ShowIntermediate=false /></MudElement>
+        </MudPaper>
+    </MudItem>
+</MudGrid>

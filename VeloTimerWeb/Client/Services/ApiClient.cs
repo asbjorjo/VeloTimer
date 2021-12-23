@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
+using VeloTimerWeb.Client.Components;
 
 namespace VeloTimerWeb.Client.Services
 {
@@ -127,7 +128,7 @@ namespace VeloTimerWeb.Client.Services
             }
             else
             {
-                url.Append($"track/1");
+                url.Append($"track/sola-arena");
             }
 
             url.Append($"/fastest/{StatsItem}?Count={Count}");
@@ -169,34 +170,31 @@ namespace VeloTimerWeb.Client.Services
             return rider;
         }
 
-        public async Task<IEnumerable<SegmentTime>> GetTimes(string StatsItem, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count, string Rider)
+        public async Task<PaginatedResponse<SegmentTime>> GetTimes(StatisticsParameters statisticsParameters, TimeParameters timeParameters, PaginationParameters pagingParameters, string Rider)
         {
             var url = new StringBuilder();
 
             if (Rider != null)
             {
-                url.Append($"rider/{Rider}");
+                url.Append("rider/").Append(Rider);
+                url.Append("/times/").Append(statisticsParameters.ToPathString());
             }
             else
             {
-                url.Append($"track/1");
+                url.Append("track/sola-arena/times/");
+                url.Append(statisticsParameters.Label);
             }
 
-            url.Append($"/times/{StatsItem}?Count={Count}");
-
-            if (FromTime.HasValue)
-            {
-                url.Append($"&FromTime={TimeFormatter(FromTime.Value)}");
-            }
-            if (ToTime.HasValue)
-            {
-                url.Append($"&ToTime={TimeFormatter(ToTime.Value)}");
-            }
-            
+            url.Append("?").Append(pagingParameters.ToQueryString()).Append("&").Append(timeParameters.ToQueryString());
+                        
             using var response = await _client.GetAsync(url.ToString());
             response.EnsureSuccessStatusCode();
 
-            var times = await response.Content.ReadFromJsonAsync<IEnumerable<SegmentTime>>();
+            var times = new PaginatedResponse<SegmentTime>
+            {
+                Items = await response.Content.ReadFromJsonAsync<List<SegmentTime>>(),
+                Pagination = JsonSerializer.Deserialize<Pagination>(response.Headers.GetValues("X-Pagination").First())
+            };
 
             return times;
         }
@@ -231,7 +229,7 @@ namespace VeloTimerWeb.Client.Services
             return segments;
         }
 
-        public async Task<TrackStatisticsItem> GetStatisticsItem(string Label, string Track)
+        public async Task<TrackStatisticsItemWeb> GetStatisticsItem(string Label, string Track)
         {
             string url;
 
@@ -248,13 +246,13 @@ namespace VeloTimerWeb.Client.Services
 
             response.EnsureSuccessStatusCode();
 
-            var items = await response.Content.ReadFromJsonAsync<IEnumerable<TrackStatisticsItem>>();
+            var items = await response.Content.ReadFromJsonAsync<IEnumerable<TrackStatisticsItemWeb>>();
             var item = items.First();
 
             return item;
         }
 
-        public async Task<IEnumerable<TrackStatisticsItem>> GetStatisticsItems(string Track)
+        public async Task<IEnumerable<TrackStatisticsItemWeb>> GetStatisticsItems(string Track)
         {
             string url;
 
@@ -270,7 +268,7 @@ namespace VeloTimerWeb.Client.Services
 
             response.EnsureSuccessStatusCode();
 
-            var items = await response.Content.ReadFromJsonAsync<IEnumerable<TrackStatisticsItem>>();
+            var items = await response.Content.ReadFromJsonAsync<IEnumerable<TrackStatisticsItemWeb>>();
 
             return items;
         }
@@ -279,7 +277,7 @@ namespace VeloTimerWeb.Client.Services
         {
             var url = new StringBuilder();
 
-            url.Append($"track/1/count/{StatsItem}?Count={Count}");
+            url.Append($"track/sola-arena/count/{StatsItem}?Count={Count}");
 
             if (FromTime.HasValue)
             {
@@ -290,7 +288,7 @@ namespace VeloTimerWeb.Client.Services
                 url.Append($"&ToTime={TimeFormatter(ToTime.Value)}");
             }
 
-            using var response = await _client.GetAsync($"track/1/count/{StatsItem}?FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}");
+            using var response = await _client.GetAsync($"track/sola-arena/count/{StatsItem}?FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}");
             response.EnsureSuccessStatusCode();
             
             var counts = await response.Content.ReadFromJsonAsync<IEnumerable<SegmentDistance>>();
