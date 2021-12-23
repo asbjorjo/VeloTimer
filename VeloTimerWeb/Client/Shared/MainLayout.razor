@@ -1,4 +1,7 @@
-﻿@inherits LayoutComponentBase
+﻿@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@inject SignOutSessionStateManager SignOutManager
 
 <MudThemeProvider />
 <MudDialogProvider />
@@ -11,9 +14,14 @@
         <MudText Typo="Typo.h5" Class="ml-3">VeloTime</MudText>
         <MudSpacer />
         <AuthorizeView>
-            <MudIconButton Icon="@Icons.Filled.AccountCircle" Color="Color.Inherit" Link="/authentication/profile" />
+            <Authorized>
+                <MudIconButton Icon="@Icons.Filled.AccountCircle" Color="Color.Inherit" Link="/authentication/profile" />
+                <MudIconButton Icon="@Icons.Filled.Logout" Color="Color.Inherit" OnClick="@BeginSignOut" />
+            </Authorized>
+            <NotAuthorized>
+                <MudIconButton Icon="@Icons.Filled.Login" Color="Color.Inherit" Link="/authentication/login" />
+            </NotAuthorized>
         </AuthorizeView>
-        <MudIconButton Icon="@Icons.Filled.Login" Color="Color.Inherit" Link="/authentication/login" />
     </MudAppBar>
     <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always" Variant="@DrawerVariant.Responsive" Elevation="2">
         <NavMenu />
@@ -29,5 +37,11 @@
     void ToggleDrawer()
     {
         _drawerOpen = !_drawerOpen;
+    }
+
+    private async Task BeginSignOut(MouseEventArgs args)
+    {
+        await SignOutManager.SetSignOutState();
+        Navigation.NavigateTo("authentication/logout");
     }
 }
