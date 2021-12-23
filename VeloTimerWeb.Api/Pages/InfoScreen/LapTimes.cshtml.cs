@@ -47,12 +47,5 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
             return Page();
         }
-
-        public async Task OnGetNewTimeAsync()
-        {
-            //var newtimes = await _segmentService.GetSegmentTimes(segment.Id, times.Last().PassingTime.AddTicks(1), DateTimeOffset.MaxValue, 35);
-
-            //newtimes.ToList().ForEach(t => times.Enqueue(t));
-        }
     }
 }
