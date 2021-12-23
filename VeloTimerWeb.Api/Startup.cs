@@ -59,12 +59,22 @@ namespace VeloTimerWeb.Api
                 .AddRoles<Role>()
                 .AddEntityFrameworkStores<VeloIdentityDbContext>();
 
-            //services.Configure<JwtBearerOptions>(
-            //    IdentityServerJwtConstants.IdentityServerJwtBearerScheme,
-            //    options =>
-            //    {
-            //        options.Authority = Configuration["VELOTIMER_API_URL"];
-            //    });
+            if (Environment.IsProduction())
+            {
+                services.Configure<JwtBearerOptions>(
+                    IdentityServerJwtConstants.IdentityServerJwtBearerScheme,
+                    options =>
+                    {
+                        options.Authority = Configuration["VELOTIMER_API_URL"];
+                        options.TokenValidationParameters.ValidIssuers = new[]
+                        {
+                            "https://veloti.me",
+                            "https://www.veloti.me",
+                            "https://velotime.azurewebsites.net",
+                            "https://velotime-github-ci.azurewebsites.net"
+                        };
+                    });
+            }
 
             var identitybuilder = services.AddIdentityServer(options =>
             {
@@ -76,8 +86,8 @@ namespace VeloTimerWeb.Api
                 // see https://identityserver4.readthedocs.io/en/latest/topics/resources.html
                 options.EmitStaticAudienceClaim = true;
 
-                if (Environment.IsProduction())
-                    options.IssuerUri = "https://veloti.me";
+                //if (Environment.IsProduction())
+                //    options.IssuerUri = "https://veloti.me";
             })
                 .AddModifiedApiAuthorization<User, VeloIdentityDbContext>(options =>
                 {
