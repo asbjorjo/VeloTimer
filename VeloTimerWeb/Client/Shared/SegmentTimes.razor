@@ -51,7 +51,7 @@ else
         {
             <MudTh>Rytter</MudTh>
         }
-        <MudTh>@(_statisticsParameters.Label)</MudTh>
+        <MudTh>@_label</MudTh>
         <MudTh>Fart</MudTh>
     </HeaderContent>
     <RowTemplate>
@@ -63,7 +63,7 @@ else
         {
             <MudTd DataLabel="Rytter">@context.Rider</MudTd>
         }
-        <MudTd DataLabel="@(_statisticsParameters.Label)">@Formatters.FormatTime(context.Time)</MudTd>
+        <MudTd DataLabel="@_label">@Formatters.FormatTime(context.Time)</MudTd>
         <MudTd DataLabel="Fart">@String.Format("{0:00.000}", context.Speed)</MudTd>
     </RowTemplate>
     <PagerContent>
@@ -109,6 +109,7 @@ else
 
     protected long? transponder;
     protected string _rider;
+    private string _label;
     private StatisticsParameters _statisticsParameters = new StatisticsParameters();
     private TimeParameters _timeParameters = new TimeParameters();
     private bool _loading;
@@ -125,15 +126,22 @@ else
     {
         await base.OnParametersSetAsync();
 
+        _items = _segments.GroupBy(x => x.StatisticsItem.Label).Select(x => x.First()).OrderBy(x => x.StatisticsItem.Distance).Select(x => x.StatisticsItem);
+
         if (string.IsNullOrWhiteSpace(StatisticsParameters?.Label))
         {
-            _statisticsParameters = new StatisticsParameters { Label = _segments.GroupBy(x => x.StatisticsItem.Label).Select(x => x.First()).OrderBy(x => x.StatisticsItem.Distance).First().StatisticsItem.Slug };
+            _statisticsParameters = new StatisticsParameters { Label = _items.First().Slug };
         } else {
             _statisticsParameters = StatisticsParameters;
         }
 
-        _items = _segments.GroupBy(x => x.StatisticsItem.Label).Select(x => x.First()).OrderBy(x => x.StatisticsItem.Distance).Select(x => x.StatisticsItem);
+        UpdateDisplayLabel();
         _tracks = _segments.Where(x => x.StatisticsItem.Slug == _statisticsParameters.Label).GroupBy(x => x.TrackLayout.Track.Slug).Select(x => x.First()).Select(x => x.TrackLayout.Track).ToList();
+    }
+
+    private void UpdateDisplayLabel()
+    {
+        _label = _items.First(x => x.Slug == _statisticsParameters.Label).Label;
     }
 
     private async Task UpdateLabel(string label)
