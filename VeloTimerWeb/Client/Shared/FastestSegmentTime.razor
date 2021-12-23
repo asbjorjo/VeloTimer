@@ -2,31 +2,43 @@
 @using VeloTimer.Shared.Models
 @using VeloTimer.Shared.Util
 @inherits ComponentBase
-@implements IDisposable
 @inject IApiClient Api
-@inject HttpClient Http
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-@if (segment != null)
+@if (segment == null || segmentTime == null)
 {
-    @if (segmentTime != null)
-    {
-        <div class="row">
-            <div class="col-3 col-md-2 col-xl font-weight-bold">
-            @Label
-            </div>
-            <div class="col-7 col-md-6 col-xl">
-            @segmentTime.Rider
-            </div>
-            <div class="d-none d-md-block col-md-2 col-xl">
-            @String.Format("{0:00.000}", segmentTime.Speed)
-            </div>
-            <div class="col-2 col-md-2 col-xl">
-            @Formatters.FormatTime(segmentTime.Time)
-            </div>
-        </div>
-    }
+    <MudGrid>
+        <MudItem xs="3" md="2">
+            <MudSkeleton />
+        </MudItem>
+        <MudItem xs="7" md="6">
+            <MudSkeleton />
+        </MudItem>
+        <MudItem md="2" Class="d-none d-md-flex">
+            <MudSkeleton />
+        </MudItem>
+        <MudItem xs="2" md="2">
+            <MudSkeleton />
+        </MudItem>
+    </MudGrid>
+}
+else
+{
+    <MudGrid Spacing="0">
+        <MudItem xs="3" md="2">
+            <MudText>@Label</MudText>
+        </MudItem>
+        <MudItem xs="7" md="6">
+            <MudText>@segmentTime.Rider</MudText>
+        </MudItem>
+        <MudItem md="2" Class="d-none d-md-flex">
+            <MudText>@Formatters.FormatSpeed(@segmentTime.Speed)</MudText>
+        </MudItem>
+        <MudItem xs="2" md="2">
+            <MudText>@Formatters.FormatTime(@segmentTime.Time)</MudText>
+        </MudItem>
+    </MudGrid>
 }
 
 @code {
@@ -84,15 +96,6 @@
     protected void ToogleIntermediates()
     {
         showintermediate = !showintermediate;
-    }
-
-    public void Dispose()
-    {
-        //hubConnection.Remove(Strings.Events.NewSegmentRun);
-        //if (segment != null)
-        //{
-        //    hubConnection.InvokeAsync("RemoveFromSegmentGroup", segment.Id);
-        //}
     }
 }
         
