@@ -154,7 +154,7 @@ namespace VeloTimerWeb.Api
                 options.AddPolicy(name: AllowedOrigins,
                                   builder =>
                                   {
-                                      builder.WithOrigins("https://veloti.me", "https://www.veloti.me", "https://velotimer.azurewebsites.net");
+                                      builder.WithOrigins("https://veloti.me", "https://www.veloti.me", "https://velotime.azurewebsites.net", "https://velotime-github-ci.azurewebsites.net");
                                       builder.AllowAnyMethod();
                                       builder.AllowAnyHeader();
                                       builder.AllowCredentials();
