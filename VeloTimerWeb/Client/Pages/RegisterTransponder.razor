@@ -27,7 +27,7 @@
                         <MudDatePicker @bind-Date="transponderName.OwnedUntil" Label="Gyldig til" For="@(() => transponderName.OwnedUntil)"/>
                     </MudField>
                     <MudHidden Breakpoint="Breakpoint.None" Invert="true">
-                        <MudTextField @bind-Value="transponderName.Owner" ReadOnly="true" hidden="true" For="@(() => transponderName.Owner)"/>
+                        <MudTextField @bind-Value="transponderName.Owner" ReadOnly="true" For="@(() => transponderName.Owner)"/>
                     </MudHidden>
                 </MudCardContent>
                 <MudCardActions>
@@ -37,24 +37,30 @@
             </MudCard>
         </EditForm>
         
-        <MudTable Items="@transpondernames">
+        <MudTable Items="@transpondernames" Breakpoint="Breakpoint.None" T="TransponderOwnershipWeb" OnRowClick="@ToggleEdit">
             <HeaderContent>
                 <MudTh>Transponder</MudTh>
                 <MudTh>Gyldig fra</MudTh>
                 <MudTh>Gyldig til</MudTh>
-                <MudTh>Slett registrering</MudTh>
             </HeaderContent>
             <RowTemplate Context="transpondername">
                 <MudTd>@transpondername.TransponderLabel</MudTd>
                 <MudTd>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</MudTd>
                 <MudTd>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</MudTd>
-                <MudTd>
-                    <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
-                        OnClick="@(() => RemoveRegistration(transpondername.TransponderLabel, transpondername.OwnedFrom, transpondername.OwnedFrom))">
-                        Slett
-                    </MudButton>
-                </MudTd>
             </RowTemplate>
+            <ChildRowContent Context="transpondername">
+                @if (@transpondername.ShowEdit)
+                {
+                    <MudTr>
+                        <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
+                            <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
+                                OnClick="@(() => RemoveRegistration(transpondername.TransponderLabel, transpondername.OwnedFrom, transpondername.OwnedFrom))">
+                                Slett
+                            </MudButton>
+                        </MudTd>
+                    </MudTr>
+                }
+            </ChildRowContent>
         </MudTable>
     </Authorized>
 </AuthorizeView>
@@ -99,6 +105,11 @@
             serverValidator.Validate(result, transponderName);
             Console.WriteLine($"{result.StatusCode}");
         }
+    }
+
+    private void ToggleEdit(TableRowClickEventArgs<TransponderOwnershipWeb> transponderName)
+    {
+        transponderName.Item.ShowEdit = !transponderName.Item.ShowEdit;
     }
 
     private void ResetForm()

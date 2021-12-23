@@ -12,5 +12,6 @@ namespace VeloTimer.Shared.Models
         public DateTimeOffset OwnedUntil { get; set; }
         public string TransponderLabel { get; set; }
         public string Owner { get; set; }
+        public bool ShowEdit { get; set; } = false;
     }
 }
