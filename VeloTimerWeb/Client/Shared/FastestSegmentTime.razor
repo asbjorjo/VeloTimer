@@ -33,10 +33,10 @@ else
             <MudText>@segmentTime.Rider</MudText>
         </MudItem>
         <MudItem md="2" Class="d-none d-md-flex">
-            <MudText>@Formatters.FormatSpeed(@segmentTime.Speed)</MudText>
+            <MudText Align="Align.Right">@Formatters.FormatSpeed(@segmentTime.Speed)</MudText>
         </MudItem>
         <MudItem xs="2" md="2">
-            <MudText>@Formatters.FormatTime(@segmentTime.Time)</MudText>
+            <MudText Align="Align.Right">@Formatters.FormatTime(@segmentTime.Time)</MudText>
         </MudItem>
     </MudGrid>
 }

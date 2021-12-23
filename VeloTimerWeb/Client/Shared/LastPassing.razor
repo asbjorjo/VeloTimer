@@ -8,7 +8,15 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
-@(last == null ? "" : $"Siste registrerte passering var {GetText()} siden.")
+<MudPaper>
+    @if(last == null) {
+        <MudSkeleton />
+    }
+    else
+    {
+        <MudText>Siste registrerte passering var @(GetText()) siden.</MudText>
+    }
+</MudPaper>
 
 @code {
     private Passing last;
