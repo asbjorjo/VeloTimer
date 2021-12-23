@@ -32,11 +32,11 @@ namespace VeloTimer.Shared.Models.Validation
                     return new ValidationResult($"Unknown property: {otherPropertyName}");
                 }
 
-                if ((field.PropertyType == typeof(DateTimeOffset)) 
-                    || (field.PropertyType.IsGenericType && field.PropertyType == typeof(DateTimeOffset?)))
+                if ((field.PropertyType == typeof(DateTime)) 
+                    || (field.PropertyType.IsGenericType && field.PropertyType == typeof(DateTime?)))
                 {
-                    DateTimeOffset toValidate = (DateTimeOffset)value;
-                    DateTimeOffset referenceProperty = (DateTimeOffset)field.GetValue(validationContext.ObjectInstance, null);
+                    DateTime toValidate = (DateTime)value;
+                    DateTime referenceProperty = (DateTime)field.GetValue(validationContext.ObjectInstance, null);
 
                     if (toValidate <= referenceProperty)
                     {
@@ -48,7 +48,7 @@ namespace VeloTimer.Shared.Models.Validation
                     validationResult = new ValidationResult("An error occurred while validating the property. OtherProperty is not of type DateTime");
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 throw;
             }
