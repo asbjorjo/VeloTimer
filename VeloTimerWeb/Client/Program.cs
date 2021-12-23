@@ -45,6 +45,7 @@ namespace VeloTimerWeb.Client
 
             builder.Services.AddApiAuthorization(options =>
             {
+                options.AuthenticationPaths.LogOutSucceededPath = "/";
             })
                 .AddAccountClaimsPrincipalFactory<RolesClaimsPrincipalFactory>();
 
