@@ -58,7 +58,7 @@
     private async Task SaveProfile()
     {
         await Api.SaveRiderProfile(profile);
-        SnackBar.Add("Profil lagret");
+        SnackBar.Add("Profil lagret", Severity.Success);
     }
 
     private async Task DeleteProfile()
@@ -66,6 +66,6 @@
         await Api.DeleteRiderProfile(profile.UserId);
         await SignOutManager.SetSignOutState();
         Navigation.NavigateTo("authentication/logout");
-        SnackBar.Add("Profil slettet");
+        SnackBar.Add("Profil slettet", Severity.Error);
     }
 }
