@@ -13,6 +13,7 @@
 }
 else
 {
+<MudSwipeArea OnSwipe="@HandleTableSwiped">
 <MudTable ServerData="@ReloadTimes" Loading="@_loading" LoadingProgressColor="Color.Info" Breakpoint="Breakpoint.None" T="SegmentTime" @ref="_table" OnRowClick="@ToggleIntermediate" Striped="true">
     <ToolBarContent>
         <MudSelect T="string" ValueChanged="@UpdateLabel" Value="@(_statisticsParameters.Label)">
@@ -21,30 +22,16 @@ else
                 <MudSelectItem T="string" Value="@(item.Slug)">@(item.Label)</MudSelectItem>
             }
         </MudSelect>
-        <MudSelect T="string" ValueChanged="@UpdateTrack" Value="@(_statisticsParameters.Track)" Disabled="@(_tracks.Count < 2)">
-            @if (!string.IsNullOrWhiteSpace(_statisticsParameters.Label))
+        <MudSelect T="string" ValueChanged="@UpdateTrack" Value="@(_statisticsParameters.Track)" Disabled="@(_tracks.Count < 2)" Clearable="@(_tracks.Count > 1)">
+            @foreach (var track in _tracks)
             {
-                @if (_tracks.Count > 1)
-                {
-                    <MudSelectItem T="string" Value="@(string.Empty)"></MudSelectItem>
-                }
-                @foreach (var track in _tracks)
-                {
-                    <MudSelectItem T="string" Value="@(track.Slug)">@(track.Name)</MudSelectItem>
-                }
+                <MudSelectItem T="string" Value="@(track.Slug)">@(track.Name)</MudSelectItem>
             }
         </MudSelect>
-        <MudSelect T="string" ValueChanged="@UpdateLayout" Value="@(_statisticsParameters.Layout)" Disabled="@(_layouts.Count < 2)">
-            @if (!string.IsNullOrWhiteSpace(_statisticsParameters.Track))
+        <MudSelect T="string" ValueChanged="@UpdateLayout" Value="@(_statisticsParameters.Layout)" Disabled="@(_layouts.Count < 2)" Clearable="@(_layouts.Count > 1)">
+            @foreach (var layout in _layouts)
             {
-                @if (_layouts.Count > 1)
-                {
-                    <MudSelectItem T="string" Value="@(string.Empty)"></MudSelectItem>
-                }
-                @foreach (var layout in _layouts)
-                {
-                    <MudSelectItem T="string" Value="@(layout.Slug)">@(layout.Name)</MudSelectItem>
-                }
+                <MudSelectItem T="string" Value="@(layout.Slug)">@(layout.Name)</MudSelectItem>
             }
         </MudSelect>
     </ToolBarContent>
@@ -69,14 +56,14 @@ else
         {
             <MudTd DataLabel="Rytter">@context.Rider</MudTd>
         }
-        <MudTd DataLabel="@_label">@Formatters.FormatTime(context.Time)</MudTd>
-        <MudTd DataLabel="Fart">@String.Format("{0:00.000}", context.Speed)</MudTd>
+        <MudTd DataLabel="@_label" Style="text-align:right">@Formatters.FormatTime(context.Time)</MudTd>
+        <MudTd DataLabel="Fart" Style="text-align:right">@Formatters.FormatSpeed(context.Speed)</MudTd>
     </RowTemplate>
     <PagerContent>
         <MudTablePager />
     </PagerContent>
     <ChildRowContent>
-        @if (context.ShowIntermediate)
+        @if (@context.ShowIntermediate)
         {
             <MudTr>
                 <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
@@ -97,6 +84,7 @@ else
         }
     </ChildRowContent>
 </MudTable>
+</MudSwipeArea>
 }
 
 @code {
@@ -187,7 +175,10 @@ else
 
     private async Task UpdateStatisticsParameters()
     {
-        if (_table != null) await _table.ReloadServerData();
+        if (_table != null) {
+            await _table.ReloadServerData();
+            _table.NavigateTo(0);
+        }
         await StatisticsParametersChanged.InvokeAsync(_statisticsParameters);
     }
 
@@ -209,9 +200,21 @@ else
         return new TableData<SegmentTime> { TotalItems = page.TotalCount, Items = times };
     }
 
+    private void HandleTableSwiped(SwipeDirection direction)
+    {
+        if (direction == SwipeDirection.LeftToRight)
+        {
+            _table.NavigateTo(_table.CurrentPage - 1);
+        }
+        else if (direction == SwipeDirection.RightToLeft)
+        {
+            _table.NavigateTo(_table.CurrentPage + 1);
+        }
+    }
+
     private void ToggleIntermediate(TableRowClickEventArgs<SegmentTime> trEvent)
     {
-        trEvent.Item.ShowIntermediate = !trEvent.Item.ShowIntermediate;
+        if (_hasIntermediate) trEvent.Item.ShowIntermediate = !trEvent.Item.ShowIntermediate;
     }
 
     private List<ChartSeries> ChartIntermediates(IEnumerable<Intermediate> intermediates)
