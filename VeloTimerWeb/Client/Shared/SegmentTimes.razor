@@ -80,13 +80,18 @@ else
         {
             <MudTr>
                 <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
-                    <MudChart ChartType="ChartType.Bar" ChartSeries="@ChartIntermediates(@context.Intermediates)" ChartOptions="@(new ChartOptions{DisableLegend = true, YAxisTicks=2})" />
+                @if(@context.Intermediates.Count() < 8){
                     <MudGrid>
                     @foreach(var inter in @context.Intermediates)
                     {
                         <MudItem>@Formatters.FormatTime(inter.Time)</MudItem>
                     }
                     </MudGrid>
+                }
+                else
+                {
+                    <MudChart ChartType="ChartType.Bar" ChartSeries="@ChartIntermediates(@context.Intermediates)" ChartOptions="@(new ChartOptions{DisableLegend = true, YAxisTicks=2})" />
+                }
                 </MudTd>
             </MudTr>
         }
