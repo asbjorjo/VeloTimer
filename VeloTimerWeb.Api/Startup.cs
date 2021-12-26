@@ -74,7 +74,20 @@ namespace VeloTimerWeb.Api
                             "https://velotime-github-ci.azurewebsites.net"
                         };
                     });
+            } else if (Environment.IsStaging())
+            {
+                services.Configure<JwtBearerOptions>(
+                    IdentityServerJwtConstants.IdentityServerJwtBearerScheme,
+                    options =>
+                    {
+                        options.Authority = Configuration["VELOTIMER_API_URL"];
+                        options.TokenValidationParameters.ValidIssuers = new[]
+                        {
+                            "https://velotime-dev.azurewebsites.net"
+                        };
+                    });
             }
+
 
             var identitybuilder = services.AddIdentityServer(options =>
             {
