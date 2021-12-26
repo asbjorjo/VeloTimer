@@ -71,7 +71,9 @@ namespace VeloTimerWeb.Api
                             "https://veloti.me",
                             "https://www.veloti.me",
                             "https://velotime.azurewebsites.net",
-                            "https://velotime-github-ci.azurewebsites.net"
+                            "https://velotime-github-ci.azurewebsites.net",
+                            "https://velotime-noe.azurewebsites.net",
+                            "https://velotime-noe-github-ci.azurewebsites.net"
                         };
                     });
             } else if (Environment.IsStaging())

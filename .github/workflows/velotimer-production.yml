@@ -4,8 +4,8 @@ on:
     branches:
     - staging   
 env:
-  AZURE_WEBAPP_NAME: velotime
-  AZURE_AMMC_NAME: velotime-ammc
+  AZURE_WEBAPP_NAME: velotime-noe
+  AZURE_AMMC_NAME: velotime-noe-ammc
   AZURE_API_PACKAGE_PATH: VeloTimerWeb.Api/publish
   AZURE_AMMC_PACKAGE_PATH: VeloTimer.AmccLoad/publish
   CONFIGURATION: Release
