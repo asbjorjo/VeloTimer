@@ -186,6 +186,7 @@ namespace VeloTimerWeb.Client.Services
             }
 
             url.Append("?").Append(pagingParameters.ToQueryString()).Append("&").Append(timeParameters.ToQueryString());
+            url.Append("&orderby=").Append(statisticsParameters.OrderBy);
                         
             using var response = await _client.GetAsync(url.ToString());
             response.EnsureSuccessStatusCode();

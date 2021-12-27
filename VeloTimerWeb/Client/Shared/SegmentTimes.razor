@@ -38,14 +38,14 @@ else
     <HeaderContent>
         @if (!string.IsNullOrWhiteSpace(_rider))
         {
-            <MudTh><MudTableSortLabel SortLabel="date_field" T="SegmentTime">Dato</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortLabel="passingtime" T="SegmentTime">Dato</MudTableSortLabel></MudTh>
         }
         else
         {
             <MudTh>Rytter</MudTh>
         }
-        <MudTh><MudTableSortLabel SortLabel="time_field" T="SegmentTime">@_label</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortLabel="time_field" T="SegmentTime">Fart</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="time" T="SegmentTime">@_label</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="speed" T="SegmentTime">Fart</MudTableSortLabel></MudTh>
     </HeaderContent>
     <LoadingContent>
         <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
@@ -192,6 +192,16 @@ else
             PageSize = state.PageSize,
             PageNumber = state.Page + 1
         };
+
+        if (!string.IsNullOrEmpty(state.SortLabel))
+        {
+            if (state.SortDirection == SortDirection.Descending)
+            {
+                _statisticsParameters.OrderBy = $"{state.SortLabel.ToLower()}:desc";
+            } else {
+                _statisticsParameters.OrderBy = $"{state.SortLabel.ToLower()}";
+            }
+        }
 
         var timeData = await Api.GetTimes(_statisticsParameters, _timeParameters, pagination, Rider: _rider);
 

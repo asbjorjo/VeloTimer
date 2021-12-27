@@ -93,7 +93,7 @@ namespace VeloTimerWeb.Api.Services
             return times;
         }
 
-        public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, StatisticsItem statisticsItem, TimeParameters timeParameters, PaginationParameters pagingParameters)
+        public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, StatisticsItem statisticsItem, TimeParameters timeParameters, PaginationParameters pagingParameters, string orderby)
         {
             var fromtime = timeParameters.FromTime;
             var totime = timeParameters.ToTime;
@@ -112,7 +112,6 @@ namespace VeloTimerWeb.Api.Services
                             && town.Owner == rider
                             && town.OwnedFrom <= tsi.StartTime
                             && town.OwnedUntil >= tsi.EndTime
-                        orderby tsi.EndTime descending
                         select new SegmentTime
                         {
                             PassingTime = tsi.EndTime,
@@ -121,12 +120,14 @@ namespace VeloTimerWeb.Api.Services
                             Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select( x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time})
                         };
 
+            query = query.ApplySort(orderby);
+
             var times = await query.ToPaginatedListAsync(pagingParameters.PageNumber, pagingParameters.PageSize);
 
             return times;
         }
 
-        public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, TrackStatisticsItem statisticsItems, TimeParameters timeParameters, PaginationParameters paginationParameters)
+        public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, TrackStatisticsItem statisticsItems, TimeParameters timeParameters, PaginationParameters paginationParameters, string orderby)
         {
             var fromtime = timeParameters.FromTime;
             var totime = timeParameters.ToTime;
@@ -151,12 +152,14 @@ namespace VeloTimerWeb.Api.Services
                             Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select(x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time })
                         };
 
+            query = query.ApplySort(orderby);
+
             var times = await query.ToPaginatedListAsync(paginationParameters.PageNumber, paginationParameters.PageSize);
 
             return times;
         }
         
-        public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, ICollection<TrackStatisticsItem> statisticsItems, TimeParameters timeParameters, PaginationParameters paginationParameters)
+        public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, ICollection<TrackStatisticsItem> statisticsItems, TimeParameters timeParameters, PaginationParameters paginationParameters, string orderby)
         {
             var fromtime = timeParameters.FromTime;
             var totime = timeParameters.ToTime;
@@ -180,6 +183,8 @@ namespace VeloTimerWeb.Api.Services
                             Time = tsi.Time,
                             Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select(x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time })
                         };
+
+            query = query.ApplySort(orderby);
 
             var times = await query.ToPaginatedListAsync(paginationParameters.PageNumber, paginationParameters.PageSize);
 

@@ -160,14 +160,15 @@ namespace VeloTimerWeb.Api.Controllers
             string rider,
             string statsitem,
             [FromQuery] TimeParameters timeParameters,
-            [FromQuery] PaginationParameters pagingParameters)
+            [FromQuery] PaginationParameters pagingParameters,
+            [FromQuery] string orderBy)
         {
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
             var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Slug == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
-            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters);
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters, orderBy);
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
 
@@ -181,7 +182,8 @@ namespace VeloTimerWeb.Api.Controllers
             string statsitem,
             string track,
             [FromQuery] TimeParameters timeParameters,
-            [FromQuery] PaginationParameters pagingParameters)
+            [FromQuery] PaginationParameters pagingParameters,
+            [FromQuery] string orderBy)
         {
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
@@ -190,7 +192,7 @@ namespace VeloTimerWeb.Api.Controllers
             var StatsItems = await _context.Set<TrackStatisticsItem>().Where(x => x.StatisticsItem.Slug == statsitem).Where(x => x.Layout.Track == Track).ToListAsync();
             if (!StatsItems.Any()) { return NotFound($"StatsItem: {statsitem}"); }
 
-            var times = await _transponderService.GetTimesForOwner(Rider, StatsItems, timeParameters, pagingParameters);
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItems, timeParameters, pagingParameters, orderBy);
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
 
@@ -205,7 +207,8 @@ namespace VeloTimerWeb.Api.Controllers
             string track,
             string layout,
             [FromQuery] TimeParameters timeParameters,
-            [FromQuery] PaginationParameters pagingParameters)
+            [FromQuery] PaginationParameters pagingParameters,
+            [FromQuery] string orderBy)
         {
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
@@ -214,7 +217,7 @@ namespace VeloTimerWeb.Api.Controllers
             var StatsItem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Layout == Layout && x.StatisticsItem.Slug == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
-            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters);
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters, orderBy);
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
 
