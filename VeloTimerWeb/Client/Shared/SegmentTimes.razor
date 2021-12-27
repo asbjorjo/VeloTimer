@@ -38,14 +38,14 @@ else
     <HeaderContent>
         @if (!string.IsNullOrWhiteSpace(_rider))
         {
-            <MudTh>Dato</MudTh>
+            <MudTh><MudTableSortLabel SortLabel="date_field" T="SegmentTime">Dato</MudTableSortLabel></MudTh>
         }
         else
         {
             <MudTh>Rytter</MudTh>
         }
-        <MudTh>@_label</MudTh>
-        <MudTh>Fart</MudTh>
+        <MudTh><MudTableSortLabel SortLabel="time_field" T="SegmentTime">@_label</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortLabel="time_field" T="SegmentTime">Fart</MudTableSortLabel></MudTh>
     </HeaderContent>
     <LoadingContent>
         <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
