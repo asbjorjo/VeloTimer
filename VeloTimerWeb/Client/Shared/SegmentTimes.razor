@@ -47,6 +47,9 @@ else
         <MudTh>@_label</MudTh>
         <MudTh>Fart</MudTh>
     </HeaderContent>
+    <LoadingContent>
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
+    </LoadingContent>
     <RowTemplate>
         @if(!string.IsNullOrWhiteSpace(_rider))
         {
