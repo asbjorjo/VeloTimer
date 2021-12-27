@@ -13,14 +13,14 @@ namespace VeloTimerWeb.Client.Components
 
         protected override async Task OnParametersSetAsync()
         {
-            if (Action == RemoteAuthenticationActions.Profile && ApplicationPaths.RemoteProfilePath != null)
-            {
-                UserProfile ??= LoggingIn;
-            }
-            else if (Action == RemoteAuthenticationActions.Register && ApplicationPaths.RemoteRegisterPath != null)
+            if (Action == RemoteAuthenticationActions.Register && ApplicationPaths.RemoteRegisterPath != null)
             {
                 Registering ??= LoggingIn;
                 await RedirectToRegister();
+            }
+            else if (Action == RemoteAuthenticationActions.Profile)
+            {
+                Navigation.NavigateTo("/rider");
             }
             else
             {
@@ -36,6 +36,6 @@ namespace VeloTimerWeb.Client.Components
             return Js.InvokeVoidAsync("location.replace", registerUrl);
         }
 
-        private ValueTask RedirectToProfile() => Js.InvokeVoidAsync("location.replace", Navigation.ToAbsoluteUri(ApplicationPaths.RemoteProfilePath));
+        private ValueTask RedirectToRemoteProfile() => Js.InvokeVoidAsync("location.replace", Navigation.ToAbsoluteUri(ApplicationPaths.RemoteProfilePath));
     }
 }
