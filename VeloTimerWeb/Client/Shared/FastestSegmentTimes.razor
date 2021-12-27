@@ -9,6 +9,37 @@
 
 <MudText Color="Color.Inherit" Typo="Typo.h6" Align="Align.Center">@StatsItem</MudText>
 
+@if (segmentTimes == null)
+{
+<MudTable Items="@_placeholder" Breakpoint="Breakpoint.None">
+    <HeaderContent>
+        @if (!string.IsNullOrWhiteSpace(_rider))
+        {
+            <MudTh>Dato</MudTh>
+        }
+        else
+        {
+            <MudTh>Rytter</MudTh>
+        }
+        <MudTh>Tid</MudTh>
+        <MudTh>Fart</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        @if(!string.IsNullOrWhiteSpace(_rider))
+        {
+            <MudTd DataLabel="Dato"><MudSkeleton/></MudTd>
+        }
+        else
+        {
+            <MudTd DataLabel="Rytter"><MudSkeleton/></MudTd>
+        }
+        <MudTd DataLabel="Tid"><MudSkeleton/></MudTd>
+        <MudTd DataLabel="Fart"><MudSkeleton/></MudTd>
+    </RowTemplate>
+</MudTable>    
+}
+else
+{
 <MudTable Items="@segmentTimes" Loading="@_loading" LoadingProgressColor="@Color.Info" Breakpoint="Breakpoint.None">
     <HeaderContent>
         @if (!string.IsNullOrWhiteSpace(_rider))
@@ -35,9 +66,11 @@
         <MudTd DataLabel="Fart">@String.Format("{0:00.000}", context.Speed)</MudTd>
     </RowTemplate>
 </MudTable>
+}
 
 @code {
     protected IEnumerable<SegmentTime> segmentTimes;
+    private int[] _placeholder = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
     [Parameter]
     public string StatsItem { get; set; }
