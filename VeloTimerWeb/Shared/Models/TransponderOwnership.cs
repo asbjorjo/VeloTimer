@@ -8,16 +8,13 @@ using VeloTimer.Shared.Models.Validation;
 
 namespace VeloTimer.Shared.Models
 {
-    public class TransponderOwnership : Entity
+    public class TransponderOwnership
     {
-        public long TransponderId { get; set; }
-        public long OwnerId { get; set; }
+        public long Id { get; set; }
 
         public Transponder Transponder { get; set; }
         public Rider Owner { get; set; }
-        [Required]
-        public DateTimeOffset OwnedFrom { get; set; }
-        [EndDate(otherPropertyName = nameof(OwnedFrom))]
-        public DateTimeOffset OwnedUntil { get; set; }
+        public DateTime OwnedFrom { get; set; }
+        public DateTime OwnedUntil { get; set; }
     }
 }

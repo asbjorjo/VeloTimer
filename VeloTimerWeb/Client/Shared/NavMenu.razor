@@ -1,71 +1,12 @@
-﻿<div class="top-row navbar navbar-dark">
-    <a class="navbar-brand" href="">VeloTimer</a>
-    <button class="navbar-toggler" @onclick="ToggleNavMenu">
-        <span class="navbar-toggler-icon"></span>
-    </button>
-</div>
-
-<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
-    <ul class="nav flex-column">
-        <li class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="oi oi-home" aria-hidden="true"></span> Hjem
-            </NavLink>
-        </li>
-        <li class="nav-item px-3">
-            <NavLink class="nav-link" href="track/besttimes">
-                <span class="oi oi-list-rich" aria-hidden="true"></span> Banerekorder
-            </NavLink>
-        </li>
-        <li class="nav-item px-3">
-            <NavLink class="nav-link" href="sekundering">
-                <span class="oi oi-list-rich" aria-hidden="true"></span> Sekundering
-            </NavLink>
-        </li>
-        <AuthorizeView>
-            <Authorized>
-                <li class="nav-item px-3">
-                    <NavLink class="nav-link" href="track/segmenttimes">
-                        <span class="oi oi-list-rich" aria-hidden="true"></span> Passeringstider
-                    </NavLink>
-                </li>
-                <li class="nav-item px-3">
-                    <NavLink class="nav-link" href="rider/besttimes">
-                        <span class="oi oi-list-rich" aria-hidden="true"></span> Mine bestetider
-                    </NavLink>
-                </li>
-                <li class="nav-item px-3">
-                    <NavLink class="nav-link" href="rider/segmenttimes">
-                        <span class="oi oi-list-rich" aria-hidden="true"></span> Mine passeringstider
-                    </NavLink>
-                </li>
-                <li class="nav-item px-3">
-                    <NavLink class="nav-link" href="registertransponder">
-                        <span class="oi oi-wrench" aria-hidden="true"></span> Registrer transponder
-                    </NavLink>
-                </li>
-            </Authorized>
-        </AuthorizeView>
-@*        <li class="nav-item px-3">
-            <NavLink class="nav-link" href="laptimes">
-                <span class="oi oi-list-rich" aria-hidden="true"></span> Lap times
-            </NavLink>
-        </li>
-        <li class="nav-item px-3">
-            <NavLink class="nav-link" href="200times">
-                <span class="oi oi-list-rich" aria-hidden="true"></span> 200m times
-            </NavLink>
-        </li>*@
-    </ul>
-</div>
-
-@code {
-    private bool collapseNavMenu = true;
-
-    private string NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
-    {
-        collapseNavMenu = !collapseNavMenu;
-    }
-}
+﻿<MudNavMenu>
+    <MudNavLink Href="/track/besttimes">Banerekorder</MudNavLink>
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Href="/times">Passeringstider</MudNavLink>
+            <MudNavLink Href="/rider/besttimes">Mine bestetider</MudNavLink>
+            <MudNavLink Href="/rider/times">Mine passeringstider</MudNavLink>
+            <MudNavLink Href="/authentication/profile">Rediger profil</MudNavLink>
+            <MudNavLink Href="/registertransponder">Registrer transponder</MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+</MudNavMenu>

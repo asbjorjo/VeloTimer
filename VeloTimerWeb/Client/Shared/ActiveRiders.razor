@@ -9,14 +9,23 @@
 @inject HubConnection hubConnection
 @inject ILogger<ActiveRiders> logger
 
- @if (activeriders != null)
-{
-
-    @foreach(var rider in activeriders)
-    {
-        <div class="col-3">@rider.Name</div>
-    }
-}
+<MudPaper>
+    <MudGrid>
+        @if (activeriders != null)
+        {
+            @foreach(var rider in activeriders)
+            {
+                <MudItem>@rider.RiderDisplayName</MudItem>
+            }
+        }
+        else
+        {
+            <MudItem xs=12>
+                <MudSkeleton />
+            </MudItem>
+        }
+    </MudGrid>
+</MudPaper>
 
 @code {
     [Parameter]
@@ -24,7 +33,7 @@
     [Parameter]
     public DateTimeOffset? ToTime { get; set; }
 
-    private IEnumerable<Rider> activeriders;
+    private IEnumerable<RiderWeb> activeriders;
     private DateTimeOffset fromtime;
     private DateTimeOffset? totime;
 

@@ -1,7 +1,16 @@
 ﻿@page "/authentication/{action}"
+@using VeloTimer.Shared.Models
 @using VeloTimerWeb.Client.Components
+@using VeloTimerWeb.Client.Shared
+@inject IApiClient Api
+@inject AuthenticationStateProvider authStatProvider
 
-<CustomRemoteAuthenticatorView Action="@Action" />
+<CustomRemoteAuthenticatorView Action="@Action">
+    <UserProfile>
+        <ProfileEdit/>
+    </UserProfile>
+</CustomRemoteAuthenticatorView>
+
 
 @code{
     [Parameter] public string Action { get; set; }

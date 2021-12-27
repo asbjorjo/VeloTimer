@@ -3,84 +3,97 @@
 @inherits ComponentBase
 @using Microsoft.Extensions.Logging
 @using VeloTimer.Shared.Models
-@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
+@inject IApiClient Api
 @inject HttpClient Http
+@inject ISnackbar SnackBar
 @inject ILogger<RegisterTransponder> Logger
 
 <AuthorizeView>
     <Authorized>
-        <h3>Registrer transponder</h3>
-
         <EditForm Model="@transponderName" OnValidSubmit="@HandleValidSubmit" Context="formcontext">
             <DataAnnotationsValidator />
             <ServerValidator @ref="serverValidator" />
             <ValidationSummary />
-
-            <label>
-                Transponder
-                <InputText id="label" @bind-Value="transponderName.TransponderLabel" />
-            </label>
-            <InputText id="name" @bind-Value="transponderName.Owner" hidden="true" />
-           
-            <label>
-                Gyldig fra
-                <InputDate id="validFrom" @bind-Value="transponderName.OwnedFrom"></InputDate>
-            </label>
-            <label>
-                Gyldig til
-                <InputDate id="validUntil" @bind-Value="transponderName.OwnedUntil"></InputDate>
-            </label>
-
-            <button type="submit">Registrer</button>
+            <MudCard>
+                <MudCardHeader>
+                    Registrer transponder
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudTextField @bind-Value="transponderName.TransponderLabel" Label="Transponder" For="@(() => transponderName.TransponderLabel)"></MudTextField>
+                    <MudField Label="Gyldighet">
+                        <MudDatePicker @bind-Date="transponderName.OwnedFrom" Label="Gyldig fra" For="@(() => transponderName.OwnedFrom)"></MudDatePicker>
+                        <MudDatePicker @bind-Date="transponderName.OwnedUntil" Label="Gyldig til" For="@(() => transponderName.OwnedUntil)"/>
+                    </MudField>
+                    <MudHidden Breakpoint="Breakpoint.None" Invert="true">
+                        <MudTextField @bind-Value="transponderName.Owner" ReadOnly="true" For="@(() => transponderName.Owner)"/>
+                    </MudHidden>
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary">Registrer</MudButton>
+                    <MudButton ButtonType="ButtonType.Reset" Variant="Variant.Filled" Color="Color.Secondary" OnClick="@ResetForm">Nullstill</MudButton>
+                </MudCardActions>
+            </MudCard>
         </EditForm>
-
-        <table class="table table-bordered table-striped">
-            <thead>
-                <tr>
-                    <th>Transponder</th>
-                    <th>Gyldig fra</th>
-                    <th>Gyldig til</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if(transpondernames != null)
+        
+        <MudTable ServerData="@LoadTransponderNames" Breakpoint="Breakpoint.None" T="TransponderOwnershipWeb" OnRowClick="@ToggleEdit" @ref="_table">
+            <HeaderContent>
+                <MudTh>Transponder</MudTh>
+                <MudTh>Gyldig fra</MudTh>
+                <MudTh>Gyldig til</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="transpondername">
+                <MudTd>@transpondername.TransponderLabel</MudTd>
+                <MudTd>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</MudTd>
+                <MudTd>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudHidden Breakpoint="Breakpoint.None" Invert="true">
+                    <MudTablePager/>
+                </MudHidden>
+            </PagerContent>
+            <ChildRowContent Context="transpondername">
+                @if (@transpondername.ShowEdit)
                 {
-                    @foreach(var transpondername in transpondernames)
-                    {
-                        <tr>
-                            <td>@transpondername.TransponderLabel</td>
-                            <td>@transpondername.OwnedFrom.Date.ToShortDateString()</td>
-                            <td>@transpondername.OwnedUntil.Date.ToShortDateString()</td>
-                        </tr>
-                    }
+                    <MudTr>
+                        <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
+                            <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
+                                OnClick="@(() => RemoveRegistration(transpondername.TransponderLabel, transpondername.OwnedFrom, transpondername.OwnedUntil))">
+                                Slett
+                            </MudButton>
+                        </MudTd>
+                    </MudTr>
                 }
-            </tbody>
-        </table>
+            </ChildRowContent>
+        </MudTable>
     </Authorized>
 </AuthorizeView>
 
 @code {
-    private TransponderOwnershipWeb transponderName = new();
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+    private TransponderOwnershipWebForm transponderName = new();
     private IEnumerable<TransponderOwnershipWeb> transpondernames;
     private ServerValidator serverValidator;
+    private string userId;
+    private MudTable<TransponderOwnershipWeb> _table;
 
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var authState = await authenticationStateTask;
         var user = authState.User;
 
-        if (user.Identity.IsAuthenticated)
-        {
-            transponderName.Owner = user.FindFirst(c => c.Type == "sub")?.Value;
-        }
+        userId = user.FindFirst(c => c.Type == "sub")?.Value;
+        transponderName.Owner = userId;
 
-        await LoadTransponderNames();
+        await base.OnInitializedAsync();
     }
 
-    private async Task LoadTransponderNames()
+    private async Task<TableData<TransponderOwnershipWeb>> LoadTransponderNames(TableState state)
     {
         transpondernames = await Http.GetFromJsonAsync<IEnumerable<TransponderOwnershipWeb>>($"rider/{transponderName.Owner}/transponders");
+
+        return new TableData<TransponderOwnershipWeb> { TotalItems = transpondernames.Count(), Items = transpondernames };
     }
 
     private async void HandleValidSubmit()
@@ -88,13 +101,36 @@
         var result = await Http.PostAsJsonAsync($"rider/{transponderName.Owner}/transponders", transponderName);
         if (result.IsSuccessStatusCode)
         {
-            await LoadTransponderNames();
-            StateHasChanged();            
+            SnackBar.Add($"Brikke {transponderName.TransponderLabel} registrert", Severity.Success);
+            await _table.ReloadServerData();
         }
         else
         {
             serverValidator.Validate(result, transponderName);
             Console.WriteLine($"{result.StatusCode}");
         }
+    }
+
+    private void ToggleEdit(TableRowClickEventArgs<TransponderOwnershipWeb> transponderName)
+    {
+        transponderName.Item.ShowEdit = !transponderName.Item.ShowEdit;
+    }
+
+    private void ResetForm()
+    {
+        transponderName = new();
+        transponderName.Owner = userId;
+    }
+
+    private async void RemoveRegistration(string label, DateTimeOffset from, DateTimeOffset until)
+    {
+        var authState = await authenticationStateTask;
+        var user = authState.User;
+
+        await Api.RemoveTransponderRegistration(userId, label, from, until);
+
+        SnackBar.Add($"Slettet registrering for brikke {label}", Severity.Error);
+
+        await _table.ReloadServerData();
     }
 }

@@ -16,7 +16,7 @@ namespace Microsoft.Extensions.Hosting
                 var passingservice = services.GetService<IPassingService>();
 
                 // now we have the DbContext. Run migrations
-                context.Database.EnsureCreated();
+                //context.Database.EnsureCreated();
 
                 // now that the database is up to date. Let's seed
                 new SolaArenaSeed(context, passingservice).SeedData();

@@ -2,14 +2,16 @@
 
 namespace VeloTimer.Shared.Models
 {
-    public class TimingLoop : Entity
+    public class TimingLoop
     {   
-        public long LoopId { get; set; }
-        public long TrackId { get; set; }
+        public long Id { get; private set; }
+        public long TrackId { get; private set; }
+
+        public int LoopId { get; set; }
         public double Distance { get; set; }
         public string Description { get; set; }
 
         public Track Track { get; set; }
-        public ICollection<Passing> Passings { get; set; }
+        public IEnumerable<Passing> Passings { get; set; }
     }
 }

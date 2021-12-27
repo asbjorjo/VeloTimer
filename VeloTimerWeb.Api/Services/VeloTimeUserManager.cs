@@ -37,7 +37,7 @@ namespace VeloTimerWeb.Api.Services
             if (created.Succeeded)
             {
                 var newuser = await Store.FindByNameAsync(user.NormalizedUserName, CancellationToken);
-                await _context.Riders.AddAsync(
+                await _context.Set<Rider>().AddAsync(
                     new Rider
                     {
                         UserId = newuser.Id.ToString()
@@ -54,11 +54,11 @@ namespace VeloTimerWeb.Api.Services
 
             if (deleted.Succeeded)
             {
-                var rider = await _context.Riders.Where(r => r.UserId.Equals(user.Id)).SingleOrDefaultAsync();
+                var rider = await _context.Set<Rider>().Where(r => r.UserId.Equals(user.Id)).SingleOrDefaultAsync();
 
                 if (rider != null)
                 {
-                    _context.Riders.Remove(rider);
+                    _context.Set<Rider>().Remove(rider);
                     await _context.SaveChangesAsync();
                 }
             }
@@ -72,7 +72,7 @@ namespace VeloTimerWeb.Api.Services
 
             if (added.Succeeded && claim.Type == ClaimTypes.Name)
             {
-                var rider = await _context.Riders.SingleOrDefaultAsync(r => r.UserId == user.Id.ToString());
+                var rider = await _context.Set<Rider>().SingleOrDefaultAsync(r => r.UserId == user.Id.ToString());
                 if (rider != null && rider.Name != claim.Value)
                 {
                     rider.Name = claim.Value;
@@ -81,7 +81,7 @@ namespace VeloTimerWeb.Api.Services
             }
             if (added.Succeeded && claim.Type == ClaimTypes.GivenName)
             {
-                var rider = await _context.Riders.SingleOrDefaultAsync(r => r.UserId == user.Id.ToString());
+                var rider = await _context.Set<Rider>().SingleOrDefaultAsync(r => r.UserId == user.Id.ToString());
                 if (rider != null && rider.FirstName != claim.Value)
                 {
                     rider.FirstName = claim.Value;
@@ -90,7 +90,7 @@ namespace VeloTimerWeb.Api.Services
             }
             if (added.Succeeded && claim.Type == ClaimTypes.Surname)
             {
-                var rider = await _context.Riders.SingleOrDefaultAsync(r => r.UserId == user.Id.ToString());
+                var rider = await _context.Set<Rider>().SingleOrDefaultAsync(r => r.UserId == user.Id.ToString());
                 if (rider != null && rider.LastName != claim.Value)
                 {
                     rider.LastName = claim.Value;

@@ -1,66 +1,75 @@
-﻿@page "/rider/segmenttimes/{SegmentId:long?}"
+﻿@page "/rider/times"
+@page "/rider/times/{Label}"
+@page "/rider/times/{Label}/{Track}"
+@page "/rider/times/{Label}/{Track}/{Layout}"
 @layout MainLayout
+@using System.Text
 @using VeloTimer.Shared.Models
 @inject NavigationManager NavigationManager
 @inject IApiClient Api
 @inject HttpClient Http
 
-<h3>Mine passeringstider</h3>
+<MudText Typo="Typo.h5" Color="Color.Inherit" Align="Align.Center">Mine passeringstider</MudText>
 
-@if (segments == null || rider == null)
+@if (_rider == null)
 {
     <p>Laster...</p>
 }
 else
 {
-    <select @onchange="ChangeSegment">
-        @foreach (var segment in segments)
-        {
-            <option value="@segment.Id" selected="@(segment.Id == this.segment)">@segment.Label</option>
-        }
-    </select>
-    <SegmentTimes Segment=segment FromTime=DateTimeOffset.Now.Date.AddHours(-24) Count=100 Rider=@rider.Id />
+    <SegmentTimes @bind-StatisticsParameters="@StatisticsParameters" Rider=@_rider />
 }
 
 @code {
     [CascadingParameter]
     private Task<AuthenticationState> authenticationStateTask { get; set; }
     [Parameter]
-    public long? SegmentId { get; set; }
+    public string Label { get; set; }
+    [Parameter]
+    public string Track { get; set; }
+    [Parameter]
+    public string Layout { get; set; }
 
-    private Segment[] segments;
-    private long segment;
-    private Rider rider;
-
-    protected async override Task OnParametersSetAsync()
+    private StatisticsParameters StatisticsParameters
     {
-        await base.OnParametersSetAsync();
-
-        var user = (await authenticationStateTask).User;
-
-        if (user.Identity.IsAuthenticated)
+        get 
         {
-            rider = await Api.GetRiderByUserId(user.FindFirst(c => c.Type == "sub")?.Value);
+            return _statisticsParameters;
+        }
+        set
+        {
+            _statisticsParameters = value;
+            UpdateNavigation();
         }
     }
 
+    private StatisticsParameters _statisticsParameters;
+    private string _rider;
+
     protected override void OnParametersSet()
     {
-        if (SegmentId.HasValue && SegmentId.Value != segment)
+        base.OnParametersSet();
+        StatisticsParameters = new StatisticsParameters
         {
-            segment = SegmentId.Value;
-        }
+            Label = Label,
+            Track = Track,
+            Layout = Layout
+        };
     }
 
     protected override async Task OnInitializedAsync()
     {
-        segments = await Http.GetFromJsonAsync<Segment[]>("segments");
-        segment = segments.First().Id;
+        var user = (await authenticationStateTask).User;
+
+        _rider = user.FindFirst(c => c.Type == "sub")?.Value;
     }
 
-    private void ChangeSegment(ChangeEventArgs e)
+    private void UpdateNavigation()
     {
-        var selected = long.Parse(e.Value.ToString());
-        NavigationManager.NavigateTo($"rider/segmenttimes/{selected}");
+        var sb = new StringBuilder("rider/times/");
+
+        sb.Append(_statisticsParameters.ToPathString());
+
+        NavigationManager.NavigateTo(sb.ToString());
     }
 }

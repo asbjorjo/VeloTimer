@@ -4,11 +4,9 @@ on:
     branches:
     - develop
 env:
-  AZURE_WEBAPP_NAME: velotimer-dev
-  AZURE_WEBAPP_PACKAGE_PATH: VeloTimerWeb/Server/publish
-  AZURE_API_NAME: velotimer-dev-api
+  AZURE_WEBAPP_NAME: 'velotime-dev'
   AZURE_API_PACKAGE_PATH: VeloTimerWeb.Api/publish
-  AZURE_AMMC_NAME: velotimer-dev-ammcload
+  AZURE_AMMC_NAME: 'velotime-dev-ammc'
   AZURE_AMMC_PACKAGE_PATH: VeloTimer.AmccLoad/publish
   CONFIGURATION: Release
   ASPNETCORE_ENVIRONMENT: Staging
@@ -18,8 +16,8 @@ env:
   AMMC_WORKING_DIRECTORY: VeloTimer.AmmcLoad
   AzureVault: https://velotimer-dev-vault.vault.azure.net/
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
     - uses: azure/login@v1
@@ -31,16 +29,16 @@ jobs:
         dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
     - name: Restore
       run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
-    - name: Build
-      run: dotnet build --configuration ${{ env.CONFIGURATION }} --no-restore
-    - name: Test
-      run: dotnet test --no-build
+    - name: Build API
+      run: dotnet build "${{ env.API_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
+    - name: Build AmmcLoad
+      run: dotnet build "${{ env.AMMC_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
+#    - name: Test
+#      run: dotnet test --no-build
     - name: Publish API
       run: dotnet publish "${{ env.API_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_API_PACKAGE_PATH }}"
     - name: Publish AmmcLoad
       run: dotnet publish "${{ env.AMMC_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_AMMC_PACKAGE_PATH }}"
-#    - name: Publish WebApp
-#      run: dotnet publish "${{ env.WEBAPP_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_WEBAPP_PACKAGE_PATH }}"
     - name: Install EF Tool
       run: |
           dotnet new tool-manifest
@@ -49,11 +47,6 @@ jobs:
       run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloIdentityDbContext --no-build
     - name: Update VeloTimer Database
       run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
-#    - name: Deploy to Azure API
-#      uses: azure/webapps-deploy@v2
-#      with:
-#        app-name: ${{ env.AZURE_API_NAME }}
-#        package: ${{ env.AZURE_API_PACKAGE_PATH }}
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v2
       with:
@@ -74,10 +67,5 @@ jobs:
       with:
         name: ammcload
         path: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
-#    - name: Publish WebApp Artifacts
-#      uses: actions/upload-artifact@v1.0.0
-#      with:
-#        name: webapp
-#        path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
     - name: Azure Logout
       run: az logout

@@ -14,40 +14,38 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 {
     public class LapTimesModel : PageModel
     {
-        private readonly ISegmentService _segmentService;
         private readonly VeloTimerDbContext _context;
+        private readonly ITrackService _service;
 
-        public Queue<SegmentTimeRider> times { get; set; }
-        public Segment segment { get; set; }
-
-        public LapTimesModel(ISegmentService segmentService, VeloTimerDbContext context)
+        public Queue<SegmentTime> Times { get; set; }
+        
+        public LapTimesModel(ITrackService trackService, VeloTimerDbContext context)
         {
-            _segmentService = segmentService;
+            _service = trackService;
             _context = context;
         }
 
-        public async Task<IActionResult> OnGetAsync(string SegmentLabel)
+        public async Task<IActionResult> OnGetAsync(string Track, string Label)
         {
-            segment = await _context.Set<Segment>().SingleOrDefaultAsync(s => s.Label == SegmentLabel);
-
-            if (segment == null)
+            var track = await _context.Set<Track>().FindAsync(long.Parse(Track));
+            if (track == null)
             {
-                return NotFound();
+                return NotFound($"Track: {Track}");
             }
 
-            ViewData["Title"] = SegmentLabel;
+            var statsitem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Layout.Track == track && x.StatisticsItem.Label == Label);
 
-            var seedtimes = await _segmentService.GetSegmentTimes(segment.Id, DateTimeOffset.Now.AddDays(-1), null, 35);
-            times = new Queue<SegmentTimeRider>(seedtimes);
+            if (statsitem == null)
+            {
+                return NotFound($"StatisticsItem: {Label}");
+            }
+
+            ViewData["Title"] = $"{Label}";
+
+            var seedtimes = await _service.GetRecent(statsitem, DateTimeOffset.Now.AddDays(-7), DateTimeOffset.MaxValue, 35);
+            Times = new Queue<SegmentTime>(seedtimes);
 
             return Page();
-        }
-
-        public async Task OnGetNewTimeAsync()
-        {
-            var newtimes = await _segmentService.GetSegmentTimes(segment.Id, times.Last().PassingTime.AddTicks(1), DateTimeOffset.MaxValue, 35);
-
-            newtimes.ToList().ForEach(t => times.Enqueue(t));
         }
     }
 }

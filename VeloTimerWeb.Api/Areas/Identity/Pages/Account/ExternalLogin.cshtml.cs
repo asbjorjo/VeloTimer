@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
-using VeloTimer.Shared.Models;
+using VeloTimerWeb.Api.Models;
 
 namespace VeloTimerWeb.Api.Areas.Identity.Pages.Account
 {

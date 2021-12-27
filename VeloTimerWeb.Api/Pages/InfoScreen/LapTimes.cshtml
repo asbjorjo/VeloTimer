@@ -1,19 +1,24 @@
-﻿@page
-@using VeloTimerWeb.Client.Shared
+﻿@page "{Track}/{Label}"
+@using VeloTimer.Shared.Util
+
+@section head
+{
+    <meta http-equiv="refresh" content="20">
+}
 
 @model VeloTimerWeb.Api.Pages.InfoScreen.LapTimesModel
 
     <table class="table table-striped">
         <thead>
             <tr>
-                <th scope="col">Rytter</th>    
-                <th>Tid</th>
-                <th>Fart</th>
+                <th scope="col" class="mw-100">Rytter</th>    
+                <th scope="col" class="text-right">Tid</th>
+                <th scope="col" class="text-right">Fart</th>
             </tr>
         </thead>
         <tbody>
 @{
-            if (Model.times == null)
+            if (Model.Times == null)
             {
                 <tr>
                     <td colspan="3">
@@ -23,12 +28,12 @@
             }
             else
             {
-                foreach (var segment in Model.times)
+                foreach (var segment in Model.Times)
                 {
                     <tr>
                         <td>@segment.Rider</td>    
-                        <td>@String.Format("{0:00.000}", segment.Segmenttime)</td>
-                        <td>@String.Format("{0:00.000}", segment.Segmentspeed)</td>
+                        <td class="text-right">@Formatters.FormatTime(segment.Time)</td>
+                        <td class="text-right">@Formatters.FormatSpeed(segment.Speed)</td>
                     </tr>
                 }
             }
@@ -39,7 +44,7 @@
 <script src="~/js/signalr/dist/browser/signalr.js"></script>
 <script src="~/js/timeupdates.js"></script>
 <script type="text/javascript">
-    subscribetosegment(@Model.segment.Id);
+    //subscribetosegment();
     //window.setTimeout(function () { 
     //    window.location.reload();
     //}, 15000);

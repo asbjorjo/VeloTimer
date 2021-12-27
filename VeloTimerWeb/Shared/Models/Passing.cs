@@ -4,16 +4,15 @@ using System.Text.Json.Serialization;
 
 namespace VeloTimer.Shared.Models
 {
-    public class Passing : Entity
+    public class Passing
     {
-        public long TransponderId { get; set; }
-        [JsonIgnore]
+        public long Id { get; private set; }
         public Transponder Transponder { get; set; }
-        public long LoopId { get; set; }
-        [JsonIgnore]
         public TimingLoop Loop { get; set; }
-        public DateTimeOffset Time { get; set; }
-        [Required]
-        public string Source { get; set; }
+        public DateTime Time { get; set; }
+        public string SourceId { get; set; }
+
+        public long TransponderId { get; private set; }
+        public long LoopId { get; private set; }
     }
 }
