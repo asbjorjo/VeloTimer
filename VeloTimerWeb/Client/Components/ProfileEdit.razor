@@ -1,0 +1,71 @@
+﻿@inherits ComponentBase
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using VeloTimer.Shared.Models
+@using VeloTimerWeb.Client.Components
+@inject IApiClient Api
+@inject NavigationManager Navigation
+@inject SignOutSessionStateManager SignOutManager
+@inject ISnackbar SnackBar
+
+<MudGrid>
+    <MudItem xs="12" xl="7">
+    @if (profile != null)
+    {
+        <MudCard>
+            <MudCardContent>
+                <MudForm>
+                    <MudTextField @bind-Value="@profile.RiderDisplayName" Label="Navn til statistikk"/>
+                    <MudTextField @bind-Value="@profile.RiderFirstName" Label="Fornavn"/>
+                    <MudTextField @bind-Value="@profile.RiderLastName" Label="Etternavn"/>
+                    <MudField Label="Synlighet">
+                        <MudCheckBox @bind-Checked="@profile.RiderIsPublic" Label="Vis i statistikk"/>
+                        <MudPaper>
+                        <MudText Typo="Typo.caption">
+                            Når du velger å inkluderes i offentlig statistikk vil navn og tider vises i statistikker og skjermer på velodromen.<br />
+                            Du vil også bli inkludert i listen med ryttere som er på banen nå.<br />
+                            Du kan fortsatt se dine egne tider og rekorder med privat profil.
+                        </MudText>
+                        </MudPaper>
+                    </MudField>
+                </MudForm>
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary" OnClick="@(async () => await SaveProfile())">Lagre</MudButton>
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(async () => await DeleteProfile())">Slett profil</MudButton>
+            </MudCardActions>
+        </MudCard>
+    }
+    </MudItem>
+</MudGrid>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+    private RiderWeb profile;
+
+    protected async override Task OnInitializedAsync()
+    {
+        await LoadProfile();
+    }
+
+    private async Task LoadProfile()
+    {
+        var authstate = await authenticationStateTask;
+
+        profile = await Api.GetRiderByUserId(authstate.User.Claims.First(x => x.Type == "sub").Value);
+    }
+
+    private async Task SaveProfile()
+    {
+        await Api.SaveRiderProfile(profile);
+        SnackBar.Add("Profil lagret", Severity.Success);
+    }
+
+    private async Task DeleteProfile()
+    {
+        await Api.DeleteRiderProfile(profile.UserId);
+        await SignOutManager.SetSignOutState();
+        Navigation.NavigateTo("authentication/logout");
+        SnackBar.Add("Profil slettet", Severity.Error);
+    }
+}

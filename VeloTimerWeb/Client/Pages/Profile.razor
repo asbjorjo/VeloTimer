@@ -1,0 +1,51 @@
+﻿@page "/rider"
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using VeloTimer.Shared.Models
+@inject IApiClient Api
+@inject NavigationManager Navigation
+@inject SignOutSessionStateManager SignOutManager
+@inject ISnackbar SnackBar
+
+<MudTabs Color="Color.Primary" DisableSliderAnimation="false">
+    <MudTabPanel Text="Profil">
+        <ProfileEdit />
+    </MudTabPanel>
+    <MudTabPanel Text="Brikker">
+        <RegisterTransponder />
+    </MudTabPanel>
+@*    <MudTabPanel Text="Synlighet">
+        <ProfileVisibility />
+    </MudTabPanel>*@
+</MudTabs>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+    private RiderWeb profile;
+
+    protected async override Task OnInitializedAsync()
+    {
+        await LoadProfile();
+    }
+
+    private async Task LoadProfile()
+    {
+        var authstate = await authenticationStateTask;
+
+        profile = await Api.GetRiderByUserId(authstate.User.Claims.First(x => x.Type == "sub").Value);
+    }
+
+    private async Task SaveProfile()
+    {
+        await Api.SaveRiderProfile(profile);
+        SnackBar.Add("Profil lagret", Severity.Success);
+    }
+
+    private async Task DeleteProfile()
+    {
+        await Api.DeleteRiderProfile(profile.UserId);
+        await SignOutManager.SetSignOutState();
+        Navigation.NavigateTo("authentication/logout");
+        SnackBar.Add("Profil slettet", Severity.Error);
+    }
+}
