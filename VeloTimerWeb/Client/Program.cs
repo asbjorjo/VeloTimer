@@ -20,7 +20,10 @@ namespace VeloTimerWeb.Client
 
             builder.RootComponents.Add<App>("#app");
 
-            builder.Services.AddMudServices();
+            builder.Services.AddMudServices(config =>
+            {
+                config.SnackbarConfiguration.PreventDuplicates = false;
+            });
 
             builder.Services.AddScoped<VeloTimerAuthorizationMessageHandler>();
 
