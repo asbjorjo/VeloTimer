@@ -19,7 +19,7 @@
         }
         else
         {
-            <MudTh>Rytter</MudTh>
+            <MudTh Class="mw-100">Rytter</MudTh>
         }
         <MudTh>Tid</MudTh>
         <MudTh>Fart</MudTh>
@@ -48,10 +48,10 @@ else
         }
         else
         {
-            <MudTh>Rytter</MudTh>
+            <MudTh Class="mw-100">Rytter</MudTh>
         }
-        <MudTh>Tid</MudTh>
-        <MudTh>Fart</MudTh>
+        <MudTh Style="text-align:right">Tid</MudTh>
+        <MudTh Style="text-align:right">Fart</MudTh>
     </HeaderContent>
     <RowTemplate>
         @if(!string.IsNullOrWhiteSpace(_rider))
@@ -62,8 +62,8 @@ else
         {
             <MudTd DataLabel="Rytter">@context.Rider</MudTd>
         }
-        <MudTd DataLabel="Tid">@Formatters.FormatTime(context.Time)</MudTd>
-        <MudTd DataLabel="Fart">@String.Format("{0:00.000}", context.Speed)</MudTd>
+        <MudTd DataLabel="Tid" Style="text-align:right">@Formatters.FormatTime(context.Time)</MudTd>
+        <MudTd DataLabel="Fart" Style="text-align:right">@String.Format("{0:00.000}", context.Speed)</MudTd>
     </RowTemplate>
 </MudTable>
 }

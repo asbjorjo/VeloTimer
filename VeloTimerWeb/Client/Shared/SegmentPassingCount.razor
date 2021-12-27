@@ -13,14 +13,14 @@
 {
 <MudTable Items="@_placeholder" Breakpoint="Breakpoint.None">
     <HeaderContent>
-        <MudTh>Rytter</MudTh>
+        <MudTh Class="mw-100">Rytter</MudTh>
         <MudTh>Runder</MudTh>
         <MudTh>km</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="Rytter"><MudSkeleton/></MudTd>
-        <MudTd DataLabel="Runder"><MudSkeleton/></MudTd>
-        <MudTd DataLabel="km"><MudSkeleton/></MudTd>
+        <MudTd DataLabel="Runder" Style="text-align:right"><MudSkeleton/></MudTd>
+        <MudTd DataLabel="km" Style="text-align:right"><MudSkeleton/></MudTd>
     </RowTemplate>
     </MudTable>
 }
@@ -28,14 +28,14 @@ else
 {
     <MudTable Items="@passingcounts" Loading="@_loading" LoadingProgressColor="@Color.Info" Breakpoint="Breakpoint.None">
     <HeaderContent>
-        <MudTh>Rytter</MudTh>
+        <MudTh Class="mw-100">Rytter</MudTh>
         <MudTh>Runder</MudTh>
         <MudTh>km</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.Rider</MudTd>
-        <MudTd>@context.Count</MudTd>
-        <MudTd>@String.Format("{0:0.00}", @context.Distance)</MudTd>
+        <MudTd Style="text-align:right">@context.Count</MudTd>
+        <MudTd Style="text-align:right">@String.Format("{0:0.00}", @context.Distance)</MudTd>
     </RowTemplate>
     </MudTable>
 }
