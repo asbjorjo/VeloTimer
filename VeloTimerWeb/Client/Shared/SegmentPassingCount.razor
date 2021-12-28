@@ -14,13 +14,13 @@
 <MudTable Items="@_placeholder" Breakpoint="Breakpoint.None">
     <HeaderContent>
         <MudTh Class="mw-100">Rytter</MudTh>
-        <MudTh>Runder</MudTh>
-        <MudTh>km</MudTh>
+        <MudTh Style="text-align:right">Runder</MudTh>
+        <MudTh Style="text-align:right">km</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="Rytter"><MudSkeleton/></MudTd>
-        <MudTd DataLabel="Runder" Style="text-align:right"><MudSkeleton/></MudTd>
-        <MudTd DataLabel="km" Style="text-align:right"><MudSkeleton/></MudTd>
+        <MudTd Style="text-align:right" DataLabel="Runder"><MudSkeleton/></MudTd>
+        <MudTd Style="text-align:right" DataLabel="km"><MudSkeleton/></MudTd>
     </RowTemplate>
     </MudTable>
 }
@@ -29,8 +29,8 @@ else
     <MudTable Items="@passingcounts" Loading="@_loading" LoadingProgressColor="@Color.Info" Breakpoint="Breakpoint.None">
     <HeaderContent>
         <MudTh Class="mw-100">Rytter</MudTh>
-        <MudTh>Runder</MudTh>
-        <MudTh>km</MudTh>
+        <MudTh Style="text-align:right">Runder</MudTh>
+        <MudTh Style="text-align:right">km</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.Rider</MudTd>
