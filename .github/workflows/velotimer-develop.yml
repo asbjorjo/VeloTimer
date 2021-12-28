@@ -68,7 +68,7 @@ jobs:
       run: dotnet ef database update -p api -s api --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
     - name: Azure Logout
       run: az logout
-  deploy:
+  deploy_api:
     needs: updatedb
     runs-on: ubuntu-latest
     steps:
@@ -76,10 +76,6 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: api
-    - name: Download artifact from build job
-      uses: actions/download-artifact@v2
-      with:
-        name: ammcload
     - uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_DEVELOP_CREDENTIALS }}
@@ -88,6 +84,19 @@ jobs:
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         package: api
+    - name: Azure Logout
+      run: az logout
+  deploy_ammcload:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download artifact from build job
+      uses: actions/download-artifact@v2
+      with:
+        name: ammcload
+    - uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_DEVELOP_CREDENTIALS }}
     - name: Deploy to Azure AmmcLoader
       uses: azure/webapps-deploy@v2
       with:
