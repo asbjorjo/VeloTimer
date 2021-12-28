@@ -44,6 +44,7 @@ jobs:
         name: ammcload
         path: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
   updatedb:
+    needs: build
     runs-on: ubuntu-latest
     steps:
     - name: Download artifact from build job
@@ -68,6 +69,7 @@ jobs:
     - name: Azure Logout
       run: az logout
   deploy:
+    needs: updatedb
     runs-on: ubuntu-latest
     steps:
     - name: Download artifact from build job
