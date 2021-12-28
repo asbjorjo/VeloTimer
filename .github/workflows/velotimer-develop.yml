@@ -49,9 +49,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download artifact from build job
-        uses: actions/download-artifact@v2
-        with:
-          name: api
+      uses: actions/download-artifact@v2
+      with:
+        name: api
     - uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_DEVELOP_CREDENTIALS }}
@@ -72,14 +72,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v2
-        with:
-          name: api
     - name: Download artifact from build job
-        uses: actions/download-artifact@v2
-        with:
-          name: ammcload
+      uses: actions/download-artifact@v2
+      with:
+        name: api
+    - name: Download artifact from build job
+      uses: actions/download-artifact@v2
+      with:
+        name: ammcload
     runs-on: ubuntu-latest
     - uses: azure/login@v1
       with:
