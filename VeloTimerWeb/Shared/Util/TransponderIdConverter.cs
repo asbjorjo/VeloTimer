@@ -13,6 +13,9 @@ namespace VeloTimer.Shared.Util
         {
             string code = "";
 
+            if (Id <= 0)
+                return code;
+
             if (Id > idOffset)
             {
                 string prefix = "";
@@ -38,6 +41,9 @@ namespace VeloTimer.Shared.Util
         public static long CodeToId(string code)
         {
             long id = -1;
+
+            if (string.IsNullOrWhiteSpace(code))
+                return id;
 
             code = code.ToUpper().Remove(code.IndexOf("-"), 1);
 

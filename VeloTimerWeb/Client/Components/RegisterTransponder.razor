@@ -1,35 +1,39 @@
 ﻿@page "/registertransponder"
 @layout MainLayout
 @inherits ComponentBase
+@using FluentValidation
 @using Microsoft.Extensions.Logging
 @using VeloTimer.Shared.Models
+@using VeloTimer.Shared.Util
+@using VeloTimerWeb.Client.Models
 @inject NavigationManager NavigationManager
 @inject IApiClient Api
 @inject HttpClient Http
 @inject ISnackbar SnackBar
 @inject ILogger<RegisterTransponder> Logger
 
-<EditForm Model="@transponderName" OnValidSubmit="@HandleValidSubmit" Context="formcontext">
-    <DataAnnotationsValidator />
-    <ServerValidator @ref="serverValidator" />
-    <ValidationSummary />
-    <MudCard>
+<MudCard>
+    <MudForm Model="@transponderName" @ref="@_transponderForm">
         <MudCardContent>
-            <MudTextField @bind-Value="transponderName.TransponderLabel" Label="Transponder" For="@(() => transponderName.TransponderLabel)"></MudTextField>
+            <MudTextField @bind-Value="transponderName.TransponderLabel" Label="Transponder" For="@(() => transponderName.TransponderLabel)" Validation="@(_formValidator.ValidateValue)" Immediate="true"></MudTextField>
             <MudField Label="Gyldighet">
-                <MudDatePicker @bind-Date="transponderName.OwnedFrom" Label="Gyldig fra" For="@(() => transponderName.OwnedFrom)"></MudDatePicker>
-                <MudDatePicker @bind-Date="transponderName.OwnedUntil" Label="Gyldig til" For="@(() => transponderName.OwnedUntil)"/>
+                <MudDateRangePicker @bind-DateRange="transponderName.ValidPeriod" @ref="@_dateRangePicker">
+                    <PickerActions>
+                        <MudButton Class="mr-auto align-self-start" OnClick="@(() => _dateRangePicker.Clear())">Clear</MudButton>
+                        <MudButton OnClick="@(() => _dateRangePicker.Close(false))">Cancel</MudButton>
+                        <MudButton Color="Color.Primary" OnClick="@(() => _dateRangePicker.Close())">Ok</MudButton>
+                    </PickerActions>
+                </MudDateRangePicker>
             </MudField>
             <MudHidden Breakpoint="Breakpoint.None" Invert="true">
-                <MudTextField @bind-Value="transponderName.Owner" ReadOnly="true" For="@(() => transponderName.Owner)"/>
+                <MudTextField @bind-Value="transponderName.Owner" ReadOnly="true" For="@(() => transponderName.Owner)"  Validation="@(_formValidator.ValidateValue)" Immediate="true"/>
             </MudHidden>
         </MudCardContent>
         <MudCardActions>
-            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary">Registrer</MudButton>
-            <MudButton ButtonType="ButtonType.Reset" Variant="Variant.Filled" Color="Color.Secondary" OnClick="@ResetForm">Nullstill</MudButton>
+            <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary" OnClick="@(async () => await Register())">Registrer</MudButton>
         </MudCardActions>
-    </MudCard>
-</EditForm>
+    </MudForm>
+</MudCard>
         
 <MudTable ServerData="@LoadTransponderNames" Breakpoint="Breakpoint.None" T="TransponderOwnershipWeb" OnRowClick="@ToggleEdit" @ref="_table">
     <HeaderContent>
@@ -70,6 +74,9 @@
     private ServerValidator serverValidator;
     private string userId;
     private MudTable<TransponderOwnershipWeb> _table;
+    private MudForm _transponderForm;
+    private MudDateRangePicker _dateRangePicker;
+    private TransponderOwnershipValidator _formValidator = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -89,12 +96,46 @@
         return new TableData<TransponderOwnershipWeb> { TotalItems = transpondernames.Count(), Items = transpondernames };
     }
 
+    private async Task Register()
+    {
+        await _transponderForm.Validate();
+
+        if (!_transponderForm.IsValid){
+            return;
+        }
+
+        var registration = new TransponderOwnershipWeb
+        {
+            Owner = transponderName.Owner,
+            TransponderLabel = transponderName.TransponderLabel,
+            OwnedFrom = transponderName.ValidPeriod.Start.Value,
+            OwnedUntil = transponderName.ValidPeriod.End.Value
+        };
+
+        var result = await Http.PostAsJsonAsync($"rider/{transponderName.Owner}/transponders", registration);
+        if (result.IsSuccessStatusCode)
+        {
+            SnackBar.Add($"Brikke {transponderName.TransponderLabel} registrert", MudBlazor.Severity.Success);
+            await _table.ReloadServerData();
+        }
+        else if (result.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            SnackBar.Add($"Brikke {transponderName.TransponderLabel} er alt registrert for valgt periode");
+            Console.WriteLine($"Could not register transponder {transponderName.TransponderLabel} - {result.StatusCode}");
+        }
+        else
+        {
+            SnackBar.Add($"Problemer med registrering av {transponderName.TransponderLabel}");
+            Console.WriteLine($"Could not register transponder {transponderName.TransponderLabel} - {result.StatusCode}");
+        }
+    }
+
     private async void HandleValidSubmit()
     {
         var result = await Http.PostAsJsonAsync($"rider/{transponderName.Owner}/transponders", transponderName);
         if (result.IsSuccessStatusCode)
         {
-            SnackBar.Add($"Brikke {transponderName.TransponderLabel} registrert", Severity.Success);
+            SnackBar.Add($"Brikke {transponderName.TransponderLabel} registrert", MudBlazor.Severity.Success);
             await _table.ReloadServerData();
         }
         else
@@ -122,8 +163,29 @@
 
         await Api.RemoveTransponderRegistration(userId, label, from, until);
 
-        SnackBar.Add($"Slettet registrering for brikke {label}", Severity.Error);
+        SnackBar.Add($"Slettet registrering for brikke {label}", MudBlazor.Severity.Error);
 
         await _table.ReloadServerData();
+    }
+
+    public class TransponderOwnershipValidator : AbstractValidator<TransponderOwnershipWebForm>
+    {
+        public TransponderOwnershipValidator()
+        {
+            RuleFor(x => x.Owner)
+                .NotEmpty();
+
+            RuleFor(x => x.TransponderLabel)
+                .NotEmpty()
+                .Must((value) => TransponderIdConverter.CodeToId(value) > 0);
+        }
+
+        public Func<object, string, Task<IEnumerable<string>>> ValidateValue => async (model, propertyName) =>
+        {
+            var result = await ValidateAsync(ValidationContext<TransponderOwnershipWebForm>.CreateWithOptions((TransponderOwnershipWebForm)model, x => x.IncludeProperties(propertyName)));
+            if (result.IsValid)
+                return Array.Empty<string>();
+            return result.Errors.Select(e => e.ErrorMessage);
+        };
     }
 }

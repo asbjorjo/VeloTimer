@@ -9,7 +9,7 @@
 
 @if (_segments == null)
 {
-    <p>Laster....</p>
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
 }
 else
 {
@@ -44,8 +44,12 @@ else
         {
             <MudTh>Rytter</MudTh>
         }
-        <MudTh><MudTableSortLabel SortLabel="time" T="SegmentTime">@_label</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortLabel="speed" T="SegmentTime">Fart</MudTableSortLabel></MudTh>
+        @if(_intermediates == 1)
+        {
+            <MudTh Style="text-align:right">Split</MudTh>
+        }
+        <MudTh Style="text-align:right"><MudTableSortLabel SortLabel="time" T="SegmentTime">@_label</MudTableSortLabel></MudTh>
+        <MudTh Style="text-align:right"><MudTableSortLabel SortLabel="speed" T="SegmentTime">Fart</MudTableSortLabel></MudTh>
     </HeaderContent>
     <LoadingContent>
         <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
@@ -59,6 +63,10 @@ else
         {
             <MudTd DataLabel="Rytter">@context.Rider</MudTd>
         }
+        @if(_intermediates == 1)
+        {
+            <MudTd DataLabel="Split" Style="text-align:right">@Formatters.FormatTime(context.Intermediates.First().Time)</MudTd>
+        }
         <MudTd DataLabel="@_label" Style="text-align:right">@Formatters.FormatTime(context.Time)</MudTd>
         <MudTd DataLabel="Fart" Style="text-align:right">@Formatters.FormatSpeed(context.Speed)</MudTd>
     </RowTemplate>
@@ -70,7 +78,7 @@ else
         {
             <MudTr>
                 <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
-                @if(@context.Intermediates.Count() < 8){
+                @if(_intermediates < 7){
                     <MudGrid>
                     @foreach(var inter in @context.Intermediates)
                     {
@@ -116,6 +124,7 @@ else
     private TimeParameters _timeParameters = new TimeParameters();
     private bool _loading;
     private bool _hasIntermediate = false;
+    private int _intermediates;
 
     protected async override Task OnInitializedAsync()
     {
@@ -209,6 +218,7 @@ else
         var page = timeData.Pagination;
 
         _hasIntermediate = (times.Any() && times.First().Intermediates?.Count() > 1);
+        _intermediates = _hasIntermediate ? times.First().Intermediates.Count() - 1 : 0;
 
         return new TableData<SegmentTime> { TotalItems = page.TotalCount, Items = times };
     }
