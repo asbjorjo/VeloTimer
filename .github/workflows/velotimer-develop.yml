@@ -59,31 +59,6 @@ jobs:
       with:
         name: ammcload
         path: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
-  updatedb:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download artifact from build job
-      uses: actions/download-artifact@v2
-      with:
-        name: api
-    - uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_DEVELOP_CREDENTIALS }}
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
-    - name: Install EF Tool
-      run: |
-          dotnet new tool-manifest
-          dotnet tool install dotnet-ef
-    - name: Update Identity Database
-      run: dotnet ef database update --configuration ${{ env.CONFIGURATION }} -c VeloIdentityDbContext --no-build
-    - name: Update VeloTimer Database
-      run: dotnet ef database update --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
-    - name: Azure Logout
-      run: az logout
   deploy_api:
     env:
       AZURE_WEBAPP_NAME: 'velotime-dev'
