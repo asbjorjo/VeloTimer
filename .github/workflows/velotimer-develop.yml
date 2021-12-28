@@ -63,9 +63,9 @@ jobs:
           dotnet new tool-manifest
           dotnet tool install dotnet-ef
     - name: Update Identity Database
-      run: dotnet ef database update -p api -s api --configuration ${{ env.CONFIGURATION }} -c VeloIdentityDbContext --no-build
+      run: dotnet ef database update --configuration ${{ env.CONFIGURATION }} -c VeloIdentityDbContext --no-build
     - name: Update VeloTimer Database
-      run: dotnet ef database update -p api -s api --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
+      run: dotnet ef database update --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
     - name: Azure Logout
       run: az logout
   deploy_api:
@@ -83,7 +83,7 @@ jobs:
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        package: api
+        package: .
     - name: Azure Logout
       run: az logout
   deploy_ammcload:
@@ -101,6 +101,6 @@ jobs:
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_AMMC_NAME }}
-        package: ammcload
+        package: .
     - name: Azure Logout
       run: az logout
