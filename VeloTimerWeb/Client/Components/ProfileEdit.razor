@@ -38,10 +38,21 @@
     </MudItem>
 </MudGrid>
 
+<MudMessageBox @ref="_deleteConfirmation" Title="Bekreft sletting" CancelText="Avbryt">
+    <MessageContent>
+        Sletting av bruker er endelig!<br/>
+        For å gjenopprette registrer deg på ny.
+    </MessageContent>
+    <YesButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteForever">Slett!</MudButton>
+    </YesButton>
+</MudMessageBox>
+
 @code {
     [CascadingParameter]
     private Task<AuthenticationState> authenticationStateTask { get; set; }
     private RiderWeb profile;
+    MudMessageBox _deleteConfirmation;
 
     protected async override Task OnInitializedAsync()
     {
@@ -63,9 +74,12 @@
 
     private async Task DeleteProfile()
     {
-        await Api.DeleteRiderProfile(profile.UserId);
-        await SignOutManager.SetSignOutState();
-        Navigation.NavigateTo("authentication/logout");
-        SnackBar.Add("Profil slettet", Severity.Error);
+        bool? confirmation = await _deleteConfirmation.Show();
+        if (confirmation.HasValue && confirmation.Value) {
+            await Api.DeleteRiderProfile(profile.UserId);
+            await SignOutManager.SetSignOutState();
+            Navigation.NavigateTo("authentication/logout");
+            SnackBar.Add("Profil slettet", Severity.Error);
+        }
     }
 }
