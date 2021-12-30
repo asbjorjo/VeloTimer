@@ -10,15 +10,13 @@
         <MudCardMedia Image="images/mylaps-prochip-flex.png" Height="200"/>
         <MudForm Model="@transponderName" @ref="@_transponderForm">
             <MudTextField @bind-Value="transponderName.TransponderLabel" Label="Brikke" For="@(() => transponderName.TransponderLabel)" Validation="@(_formValidator.ValidateValue)" Immediate="true" Counter=8 />
-            <MudField Label="Gyldighet">
-                <MudDateRangePicker @bind-DateRange="transponderName.ValidPeriod" @ref="@_dateRangePicker">
-                    <PickerActions>
-                        <MudButton Class="mr-auto align-self-start" OnClick="@(() => _dateRangePicker.Clear())">Clear</MudButton>
-                        <MudButton OnClick="@(() => _dateRangePicker.Close(false))">Cancel</MudButton>
-                        <MudButton Color="Color.Primary" OnClick="@(() => _dateRangePicker.Close())">Ok</MudButton>
-                    </PickerActions>
-                </MudDateRangePicker>
-            </MudField>
+            <MudDateRangePicker Label="Gyldighet" @bind-DateRange="transponderName.ValidPeriod" @ref="@_dateRangePicker" PickerVariant="PickerVariant.Dialog">
+                <PickerActions>
+                    <MudButton Class="mr-auto align-self-start" OnClick="@(() => _dateRangePicker.Clear())">Nullstill</MudButton>
+                    <MudButton OnClick="@(() => _dateRangePicker.Close(false))">Avbryt</MudButton>
+                    <MudButton Color="Color.Primary" OnClick="@(() => _dateRangePicker.Close())">Ok</MudButton>
+                </PickerActions>
+            </MudDateRangePicker>
             <MudHidden Breakpoint="Breakpoint.None" Invert="true">
                 <MudTextField @bind-Value="transponderName.Owner" ReadOnly="true" For="@(() => transponderName.Owner)"  Validation="@(_formValidator.ValidateValue)" Immediate="true"/>
             </MudHidden>
