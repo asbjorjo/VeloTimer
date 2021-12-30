@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MudBlazor;
 using MudBlazor.Services;
 using System;
 using System.Net.Http;
@@ -22,6 +23,7 @@ namespace VeloTimerWeb.Client
 
             builder.Services.AddMudServices(config =>
             {
+                config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomCenter;
                 config.SnackbarConfiguration.PreventDuplicates = false;
             });
 
