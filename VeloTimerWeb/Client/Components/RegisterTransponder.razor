@@ -1,7 +1,5 @@
-﻿@page "/registertransponder"
-@layout MainLayout
+﻿@layout MainLayout
 @inherits ComponentBase
-@using FluentValidation
 @using Microsoft.Extensions.Logging
 @using VeloTimer.Shared.Models
 @using VeloTimer.Shared.Util
@@ -9,74 +7,59 @@
 @inject NavigationManager NavigationManager
 @inject IApiClient Api
 @inject HttpClient Http
+@inject IDialogService DialogService
 @inject ISnackbar SnackBar
 @inject ILogger<RegisterTransponder> Logger
 
-<MudCard>
-    <MudForm Model="@transponderName" @ref="@_transponderForm">
-        <MudCardContent>
-            <MudTextField @bind-Value="transponderName.TransponderLabel" Label="Transponder" For="@(() => transponderName.TransponderLabel)" Validation="@(_formValidator.ValidateValue)" Immediate="true"></MudTextField>
-            <MudField Label="Gyldighet">
-                <MudDateRangePicker @bind-DateRange="transponderName.ValidPeriod" @ref="@_dateRangePicker">
-                    <PickerActions>
-                        <MudButton Class="mr-auto align-self-start" OnClick="@(() => _dateRangePicker.Clear())">Clear</MudButton>
-                        <MudButton OnClick="@(() => _dateRangePicker.Close(false))">Cancel</MudButton>
-                        <MudButton Color="Color.Primary" OnClick="@(() => _dateRangePicker.Close())">Ok</MudButton>
-                    </PickerActions>
-                </MudDateRangePicker>
-            </MudField>
-            <MudHidden Breakpoint="Breakpoint.None" Invert="true">
-                <MudTextField @bind-Value="transponderName.Owner" ReadOnly="true" For="@(() => transponderName.Owner)"  Validation="@(_formValidator.ValidateValue)" Immediate="true"/>
-            </MudHidden>
-        </MudCardContent>
-        <MudCardActions>
-            <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary" OnClick="@(async () => await Register())">Registrer</MudButton>
-        </MudCardActions>
-    </MudForm>
-</MudCard>
-        
-<MudTable ServerData="@LoadTransponderNames" Breakpoint="Breakpoint.None" T="TransponderOwnershipWeb" OnRowClick="@ToggleEdit" @ref="_table">
-    <HeaderContent>
-        <MudTh>Transponder</MudTh>
-        <MudTh>Gyldig fra</MudTh>
-        <MudTh>Gyldig til</MudTh>
-    </HeaderContent>
-    <RowTemplate Context="transpondername">
-        <MudTd>@transpondername.TransponderLabel</MudTd>
-        <MudTd>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</MudTd>
-        <MudTd>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</MudTd>
-    </RowTemplate>
-    <PagerContent>
-        <MudHidden Breakpoint="Breakpoint.None" Invert="true">
-            <MudTablePager/>
-        </MudHidden>
-    </PagerContent>
-    <ChildRowContent Context="transpondername">
-        @if (@transpondername.ShowEdit)
-        {
-            <MudTr>
-                <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
-                    <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
-                        OnClick="@(() => RemoveRegistration(transpondername.TransponderLabel, transpondername.OwnedFrom, transpondername.OwnedUntil))">
-                        Slett
-                    </MudButton>
-                </MudTd>
-            </MudTr>
-        }
-    </ChildRowContent>
-</MudTable>
+<MudGrid>
+    <MudItem xs="12">
+        <MudTable ServerData="@LoadTransponderNames" Breakpoint="Breakpoint.None" T="TransponderOwnershipWeb" OnRowClick="@ToggleEdit" @ref="_table">
+            <HeaderContent>
+                <MudTh>Transponder</MudTh>
+                <MudTh>Gyldig fra</MudTh>
+                <MudTh>Gyldig til</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="transpondername">
+                <MudTd>@transpondername.TransponderLabel</MudTd>
+                <MudTd>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</MudTd>
+                <MudTd>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudHidden Breakpoint="Breakpoint.None" Invert="true">
+                    <MudTablePager/>
+                </MudHidden>
+            </PagerContent>
+            <ChildRowContent Context="transpondername">
+                @if (@transpondername.ShowEdit)
+                {
+                    <MudTr>
+                        <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
+                            <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
+                                OnClick="@(() => RemoveRegistration(transpondername.TransponderLabel, transpondername.OwnedFrom, transpondername.OwnedUntil))">
+                                Slett
+                            </MudButton>
+                        </MudTd>
+                    </MudTr>
+                }
+            </ChildRowContent>
+            <NoRecordsContent>
+
+            </NoRecordsContent>
+        </MudTable>
+    </MudItem>
+    <MudItem xs="12" Class="align-content-end">
+        <MudFab Color="Color.Primary" Icon="@Icons.Material.Filled.Add" Label="Registrer brikke" OnClick="RegisterNew" />
+    </MudItem>
+</MudGrid>
 
 @code {
     [CascadingParameter]
     private Task<AuthenticationState> authenticationStateTask { get; set; }
-    private TransponderOwnershipWebForm transponderName = new();
     private IEnumerable<TransponderOwnershipWeb> transpondernames;
     private ServerValidator serverValidator;
     private string userId;
     private MudTable<TransponderOwnershipWeb> _table;
-    private MudForm _transponderForm;
-    private MudDateRangePicker _dateRangePicker;
-    private TransponderOwnershipValidator _formValidator = new();
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -84,76 +67,33 @@
         var user = authState.User;
 
         userId = user.FindFirst(c => c.Type == "sub")?.Value;
-        transponderName.Owner = userId;
 
         await base.OnInitializedAsync();
     }
 
+    private async Task RegisterNew()
+    {
+        var parameters = new DialogParameters { ["transponderownership"] = new TransponderOwnershipWeb { Owner = userId } };
+
+        var dialog = DialogService.Show<TransponderDialog>("Registrer brikke", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Cancelled)
+        {
+            await _table.ReloadServerData();
+        }
+    }
+
     private async Task<TableData<TransponderOwnershipWeb>> LoadTransponderNames(TableState state)
     {
-        transpondernames = await Http.GetFromJsonAsync<IEnumerable<TransponderOwnershipWeb>>($"rider/{transponderName.Owner}/transponders");
+        transpondernames = await Http.GetFromJsonAsync<IEnumerable<TransponderOwnershipWeb>>($"rider/{userId}/transponders");
 
         return new TableData<TransponderOwnershipWeb> { TotalItems = transpondernames.Count(), Items = transpondernames };
-    }
-
-    private async Task Register()
-    {
-        await _transponderForm.Validate();
-
-        if (!_transponderForm.IsValid){
-            return;
-        }
-
-        var registration = new TransponderOwnershipWeb
-        {
-            Owner = transponderName.Owner,
-            TransponderLabel = transponderName.TransponderLabel,
-            OwnedFrom = transponderName.ValidPeriod.Start.Value,
-            OwnedUntil = transponderName.ValidPeriod.End.Value
-        };
-
-        var result = await Http.PostAsJsonAsync($"rider/{transponderName.Owner}/transponders", registration);
-        if (result.IsSuccessStatusCode)
-        {
-            SnackBar.Add($"Brikke {transponderName.TransponderLabel} registrert", MudBlazor.Severity.Success);
-            await _table.ReloadServerData();
-        }
-        else if (result.StatusCode == System.Net.HttpStatusCode.Conflict)
-        {
-            SnackBar.Add($"Brikke {transponderName.TransponderLabel} er alt registrert for valgt periode");
-            Console.WriteLine($"Could not register transponder {transponderName.TransponderLabel} - {result.StatusCode}");
-        }
-        else
-        {
-            SnackBar.Add($"Problemer med registrering av {transponderName.TransponderLabel}");
-            Console.WriteLine($"Could not register transponder {transponderName.TransponderLabel} - {result.StatusCode}");
-        }
-    }
-
-    private async void HandleValidSubmit()
-    {
-        var result = await Http.PostAsJsonAsync($"rider/{transponderName.Owner}/transponders", transponderName);
-        if (result.IsSuccessStatusCode)
-        {
-            SnackBar.Add($"Brikke {transponderName.TransponderLabel} registrert", MudBlazor.Severity.Success);
-            await _table.ReloadServerData();
-        }
-        else
-        {
-            serverValidator.Validate(result, transponderName);
-            Console.WriteLine($"{result.StatusCode}");
-        }
     }
 
     private void ToggleEdit(TableRowClickEventArgs<TransponderOwnershipWeb> transponderName)
     {
         transponderName.Item.ShowEdit = !transponderName.Item.ShowEdit;
-    }
-
-    private void ResetForm()
-    {
-        transponderName = new();
-        transponderName.Owner = userId;
     }
 
     private async void RemoveRegistration(string label, DateTimeOffset from, DateTimeOffset until)
@@ -166,26 +106,5 @@
         SnackBar.Add($"Slettet registrering for brikke {label}", MudBlazor.Severity.Error);
 
         await _table.ReloadServerData();
-    }
-
-    public class TransponderOwnershipValidator : AbstractValidator<TransponderOwnershipWebForm>
-    {
-        public TransponderOwnershipValidator()
-        {
-            RuleFor(x => x.Owner)
-                .NotEmpty();
-
-            RuleFor(x => x.TransponderLabel)
-                .NotEmpty()
-                .Must((value) => TransponderIdConverter.CodeToId(value) > 0);
-        }
-
-        public Func<object, string, Task<IEnumerable<string>>> ValidateValue => async (model, propertyName) =>
-        {
-            var result = await ValidateAsync(ValidationContext<TransponderOwnershipWebForm>.CreateWithOptions((TransponderOwnershipWebForm)model, x => x.IncludeProperties(propertyName)));
-            if (result.IsValid)
-                return Array.Empty<string>();
-            return result.Errors.Select(e => e.ErrorMessage);
-        };
     }
 }
