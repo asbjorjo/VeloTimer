@@ -7,7 +7,8 @@
 @inject SignOutSessionStateManager SignOutManager
 @inject ISnackbar SnackBar
 
-<MudTabs Color="Color.Primary" DisableSliderAnimation="false" Position="Position.Bottom" Centered="true" ActivePanelIndexChanged="@HandlePanelChanged" @ref="_tabs">
+<MudContainer>
+<MudTabs Color="Color.Primary" DisableSliderAnimation="false" Centered="true" ActivePanelIndexChanged="@HandlePanelChanged" @ref="_tabs">
     <MudTabPanel Text="Profil" ID="@("profile")">
         <ProfileEdit />
     </MudTabPanel>
@@ -18,6 +19,7 @@
         <ProfileVisibility />
     </MudTabPanel>*@
 </MudTabs>
+</MudContainer>
 
 @code {
     [CascadingParameter]
