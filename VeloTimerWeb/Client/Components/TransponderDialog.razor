@@ -10,7 +10,7 @@
         <MudCardMedia Image="images/mylaps-prochip-flex.png" Height="200"/>
         <MudForm Model="@transponderName" @ref="@_transponderForm">
             <MudTextField @bind-Value="transponderName.TransponderLabel" Label="Brikke" For="@(() => transponderName.TransponderLabel)" Validation="@(_formValidator.ValidateValue)" Immediate="true" Counter=8 />
-            <MudDateRangePicker Label="Gyldighet" @bind-DateRange="transponderName.ValidPeriod" @ref="@_dateRangePicker" PickerVariant="PickerVariant.Dialog">
+            <MudDateRangePicker Label="Gyldighet" @bind-DateRange="transponderName.ValidPeriod" @ref="@_dateRangePicker" PickerVariant="PickerVariant.Dialog" DisplayMonths=1>
                 <PickerActions>
                     <MudButton Class="mr-auto align-self-start" OnClick="@(() => _dateRangePicker.Clear())">Nullstill</MudButton>
                     <MudButton OnClick="@(() => _dateRangePicker.Close(false))">Avbryt</MudButton>
