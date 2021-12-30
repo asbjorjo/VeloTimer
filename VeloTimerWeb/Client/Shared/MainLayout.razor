@@ -9,15 +9,10 @@
 
 <MudLayout>
     <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => ToggleDrawer())" />
         <MudIconButton Icon="@Icons.Material.Filled.Home" Color="Color.Inherit" Link="#" />
         <MudText Typo="Typo.h5" Class="ml-3">VeloTime</MudText>
         <MudSpacer />
-        <MudIconButton Icon="@Icons.Material.Filled.EmojiEvents" Color="Color.Inherit" Link="/track/besttimes"/>
-        <AuthorizeView>
-            <Authorized>
-                <MudIconButton Icon="@Icons.Material.Filled.List" Color="Color.Inherit" Link="/rider/times"/>
-            </Authorized>
-        </AuthorizeView>
         <AuthorizeView>
             <Authorized>
                 <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Link="/authentication/profile" />
