@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,6 +26,20 @@ namespace VeloTimerWeb.Api.Controllers
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _service = service ?? throw new ArgumentNullException(nameof(service));
+        }
+
+        [Authorize(Roles = "Admin")]
+        [Route("ownerships")]
+        [HttpGet]
+        public async Task<IActionResult> Ownerships([FromQuery] PaginationParameters pagination)
+        {
+            var transponders = await _service.GetTransponderOwnershipAsync(pagination);
+
+            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(transponders.Pagination));
+
+            var result = transponders.Select(x => x.ToWeb());
+
+            return Ok(result);
         }
 
         [AllowAnonymous]

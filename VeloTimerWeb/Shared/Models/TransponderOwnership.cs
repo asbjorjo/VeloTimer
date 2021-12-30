@@ -16,5 +16,16 @@ namespace VeloTimer.Shared.Models
         public Rider Owner { get; set; }
         public DateTime OwnedFrom { get; set; }
         public DateTime OwnedUntil { get; set; }
+
+        public TransponderOwnershipWeb ToWeb()
+        {
+            return new TransponderOwnershipWeb
+            {
+                Owner = Owner.UserId,
+                TransponderLabel = Transponder.SystemId,
+                OwnedFrom = OwnedFrom,
+                OwnedUntil = OwnedUntil
+            };
+        }
     }
 }

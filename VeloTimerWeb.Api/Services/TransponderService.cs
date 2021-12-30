@@ -22,6 +22,15 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        public async Task<PaginatedList<TransponderOwnership>> GetTransponderOwnershipAsync(PaginationParameters pagination)
+        {
+            var query = _context.Set<TransponderOwnership>()
+                .Include(x => x.Owner)
+                .Include(x => x.Transponder);
+
+            return await query.ToPaginatedListAsync(pagination.PageNumber, pagination.PageSize);
+        }
+
         public async Task<int> GetActiveCount(DateTimeOffset FromTime, DateTimeOffset? ToTime)
         {
             var fromtime = FromTime.UtcDateTime;

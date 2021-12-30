@@ -330,5 +330,19 @@ namespace VeloTimerWeb.Client.Services
             using var response = await _client.DeleteAsync($"rider/{userid}");
             response.EnsureSuccessStatusCode();
         }
+
+        public async Task<PaginatedResponse<TransponderOwnershipWeb>> GetTransponderOwners(PaginationParameters pagination)
+        {
+            using var response = await _client.GetAsync($"transponders/ownerships?{pagination.ToQueryString()}");
+            response.EnsureSuccessStatusCode();
+            
+            var transponders = new PaginatedResponse<TransponderOwnershipWeb>
+            {
+                Items = await response.Content.ReadFromJsonAsync<List<TransponderOwnershipWeb>>(),
+                Pagination = JsonSerializer.Deserialize<Pagination>(response.Headers.GetValues("X-Pagination").First())
+            };
+
+            return transponders;
+        }
     }
 }

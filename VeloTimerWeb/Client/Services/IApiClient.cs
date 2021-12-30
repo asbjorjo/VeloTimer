@@ -13,6 +13,7 @@ namespace VeloTimerWeb.Client.Services
         Task DeleteRiderProfile(string userid);
         Task SaveRiderProfile(RiderWeb riderWeb);
 
+        Task<PaginatedResponse<TransponderOwnershipWeb>> GetTransponderOwners(PaginationParameters pagination);
         Task<int> GetActiveTransponderCount(DateTimeOffset fromtime, DateTimeOffset? totime);
         Task<int> GetActiveRiderCount(DateTimeOffset fromtime, DateTimeOffset? totime);
         Task<IEnumerable<Transponder>> GetActiveTransponders(DateTimeOffset fromtime, DateTimeOffset? totime);

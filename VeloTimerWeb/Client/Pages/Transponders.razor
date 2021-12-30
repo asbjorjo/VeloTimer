@@ -1,0 +1,40 @@
+﻿@page "/transponders"
+@using VeloTimer.Shared.Util
+@using VeloTimer.Shared.Models
+@layout MainLayout
+@inject IApiClient Api
+
+<MudContainer>
+    <MudTable ServerData="@LoadTransponders" T="TransponderOwnershipWeb" Breakpoint="Breakpoint.None">
+        <HeaderContent>
+            <MudTh>Transponder</MudTh>
+            <MudTh>Eier</MudTh>
+            <MudTh>Gyldig fra</MudTh>
+            <MudTh>Gyldig til</MudTh>
+        </HeaderContent>
+        <RowTemplate Context="transpondername">
+            <MudTd>@TransponderIdConverter.IdToCode(long.Parse(transpondername.TransponderLabel))</MudTd>
+            <MudTd>@transpondername.Owner</MudTd>
+            <MudTd>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</MudTd>
+            <MudTd>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+</MudContainer>
+
+@code {
+    public async Task<TableData<TransponderOwnershipWeb>> LoadTransponders(TableState state)
+    {
+        var pagination = new PaginationParameters
+        {
+            PageNumber = state.Page + 1,
+            PageSize = state.PageSize
+        };
+
+        var transponderData = await Api.GetTransponderOwners(pagination);
+
+        return new TableData<TransponderOwnershipWeb> { TotalItems = transponderData.Pagination.TotalCount, Items = transponderData.Items };
+    }
+}
