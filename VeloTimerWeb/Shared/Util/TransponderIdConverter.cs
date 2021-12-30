@@ -45,25 +45,29 @@ namespace VeloTimer.Shared.Util
             if (string.IsNullOrWhiteSpace(code))
                 return id;
 
-            code = code.ToUpper().Remove(code.IndexOf("-"), 1);
+            if (code.IndexOf("-") > 0)
+                code = code.ToUpper().Remove(code.IndexOf("-"), 1);
 
             if (code.Length == 7)
             {
                 code = "C" + code;
             }
 
-            var codeArray = code.ToCharArray();
-
-            if (Array.Exists(Characters, c => codeArray[0] == c)
-                && Array.Exists(Characters, c => codeArray[1] == c)
-                && Array.Exists(Characters, c => codeArray[2] == c))
+            if (code.Length == 8)
             {
-                id = numericOffset
-                     * (Array.IndexOf(Characters, codeArray[0]) * 225
-                        + Array.IndexOf(Characters, codeArray[1]) * 15
-                        + Array.IndexOf(Characters, codeArray[2]));
-                id += int.Parse(code.Substring(3, 5));
-                id += idOffset;
+                var codeArray = code.ToCharArray();
+
+                if (Array.Exists(Characters, c => codeArray[0] == c)
+                    && Array.Exists(Characters, c => codeArray[1] == c)
+                    && Array.Exists(Characters, c => codeArray[2] == c))
+                {
+                    id = numericOffset
+                         * (Array.IndexOf(Characters, codeArray[0]) * 225
+                            + Array.IndexOf(Characters, codeArray[1]) * 15
+                            + Array.IndexOf(Characters, codeArray[2]));
+                    id += int.Parse(code.Substring(3, 5));
+                    id += idOffset;
+                }
             }
 
             return id;
