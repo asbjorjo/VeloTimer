@@ -6,6 +6,21 @@
 @inject AuthenticationStateProvider authStatProvider
 
 <CustomRemoteAuthenticatorView Action="@Action">
+    <LoggingIn>
+        <MudContainer>
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
+        </MudContainer>
+    </LoggingIn>
+    <CompletingLoggingIn>
+        <MudContainer>
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
+        </MudContainer>
+    </CompletingLoggingIn>
+    <CompletingLogOut>
+        <MudContainer>
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
+        </MudContainer>
+    </CompletingLogOut>
 </CustomRemoteAuthenticatorView>
 
 
