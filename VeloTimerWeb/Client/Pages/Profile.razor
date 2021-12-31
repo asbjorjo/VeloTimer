@@ -1,11 +1,15 @@
 ﻿@page "/rider"
 @page "/rider/{Tab}"
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.WebAssembly.Authentication
 @using VeloTimer.Shared.Models
 @inject IApiClient Api
 @inject NavigationManager Navigation
 @inject SignOutSessionStateManager SignOutManager
 @inject ISnackbar SnackBar
+
 
 <MudContainer>
 <MudTabs Color="Color.Primary" DisableSliderAnimation="false" Centered="true" ActivePanelIndexChanged="@HandlePanelChanged" @ref="_tabs">
