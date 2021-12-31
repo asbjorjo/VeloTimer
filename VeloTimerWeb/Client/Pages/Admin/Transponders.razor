@@ -1,4 +1,7 @@
 ﻿@page "/admin/transponders"
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.AspNetCore.Authorization
 @using VeloTimer.Shared.Util
 @using VeloTimer.Shared.Models
 @layout MainLayout
@@ -7,17 +10,20 @@
 <MudContainer>
     <MudTable ServerData="@LoadTransponders" T="TransponderOwnershipWeb" Breakpoint="Breakpoint.None">
         <HeaderContent>
-            <MudTh>Transponder</MudTh>
-            <MudTh>Eier</MudTh>
-            <MudTh>Gyldig fra</MudTh>
-            <MudTh>Gyldig til</MudTh>
+            <MudTh><MudTableSortLabel T="TransponderOwnershipWeb" SortLabel="transponderlabel">Transponder</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="TransponderOwnershipWeb" SortLabel="ridername">Eier</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="TransponderOwnershipWeb" SortLabel="ownedfrom">Gyldig fra</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="TransponderOwnershipWeb" SortLabel="owneduntil">Gyldig til</MudTableSortLabel></MudTh>
         </HeaderContent>
         <RowTemplate Context="transpondername">
             <MudTd>@TransponderIdConverter.IdToCode(long.Parse(transpondername.TransponderLabel))</MudTd>
-            <MudTd>@transpondername.Owner</MudTd>
+            <MudTd>@transpondername.Owner.RiderLastName, @transpondername.Owner.RiderFirstName</MudTd>
             <MudTd>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</MudTd>
             <MudTd>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</MudTd>
         </RowTemplate>
+        <LoadingContent>
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
+        </LoadingContent>
         <PagerContent>
             <MudTablePager />
         </PagerContent>
