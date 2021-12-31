@@ -58,6 +58,7 @@
     private IEnumerable<TransponderOwnershipWeb> transpondernames;
     private ServerValidator serverValidator;
     private string userId;
+    private RiderWeb rider;
     private MudTable<TransponderOwnershipWeb> _table;
 
 
@@ -67,13 +68,14 @@
         var user = authState.User;
 
         userId = user.FindFirst(c => c.Type == "sub")?.Value;
+        rider = await Api.GetRiderByUserId(userId);
 
         await base.OnInitializedAsync();
     }
 
     private async Task RegisterNew()
     {
-        var parameters = new DialogParameters { ["transponderownership"] = new TransponderOwnershipWeb { Owner = userId } };
+        var parameters = new DialogParameters { ["transponderownership"] = new TransponderOwnershipWeb { Owner = rider } };
 
         var dialog = DialogService.Show<TransponderDialog>("Registrer brikke", parameters);
         var result = await dialog.Result;
@@ -101,7 +103,7 @@
         var authState = await authenticationStateTask;
         var user = authState.User;
 
-        await Api.RemoveTransponderRegistration(userId, label, from, until);
+        await Api.RemoveTransponderRegistration(rider.UserId, label, from, until);
 
         SnackBar.Add($"Slettet registrering for brikke {label}", MudBlazor.Severity.Error);
 

@@ -123,13 +123,7 @@ namespace VeloTimerWeb.Api.Controllers
                 .ToListAsync();
 
             var transponders = transponders1
-                .Select(to => new TransponderOwnershipWeb
-                {
-                    OwnedFrom = to.OwnedFrom,
-                    OwnedUntil = to.OwnedUntil,
-                    Owner = to.Owner.Name,
-                    TransponderLabel = TransponderIdConverter.IdToCode(long.Parse(to.Transponder.SystemId))
-                }).ToList();
+                .Select(to => to.ToWeb()).ToList();
 
             return transponders;
         }
@@ -272,7 +266,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             await _context.AddAsync(value);
             await _context.SaveChangesAsync();
-            ownerWeb.Owner = dbrider.Name;
+            ownerWeb.Owner = dbrider.ToWeb();
 
             return Ok();
         }

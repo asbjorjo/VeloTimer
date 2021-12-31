@@ -21,7 +21,7 @@ namespace VeloTimer.Shared.Models
         {
             return new TransponderOwnershipWeb
             {
-                Owner = Owner.UserId,
+                Owner = Owner.ToWeb(),
                 TransponderLabel = Transponder.SystemId,
                 OwnedFrom = OwnedFrom,
                 OwnedUntil = OwnedUntil
