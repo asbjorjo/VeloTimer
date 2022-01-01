@@ -1,4 +1,5 @@
 ﻿@page "/admin/transponders"
+@page "/admin/transponders/{Tab}"
 @attribute [Authorize(Roles = "Admin")]
 
 @using Microsoft.AspNetCore.Authorization
@@ -6,48 +7,102 @@
 @using VeloTimer.Shared.Models
 @layout MainLayout
 @inject IApiClient Api
+@inject NavigationManager Navigation
 @inject ISnackbar SnackBar
 
 <MudContainer>
-    <MudTable ServerData="@LoadTransponders" T="TransponderOwnershipWeb" Breakpoint="Breakpoint.None" OnRowClick="@ToggleEdit" @ref="_table">
-        <HeaderContent>
-            <MudTh><MudTableSortLabel T="TransponderOwnershipWeb" SortLabel="transponderlabel">Transponder</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel T="TransponderOwnershipWeb" SortLabel="ridername">Eier</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel T="TransponderOwnershipWeb" SortLabel="ownedfrom">Gyldig fra</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel T="TransponderOwnershipWeb" SortLabel="owneduntil">Gyldig til</MudTableSortLabel></MudTh>
-        </HeaderContent>
-        <RowTemplate Context="transpondername">
-            <MudTd>@transpondername.Transponder.Label</MudTd>
-            <MudTd>@transpondername.Owner.RiderLastName, @transpondername.Owner.RiderFirstName</MudTd>
-            <MudTd>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</MudTd>
-            <MudTd>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</MudTd>
-        </RowTemplate>
-        <ChildRowContent Context="transpondername">
-            @if (@transpondername.ShowEdit)
-            {
-                <MudTr>
-                    <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
-                        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
-                            OnClick="@(() => RemoveRegistration(transpondername))">
-                            Slett
-                        </MudButton>
-                    </MudTd>
-                </MudTr>
-            }
-        </ChildRowContent>
-        <LoadingContent>
-            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
-        </LoadingContent>
-        <PagerContent>
-            <MudTablePager />
-        </PagerContent>
-    </MudTable>
+    <MudTabs Color="Color.Primary" DisableSliderAnimation="false" Centered="true" ActivePanelIndexChanged="@HandlePanelChanged" @ref="_tabs">
+        <MudTabPanel Text="Eierskap" ID="@("ownership")">
+            <MudTable ServerData="@LoadTransponderOwnerships" T="TransponderOwnershipWeb" Breakpoint="Breakpoint.None" OnRowClick="@ToggleEdit" @ref="_table">
+                <HeaderContent>
+                    <MudTh><MudTableSortLabel T="TransponderOwnershipWeb" SortLabel="transponderlabel">Transponder</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel T="TransponderOwnershipWeb" SortLabel="ridername">Eier</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel T="TransponderOwnershipWeb" SortLabel="ownedfrom">Gyldig fra</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel T="TransponderOwnershipWeb" SortLabel="owneduntil">Gyldig til</MudTableSortLabel></MudTh>
+                </HeaderContent>
+                <RowTemplate Context="transpondername">
+                    <MudTd>@transpondername.Transponder.Label</MudTd>
+                    <MudTd>@transpondername.Owner.RiderLastName, @transpondername.Owner.RiderFirstName</MudTd>
+                    <MudTd>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</MudTd>
+                    <MudTd>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</MudTd>
+                </RowTemplate>
+                <ChildRowContent Context="transpondername">
+                    @if (@transpondername.ShowEdit)
+                    {
+                        <MudTr>
+                            <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
+                                <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
+                                    OnClick="@(() => RemoveRegistration(transpondername))">
+                                    Slett
+                                </MudButton>
+                            </MudTd>
+                        </MudTr>
+                    }
+                </ChildRowContent>
+                <LoadingContent>
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
+                </LoadingContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudTabPanel>
+        <MudTabPanel Text="Brikker" ID="@("overview")">
+            <MudTable ServerData="@LoadTransponders" T="TransponderWeb" Breakpoint="Breakpoint.None">
+                <HeaderContent>
+                    <MudTh><MudTableSortLabel T="TransponderWeb" SortLabel="transponderlabel">Transponder</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel T="TransponderWeb" SortLabel="lastpassing">Sist sett</MudTableSortLabel></MudTh>
+                    <MudTh><MudTableSortLabel T="TransponderWeb" SortLabel="track">Bane</MudTableSortLabel></MudTh>
+                </HeaderContent>
+                <RowTemplate Context="transponder">
+                    <MudTd>@transponder.Label</MudTd>
+                    <MudTd></MudTd>
+                    <MudTd></MudTd>
+                </RowTemplate>
+                <LoadingContent>
+                    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
+                </LoadingContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudTabPanel>
+    </MudTabs>
 </MudContainer>
 
 @code {
+    [Parameter]
+    public string Tab { get; set; }
+
+    private MudTabs _tabs;
+    private string _activeTab;
     private MudTable<TransponderOwnershipWeb> _table;
 
-    private async Task<TableData<TransponderOwnershipWeb>> LoadTransponders(TableState state)
+    protected async override Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+
+        if (!string.IsNullOrWhiteSpace(Tab) && _activeTab != Tab)
+        {
+            _tabs.ActivatePanel(Tab);
+            _activeTab = Tab;
+        }
+    }
+
+    private void HandlePanelChanged(int panel)
+    {
+        _activeTab = _tabs.Panels[panel].ID.ToString();
+        Navigation.NavigateTo($"admin/transponders/{_activeTab}");
+    }
+
+    private async Task<TableData<TransponderWeb>> LoadTransponders(TableState state)
+    {
+        await Task.CompletedTask;
+
+        return new TableData<TransponderWeb> { TotalItems = 0, Items = Enumerable.Empty<TransponderWeb>() };
+    }
+
+    private async Task<TableData<TransponderOwnershipWeb>> LoadTransponderOwnerships(TableState state)
     {
         var pagination = new PaginationParameters
         {
