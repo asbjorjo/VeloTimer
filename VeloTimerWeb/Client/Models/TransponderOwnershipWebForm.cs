@@ -22,9 +22,9 @@ namespace VeloTimerWeb.Client.Models
 
             var form = new TransponderOwnershipWebForm { Owner = transponderOwnership.Owner.UserId};
 
-            if (!string.IsNullOrWhiteSpace(transponderOwnership.TransponderLabel))
+            if (!string.IsNullOrWhiteSpace(transponderOwnership.Transponder?.Label))
             {
-                form.TransponderLabel = transponderOwnership.TransponderLabel;
+                form.TransponderLabel = transponderOwnership.Transponder.Label;
             }
 
             if (transponderOwnership.OwnedFrom != default && transponderOwnership.OwnedUntil != default)

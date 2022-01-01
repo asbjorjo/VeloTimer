@@ -224,11 +224,11 @@ namespace VeloTimerWeb.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult<TransponderOwnershipWeb>> RegisterTransponder(string rider, TransponderOwnershipWeb ownerWeb)
         {
-            _logger.LogInformation($"Transponder: {ownerWeb.TransponderLabel}"
+            _logger.LogInformation($"Transponder: {ownerWeb.Transponder.Label}"
                                    + $" - Name: {ownerWeb.Owner}"
                                    + $" - Validity: {ownerWeb.OwnedFrom}-{ownerWeb.OwnedUntil}");
 
-            var transponderId = TransponderIdConverter.CodeToId(ownerWeb.TransponderLabel).ToString();
+            var transponderId = TransponderIdConverter.CodeToId(ownerWeb.Transponder.Label).ToString();
 
             var transponder = await _context.Set<Transponder>().SingleOrDefaultAsync(t => t.SystemId == transponderId && t.TimingSystem == TransponderType.TimingSystem.Mylaps_X2);
             var ownfrom = ownerWeb.OwnedFrom.ToUniversalTime();
@@ -249,7 +249,7 @@ namespace VeloTimerWeb.Api.Controllers
 
                 if (existing.Any())
                 {
-                    ModelState.AddModelError(nameof(ownerWeb.TransponderLabel), "Already registered for chosen period.");
+                    ModelState.AddModelError(nameof(ownerWeb.Transponder.Label), "Already registered for chosen period.");
                     return Conflict(new ValidationProblemDetails(ModelState));
                 }
             }
@@ -278,21 +278,24 @@ namespace VeloTimerWeb.Api.Controllers
             if (string.IsNullOrWhiteSpace(rider)) return BadRequest();
             if (string.IsNullOrWhiteSpace(label)) return BadRequest();
 
-            if (User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != rider) return Unauthorized();
+            if ((User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value == rider) || User.IsInRole("Admin"))
+            {
+                var ownerships = await _context.Set<TransponderOwnership>()
+                    .Where(x => x.Owner.UserId == rider)
+                    .Where(x => x.Transponder.SystemId == label)
+                    .Where(x => x.OwnedFrom == from.UtcDateTime)
+                    .Where(x => x.OwnedUntil == until.UtcDateTime)
+                    .ToListAsync();
 
-            var ownerships = await _context.Set<TransponderOwnership>()
-                .Where(x => x.Owner.UserId == rider)
-                .Where(x => x.Transponder.SystemId == TransponderIdConverter.CodeToId(label).ToString())
-                .Where(x => x.OwnedFrom == from.UtcDateTime)
-                .Where(x => x.OwnedUntil == until.UtcDateTime)
-                .ToListAsync();
+                if (!ownerships.Any()) return NotFound();
 
-            if (!ownerships.Any()) return NotFound();
+                _context.RemoveRange(ownerships);
+                await _context.SaveChangesAsync();
 
-            _context.RemoveRange(ownerships);
-            await _context.SaveChangesAsync();
+                return Ok();
+            }
 
-            return Ok();
+            return Unauthorized();
         }
     }
 }

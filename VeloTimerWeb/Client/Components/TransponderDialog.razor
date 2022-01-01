@@ -63,9 +63,9 @@
         var registration = new TransponderOwnershipWeb
         {
             Owner = TransponderOwnership.Owner,
-            TransponderLabel = transponderName.TransponderLabel,
-            OwnedFrom = transponderName.ValidPeriod.Start.Value,
-            OwnedUntil = transponderName.ValidPeriod.End.Value
+            Transponder = new TransponderWeb { Label = transponderName.TransponderLabel },
+            OwnedFrom = transponderName.ValidPeriod.Start.Value.StartOfDay(),
+            OwnedUntil = transponderName.ValidPeriod.End.Value.EndOfDay()
         };
 
         var result = await Http.PostAsJsonAsync($"rider/{transponderName.Owner}/transponders", registration);

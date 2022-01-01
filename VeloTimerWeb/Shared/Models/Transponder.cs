@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using VeloTimer.Shared.Util;
 
 namespace VeloTimer.Shared.Models
 {
@@ -12,5 +13,15 @@ namespace VeloTimer.Shared.Models
 
         public IEnumerable<Passing> Passings { get; set; }
         public IEnumerable<TransponderOwnership> Owners { get; set; }
+
+        public TransponderWeb ToWeb()
+        {
+            return new TransponderWeb
+            {
+                Label = TransponderIdConverter.IdToCode(long.Parse(SystemId)),
+                SystemId = SystemId,
+                TimingSystem = TimingSystem.ToString()
+            };
+        }
     }
 }

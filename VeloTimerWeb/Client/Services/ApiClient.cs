@@ -309,12 +309,19 @@ namespace VeloTimerWeb.Client.Services
 
         private static string TimeFormatter(DateTimeOffset? time)
         {
-            return time?.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
+            var timeString = time?.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
+
+            if (!string.IsNullOrEmpty(timeString) && timeString.EndsWith("999000Z"))
+            {
+                timeString = timeString.Replace("999000Z", "999Z");
+            }
+
+            return timeString;
         }
 
-        public async Task RemoveTransponderRegistration(string owner, string label, DateTimeOffset from, DateTimeOffset until)
+        public async Task RemoveTransponderRegistration(TransponderOwnershipWeb transponderOwnership)
         {
-            using var response = await _client.DeleteAsync($"rider/{owner}/transponder/{label}/{TimeFormatter(from)}/{TimeFormatter(until)}");
+            using var response = await _client.DeleteAsync($"rider/{transponderOwnership.Owner.UserId}/transponder/{transponderOwnership.Transponder.SystemId}/{TimeFormatter(transponderOwnership.OwnedFrom)}/{TimeFormatter(transponderOwnership.OwnedUntil)}");
             response.EnsureSuccessStatusCode();
         }
 

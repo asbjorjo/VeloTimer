@@ -9,7 +9,7 @@ namespace VeloTimerWeb.Client.Services
     public interface IApiClient
     {
         Task<RiderWeb> GetRiderByUserId(string userId);
-        Task RemoveTransponderRegistration(string owner, string label, DateTimeOffset from, DateTimeOffset until);
+        Task RemoveTransponderRegistration(TransponderOwnershipWeb transponderOwnership);
         Task DeleteRiderProfile(string userid);
         Task SaveRiderProfile(RiderWeb riderWeb);
 
