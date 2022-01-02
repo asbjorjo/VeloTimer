@@ -14,5 +14,27 @@ namespace VeloTimer.Shared.Models
 
         public long TransponderId { get; private set; }
         public long LoopId { get; private set; }
+
+        public PassingWeb ToWeb()
+        {
+            return new PassingWeb
+            {
+                Time = Time,
+                Transponder = Transponder.ToWeb(),
+                Track = Loop?.Track?.ToWeb(),
+                LoopName = Loop?.Description
+            };
+        }
+
+        public PassingWeb ToWeb(TransponderWeb transponder)
+        {
+            return new PassingWeb
+            {
+                Time = Time,
+                Transponder = transponder,
+                Track = Loop?.Track?.ToWeb(),
+                LoopName = Loop?.Description
+            };
+        }
     }
 }

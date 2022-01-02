@@ -1,0 +1,48 @@
+﻿@page "/admin/riders"
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.AspNetCore.Authorization
+@using VeloTimer.Shared.Util
+@using VeloTimer.Shared.Models
+@layout MainLayout
+@inject IApiClient Api
+@inject NavigationManager Navigation
+@inject ISnackbar SnackBar
+
+<MudContainer>
+    <MudTable ServerData="@LoadRiders" T="RiderWeb" Breakpoint="Breakpoint.None" @ref="_table">
+        <HeaderContent>
+            <MudTh><MudTableSortLabel T="RiderWeb" SortLabel="lastname">Etternavn</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="RiderWeb" SortLabel="firstname">Fornavn</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="RiderWeb" SortLabel="displayname">Statistikknavn</MudTableSortLabel></MudTh>
+        </HeaderContent>
+        <RowTemplate Context="rider">
+            <MudTd>@rider.RiderLastName</MudTd>
+            <MudTd>@rider.RiderFirstName</MudTd>
+            <MudTd>@rider.RiderDisplayName</MudTd>
+        </RowTemplate>
+        <LoadingContent>
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
+        </LoadingContent>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+</MudContainer>
+
+@code {
+    private MudTable<RiderWeb> _table;
+
+    private async Task<TableData<RiderWeb>> LoadRiders(TableState state)
+    {
+        var pagination = new PaginationParameters
+        {
+            PageNumber = state.Page + 1,
+            PageSize = state.PageSize
+        };
+
+        var transponderData = await Api.GetRiders(pagination);
+
+        return new TableData<RiderWeb> { TotalItems = transponderData.Pagination.TotalCount, Items = transponderData.Items };
+    }
+}

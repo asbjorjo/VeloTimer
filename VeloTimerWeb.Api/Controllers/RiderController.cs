@@ -37,6 +37,19 @@ namespace VeloTimerWeb.Api.Controllers
             _dbset = _context.Set<Rider>();
         }
 
+        [Authorize(Roles = "Admin")]
+        [HttpGet]
+        public async Task<IActionResult> GetAll([FromQuery] PaginationParameters pagination)
+        {
+            var riders = await _riderService.GetAll(pagination);
+
+            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(riders.Pagination));
+
+            var response = riders.Select(x => x.ToWeb());
+
+            return Ok(response);
+        }
+
         [HttpGet]
         [Route("{userId}")]
         public async Task<ActionResult<RiderWeb>> Get(string userId)

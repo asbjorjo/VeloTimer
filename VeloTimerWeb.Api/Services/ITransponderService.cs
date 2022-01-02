@@ -7,6 +7,7 @@ namespace VeloTimerWeb.Api.Services
 {
     public interface ITransponderService
     {
+        Task<PaginatedList<Transponder>> GetAll(PaginationParameters pagination);   
         Task<PaginatedList<TransponderOwnership>> GetTransponderOwnershipAsync(PaginationParameters pagination);
         Task<int> GetActiveCount(DateTimeOffset fromtime, DateTimeOffset? totime);
         Task<IEnumerable<double>> GetFastest(Transponder transponder, StatisticsItem statisticsItem, DateTimeOffset fromtime, DateTimeOffset? totime, int Count = 10);

@@ -29,6 +29,19 @@ namespace VeloTimerWeb.Api.Controllers
         }
 
         [Authorize(Roles = "Admin")]
+        [HttpGet]
+        public async Task<IActionResult> ListAll([FromQuery] PaginationParameters pagination)
+        {
+            var transponders = await _service.GetAll(pagination);
+
+            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(transponders.Pagination));
+
+            var result = transponders.Select(x => x.ToWeb());
+
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Admin")]
         [Route("ownerships")]
         [HttpGet]
         public async Task<IActionResult> Ownerships([FromQuery] PaginationParameters pagination)

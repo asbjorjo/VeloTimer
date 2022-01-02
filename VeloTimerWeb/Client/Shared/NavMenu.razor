@@ -1,4 +1,5 @@
 ﻿<MudNavMenu>
+    <MudNavLink Href="#" Icon="@Icons.Material.Filled.Home">Forside</MudNavLink>
     <MudNavLink Href="/track/besttimes" Icon="@Icons.Material.Filled.EmojiEvents">Banerekorder</MudNavLink>
     <AuthorizeView>
         <Authorized>
@@ -11,6 +12,7 @@
     <AuthorizeView Roles="Admin">
         <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Admin">
             <MudNavLink Href="/admin/transponders">Brikker</MudNavLink>
+            <MudNavLink Icon="@Icons.Material.Filled.People" Href="/admin/riders">Ryttere</MudNavLink>
         </MudNavGroup>
     </AuthorizeView>
 </MudNavMenu>

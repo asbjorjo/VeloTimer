@@ -50,14 +50,16 @@
         <MudTabPanel Text="Brikker" ID="@("overview")">
             <MudTable ServerData="@LoadTransponders" T="TransponderWeb" Breakpoint="Breakpoint.None">
                 <HeaderContent>
-                    <MudTh><MudTableSortLabel T="TransponderWeb" SortLabel="transponderlabel">Transponder</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel T="TransponderWeb" SortLabel="lastpassing">Sist sett</MudTableSortLabel></MudTh>
-                    <MudTh><MudTableSortLabel T="TransponderWeb" SortLabel="track">Bane</MudTableSortLabel></MudTh>
+                    <MudTh>Transponder</MudTh>
+                    <MudTh>Sist sett</MudTh>
+                    <MudTh>Bane</MudTh>
+                    <MudTh>Loop</MudTh>
                 </HeaderContent>
                 <RowTemplate Context="transponder">
                     <MudTd>@transponder.Label</MudTd>
-                    <MudTd></MudTd>
-                    <MudTd></MudTd>
+                    <MudTd>@transponder.LastSeen?.Time</MudTd>
+                    <MudTd>@transponder.LastSeen?.Track.Name</MudTd>
+                    <MudTd>@transponder.LastSeen?.LoopName</MudTd>
                 </RowTemplate>
                 <LoadingContent>
                     <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
@@ -72,10 +74,10 @@
 
 @code {
     [Parameter]
-    public string Tab { get; set; }
+    public string Tab { get; set; } = "ownership";
 
     private MudTabs _tabs;
-    private string _activeTab;
+    private string _activeTab = "ownership";
     private MudTable<TransponderOwnershipWeb> _table;
 
     protected async override Task OnParametersSetAsync()
@@ -97,9 +99,15 @@
 
     private async Task<TableData<TransponderWeb>> LoadTransponders(TableState state)
     {
-        await Task.CompletedTask;
+        var pagination = new PaginationParameters
+        {
+            PageNumber = state.Page + 1,
+            PageSize = state.PageSize
+        };
 
-        return new TableData<TransponderWeb> { TotalItems = 0, Items = Enumerable.Empty<TransponderWeb>() };
+        var transponderData = await Api.GetTransponders(pagination);
+
+        return new TableData<TransponderWeb> { TotalItems = transponderData.Pagination.TotalCount, Items = transponderData.Items };
     }
 
     private async Task<TableData<TransponderOwnershipWeb>> LoadTransponderOwnerships(TableState state)

@@ -160,6 +160,20 @@ namespace VeloTimerWeb.Client.Services
             return passing;
         }
 
+        public async Task<PaginatedResponse<RiderWeb>> GetRiders(PaginationParameters pagination)
+        {
+            using var response = await _client.GetAsync($"rider?{pagination.ToQueryString()}");
+            response.EnsureSuccessStatusCode();
+
+            var riders = new PaginatedResponse<RiderWeb>
+            {
+                Items = await response.Content.ReadFromJsonAsync<List<RiderWeb>>(),
+                Pagination = JsonSerializer.Deserialize<Pagination>(response.Headers.GetValues("X-Pagination").First())
+            };
+
+            return riders;
+        }
+
         public async Task<RiderWeb> GetRiderByUserId(string userId)
         {
             using var response = await _client.GetAsync($"rider/{userId}");
@@ -336,6 +350,20 @@ namespace VeloTimerWeb.Client.Services
         {
             using var response = await _client.DeleteAsync($"rider/{userid}");
             response.EnsureSuccessStatusCode();
+        }
+
+        public async Task<PaginatedResponse<TransponderWeb>> GetTransponders(PaginationParameters pagination)
+        {
+            using var response = await _client.GetAsync($"transponders/?{pagination.ToQueryString()}");
+            response.EnsureSuccessStatusCode();
+
+            var transponders = new PaginatedResponse<TransponderWeb>
+            {
+                Items = await response.Content.ReadFromJsonAsync<List<TransponderWeb>>(),
+                Pagination = JsonSerializer.Deserialize<Pagination>(response.Headers.GetValues("X-Pagination").First())
+            };
+
+            return transponders;
         }
 
         public async Task<PaginatedResponse<TransponderOwnershipWeb>> GetTransponderOwners(PaginationParameters pagination)
