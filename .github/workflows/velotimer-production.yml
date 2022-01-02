@@ -82,7 +82,7 @@ jobs:
       run: az logout
   deploy_ammcload:
     env:
-      AZURE_AMMC_NAME: 'velotime-noe-ammc'
+      AZURE_AMMC_NAME: 'velotime-ammc-noe'
     needs: build
     runs-on: ubuntu-latest
     steps:
