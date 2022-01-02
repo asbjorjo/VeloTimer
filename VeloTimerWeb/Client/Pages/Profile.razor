@@ -1,0 +1,80 @@
+﻿@page "/rider"
+@page "/rider/{Tab}"
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using VeloTimer.Shared.Models
+@inject IApiClient Api
+@inject NavigationManager Navigation
+@inject SignOutSessionStateManager SignOutManager
+@inject ISnackbar SnackBar
+
+
+<MudContainer>
+<MudTabs Color="Color.Primary" DisableSliderAnimation="false" Centered="true" ActivePanelIndexChanged="@HandlePanelChanged" @ref="_tabs">
+    <MudTabPanel Text="Profil" ID="@("profile")">
+        <ProfileEdit />
+    </MudTabPanel>
+    <MudTabPanel Text="Brikker" ID="@("transponders")">
+        <RegisterTransponder />
+    </MudTabPanel>
+@*    <MudTabPanel Text="Synlighet">
+        <ProfileVisibility />
+    </MudTabPanel>*@
+</MudTabs>
+</MudContainer>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+    [Parameter]
+    public string Tab { get; set; } = "profile";
+    private RiderWeb profile;
+    private MudTabs _tabs;
+    private string _activeTab = "profile";
+
+    protected async override Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+
+        if (!string.IsNullOrWhiteSpace(Tab) && _activeTab != Tab)
+        {
+            _tabs.ActivatePanel(Tab);
+            _activeTab = Tab;
+        }
+    }
+
+    protected async override Task OnInitializedAsync()
+    {
+        await LoadProfile();
+    }
+
+    private void HandlePanelChanged(int panel)
+    {
+        _activeTab = _tabs.Panels[panel].ID.ToString();
+        Navigation.NavigateTo($"rider/{_activeTab}");
+    }
+
+    private async Task LoadProfile()
+    {
+        var authstate = await authenticationStateTask;
+
+        profile = await Api.GetRiderByUserId(authstate.User.Claims.First(x => x.Type == "sub").Value);
+    }
+
+    private async Task SaveProfile()
+    {
+        await Api.SaveRiderProfile(profile);
+        SnackBar.Add("Profil lagret", Severity.Success);
+        await LoadProfile();
+    }
+
+    private async Task DeleteProfile()
+    {
+        await Api.DeleteRiderProfile(profile.UserId);
+        SnackBar.Add("Profil slettet", Severity.Error);
+        await SignOutManager.SetSignOutState();
+        Navigation.NavigateTo("authentication/logout");
+    }
+}

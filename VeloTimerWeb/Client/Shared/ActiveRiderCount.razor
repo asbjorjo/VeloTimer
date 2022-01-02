@@ -7,7 +7,9 @@
 @inject NavigationManager NavigationManager
 @inject HubConnection hubConnection
 
+<MudPaper>
 @(activeriders > 0 ? activeriders : "Ingen") rytter@(activeriders == 1 ? "" : "e") på banen.
+</MudPaper>
 
 @code {
     [Parameter]

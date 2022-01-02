@@ -160,6 +160,20 @@ namespace VeloTimerWeb.Client.Services
             return passing;
         }
 
+        public async Task<PaginatedResponse<RiderWeb>> GetRiders(PaginationParameters pagination)
+        {
+            using var response = await _client.GetAsync($"rider?{pagination.ToQueryString()}");
+            response.EnsureSuccessStatusCode();
+
+            var riders = new PaginatedResponse<RiderWeb>
+            {
+                Items = await response.Content.ReadFromJsonAsync<List<RiderWeb>>(),
+                Pagination = JsonSerializer.Deserialize<Pagination>(response.Headers.GetValues("X-Pagination").First())
+            };
+
+            return riders;
+        }
+
         public async Task<RiderWeb> GetRiderByUserId(string userId)
         {
             using var response = await _client.GetAsync($"rider/{userId}");
@@ -186,6 +200,7 @@ namespace VeloTimerWeb.Client.Services
             }
 
             url.Append("?").Append(pagingParameters.ToQueryString()).Append("&").Append(timeParameters.ToQueryString());
+            url.Append("&orderby=").Append(statisticsParameters.OrderBy);
                         
             using var response = await _client.GetAsync(url.ToString());
             response.EnsureSuccessStatusCode();
@@ -308,12 +323,19 @@ namespace VeloTimerWeb.Client.Services
 
         private static string TimeFormatter(DateTimeOffset? time)
         {
-            return time?.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
+            var timeString = time?.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
+
+            if (!string.IsNullOrEmpty(timeString) && timeString.EndsWith("999000Z"))
+            {
+                timeString = timeString.Replace("999000Z", "999Z");
+            }
+
+            return timeString;
         }
 
-        public async Task RemoveTransponderRegistration(string owner, string label, DateTimeOffset from, DateTimeOffset until)
+        public async Task RemoveTransponderRegistration(TransponderOwnershipWeb transponderOwnership)
         {
-            using var response = await _client.DeleteAsync($"rider/{owner}/transponder/{label}/{TimeFormatter(from)}/{TimeFormatter(until)}");
+            using var response = await _client.DeleteAsync($"rider/{transponderOwnership.Owner.UserId}/transponder/{transponderOwnership.Transponder.SystemId}/{TimeFormatter(transponderOwnership.OwnedFrom)}/{TimeFormatter(transponderOwnership.OwnedUntil)}");
             response.EnsureSuccessStatusCode();
         }
 
@@ -328,6 +350,34 @@ namespace VeloTimerWeb.Client.Services
         {
             using var response = await _client.DeleteAsync($"rider/{userid}");
             response.EnsureSuccessStatusCode();
+        }
+
+        public async Task<PaginatedResponse<TransponderWeb>> GetTransponders(PaginationParameters pagination)
+        {
+            using var response = await _client.GetAsync($"transponders/?{pagination.ToQueryString()}");
+            response.EnsureSuccessStatusCode();
+
+            var transponders = new PaginatedResponse<TransponderWeb>
+            {
+                Items = await response.Content.ReadFromJsonAsync<List<TransponderWeb>>(),
+                Pagination = JsonSerializer.Deserialize<Pagination>(response.Headers.GetValues("X-Pagination").First())
+            };
+
+            return transponders;
+        }
+
+        public async Task<PaginatedResponse<TransponderOwnershipWeb>> GetTransponderOwners(PaginationParameters pagination)
+        {
+            using var response = await _client.GetAsync($"transponders/ownerships?{pagination.ToQueryString()}");
+            response.EnsureSuccessStatusCode();
+            
+            var transponders = new PaginatedResponse<TransponderOwnershipWeb>
+            {
+                Items = await response.Content.ReadFromJsonAsync<List<TransponderOwnershipWeb>>(),
+                Pagination = JsonSerializer.Deserialize<Pagination>(response.Headers.GetValues("X-Pagination").First())
+            };
+
+            return transponders;
         }
     }
 }

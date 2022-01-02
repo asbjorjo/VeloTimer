@@ -101,7 +101,8 @@ namespace VeloTimerWeb.Api.Controllers
             string Track, 
             string StatisticsItem, 
             [FromQuery] TimeParameters timeParameters,
-            [FromQuery] PaginationParameters pagingParameters)
+            [FromQuery] PaginationParameters pagingParameters,
+            [FromQuery] string orderBy)
         {
             var statsitems = await _statisticsService.GetTrackItemsBySlugs(Track, StatisticsItem);
 
@@ -110,7 +111,7 @@ namespace VeloTimerWeb.Api.Controllers
                 return NotFound($"StatisticsItem: {StatisticsItem}");
             }
 
-            var times = await _trackService.GetRecent(statsitems, timeParameters, pagingParameters);
+            var times = await _trackService.GetRecent(statsitems, timeParameters, pagingParameters, orderBy);
             
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
 

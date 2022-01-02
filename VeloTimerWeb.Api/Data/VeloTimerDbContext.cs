@@ -47,6 +47,7 @@ namespace VeloTimerWeb.Api.Data
             {
                 //x.HasMany(p => p.Elements)
                 //    .WithOne(e => e.StatisticsItem);
+                x.HasAlternateKey(x => x.Slug);
             });
 
             //builder.Entity<TimingElement>(x => 
@@ -78,6 +79,7 @@ namespace VeloTimerWeb.Api.Data
             {
                 x.HasMany(x => x.Layouts)
                     .WithOne(x => x.Track);
+                x.HasAlternateKey(x => x.Slug);
             });
 
             builder.Entity<TrackLayout>(x =>
@@ -90,6 +92,7 @@ namespace VeloTimerWeb.Api.Data
                 x.Property(x => x.Name)
                     .IsRequired();
                 x.HasAlternateKey("TrackId", "Name");
+                x.HasAlternateKey(x => x.Slug);
             });
 
             builder.Entity<TrackLayoutPassing>(x =>

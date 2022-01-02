@@ -9,10 +9,13 @@ namespace VeloTimerWeb.Client.Services
     public interface IApiClient
     {
         Task<RiderWeb> GetRiderByUserId(string userId);
-        Task RemoveTransponderRegistration(string owner, string label, DateTimeOffset from, DateTimeOffset until);
+        Task<PaginatedResponse<RiderWeb>> GetRiders(PaginationParameters pagination);
+        Task RemoveTransponderRegistration(TransponderOwnershipWeb transponderOwnership);
         Task DeleteRiderProfile(string userid);
         Task SaveRiderProfile(RiderWeb riderWeb);
 
+        Task<PaginatedResponse<TransponderWeb>> GetTransponders(PaginationParameters pagination);
+        Task<PaginatedResponse<TransponderOwnershipWeb>> GetTransponderOwners(PaginationParameters pagination);
         Task<int> GetActiveTransponderCount(DateTimeOffset fromtime, DateTimeOffset? totime);
         Task<int> GetActiveRiderCount(DateTimeOffset fromtime, DateTimeOffset? totime);
         Task<IEnumerable<Transponder>> GetActiveTransponders(DateTimeOffset fromtime, DateTimeOffset? totime);
