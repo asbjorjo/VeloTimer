@@ -12,7 +12,7 @@ namespace VeloTimer.Shared.Models
         private string track = string.Empty;
         private string layout = string.Empty;
 
-        public string OrderBy { get; set; } = "passingtime:descending";
+        public string OrderBy { get; set; } = "passingtime:desc";
 
         public string Label
         {
