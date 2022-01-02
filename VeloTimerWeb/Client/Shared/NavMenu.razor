@@ -3,15 +3,15 @@
     <MudNavLink Href="/track/besttimes" Icon="@Icons.Material.Filled.EmojiEvents">Banerekorder</MudNavLink>
     <AuthorizeView>
         <Authorized>
-            <MudNavLink Href="/times" Icon="@Icons.Material.Filled.List">Passeringstider</MudNavLink>
-            <MudNavLink Href="/rider/besttimes">Mine bestetider</MudNavLink>
-            <MudNavLink Href="/rider/times">Mine passeringstider</MudNavLink>
-            <MudNavLink Href="/authentication/profile" Icon="@Icons.Material.Filled.AccountCircle">Rediger profil</MudNavLink>
+            <MudNavLink Icon="@Icons.Material.Filled.List" Href="/times">Passeringstider</MudNavLink>
+            <MudNavLink Icon="@Icons.Material.Filled.FormatListNumbered" Href="/rider/besttimes">Mine bestetider</MudNavLink>
+            <MudNavLink Icon="@Icons.Material.Filled.FilterList" Href="/rider/times">Mine passeringstider</MudNavLink>
+            <MudNavLink Icon="@Icons.Material.Filled.AccountCircle" Href="/authentication/profile">Rediger profil</MudNavLink>
         </Authorized>
     </AuthorizeView>
     <AuthorizeView Roles="Admin">
         <MudNavGroup Icon="@Icons.Material.Filled.Settings" Title="Admin">
-            <MudNavLink Href="/admin/transponders">Brikker</MudNavLink>
+            <MudNavLink Icon="@Icons.Material.Filled.Bluetooth" Href="/admin/transponders">Brikker</MudNavLink>
             <MudNavLink Icon="@Icons.Material.Filled.People" Href="/admin/riders">Ryttere</MudNavLink>
         </MudNavGroup>
     </AuthorizeView>
