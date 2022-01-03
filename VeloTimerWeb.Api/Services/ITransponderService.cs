@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
+using VeloTimerWeb.Api.Models;
 
 namespace VeloTimerWeb.Api.Services
 {

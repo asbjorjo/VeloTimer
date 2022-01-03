@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using VeloTimer.Shared.Models;
 
-namespace VeloTimer.Shared.Models
+namespace VeloTimerWeb.Api.Models
 {
     public class TrackSegment
     {
@@ -27,6 +28,16 @@ namespace VeloTimer.Shared.Models
         public TimingLoop End { get; private set; }
 
         public double Length { get; private set; }
+
+        public TrackSegmentWeb ToWeb()
+        {
+            return new TrackSegmentWeb
+            {
+                End = End.ToWeb(),
+                Start = Start.ToWeb(),
+                Length = Length
+            };
+        }
     }
 
     public class TrackSector

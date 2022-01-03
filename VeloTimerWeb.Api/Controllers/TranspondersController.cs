@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Models;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
@@ -72,7 +73,7 @@ namespace VeloTimerWeb.Api.Controllers
         [AllowAnonymous]
         [Route("active")]
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Transponder>>> GetActive(DateTimeOffset FromTime, DateTimeOffset? ToTime)
+        public async Task<ActionResult<IEnumerable<TransponderWeb>>> GetActive(DateTimeOffset FromTime, DateTimeOffset? ToTime)
         {
             var fromtime = FromTime;
             var totime = DateTimeOffset.MaxValue;
@@ -84,7 +85,9 @@ namespace VeloTimerWeb.Api.Controllers
 
             var value = _context.Set<Passing>().Where(p => p.Time >= fromtime && p.Time <= totime).Select(p => p.Transponder).Distinct();
             
-            return await value.ToListAsync();
+            var transponders = await value.ToListAsync();
+
+            return Ok(transponders.Select(x => x.ToWeb()));
         }
 
         [AllowAnonymous]

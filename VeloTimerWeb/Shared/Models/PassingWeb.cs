@@ -12,5 +12,6 @@ namespace VeloTimer.Shared.Models
         public TransponderWeb Transponder { get; set; }
         public TrackWeb Track { get; set; }
         public string LoopName { get; set; }
+        public string SourceId { get; set; }
     }
 }

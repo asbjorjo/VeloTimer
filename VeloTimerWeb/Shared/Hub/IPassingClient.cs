@@ -8,8 +8,8 @@ namespace VeloTimer.Shared.Hub
 {
     public interface IPassingClient
     {
-        Task RegisterPassing(Passing passing);
+        Task RegisterPassing(PassingWeb passing);
         Task NewPassings();
-        Task LastPassing(Passing passing);
+        Task LastPassing(PassingWeb passing);
     }
 }

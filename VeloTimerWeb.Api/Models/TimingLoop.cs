@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
+using VeloTimer.Shared.Models;
+using VeloTimerWeb.Api.Models;
 
-namespace VeloTimer.Shared.Models
+namespace VeloTimerWeb.Api.Models
 {
     public class TimingLoop
     {   
@@ -13,5 +15,16 @@ namespace VeloTimer.Shared.Models
 
         public Track Track { get; set; }
         public IEnumerable<Passing> Passings { get; set; }
+
+        public TimingLoopWeb ToWeb()
+        {
+            return new TimingLoopWeb
+            {
+                Description = Description,
+                Distance = Distance,
+                LoopId = LoopId,
+                Track = Track.ToWeb()
+            };
+        }
     }
 }
