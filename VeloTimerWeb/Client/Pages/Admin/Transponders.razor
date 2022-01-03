@@ -72,6 +72,15 @@
     </MudTabs>
 </MudContainer>
 
+<MudMessageBox @ref="_deleteConfirmation" Title="Bekreft sletting" CancelText="Avbryt">
+    <MessageContent>
+        Sletting er endelig!
+    </MessageContent>
+    <YesButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteForever">Slett!</MudButton>
+    </YesButton>
+</MudMessageBox>
+
 @code {
     [Parameter]
     public string Tab { get; set; } = "ownership";
@@ -79,6 +88,7 @@
     private MudTabs _tabs;
     private string _activeTab = "ownership";
     private MudTable<TransponderOwnershipWeb> _table;
+    private MudMessageBox _deleteConfirmation;
 
     protected async override Task OnParametersSetAsync()
     {
@@ -130,10 +140,15 @@
 
     private async void RemoveRegistration(TransponderOwnershipWeb transponderOwnership)
     {
-        await Api.RemoveTransponderRegistration(transponderOwnership);
+        bool? confirmation = await _deleteConfirmation.Show();
 
-        SnackBar.Add($"Slettet registrering for brikke {transponderOwnership.Transponder.Label}", MudBlazor.Severity.Error);
+        if (confirmation.HasValue && confirmation.Value)
+        {
+            await Api.RemoveTransponderRegistration(transponderOwnership);
 
-        await _table.ReloadServerData();
+            SnackBar.Add($"Slettet registrering for brikke {transponderOwnership.Transponder.Label}", MudBlazor.Severity.Error);
+
+            await _table.ReloadServerData();            
+        }
     }
 }
