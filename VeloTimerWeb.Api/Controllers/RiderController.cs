@@ -37,6 +37,19 @@ namespace VeloTimerWeb.Api.Controllers
             _dbset = _context.Set<Rider>();
         }
 
+        [Authorize(Roles = "Admin")]
+        [HttpGet]
+        public async Task<IActionResult> GetAll([FromQuery] PaginationParameters pagination)
+        {
+            var riders = await _riderService.GetAll(pagination);
+
+            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(riders.Pagination));
+
+            var response = riders.Select(x => x.ToWeb());
+
+            return Ok(response);
+        }
+
         [HttpGet]
         [Route("{userId}")]
         public async Task<ActionResult<RiderWeb>> Get(string userId)
@@ -123,13 +136,7 @@ namespace VeloTimerWeb.Api.Controllers
                 .ToListAsync();
 
             var transponders = transponders1
-                .Select(to => new TransponderOwnershipWeb
-                {
-                    OwnedFrom = to.OwnedFrom,
-                    OwnedUntil = to.OwnedUntil,
-                    Owner = to.Owner.Name,
-                    TransponderLabel = TransponderIdConverter.IdToCode(long.Parse(to.Transponder.SystemId))
-                }).ToList();
+                .Select(to => to.ToWeb()).ToList();
 
             return transponders;
         }
@@ -160,14 +167,15 @@ namespace VeloTimerWeb.Api.Controllers
             string rider,
             string statsitem,
             [FromQuery] TimeParameters timeParameters,
-            [FromQuery] PaginationParameters pagingParameters)
+            [FromQuery] PaginationParameters pagingParameters,
+            [FromQuery] string orderBy)
         {
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
             var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Slug == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
-            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters);
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters, orderBy);
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
 
@@ -181,7 +189,8 @@ namespace VeloTimerWeb.Api.Controllers
             string statsitem,
             string track,
             [FromQuery] TimeParameters timeParameters,
-            [FromQuery] PaginationParameters pagingParameters)
+            [FromQuery] PaginationParameters pagingParameters,
+            [FromQuery] string orderBy)
         {
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
@@ -190,7 +199,7 @@ namespace VeloTimerWeb.Api.Controllers
             var StatsItems = await _context.Set<TrackStatisticsItem>().Where(x => x.StatisticsItem.Slug == statsitem).Where(x => x.Layout.Track == Track).ToListAsync();
             if (!StatsItems.Any()) { return NotFound($"StatsItem: {statsitem}"); }
 
-            var times = await _transponderService.GetTimesForOwner(Rider, StatsItems, timeParameters, pagingParameters);
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItems, timeParameters, pagingParameters, orderBy);
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
 
@@ -205,7 +214,8 @@ namespace VeloTimerWeb.Api.Controllers
             string track,
             string layout,
             [FromQuery] TimeParameters timeParameters,
-            [FromQuery] PaginationParameters pagingParameters)
+            [FromQuery] PaginationParameters pagingParameters,
+            [FromQuery] string orderBy)
         {
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
@@ -214,7 +224,7 @@ namespace VeloTimerWeb.Api.Controllers
             var StatsItem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Layout == Layout && x.StatisticsItem.Slug == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
-            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters);
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters, orderBy);
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
 
@@ -225,17 +235,17 @@ namespace VeloTimerWeb.Api.Controllers
         [Route("{rider}/transponders")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
-        public async Task<ActionResult<TransponderOwnershipWebForm>> RegisterTransponder(string rider, TransponderOwnershipWebForm ownerWeb)
+        public async Task<ActionResult<TransponderOwnershipWeb>> RegisterTransponder(string rider, TransponderOwnershipWeb ownerWeb)
         {
-            _logger.LogInformation($"Transponder: {ownerWeb.TransponderLabel}"
+            _logger.LogInformation($"Transponder: {ownerWeb.Transponder.Label}"
                                    + $" - Name: {ownerWeb.Owner}"
                                    + $" - Validity: {ownerWeb.OwnedFrom}-{ownerWeb.OwnedUntil}");
 
-            var transponderId = TransponderIdConverter.CodeToId(ownerWeb.TransponderLabel).ToString();
+            var transponderId = TransponderIdConverter.CodeToId(ownerWeb.Transponder.Label).ToString();
 
             var transponder = await _context.Set<Transponder>().SingleOrDefaultAsync(t => t.SystemId == transponderId && t.TimingSystem == TransponderType.TimingSystem.Mylaps_X2);
-            var ownfrom = ownerWeb.OwnedFrom?.ToUniversalTime();
-            var ownuntil = ownerWeb.OwnedUntil?.ToUniversalTime();
+            var ownfrom = ownerWeb.OwnedFrom.ToUniversalTime();
+            var ownuntil = ownerWeb.OwnedUntil.ToUniversalTime();
 
             if (transponder == null)
             {
@@ -252,7 +262,7 @@ namespace VeloTimerWeb.Api.Controllers
 
                 if (existing.Any())
                 {
-                    ModelState.AddModelError(nameof(ownerWeb.TransponderLabel), "Already registered for chosen period.");
+                    ModelState.AddModelError(nameof(ownerWeb.Transponder.Label), "Already registered for chosen period.");
                     return Conflict(new ValidationProblemDetails(ModelState));
                 }
             }
@@ -261,15 +271,15 @@ namespace VeloTimerWeb.Api.Controllers
             
             var value = new TransponderOwnership
             {
-                OwnedFrom = ownfrom.Value,
-                OwnedUntil = ownuntil.Value,
+                OwnedFrom = ownfrom.UtcDateTime,
+                OwnedUntil = ownuntil.UtcDateTime,
                 Owner = dbrider,
                 Transponder = transponder
             };
 
             await _context.AddAsync(value);
             await _context.SaveChangesAsync();
-            ownerWeb.Owner = dbrider.Name;
+            ownerWeb.Owner = dbrider.ToWeb();
 
             return Ok();
         }
@@ -281,21 +291,24 @@ namespace VeloTimerWeb.Api.Controllers
             if (string.IsNullOrWhiteSpace(rider)) return BadRequest();
             if (string.IsNullOrWhiteSpace(label)) return BadRequest();
 
-            if (User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != rider) return Unauthorized();
+            if ((User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value == rider) || User.IsInRole("Admin"))
+            {
+                var ownerships = await _context.Set<TransponderOwnership>()
+                    .Where(x => x.Owner.UserId == rider)
+                    .Where(x => x.Transponder.SystemId == label)
+                    .Where(x => x.OwnedFrom == from.UtcDateTime)
+                    .Where(x => x.OwnedUntil == until.UtcDateTime)
+                    .ToListAsync();
 
-            var ownerships = await _context.Set<TransponderOwnership>()
-                .Where(x => x.Owner.UserId == rider)
-                .Where(x => x.Transponder.SystemId == TransponderIdConverter.CodeToId(label).ToString())
-                .Where(x => x.OwnedFrom == from.UtcDateTime)
-                .Where(x => x.OwnedUntil == until.UtcDateTime)
-                .ToListAsync();
+                if (!ownerships.Any()) return NotFound();
 
-            if (!ownerships.Any()) return NotFound();
+                _context.RemoveRange(ownerships);
+                await _context.SaveChangesAsync();
 
-            _context.RemoveRange(ownerships);
-            await _context.SaveChangesAsync();
+                return Ok();
+            }
 
-            return Ok();
+            return Unauthorized();
         }
     }
 }

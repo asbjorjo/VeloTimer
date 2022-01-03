@@ -24,6 +24,15 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
+        public async Task<PaginatedList<Rider>> GetAll(PaginationParameters pagination)
+        {
+            var query = _context.Set<Rider>();
+
+            var riders = await query.ToPaginatedListAsync(pagination.PageNumber, pagination.PageSize);
+
+            return riders;
+        }
+
         public async Task DeleteRider(string userId)
         {
             var rider = await _context.Set<Rider>().Include(x => x.Transponders).SingleOrDefaultAsync(r => r.UserId == userId);

@@ -178,7 +178,7 @@ namespace VeloTimerWeb.Api.Services
             return list;
         }
 
-        public async Task<PaginatedList<SegmentTime>> GetRecent(IEnumerable<TrackStatisticsItem> statisticsItems, TimeParameters time, PaginationParameters pagination)
+        public async Task<PaginatedList<SegmentTime>> GetRecent(IEnumerable<TrackStatisticsItem> statisticsItems, TimeParameters time, PaginationParameters pagination, string orderby)
         {
             var fromtime = time.FromTime;
             var totime = time.ToTime;
@@ -198,7 +198,6 @@ namespace VeloTimerWeb.Api.Services
                     && town.OwnedFrom <= tsi.StartTime
                     && town.OwnedUntil >= tsi.EndTime
                     && town.Owner.IsPublic
-                orderby tsi.EndTime descending
                 select new SegmentTime
                 {
                     Rider = town.Owner.Name,
@@ -207,6 +206,8 @@ namespace VeloTimerWeb.Api.Services
                     PassingTime = tsi.EndTime,
                     Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select(x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time })
                 };
+
+            query = query.ApplySort(orderby);
 
             var times = await query
                 .AsNoTracking()

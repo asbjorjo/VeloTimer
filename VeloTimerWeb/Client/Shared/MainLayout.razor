@@ -9,17 +9,16 @@
 
 <MudLayout>
     <MudAppBar Elevation="1">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
-        <MudIconButton Icon="@Icons.Filled.Home" Color="Color.Inherit" Link="#" />
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => ToggleDrawer())" />
         <MudText Typo="Typo.h5" Class="ml-3">VeloTime</MudText>
         <MudSpacer />
         <AuthorizeView>
             <Authorized>
-                <MudIconButton Icon="@Icons.Filled.AccountCircle" Color="Color.Inherit" Link="/authentication/profile" />
-                <MudIconButton Icon="@Icons.Filled.Logout" Color="Color.Inherit" OnClick="@BeginSignOut" />
+                <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Link="/authentication/profile" />
+                <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="@BeginSignOut" />
             </Authorized>
             <NotAuthorized>
-                <MudIconButton Icon="@Icons.Filled.Login" Color="Color.Inherit" Link="/authentication/login" />
+                <MudIconButton Icon="@Icons.Material.Filled.Login" Color="Color.Inherit" Link="/authentication/login" />
             </NotAuthorized>
         </AuthorizeView>
     </MudAppBar>

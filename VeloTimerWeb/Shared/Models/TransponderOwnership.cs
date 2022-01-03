@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models.Validation;
+using VeloTimer.Shared.Util;
 
 namespace VeloTimer.Shared.Models
 {
@@ -16,5 +17,16 @@ namespace VeloTimer.Shared.Models
         public Rider Owner { get; set; }
         public DateTime OwnedFrom { get; set; }
         public DateTime OwnedUntil { get; set; }
+
+        public TransponderOwnershipWeb ToWeb()
+        {
+            return new TransponderOwnershipWeb
+            {
+                Owner = Owner.ToWeb(),
+                Transponder = Transponder.ToWeb(),
+                OwnedFrom = OwnedFrom,
+                OwnedUntil = OwnedUntil
+            };
+        }
     }
 }

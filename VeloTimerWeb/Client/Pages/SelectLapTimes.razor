@@ -10,9 +10,11 @@
 @inject IApiClient Api
 @inject HttpClient Http
 
+<MudContainer>
 <MudText Typo="Typo.h5" Color="Color.Inherit" Align="Align.Center">Passeringstider</MudText>
 
 <SegmentTimes @bind-StatisticsParameters="@StatisticsParameters" />
+</MudContainer>
 
 @code {
     [CascadingParameter]

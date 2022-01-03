@@ -16,5 +16,10 @@ namespace VeloTimer.Shared.Models
 
         public string UserId { get; set; }
         public IEnumerable<TransponderOwnership> Transponders { get; set; }
+
+        public RiderWeb ToWeb()
+        {
+            return RiderWeb.Create(this);
+        }
     }
 }

@@ -1,0 +1,111 @@
+﻿@using FluentValidation
+@using VeloTimer.Shared.Models
+@using VeloTimer.Shared.Util
+@using VeloTimerWeb.Client.Models
+@inject HttpClient Http
+@inject ISnackbar SnackBar
+
+<MudDialog>
+    <DialogContent>
+        <MudCardMedia Image="images/mylaps-prochip-flex.png" Height="200"/>
+        <MudForm Model="@transponderName" @ref="@_transponderForm">
+            <MudTextField @bind-Value="transponderName.TransponderLabel" Label="Brikke" For="@(() => transponderName.TransponderLabel)" Validation="@(_formValidator.ValidateValue)" Immediate="true" Counter=8 />
+            <MudDateRangePicker Label="Gyldighet" @bind-DateRange="transponderName.ValidPeriod" @ref="@_dateRangePicker" PickerVariant="PickerVariant.Dialog" DisplayMonths=1>
+                <PickerActions>
+                    <MudButton Class="mr-auto align-self-start" OnClick="@(() => _dateRangePicker.Clear())">Nullstill</MudButton>
+                    <MudButton OnClick="@(() => _dateRangePicker.Close(false))">Avbryt</MudButton>
+                    <MudButton Color="Color.Primary" OnClick="@(() => _dateRangePicker.Close())">Ok</MudButton>
+                </PickerActions>
+            </MudDateRangePicker>
+            <MudHidden Breakpoint="Breakpoint.None" Invert="true">
+                <MudTextField @bind-Value="transponderName.Owner" ReadOnly="true" For="@(() => transponderName.Owner)"  Validation="@(_formValidator.ValidateValue)" Immediate="true"/>
+            </MudHidden>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Cancel" Color="Color.Warning" OnClick="Cancel">Avbryt</MudButton>
+        <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" Color="Color.Success" OnClick="@(async () => await Register())">Registrer</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public TransponderOwnershipWeb TransponderOwnership { get; set; }
+
+    private MudDateRangePicker _dateRangePicker;
+    private MudForm _transponderForm;
+    private TransponderOwnershipWebForm transponderName = new();
+    private TransponderOwnershipValidator _formValidator = new();
+
+    protected async override Task OnParametersSetAsync()
+    {
+        transponderName = TransponderOwnershipWebForm.CreateFromOwnership(TransponderOwnership);
+
+        await base.OnParametersSetAsync();
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task Register()
+    {
+        await _transponderForm.Validate();
+
+        if (!_transponderForm.IsValid){
+            return;
+        }
+
+        var registration = new TransponderOwnershipWeb
+        {
+            Owner = TransponderOwnership.Owner,
+            Transponder = new TransponderWeb { Label = transponderName.TransponderLabel },
+            OwnedFrom = transponderName.ValidPeriod.Start.Value.StartOfDay(),
+            OwnedUntil = transponderName.ValidPeriod.End.Value.EndOfDay()
+        };
+
+        var result = await Http.PostAsJsonAsync($"rider/{transponderName.Owner}/transponders", registration);
+        if (result.IsSuccessStatusCode)
+        {
+            SnackBar.Add($"Brikke {transponderName.TransponderLabel} registrert", MudBlazor.Severity.Success);
+            MudDialog.Close(DialogResult.Ok(registration));
+        }
+        else if (result.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            SnackBar.Add($"Brikke {transponderName.TransponderLabel} er alt registrert for valgt periode");
+            Console.WriteLine($"Could not register transponder {transponderName.TransponderLabel} - {result.StatusCode}");
+        }
+        else
+        {
+            SnackBar.Add($"Problemer med registrering av {transponderName.TransponderLabel}");
+            Console.WriteLine($"Could not register transponder {transponderName.TransponderLabel} - {result.StatusCode}");
+        }
+    }
+
+    public class TransponderOwnershipValidator : AbstractValidator<TransponderOwnershipWebForm>
+    {
+        public TransponderOwnershipValidator()
+        {
+            RuleFor(x => x.Owner)
+                .NotEmpty().WithMessage("Eier for brikke mangler");
+
+            RuleFor(x => x.TransponderLabel)
+                .NotEmpty().WithMessage("Skriv inn kode fra brikke")
+                .Length(8).WithMessage("For få tegn i kode")
+                .Must((value) => TransponderIdConverter.CodeToId(value) > 0).WithMessage("{PropertyValue} er ikke en gyldig kode");
+        }
+
+        public Func<object, string, Task<IEnumerable<string>>> ValidateValue => async (model, propertyName) =>
+        {
+            var result = await ValidateAsync(ValidationContext<TransponderOwnershipWebForm>.CreateWithOptions((TransponderOwnershipWebForm)model, x => x.IncludeProperties(propertyName)));
+            if (result.IsValid)
+                return Array.Empty<string>();
+            return result.Errors.Select(e => e.ErrorMessage);
+        };
+    }
+
+}
