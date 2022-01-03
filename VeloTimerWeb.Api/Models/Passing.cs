@@ -1,8 +1,7 @@
 ﻿using System;
-using System.ComponentModel.DataAnnotations;
-using System.Text.Json.Serialization;
+using VeloTimer.Shared.Models;
 
-namespace VeloTimer.Shared.Models
+namespace VeloTimerWeb.Api.Models
 {
     public class Passing
     {
@@ -20,9 +19,10 @@ namespace VeloTimer.Shared.Models
             return new PassingWeb
             {
                 Time = Time,
-                Transponder = Transponder.ToWeb(),
+                Transponder = Transponder?.ToWeb(),
                 Track = Loop?.Track?.ToWeb(),
-                LoopName = Loop?.Description
+                LoopName = Loop?.Description,
+                SourceId = SourceId
             };
         }
 

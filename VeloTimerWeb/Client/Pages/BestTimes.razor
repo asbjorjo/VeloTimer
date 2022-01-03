@@ -3,28 +3,30 @@
 @layout MainLayout
 @inject IApiClient Api
 
+<MudContainer>
 <MudText Typo="Typo.h5" Color="Color.Inherit" Align="Align.Center">Mine bestetider</MudText>
 
 @if (rider != null)
 {
     <MudGrid>
-        <MudItem>
+        <MudItem xs=12 lg=6>
             <FastestSegmentTimes StatsItem=Runde FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
         </MudItem>
-        <MudItem>
+        <MudItem xs=12 lg=6>
             <FastestSegmentTimes StatsItem=200m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
         </MudItem>
-        <MudItem>
+        <MudItem xs=12 lg=6>
             <FastestSegmentTimes StatsItem=1000m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
         </MudItem>
-        <MudItem>
+        <MudItem xs=12 lg=6>
             <FastestSegmentTimes StatsItem=3000m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />
         </MudItem>
-        <MudItem>
+        <MudItem xs=12 lg=6>
             <FastestSegmentTimes StatsItem=4000m FromTime=DateTimeOffset.MinValue Count=10 Rider=@rider.UserId />        
         </MudItem>
     </MudGrid>    
-}    
+}
+</MudContainer>
 
 @code{
     [CascadingParameter]

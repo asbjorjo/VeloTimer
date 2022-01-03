@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimer.Shared.Util;
 using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Models;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
@@ -61,7 +62,7 @@ namespace VeloTimerWeb.Api.Controllers
                 return NotFound();
             }
 
-            return RiderWeb.Create(rider);
+            return rider.ToWeb();
         }
 
         [HttpDelete]
@@ -101,7 +102,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             await _context.SaveChangesAsync();
 
-            return RiderWeb.Create(rider);
+            return rider.ToWeb();
         }
 
         [Route("active")]
@@ -110,7 +111,7 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var active = await _riderService.GetActive(fromtime, totime);
 
-            return active.Select(x => RiderWeb.Create(x)).ToList();
+            return Ok(active.Select(x => x.ToWeb()));
         }
 
         [AllowAnonymous]

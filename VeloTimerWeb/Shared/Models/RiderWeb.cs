@@ -14,17 +14,5 @@ namespace VeloTimer.Shared.Models
         public string RiderFirstName { get; set; }
         public string RiderLastName { get; set; }
         public bool RiderIsPublic { get; set; }
-
-        public static RiderWeb Create(Rider rider)
-        {
-            return new RiderWeb
-            {
-                UserId = rider.UserId,
-                RiderDisplayName = rider.Name,
-                RiderFirstName = rider.FirstName,
-                RiderLastName = rider.LastName,
-                RiderIsPublic = rider.IsPublic
-            };
-        }
     }
 }
