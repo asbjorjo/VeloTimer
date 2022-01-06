@@ -18,16 +18,5 @@ namespace VeloTimerWeb.Api.Models
         public Rider Owner { get; set; }
         public DateTime OwnedFrom { get; set; }
         public DateTime OwnedUntil { get; set; }
-
-        public TransponderOwnershipWeb ToWeb()
-        {
-            return new TransponderOwnershipWeb
-            {
-                Owner = Owner.ToWeb(),
-                Transponder = Transponder.ToWeb(),
-                OwnedFrom = OwnedFrom,
-                OwnedUntil = OwnedUntil
-            };
-        }
     }
 }

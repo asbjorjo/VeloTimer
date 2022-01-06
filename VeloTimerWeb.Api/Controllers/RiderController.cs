@@ -1,4 +1,5 @@
-﻿using IdentityModel;
+﻿using AutoMapper;
+using IdentityModel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -23,14 +24,16 @@ namespace VeloTimerWeb.Api.Controllers
     [ApiController]
     public class RiderController : ControllerBase
     {
+        private readonly IMapper _mapper;
         private readonly IRiderService _riderService;
         private readonly ITransponderService _transponderService;
         private readonly ILogger<RiderController> _logger;
         private readonly VeloTimerDbContext _context;
         private readonly DbSet<Rider> _dbset;
 
-        public RiderController(IRiderService riderService, ITransponderService transponderService, ILogger<RiderController> logger, VeloTimerDbContext context) : base()
+        public RiderController(IMapper mapper, IRiderService riderService, ITransponderService transponderService, ILogger<RiderController> logger, VeloTimerDbContext context) : base()
         {
+            _mapper = mapper;
             _riderService = riderService;
             _transponderService = transponderService;
             _logger = logger;
@@ -46,7 +49,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(riders.Pagination));
 
-            var response = riders.Select(x => x.ToWeb());
+            var response = _mapper.Map<IEnumerable<RiderWeb>>(riders);
 
             return Ok(response);
         }
@@ -62,7 +65,7 @@ namespace VeloTimerWeb.Api.Controllers
                 return NotFound();
             }
 
-            return rider.ToWeb();
+            return _mapper.Map<RiderWeb>(rider);
         }
 
         [HttpDelete]
@@ -95,14 +98,14 @@ namespace VeloTimerWeb.Api.Controllers
 
             if (rider == null) return NotFound();
 
-            rider.Name = profile.RiderDisplayName;
-            rider.FirstName = profile.RiderFirstName;
-            rider.LastName = profile.RiderLastName;
-            rider.IsPublic = profile.RiderIsPublic;
+            rider.Name = profile.DisplayName;
+            rider.FirstName = profile.FirstName;
+            rider.LastName = profile.LastName;
+            rider.IsPublic = profile.IsPublic;
 
             await _context.SaveChangesAsync();
 
-            return rider.ToWeb();
+            return _mapper.Map<RiderWeb>(rider);
         }
 
         [Route("active")]
@@ -111,7 +114,7 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var active = await _riderService.GetActive(fromtime, totime);
 
-            return Ok(active.Select(x => x.ToWeb()));
+            return Ok(_mapper.Map<IEnumerable<RiderWeb>>(active));
         }
 
         [AllowAnonymous]
@@ -136,10 +139,9 @@ namespace VeloTimerWeb.Api.Controllers
                 .Include(x => x.Transponder)
                 .ToListAsync();
 
-            var transponders = transponders1
-                .Select(to => to.ToWeb()).ToList();
+            var transponders = _mapper.Map<IEnumerable<TransponderOwnershipWeb>>(transponders1);
 
-            return transponders;
+            return Ok(transponders);
         }
 
         [HttpGet]
@@ -280,9 +282,8 @@ namespace VeloTimerWeb.Api.Controllers
 
             await _context.AddAsync(value);
             await _context.SaveChangesAsync();
-            ownerWeb.Owner = dbrider.ToWeb();
 
-            return Ok();
+            return Ok(_mapper.Map<TransponderOwnershipWeb>(value));
         }
 
         [HttpDelete]

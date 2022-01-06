@@ -29,7 +29,7 @@
 
         if (user.Identity.IsAuthenticated)
         {
-            username = (await Api.GetRiderByUserId(user.FindFirst(c => c.Type == "sub")?.Value)).RiderDisplayName;
+            username = (await Api.GetRiderByUserId(user.FindFirst(c => c.Type == "sub")?.Value)).DisplayName;
         }
     }
 

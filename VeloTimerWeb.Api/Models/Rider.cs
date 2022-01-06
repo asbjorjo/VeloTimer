@@ -17,17 +17,5 @@ namespace VeloTimerWeb.Api.Models
 
         public string UserId { get; set; }
         public IEnumerable<TransponderOwnership> Transponders { get; set; }
-
-        public RiderWeb ToWeb()
-        {
-            return new RiderWeb
-            {
-                RiderDisplayName = Name,
-                RiderFirstName = FirstName,
-                RiderLastName = LastName,
-                UserId = UserId,
-                RiderIsPublic = IsPublic
-            };
-        }
     }
 }

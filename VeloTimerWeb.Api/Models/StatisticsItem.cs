@@ -17,19 +17,6 @@ namespace VeloTimerWeb.Api.Models
         public bool IsLapCounter { get; set; } = false;
         public string Slug { get; set; }
 
-        public StatisticsItemWeb ToWeb()
-        {
-            var web = new StatisticsItemWeb
-            {
-                Label = Label,
-                Slug = Slug,
-                Distance = Distance,
-                IsLapCounter = IsLapCounter
-            };
-
-            return web;
-        }
-
         public static StatisticsItem Create(string label, double distance, bool isLapCounter)
         {
             var slugHelper = new SlugHelper();

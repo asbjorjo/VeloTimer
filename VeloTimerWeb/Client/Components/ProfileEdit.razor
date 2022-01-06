@@ -10,11 +10,11 @@
 <MudCard>
     <MudCardContent>
         <MudForm>
-            <MudTextField @bind-Value="@profile.RiderDisplayName" Label="Navn til statistikk" Disabled="@(string.IsNullOrEmpty(profile.UserId))"/>
-            <MudTextField @bind-Value="@profile.RiderFirstName" Label="Fornavn" Disabled="@(string.IsNullOrEmpty(profile.UserId))"/>
-            <MudTextField @bind-Value="@profile.RiderLastName" Label="Etternavn" Disabled="@(string.IsNullOrEmpty(profile.UserId))"/>
+            <MudTextField @bind-Value="@profile.DisplayName" Label="Navn til statistikk" Disabled="@(string.IsNullOrEmpty(profile.UserId))"/>
+            <MudTextField @bind-Value="@profile.FirstName" Label="Fornavn" Disabled="@(string.IsNullOrEmpty(profile.UserId))"/>
+            <MudTextField @bind-Value="@profile.LastName" Label="Etternavn" Disabled="@(string.IsNullOrEmpty(profile.UserId))"/>
             <MudField Label="Synlighet">
-                <MudCheckBox @bind-Checked="@profile.RiderIsPublic" Label="Vis i statistikk" Disabled="@(string.IsNullOrEmpty(profile.UserId))"/>
+                <MudCheckBox @bind-Checked="@profile.IsPublic" Label="Vis i statistikk" Disabled="@(string.IsNullOrEmpty(profile.UserId))"/>
                 <MudPaper>
                 <MudText Typo="Typo.caption">
                     Når du velger å inkluderes i offentlig statistikk vil navn og tider vises i statistikker og skjermer på velodromen.<br />

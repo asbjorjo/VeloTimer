@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -15,16 +16,19 @@ namespace VeloTimerWeb.Api.Controllers
     [Route("api/[controller]")]
     public class PassingsController : ControllerBase
     {
+        private readonly IMapper _mapper;
         private readonly IPassingService _passingService;
         private readonly ILogger<PassingsController> _logger;
         private readonly VeloTimerDbContext _context;
         private readonly DbSet<Passing> _dbset;
 
         public PassingsController(
+            IMapper mapper,
             IPassingService passingService,
             VeloTimerDbContext context,
             ILogger<PassingsController> logger) : base()
         {
+            _mapper = mapper;
             _passingService = passingService;
             _logger = logger;
             _context = context;
@@ -43,7 +47,7 @@ namespace VeloTimerWeb.Api.Controllers
                 return NotFound();
             }
 
-            return value.ToWeb();
+            return _mapper.Map<PassingWeb>(value);
         }
 
         [AllowAnonymous]
@@ -81,7 +85,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             await _passingService.RegisterNew(newpassing, TransponderType.TimingSystem.Mylaps_X2, passing.TransponderId);
 
-            return Ok(newpassing.ToWeb());
+            return Ok(_mapper.Map<PassingWeb>(newpassing));
         }
     }
 }

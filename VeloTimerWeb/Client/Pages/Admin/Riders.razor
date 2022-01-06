@@ -17,9 +17,9 @@
             <MudTh><MudTableSortLabel T="RiderWeb" SortLabel="displayname">Statistikknavn</MudTableSortLabel></MudTh>
         </HeaderContent>
         <RowTemplate Context="rider">
-            <MudTd>@rider.RiderLastName</MudTd>
-            <MudTd>@rider.RiderFirstName</MudTd>
-            <MudTd>@rider.RiderDisplayName</MudTd>
+            <MudTd>@rider.LastName</MudTd>
+            <MudTd>@rider.FirstName</MudTd>
+            <MudTd>@rider.DisplayName</MudTd>
         </RowTemplate>
         <LoadingContent>
             <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>

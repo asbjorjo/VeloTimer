@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,15 +19,18 @@ namespace VeloTimerWeb.Api.Controllers
     [Route("api/[controller]")]
     public class TrackController : ControllerBase
     {
+        private readonly IMapper _mapper;
         private readonly ITrackService _trackService;
         private readonly IStatisticsService _statisticsService;
         private readonly ILogger<TrackController> _logger;
 
         public TrackController(
+            IMapper mapper,
             ITrackService trackService,
             IStatisticsService statisticsService,
             ILogger<TrackController> logger) : base()
         {
+            _mapper = mapper;
             _trackService = trackService;
             _statisticsService = statisticsService;
             _logger = logger;
@@ -42,7 +46,7 @@ namespace VeloTimerWeb.Api.Controllers
                 return NotFound();
             }
 
-            return value.ToWeb();
+            return _mapper.Map<TrackWeb>(value);
         }
 
         [AllowAnonymous]

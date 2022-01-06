@@ -22,7 +22,7 @@
                 </HeaderContent>
                 <RowTemplate Context="transpondername">
                     <MudTd>@transpondername.Transponder.Label</MudTd>
-                    <MudTd>@transpondername.Owner.RiderLastName, @transpondername.Owner.RiderFirstName</MudTd>
+                    <MudTd>@transpondername.Owner.LastName, @transpondername.Owner.FirstName</MudTd>
                     <MudTd>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</MudTd>
                     <MudTd>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</MudTd>
                 </RowTemplate>
@@ -59,7 +59,7 @@
                     <MudTd>@transponder.Label</MudTd>
                     <MudTd>@transponder.LastSeen?.Time.ToLocalTime()</MudTd>
                     <MudTd>@transponder.LastSeen?.Track.Name</MudTd>
-                    <MudTd>@transponder.LastSeen?.LoopName</MudTd>
+                    <MudTd>@transponder.LastSeen?.LoopDescription</MudTd>
                 </RowTemplate>
                 <LoadingContent>
                     <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>

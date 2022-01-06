@@ -28,14 +28,5 @@ namespace VeloTimerWeb.Api.Models
                 Slug = slugHelper.GenerateSlug(name)
             };
         }
-
-        public TrackWeb ToWeb()
-        {
-            var webLayouts = Layouts?.Select(x => TrackLayoutWeb.Create(x.Name, x.Slug, x.Distance));
-
-            var web = TrackWeb.Create(Name, Slug, Length, webLayouts);
-
-            return web;
-        }
     }
 }

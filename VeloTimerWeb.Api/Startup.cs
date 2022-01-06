@@ -168,6 +168,8 @@ namespace VeloTimerWeb.Api
 
             services.AddDatabaseDeveloperPageExceptionFilter();
 
+            services.AddAutoMapper(typeof(VeloTimeProfile));
+
             services.AddScoped<IPassingService, PassingService>();
             services.AddScoped<IRiderService, RiderService>();
             services.AddScoped<IStatisticsService, StatisticsService>();

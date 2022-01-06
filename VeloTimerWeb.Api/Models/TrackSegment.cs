@@ -28,16 +28,6 @@ namespace VeloTimerWeb.Api.Models
         public TimingLoop End { get; private set; }
 
         public double Length { get; private set; }
-
-        public TrackSegmentWeb ToWeb()
-        {
-            return new TrackSegmentWeb
-            {
-                End = End.ToWeb(),
-                Start = Start.ToWeb(),
-                Length = Length
-            };
-        }
     }
 
     public class TrackSector

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -15,11 +16,13 @@ namespace VeloTimerWeb.Api.Controllers
     [ApiController]
     public class TrackSegmentController : ControllerBase
     {
+        private readonly IMapper _mapper;
         private readonly VeloTimerDbContext _context;
         private readonly ILogger<TrackSegmentController> _logger;
 
-        public TrackSegmentController(VeloTimerDbContext context, ILogger<TrackSegmentController> logger)
+        public TrackSegmentController(IMapper mapper, VeloTimerDbContext context, ILogger<TrackSegmentController> logger)
         {
+            _mapper = mapper;
             _context = context;
             _logger = logger;
         }
@@ -35,7 +38,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             var segments = await _context.Set<TrackSegment>().Where(x => x.Start.Track == track).ToListAsync();
 
-            return Ok(segments.Select(x => x.ToWeb()));
+            return _mapper.Map<List<TrackSegmentWeb>>(segments);
         }
     }
 }

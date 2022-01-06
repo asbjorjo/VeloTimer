@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -18,12 +19,14 @@ namespace VeloTimerWeb.Api.Controllers
     [ApiController]
     public class TranspondersController : ControllerBase
     {
+        private readonly IMapper _mapper;
         private readonly VeloTimerDbContext _context;
         private readonly ILogger<TranspondersController> _logger;
         private readonly ITransponderService _service;
         
-        public TranspondersController(ITransponderService service, ILogger<TranspondersController> logger, VeloTimerDbContext context) : base()
+        public TranspondersController(IMapper mapper, ITransponderService service, ILogger<TranspondersController> logger, VeloTimerDbContext context) : base()
         {
+            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _service = service ?? throw new ArgumentNullException(nameof(service));
@@ -37,7 +40,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(transponders.Pagination));
 
-            var result = transponders.Select(x => x.ToWeb());
+            var result = _mapper.Map<IEnumerable<TransponderWeb>>(transponders);
 
             return Ok(result);
         }
@@ -51,7 +54,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(transponders.Pagination));
 
-            var result = transponders.Select(x => x.ToWeb());
+            var result = _mapper.Map<IEnumerable<TransponderOwnershipWeb>>(transponders);
 
             return Ok(result);
         }
@@ -87,7 +90,7 @@ namespace VeloTimerWeb.Api.Controllers
             
             var transponders = await value.ToListAsync();
 
-            return Ok(transponders.Select(x => x.ToWeb()));
+            return Ok(_mapper.Map<IEnumerable<TransponderWeb>>(transponders));
         }
 
         [AllowAnonymous]

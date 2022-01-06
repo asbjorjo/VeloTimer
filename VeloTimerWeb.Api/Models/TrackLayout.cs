@@ -15,19 +15,6 @@ namespace VeloTimerWeb.Api.Models
         public double Distance { get; set; }
         public string Slug { get; set; }
 
-        public TrackLayoutWeb ToWeb()
-        {
-            var web = new TrackLayoutWeb
-            {
-                Name = Name,
-                Slug = Slug,
-                Length = Distance,
-                Track = Track?.ToWeb()
-            };
-
-            return web;
-        }
-
         public static TrackLayout Create(Track track, string name, IOrderedEnumerable<TrackSector> sectors)
         {
             var slugHelper = new SlugHelper();
