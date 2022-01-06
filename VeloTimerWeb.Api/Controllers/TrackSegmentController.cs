@@ -11,19 +11,13 @@ using VeloTimerWeb.Api.Models;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class TrackSegmentController : ControllerBase
+    public class TrackSegmentController : BaseController
     {
-        private readonly IMapper _mapper;
         private readonly VeloTimerDbContext _context;
-        private readonly ILogger<TrackSegmentController> _logger;
-
-        public TrackSegmentController(IMapper mapper, VeloTimerDbContext context, ILogger<TrackSegmentController> logger)
+        
+        public TrackSegmentController(IMapper mapper, VeloTimerDbContext context, ILogger<TrackSegmentController> logger) : base(mapper, logger)
         {
-            _mapper = mapper;
             _context = context;
-            _logger = logger;
         }
 
         public async Task<ActionResult<IEnumerable<TrackSegmentWeb>>> GetForTrack(string Track)

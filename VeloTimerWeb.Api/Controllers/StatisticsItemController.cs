@@ -10,20 +10,13 @@ using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class StatisticsItemController : ControllerBase
+    public class StatisticsItemController : BaseController
     {
-        private readonly IMapper _mapper;
-        private readonly VeloTimerDbContext _context;
         private readonly IStatisticsService _statisticsService;
-        private readonly ILogger<StatisticsItemController> _logger;
 
-        public StatisticsItemController(IMapper mapper, IStatisticsService statisticsService, ILogger<StatisticsItemController> logger)
+        public StatisticsItemController(IMapper mapper, IStatisticsService statisticsService, ILogger<StatisticsItemController> logger) : base(mapper, logger)
         {
-            _mapper = mapper;
             _statisticsService = statisticsService;
-            _logger = logger;
         }
 
         [HttpGet]

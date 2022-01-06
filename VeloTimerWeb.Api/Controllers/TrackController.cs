@@ -12,25 +12,19 @@ using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class TrackController : ControllerBase
+    public class TrackController : BaseController
     {
-        private readonly IMapper _mapper;
         private readonly ITrackService _trackService;
         private readonly IStatisticsService _statisticsService;
-        private readonly ILogger<TrackController> _logger;
 
         public TrackController(
             IMapper mapper,
             ITrackService trackService,
             IStatisticsService statisticsService,
-            ILogger<TrackController> logger) : base()
+            ILogger<TrackController> logger) : base(mapper, logger)
         {
-            _mapper = mapper;
             _trackService = trackService;
             _statisticsService = statisticsService;
-            _logger = logger;
         }
 
         [AllowAnonymous]

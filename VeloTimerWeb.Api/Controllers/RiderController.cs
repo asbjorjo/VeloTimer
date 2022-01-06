@@ -19,23 +19,17 @@ using VeloTimerWeb.Api.Services;
 namespace VeloTimerWeb.Api.Controllers
 {
     [Authorize]
-    [Route("api/[controller]")]
-    [ApiController]
-    public class RiderController : ControllerBase
+    public class RiderController : BaseController
     {
-        private readonly IMapper _mapper;
         private readonly IRiderService _riderService;
         private readonly ITransponderService _transponderService;
-        private readonly ILogger<RiderController> _logger;
         private readonly VeloTimerDbContext _context;
         private readonly DbSet<Rider> _dbset;
 
-        public RiderController(IMapper mapper, IRiderService riderService, ITransponderService transponderService, ILogger<RiderController> logger, VeloTimerDbContext context) : base()
+        public RiderController(IMapper mapper, IRiderService riderService, ITransponderService transponderService, ILogger<RiderController> logger, VeloTimerDbContext context) : base(mapper, logger)
         {
-            _mapper = mapper;
             _riderService = riderService;
             _transponderService = transponderService;
-            _logger = logger;
             _context = context;
             _dbset = _context.Set<Rider>();
         }

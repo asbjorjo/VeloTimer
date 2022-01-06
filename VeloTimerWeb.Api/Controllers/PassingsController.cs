@@ -12,13 +12,9 @@ using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class PassingsController : ControllerBase
+    public class PassingsController : BaseController
     {
-        private readonly IMapper _mapper;
         private readonly IPassingService _passingService;
-        private readonly ILogger<PassingsController> _logger;
         private readonly VeloTimerDbContext _context;
         private readonly DbSet<Passing> _dbset;
 
@@ -26,11 +22,9 @@ namespace VeloTimerWeb.Api.Controllers
             IMapper mapper,
             IPassingService passingService,
             VeloTimerDbContext context,
-            ILogger<PassingsController> logger) : base()
+            ILogger<PassingsController> logger) : base(mapper, logger)
         {
-            _mapper = mapper;
             _passingService = passingService;
-            _logger = logger;
             _context = context;
             _dbset = _context.Set<Passing>();
         }

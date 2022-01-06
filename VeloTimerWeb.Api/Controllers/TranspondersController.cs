@@ -17,18 +17,14 @@ namespace VeloTimerWeb.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class TranspondersController : ControllerBase
+    public class TranspondersController : BaseController
     {
-        private readonly IMapper _mapper;
         private readonly VeloTimerDbContext _context;
-        private readonly ILogger<TranspondersController> _logger;
         private readonly ITransponderService _service;
 
-        public TranspondersController(IMapper mapper, ITransponderService service, ILogger<TranspondersController> logger, VeloTimerDbContext context) : base()
+        public TranspondersController(IMapper mapper, ITransponderService service, ILogger<TranspondersController> logger, VeloTimerDbContext context) : base(mapper, logger)
         {
-            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _context = context ?? throw new ArgumentNullException(nameof(context));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _service = service ?? throw new ArgumentNullException(nameof(service));
         }
 

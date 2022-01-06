@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -12,18 +13,14 @@ using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class StatisticsController : ControllerBase
+    public class StatisticsController : BaseController
     {
         private readonly IStatisticsService _service;
-        private readonly ILogger<StatisticsController> _logger;
         private readonly VeloTimerDbContext _context;
 
-        public StatisticsController(IStatisticsService statisticsService, ILogger<StatisticsController> logger, VeloTimerDbContext context)
+        public StatisticsController(IMapper mapper, IStatisticsService statisticsService, ILogger<StatisticsController> logger, VeloTimerDbContext context) : base(mapper, logger)
         {
             _service = statisticsService;
-            _logger = logger;
             _context = context;
         }
 

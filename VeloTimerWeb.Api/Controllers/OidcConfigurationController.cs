@@ -4,19 +4,17 @@ using Microsoft.Extensions.Logging;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    public class OidcConfigurationController : Controller
+    [Route("_configuration")]
+    public class OidcConfigurationController : BaseController
     {
-        private readonly ILogger<OidcConfigurationController> _logger;
-
-        public OidcConfigurationController(IClientRequestParametersProvider clientRequestParametersProvider, ILogger<OidcConfigurationController> logger)
+        public OidcConfigurationController(IClientRequestParametersProvider clientRequestParametersProvider, ILogger<OidcConfigurationController> logger) : base(logger)
         {
             ClientRequestParametersProvider = clientRequestParametersProvider;
-            _logger = logger;
         }
 
         public IClientRequestParametersProvider ClientRequestParametersProvider { get; }
 
-        [HttpGet("_configuration/{clientId}")]
+        [HttpGet("{clientId}")]
         public IActionResult GetClientRequestParameters([FromRoute] string clientId)
         {
             var parameters = ClientRequestParametersProvider.GetClientParameters(HttpContext, clientId);
