@@ -12,7 +12,8 @@ namespace VeloTimerWeb.Api.Models
             CreateMap<Passing, PassingWeb>()
                 .ForMember(dest => dest.Track, opt => opt.MapFrom(src => src.Loop.Track));
             CreateMap<Rider, RiderWeb>()
-                .ForMember(dest => dest.DisplayName, opt => opt.MapFrom(src => src.Name));
+                .ForMember(dest => dest.DisplayName, opt => opt.MapFrom(src => src.Name))
+                .ReverseMap();
             CreateMap<StatisticsItem, StatisticsItemWeb>();
             CreateMap<TimingLoop, TimingLoopWeb>();
             CreateMap<Track, TrackWeb>();
