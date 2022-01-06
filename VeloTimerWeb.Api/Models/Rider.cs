@@ -11,6 +11,6 @@ namespace VeloTimerWeb.Api.Models
         public bool IsPublic { get; set; }
 
         public string UserId { get; set; }
-        public IEnumerable<TransponderOwnership> Transponders { get; set; }
+        public IEnumerable<TransponderOwnership> Transponders { get; set; } = new List<TransponderOwnership>();
     }
 }

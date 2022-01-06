@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace VeloTimer.Shared.Models
 {
@@ -10,7 +11,7 @@ namespace VeloTimer.Shared.Models
         public double Time { get; set; }
         public double Speed { get; set; }
         public bool ShowIntermediate { get; set; } = false;
-        public IEnumerable<Intermediate> Intermediates { get; set; }
+        public IEnumerable<Intermediate> Intermediates { get; set; } = Enumerable.Empty<Intermediate>();
     }
 
     public class Intermediate
