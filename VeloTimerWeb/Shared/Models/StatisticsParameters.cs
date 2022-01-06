@@ -36,8 +36,8 @@ namespace VeloTimer.Shared.Models
         public string ToQueryString()
         {
             var sb = new StringBuilder(Label);
-            if (!string.IsNullOrWhiteSpace(Track)) sb.Append("&").Append(Track);
-            if (!string.IsNullOrWhiteSpace(Layout)) sb.Append("&").Append(Layout);
+            if (!string.IsNullOrWhiteSpace(Track)) sb.Append('&').Append(Track);
+            if (!string.IsNullOrWhiteSpace(Layout)) sb.Append('&').Append(Layout);
 
             return sb.ToString();
         }
@@ -45,8 +45,8 @@ namespace VeloTimer.Shared.Models
         public string ToPathString()
         {
             var sb = new StringBuilder(Label);
-            if (!string.IsNullOrWhiteSpace(Track)) sb.Append("/").Append(Track);
-            if (!string.IsNullOrWhiteSpace(Layout)) sb.Append("/").Append(Layout);
+            if (!string.IsNullOrWhiteSpace(Track)) sb.Append('/').Append(Track);
+            if (!string.IsNullOrWhiteSpace(Layout)) sb.Append('/').Append(Layout);
 
             return sb.ToString();
         }
