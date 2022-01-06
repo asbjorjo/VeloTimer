@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace VeloTimer.Shared.Models.Validation
 {
@@ -32,7 +28,7 @@ namespace VeloTimer.Shared.Models.Validation
                     return new ValidationResult($"Unknown property: {otherPropertyName}");
                 }
 
-                if ((field.PropertyType == typeof(DateTime)) 
+                if ((field.PropertyType == typeof(DateTime))
                     || (field.PropertyType.IsGenericType && field.PropertyType == typeof(DateTime?)))
                 {
                     DateTime toValidate = (DateTime)value;
@@ -57,4 +53,3 @@ namespace VeloTimer.Shared.Models.Validation
         }
     }
 }
-    

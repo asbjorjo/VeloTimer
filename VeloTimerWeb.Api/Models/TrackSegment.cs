@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
 
 namespace VeloTimerWeb.Api.Models
 {
@@ -18,7 +14,7 @@ namespace VeloTimerWeb.Api.Models
             this.Start = Start;
             this.End = End;
 
-            Length = End.Distance > Start.Distance ? End.Distance-Start.Distance : End.Distance - Start.Distance + Start.Track.Length;
+            Length = End.Distance > Start.Distance ? End.Distance - Start.Distance : End.Distance - Start.Distance + Start.Track.Length;
         }
 
         public long Id { get; private set; }
@@ -40,7 +36,7 @@ namespace VeloTimerWeb.Api.Models
         public static TrackSector Create(IOrderedEnumerable<TrackSegment> segments)
         {
             var sector = new TrackSector();
-            
+
             int order = 1;
             foreach (var segment in segments)
             {

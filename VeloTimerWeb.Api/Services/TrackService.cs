@@ -1,9 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Models;
@@ -67,7 +67,7 @@ namespace VeloTimerWeb.Api.Services
             var times = Enumerable.Empty<SegmentTime>();
             var fromtime = FromTime.UtcDateTime;
             var totime = ToTime.UtcDateTime;
-            
+
             if (fromtime >= totime)
                 return times;
 

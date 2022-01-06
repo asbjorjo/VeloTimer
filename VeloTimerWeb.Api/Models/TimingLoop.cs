@@ -1,11 +1,9 @@
 ﻿using System.Collections.Generic;
-using VeloTimer.Shared.Models;
-using VeloTimerWeb.Api.Models;
 
 namespace VeloTimerWeb.Api.Models
 {
     public class TimingLoop
-    {   
+    {
         public long Id { get; private set; }
         public long TrackId { get; private set; }
 

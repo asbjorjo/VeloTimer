@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using VeloTimer.Shared.Models;
 
 namespace VeloTimerWeb.Api.Models
 {
@@ -27,7 +26,7 @@ namespace VeloTimerWeb.Api.Models
             };
 
             int order = 1;
-            foreach(var sector in sectors)
+            foreach (var sector in sectors)
             {
                 var layoutSegment = TrackLayoutSector.Create(trackLayout, sector, order);
                 trackLayout.Sectors.Add(layoutSegment);

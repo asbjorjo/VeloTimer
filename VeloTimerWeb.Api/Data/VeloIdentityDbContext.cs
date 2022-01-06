@@ -59,7 +59,7 @@ namespace VeloTimerWeb.Api.Data
 
             builder.Entity<Role>()
                 .HasData(
-                    new Role { Id = Guid.NewGuid(),Name = "User", NormalizedName = "USER " },
+                    new Role { Id = Guid.NewGuid(), Name = "User", NormalizedName = "USER " },
                     new Role { Id = Guid.NewGuid(), Name = "Admin", NormalizedName = "ADMIN" }
                 );
         }

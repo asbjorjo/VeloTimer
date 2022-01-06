@@ -45,7 +45,7 @@ namespace VeloTimerWeb.Api.Services
             if (user != null)
             {
                 var result = await _userManager.DeleteAsync(user);
-                
+
                 if (!result.Succeeded)
                 {
                     _logger.LogError(result.ToString());
@@ -87,7 +87,7 @@ namespace VeloTimerWeb.Api.Services
 
             var query = from t in _context.Set<TransponderOwnership>()
                         from p in _context.Set<Passing>()
-                        where p.Time >= fromtime && p.Time <= totime 
+                        where p.Time >= fromtime && p.Time <= totime
                             && p.Transponder == t.Transponder && p.Time >= t.OwnedFrom && p.Time < t.OwnedUntil
                         orderby p.Time descending
                         group p by t.Owner.Id into passings
@@ -95,7 +95,7 @@ namespace VeloTimerWeb.Api.Services
 
             var riders = await query
                 .AsNoTracking()
-                .ToDictionaryAsync(k => k.Key, v => v.Last );
+                .ToDictionaryAsync(k => k.Key, v => v.Last);
 
             return riders;
         }

@@ -1,14 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Services;
 using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Pages.InfoScreen
 {
@@ -39,7 +37,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
             var fromdate = DateTimeOffset.MinValue;
             var todate = DateTimeOffset.MaxValue;
-            
+
             foreach (var item in items)
             {
                 var time = await _service.GetFastest(track, item, fromdate, todate, 5);

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Specialized;
-using System.Net;
-using System.Threading.Tasks;
-using IdentityServer4.Configuration;
+﻿using IdentityServer4.Configuration;
 using IdentityServer4.Endpoints.Results;
 using IdentityServer4.Extensions;
 using IdentityServer4.Hosting;
@@ -15,6 +11,10 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using System;
+using System.Collections.Specialized;
+using System.Net;
+using System.Threading.Tasks;
 
 namespace VeloTimerWeb.Api.Util.ApiAuthorization
 {

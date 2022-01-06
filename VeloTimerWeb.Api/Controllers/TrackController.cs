@@ -1,8 +1,6 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
@@ -10,7 +8,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
-using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
@@ -93,7 +90,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             if (FromTime.HasValue) fromtime = FromTime.Value;
             if (ToTime.HasValue) totime = ToTime.Value;
-            
+
             var times = await _trackService.GetFastest(statsitems, fromtime, totime, Count);
 
             return Ok(times);
@@ -102,8 +99,8 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet]
         [Route("{Track}/times/{StatisticsItem}")]
         public async Task<IActionResult> Recent(
-            string Track, 
-            string StatisticsItem, 
+            string Track,
+            string StatisticsItem,
             [FromQuery] TimeParameters timeParameters,
             [FromQuery] PaginationParameters pagingParameters,
             [FromQuery] string orderBy)
@@ -116,7 +113,7 @@ namespace VeloTimerWeb.Api.Controllers
             }
 
             var times = await _trackService.GetRecent(statsitems, timeParameters, pagingParameters, orderBy);
-            
+
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
 
             return Ok(times);

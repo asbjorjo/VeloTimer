@@ -26,8 +26,8 @@ namespace VeloTimerWeb.Api.Util
         private readonly IKeyVaultConfig _keyVaultConfig;
 
         public AzureKeyVaultSigningCredentialsStore(
-            KeyVaultClient keyVaultClient, 
-            IKeyVaultConfig keyVaultConfig, 
+            KeyVaultClient keyVaultClient,
+            IKeyVaultConfig keyVaultConfig,
             IMemoryCache cache,
             ILogger<AzureKeyVaultSigningCredentialsStore> logger)
         {

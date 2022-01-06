@@ -23,7 +23,7 @@ namespace VeloTimerWeb.Api.Controllers
         private readonly VeloTimerDbContext _context;
         private readonly ILogger<TranspondersController> _logger;
         private readonly ITransponderService _service;
-        
+
         public TranspondersController(IMapper mapper, ITransponderService service, ILogger<TranspondersController> logger, VeloTimerDbContext context) : base()
         {
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
@@ -87,7 +87,7 @@ namespace VeloTimerWeb.Api.Controllers
             }
 
             var value = _context.Set<Passing>().Where(p => p.Time >= fromtime && p.Time <= totime).Select(p => p.Transponder).Distinct();
-            
+
             var transponders = await value.ToListAsync();
 
             return Ok(_mapper.Map<IEnumerable<TransponderWeb>>(transponders));
@@ -106,8 +106,8 @@ namespace VeloTimerWeb.Api.Controllers
             var Transponder = await _context.Set<Transponder>().SingleOrDefaultAsync(x => x.Id == TransponderId.First());
             if (Transponder == null) { return NotFound(Transponder); }
             var Segment = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Id == SegmentId);
-            if (Segment == null) { return NotFound(Segment);}
-            
+            if (Segment == null) { return NotFound(Segment); }
+
             times = await _service.GetFastest(Transponder, Segment, fromtime, totime);
 
             return Ok(times);

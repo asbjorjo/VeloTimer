@@ -76,7 +76,8 @@ namespace VeloTimerWeb.Api
                             "https://velotime-noe-github-ci.azurewebsites.net"
                         };
                     });
-            } else if (Environment.IsStaging())
+            }
+            else if (Environment.IsStaging())
             {
                 services.Configure<JwtBearerOptions>(
                     IdentityServerJwtConstants.IdentityServerJwtBearerScheme,

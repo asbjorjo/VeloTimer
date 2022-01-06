@@ -41,7 +41,7 @@ namespace VeloTimerWeb.Api.Controllers
         public async Task<ActionResult<PassingWeb>> GetMostRecent()
         {
             var value = await _dbset.AsNoTracking().OrderBy(p => p.SourceId).LastOrDefaultAsync();
-            
+
             if (value == null)
             {
                 return NotFound();
@@ -55,9 +55,9 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<PassingWeb>> Register(PassingRegister passing)
         {
-            var existing = await _context.Set<Passing>().SingleOrDefaultAsync(x => 
-                x.SourceId == passing.Source 
-                && x.Loop.LoopId == passing.LoopId 
+            var existing = await _context.Set<Passing>().SingleOrDefaultAsync(x =>
+                x.SourceId == passing.Source
+                && x.Loop.LoopId == passing.LoopId
                 && x.Time == passing.Time.UtcDateTime);
 
             if (existing != null)

@@ -1,5 +1,4 @@
 ﻿using AutoMapper;
-using IdentityModel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -126,7 +125,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             return active;
         }
-        
+
         [HttpGet]
         [Route("{rider}/transponders")]
         public async Task<ActionResult<IEnumerable<TransponderOwnershipWeb>>> GetTransponders(string rider)
@@ -147,8 +146,8 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet]
         [Route("{rider}/fastest/{statsitem}")]
         public async Task<ActionResult<IEnumerable<SegmentTime>>> GetFastest(
-            string rider, 
-            string statsitem, 
+            string rider,
+            string statsitem,
             DateTimeOffset? FromTime,
             DateTimeOffset? ToTime)
         {
@@ -271,7 +270,7 @@ namespace VeloTimerWeb.Api.Controllers
             }
 
             var dbrider = await _dbset.Where(r => r.UserId == rider).SingleAsync();
-            
+
             var value = new TransponderOwnership
             {
                 OwnedFrom = ownfrom.UtcDateTime,

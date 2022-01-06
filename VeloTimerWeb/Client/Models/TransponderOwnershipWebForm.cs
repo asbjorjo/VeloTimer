@@ -20,7 +20,7 @@ namespace VeloTimerWeb.Client.Models
             if (transponderOwnership == null) throw new ArgumentNullException(nameof(transponderOwnership));
             if (transponderOwnership.Owner == null) throw new ArgumentNullException("Missing transponder Owner");
 
-            var form = new TransponderOwnershipWebForm { Owner = transponderOwnership.Owner.UserId};
+            var form = new TransponderOwnershipWebForm { Owner = transponderOwnership.Owner.UserId };
 
             if (!string.IsNullOrWhiteSpace(transponderOwnership.Transponder?.Label))
             {

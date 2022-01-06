@@ -2,7 +2,6 @@
 using System.Linq;
 using VeloTimer.Shared.Models;
 using VeloTimer.Shared.Util;
-using VeloTimerWeb.Api.Models;
 
 namespace VeloTimerWeb.Api.Models
 {

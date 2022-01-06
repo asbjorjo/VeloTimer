@@ -1,16 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using VeloTimerWeb.Api.Models;
 
 namespace VeloTimerWeb.Api.Models
 {
     public class TrackSegmentPassing
     {
         public TrackSegmentPassing() { }
-        
+
         public long Id { get; set; }
         public TrackSegment TrackSegment { get; private set; }
         public Transponder Transponder { get; private set; }
@@ -22,7 +19,7 @@ namespace VeloTimerWeb.Api.Models
         public Passing Start { get; private set; }
         public Passing End { get; private set; }
 
-        public static TrackSegmentPassing Create (TrackSegment segment, Passing start, Passing end)
+        public static TrackSegmentPassing Create(TrackSegment segment, Passing start, Passing end)
         {
             TrackSegmentPassing passing = null;
 
@@ -72,7 +69,7 @@ namespace VeloTimerWeb.Api.Models
         public DateTime StartTime { get; private set; }
         public DateTime EndTime { get; private set; }
         public ICollection<TrackSectorSegmentPassing> SegmentPassings { get; private set; } = new List<TrackSectorSegmentPassing>();
-        public ICollection<TrackLayoutPassing> LayoutPassings { get; private set;} = new List<TrackLayoutPassing>();
+        public ICollection<TrackLayoutPassing> LayoutPassings { get; private set; } = new List<TrackLayoutPassing>();
 
         public static TrackSectorPassing Create(TrackSector sector, Transponder transponder, IEnumerable<TrackSegmentPassing> passings)
         {
@@ -85,7 +82,7 @@ namespace VeloTimerWeb.Api.Models
             var orderedPassings = passings.OrderBy(x => x.EndTime);
 
             var continuous = orderedPassings.Select(x => x.TrackSegment.Id).SequenceEqual(sector.Segments.OrderBy(x => x.Order).Select(x => x.Segment.Id));
-            
+
             var previous = orderedPassings.First();
             foreach (var segmentpassing in orderedPassings.Skip(1))
             {
@@ -93,7 +90,8 @@ namespace VeloTimerWeb.Api.Models
                 previous = segmentpassing;
             }
 
-            if (continuous) {
+            if (continuous)
+            {
                 passing = new TrackSectorPassing
                 {
                     TrackSector = sector,

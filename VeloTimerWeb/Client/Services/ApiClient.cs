@@ -201,7 +201,7 @@ namespace VeloTimerWeb.Client.Services
 
             url.Append("?").Append(pagingParameters.ToQueryString()).Append("&").Append(timeParameters.ToQueryString());
             url.Append("&orderby=").Append(statisticsParameters.OrderBy);
-                        
+
             using var response = await _client.GetAsync(url.ToString());
             response.EnsureSuccessStatusCode();
 
@@ -274,7 +274,8 @@ namespace VeloTimerWeb.Client.Services
             if (Track != null)
             {
                 url = $"statisticsitem/track/{Track}";
-            } else
+            }
+            else
             {
                 url = $"statisticsitem";
             }
@@ -305,7 +306,7 @@ namespace VeloTimerWeb.Client.Services
 
             using var response = await _client.GetAsync($"track/sola-arena/count/{StatsItem}?FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}");
             response.EnsureSuccessStatusCode();
-            
+
             var counts = await response.Content.ReadFromJsonAsync<IEnumerable<SegmentDistance>>();
 
             return counts;
@@ -370,7 +371,7 @@ namespace VeloTimerWeb.Client.Services
         {
             using var response = await _client.GetAsync($"transponders/ownerships?{pagination.ToQueryString()}");
             response.EnsureSuccessStatusCode();
-            
+
             var transponders = new PaginatedResponse<TransponderOwnershipWeb>
             {
                 Items = await response.Content.ReadFromJsonAsync<List<TransponderOwnershipWeb>>(),
