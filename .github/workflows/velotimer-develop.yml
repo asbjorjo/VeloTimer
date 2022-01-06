@@ -24,10 +24,24 @@ jobs:
         dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
     - name: Restore
       run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
-    - name: Build API
-      run: dotnet build "${{ env.API_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
+    - name: Build solution
+      run: dotnet build --configuration ${{ env.CONFIGURATION }} --no-restore
+    - name: Run tests
+      run: dotnet test --no-build
     - name: Publish API
       run: dotnet publish "${{ env.API_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_API_PACKAGE_PATH }}"
+    - name: Publish AmmcLoad
+      run: dotnet publish "${{ env.AMMC_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_AMMC_PACKAGE_PATH }}"
+    - name: Upload API Artifacts
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: api
+        path: ${{ env.AZURE_API_PACKAGE_PATH }}
+    - name: Upload AmmcLoad Artifacts
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: ammcload
+        path: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
     - uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_DEVELOP_CREDENTIALS }}
@@ -45,20 +59,6 @@ jobs:
       run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
     - name: Azure Logout
       run: az logout
-    - name: Build AmmcLoad
-      run: dotnet build "${{ env.AMMC_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
-    - name: Publish AmmcLoad
-      run: dotnet publish "${{ env.AMMC_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_AMMC_PACKAGE_PATH }}"
-    - name: Upload API Artifacts
-      uses: actions/upload-artifact@v1.0.0
-      with:
-        name: api
-        path: ${{ env.AZURE_API_PACKAGE_PATH }}
-    - name: Upload AmmcLoad Artifacts
-      uses: actions/upload-artifact@v1.0.0
-      with:
-        name: ammcload
-        path: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
   deploy_api:
     env:
       AZURE_WEBAPP_NAME: 'velotime-dev'

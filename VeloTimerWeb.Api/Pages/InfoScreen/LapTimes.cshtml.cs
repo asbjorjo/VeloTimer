@@ -19,6 +19,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
         private readonly ITrackService _service;
 
         public Queue<SegmentTime> Times { get; set; }
+        public bool HasSplit { get; set; } = false;
         
         public LapTimesModel(ITrackService trackService, VeloTimerDbContext context)
         {
@@ -45,6 +46,8 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
             var seedtimes = await _service.GetRecent(statsitem, DateTimeOffset.Now.AddDays(-7), DateTimeOffset.MaxValue, 35);
             Times = new Queue<SegmentTime>(seedtimes);
+
+            HasSplit = Times.FirstOrDefault()?.Intermediates.Count() == 2;
 
             return Page();
         }

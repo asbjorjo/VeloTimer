@@ -20,7 +20,7 @@ namespace VeloTimerWeb.Api.Models
         {
             var web = new TransponderWeb
             {
-                Label = TransponderIdConverter.IdToCode(long.Parse(SystemId)),
+                Label = TransponderIdConverter.IdToCode(SystemId),
                 SystemId = SystemId,
                 TimingSystem = TimingSystem.ToString()
             };

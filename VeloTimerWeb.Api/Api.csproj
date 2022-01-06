@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
     <UserSecretsId>4d9b5dcb-fc92-4597-9093-e0b6a4c5e074</UserSecretsId>
+    <AssemblyName>VeloTimerWeb.Api</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -40,8 +41,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\VeloTimerWeb\Client\VeloTimerWeb.Client.csproj" />
-    <ProjectReference Include="..\VeloTimerWeb\Shared\VeloTimer.Shared.csproj" />
+    <ProjectReference Include="..\VeloTimerWeb\Client\Client.csproj" />
+    <ProjectReference Include="..\VeloTimerWeb\Shared\Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
