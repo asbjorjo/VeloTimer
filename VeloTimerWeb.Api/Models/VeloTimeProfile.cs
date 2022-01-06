@@ -16,7 +16,8 @@ namespace VeloTimerWeb.Api.Models
             CreateMap<StatisticsItem, StatisticsItemWeb>();
             CreateMap<TimingLoop, TimingLoopWeb>();
             CreateMap<Track, TrackWeb>();
-            CreateMap<TrackLayout, TrackLayoutWeb>();
+            CreateMap<TrackLayout, TrackLayoutWeb>()
+                .ForMember(dest => dest.Length, opt => opt.MapFrom(src => src.Distance));
             CreateMap<TrackSegment, TrackSegmentWeb>();
             CreateMap<TrackStatisticsItem, TrackStatisticsItemWeb>();
             CreateMap<Transponder, TransponderWeb>()
