@@ -57,7 +57,7 @@
                 </HeaderContent>
                 <RowTemplate Context="transponder">
                     <MudTd>@transponder.Label</MudTd>
-                    <MudTd>@transponder.LastSeen?.Time</MudTd>
+                    <MudTd>@transponder.LastSeen?.Time.ToLocalTime()</MudTd>
                     <MudTd>@transponder.LastSeen?.Track.Name</MudTd>
                     <MudTd>@transponder.LastSeen?.LoopName</MudTd>
                 </RowTemplate>
