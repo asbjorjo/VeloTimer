@@ -1,8 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using VeloTimer.Shared.Models;
 using VeloTimer.Shared.Util;
 
-namespace VeloTimer.Shared.Models
+namespace VeloTimerWeb.Api.Models
 {
     public class Transponder
     {
@@ -19,7 +20,7 @@ namespace VeloTimer.Shared.Models
         {
             var web = new TransponderWeb
             {
-                Label = TransponderIdConverter.IdToCode(long.Parse(SystemId)),
+                Label = TransponderIdConverter.IdToCode(SystemId),
                 SystemId = SystemId,
                 TimingSystem = TimingSystem.ToString()
             };

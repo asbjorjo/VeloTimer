@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Hub;
-using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
 using VeloTimerWeb.Api.Models;

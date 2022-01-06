@@ -11,7 +11,11 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th scope="col" class="mw-100">Rytter</th>    
+                <th scope="col" class="mw-100">Rytter</th> 
+                @if (Model.HasSplit)
+            {
+                <th scope="col" class="text-right">Split</th>
+            }
                 <th scope="col" class="text-right">Tid</th>
                 <th scope="col" class="text-right">Fart</th>
             </tr>
@@ -31,7 +35,11 @@
                 foreach (var segment in Model.Times)
                 {
                     <tr>
-                        <td>@segment.Rider</td>    
+                        <td>@segment.Rider</td>
+                        @if(Model.HasSplit)
+                        {
+                            <td class="text-right">@Formatters.FormatTime(segment.Intermediates.First().Time)</td>
+                        }
                         <td class="text-right">@Formatters.FormatTime(segment.Time)</td>
                         <td class="text-right">@Formatters.FormatSpeed(segment.Speed)</td>
                     </tr>

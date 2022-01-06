@@ -99,7 +99,7 @@ namespace VeloTimerWeb.Client.Services
             return count;
         }
 
-        public async Task<IEnumerable<Transponder>> GetActiveTransponders(DateTimeOffset fromtime, DateTimeOffset? totime)
+        public async Task<IEnumerable<TransponderWeb>> GetActiveTransponders(DateTimeOffset fromtime, DateTimeOffset? totime)
         {
             var url = new StringBuilder();
 
@@ -113,7 +113,7 @@ namespace VeloTimerWeb.Client.Services
             using var response = await _client.GetAsync(url.ToString(), HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
 
-            var riders = await response.Content.ReadFromJsonAsync<IEnumerable<Transponder>>();
+            var riders = await response.Content.ReadFromJsonAsync<IEnumerable<TransponderWeb>>();
 
             return riders;
         }
@@ -150,12 +150,12 @@ namespace VeloTimerWeb.Client.Services
             return times;
         }
 
-        public async Task<Passing> GetLastPassing()
+        public async Task<PassingWeb> GetLastPassing()
         {
             using var response = await _client.GetAsync($"passings/mostrecent");
             response.EnsureSuccessStatusCode();
 
-            var passing = await response.Content.ReadFromJsonAsync<Passing>();
+            var passing = await response.Content.ReadFromJsonAsync<PassingWeb>();
 
             return passing;
         }
@@ -234,12 +234,12 @@ namespace VeloTimerWeb.Client.Services
             return times;
         }
 
-        public async Task<IEnumerable<TrackSegment>> GetTrackSegments(string Track)
+        public async Task<IEnumerable<TrackSegmentWeb>> GetTrackSegments(string Track)
         {
             using var response = await _client.GetAsync($"tracksegment/{Track}");
             response.EnsureSuccessStatusCode();
 
-            var segments = await response.Content.ReadFromJsonAsync<IEnumerable<TrackSegment>>();
+            var segments = await response.Content.ReadFromJsonAsync<IEnumerable<TrackSegmentWeb>>();
 
             return segments;
         }
@@ -311,12 +311,12 @@ namespace VeloTimerWeb.Client.Services
             return counts;
         }
 
-        public async Task<IEnumerable<TimingLoop>> GetTimingPoints(string Track)
+        public async Task<IEnumerable<TimingLoopWeb>> GetTimingPoints(string Track)
         {
             using var response = await _client.GetAsync($"timingloops/track/{Track}");
             response.EnsureSuccessStatusCode();
 
-            var loops = await response.Content.ReadFromJsonAsync<IEnumerable<TimingLoop>>();
+            var loops = await response.Content.ReadFromJsonAsync<IEnumerable<TimingLoopWeb>>();
 
             return loops;
         }

@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+using VeloTimerWeb.Api.Models;
 using static VeloTimer.Shared.Models.TransponderType;
 
 namespace VeloTimerWeb.Api.Services

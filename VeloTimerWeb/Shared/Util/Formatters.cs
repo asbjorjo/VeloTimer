@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Globalization;
 
 namespace VeloTimer.Shared.Util
 {
@@ -12,20 +8,20 @@ namespace VeloTimer.Shared.Util
         {
             if (time < 60)
             {
-                return string.Format("{0:00.000}", time);
+                return string.Format(CultureInfo.InvariantCulture, "{0:00.000}", time);
             }
             else
             {
                 var minutes = (int) time / 60;
                 var seconds = time % 60;
 
-                return string.Format("{0:0}:{1:00.000}", minutes, seconds);
+                return string.Format(CultureInfo.InvariantCulture, "{0:0}:{1:00.000}", minutes, seconds);
             }
         }
 
         public static string FormatSpeed(double speed)
         {
-            return string.Format("{0:00.000}", speed);
+            return string.Format(CultureInfo.InvariantCulture, "{0:00.000}", speed);
         }
     }
 }

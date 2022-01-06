@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Models;
 
 namespace VeloTimerWeb.Api.Controllers
 {
@@ -23,7 +24,7 @@ namespace VeloTimerWeb.Api.Controllers
             _logger = logger;
         }
 
-        public async Task<ActionResult<IEnumerable<TrackSegment>>> GetForTrack(string Track)
+        public async Task<ActionResult<IEnumerable<TrackSegmentWeb>>> GetForTrack(string Track)
         {
             var track = await _context.Set<Track>().FindAsync(long.Parse(Track));
 
@@ -34,7 +35,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             var segments = await _context.Set<TrackSegment>().Where(x => x.Start.Track == track).ToListAsync();
 
-            return segments;
+            return Ok(segments.Select(x => x.ToWeb()));
         }
     }
 }

@@ -17,7 +17,7 @@ namespace VeloTimer.AmmcLoad.Services
         private const long TimerInterval = 1000;
         private int _lock = 0;
         private Timer _timer;
-        private Passing mostRecent;
+        private PassingWeb mostRecent;
 
         private readonly ILogger<RefreshPassingsService> _logger;
         private readonly AmmcPassingService _passingService;
@@ -70,7 +70,7 @@ namespace VeloTimer.AmmcLoad.Services
 
             try
             {
-                mostRecent = await _httpClient.GetFromJsonAsync<Passing>("passings/mostrecent");
+                mostRecent = await _httpClient.GetFromJsonAsync<PassingWeb>("passings/mostrecent");
             }
             catch (HttpRequestException ex)
             {

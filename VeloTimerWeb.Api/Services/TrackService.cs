@@ -165,7 +165,7 @@ namespace VeloTimerWeb.Api.Services
                 {
                     Rider = town.Owner.Name,
                     Time = tsi.Time,
-                    Speed = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps / tsi.Time * 3.6,
+                    Speed = tsi.Speed * 3.6,
                     PassingTime = tsi.EndTime,
                     Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select(x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time })
                 };
@@ -202,7 +202,7 @@ namespace VeloTimerWeb.Api.Services
                 {
                     Rider = town.Owner.Name,
                     Time = tsi.Time,
-                    Speed = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps / tsi.Time * 3.6,
+                    Speed = tsi.Speed * 3.6,
                     PassingTime = tsi.EndTime,
                     Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select(x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time })
                 };

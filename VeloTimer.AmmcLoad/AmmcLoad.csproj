@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
+    <RootNamespace>VeloTimer.AmmcLoad</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\VeloTimerWeb\Shared\VeloTimer.Shared.csproj" />
+    <ProjectReference Include="..\VeloTimerWeb\Shared\Shared.csproj" />
   </ItemGroup>
 
 </Project>

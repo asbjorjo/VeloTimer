@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using VeloTimer.Shared.Models;
 
-namespace VeloTimer.Shared.Models
+namespace VeloTimerWeb.Api.Models
 {
     public class Rider
     {
@@ -19,7 +20,14 @@ namespace VeloTimer.Shared.Models
 
         public RiderWeb ToWeb()
         {
-            return RiderWeb.Create(this);
+            return new RiderWeb
+            {
+                RiderDisplayName = Name,
+                RiderFirstName = FirstName,
+                RiderLastName = LastName,
+                UserId = UserId,
+                RiderIsPublic = IsPublic
+            };
         }
     }
 }

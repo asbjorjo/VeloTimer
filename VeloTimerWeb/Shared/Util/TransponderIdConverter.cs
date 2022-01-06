@@ -9,9 +9,19 @@ namespace VeloTimer.Shared.Util
 
         private static readonly char[] Characters = { 'C', 'F', 'G', 'H', 'K', 'L', 'N', 'P', 'R', 'S', 'T', 'V', 'W', 'X', 'Z' };
 
+        public static string IdToCode(string Id)
+        {
+            if (long.TryParse(Id, out var numericId))
+            {
+                return IdToCode(numericId);
+            }
+
+            return string.Empty;
+        }
+
         public static string IdToCode(long Id)
         {
-            string code = "";
+            string code = string.Empty;
 
             if (Id <= 0)
                 return code;

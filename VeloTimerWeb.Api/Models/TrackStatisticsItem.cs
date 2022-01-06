@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using VeloTimer.Shared.Models;
 
-namespace VeloTimer.Shared.Models
+namespace VeloTimerWeb.Api.Models
 {
     public class TrackStatisticsItem
     {
@@ -15,14 +16,14 @@ namespace VeloTimer.Shared.Models
         public int Laps { get; set; } = 0;
         public double MinTime { get; set; } = 0;
         public double MaxTime { get; set; } = double.MaxValue;
-        
+
         public static TrackStatisticsItem Create(StatisticsItem statistics, TrackLayout layout, int laps)
         {
             TrackStatisticsItem item = null;
 
             var distance = layout.Sectors.Sum(x => x.Sector.Length) * laps;
 
-            if ((!statistics.IsLapCounter && distance == statistics.Distance) || (statistics.IsLapCounter && laps == 1))
+            if (!statistics.IsLapCounter && distance == statistics.Distance || statistics.IsLapCounter && laps == 1)
             {
                 item = new TrackStatisticsItem
                 {

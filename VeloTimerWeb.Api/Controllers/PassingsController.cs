@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Models;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
@@ -33,7 +34,7 @@ namespace VeloTimerWeb.Api.Controllers
         [AllowAnonymous]
         [Route("mostrecent")]
         [HttpGet]
-        public async Task<ActionResult<Passing>> GetMostRecent()
+        public async Task<ActionResult<PassingWeb>> GetMostRecent()
         {
             var value = await _dbset.AsNoTracking().OrderBy(p => p.SourceId).LastOrDefaultAsync();
             
@@ -42,13 +43,13 @@ namespace VeloTimerWeb.Api.Controllers
                 return NotFound();
             }
 
-            return value;
+            return value.ToWeb();
         }
 
         [AllowAnonymous]
         [Route("register")]
         [HttpPost]
-        public async Task<ActionResult<Passing>> Register(PassingRegister passing)
+        public async Task<ActionResult<PassingWeb>> Register(PassingRegister passing)
         {
             var existing = await _context.Set<Passing>().SingleOrDefaultAsync(x => 
                 x.SourceId == passing.Source 
@@ -80,7 +81,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             await _passingService.RegisterNew(newpassing, TransponderType.TimingSystem.Mylaps_X2, passing.TransponderId);
 
-            return Ok(newpassing);
+            return Ok(newpassing.ToWeb());
         }
     }
 }

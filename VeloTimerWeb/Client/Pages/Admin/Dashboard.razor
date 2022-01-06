@@ -1,0 +1,26 @@
+﻿@page "/admin/dashboard"
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.AspNetCore.Authorization
+@using VeloTimer.Shared.Util
+@using VeloTimer.Shared.Models
+@layout MainLayout
+
+<MudContainer>
+    <MudGrid>
+        <MudItem>
+            <MudCard>
+                <MudCardHeader>
+                    <MudText Typo=Typo.h6>Aktivitet</MudText>
+                </MudCardHeader>
+                <MudCardContent>
+                    Chart with lap counts by day.
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+
+}
