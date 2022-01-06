@@ -8,8 +8,10 @@ namespace VeloTimer.Shared.Models
 {
     public class PaginationParameters
     {
-        const int maxPageSize = 50;
+        const int maxPageSize = 100;
         private int _pageNumber = 1;
+        private int _pageSize = 10;
+
         public int PageNumber
         {
             get
@@ -21,7 +23,6 @@ namespace VeloTimer.Shared.Models
                 _pageNumber = (value > 0) ? value : 1;
             }
         }
-        private int _pageSize = 10;
         public int PageSize
         {
             get
