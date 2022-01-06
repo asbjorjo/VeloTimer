@@ -24,13 +24,39 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
+        public async Task<Rider> GetRiderByUserId(string userId)
+        {
+            var rider = await _context.Set<Rider>().SingleOrDefaultAsync(r => r.UserId == userId);
+
+            return rider;
+        }
+
         public async Task<PaginatedList<Rider>> GetAll(PaginationParameters pagination)
         {
             var query = _context.Set<Rider>();
 
-            var riders = await query.ToPaginatedListAsync(pagination.PageNumber, pagination.PageSize);
+            var riders = await query.AsNoTracking().ToPaginatedListAsync(pagination.PageNumber, pagination.PageSize);
 
             return riders;
+        }
+
+        public async Task<bool> UpdateRider(Rider rider)
+        {
+            var dbRider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider.UserId);
+
+            if (dbRider != null)
+            {
+                dbRider.IsPublic = rider.IsPublic;
+                dbRider.FirstName = rider.FirstName;
+                dbRider.LastName = rider.LastName;
+                dbRider.Name = rider.Name;
+
+                await _context.SaveChangesAsync();
+
+                return true;
+            }
+
+            return false;
         }
 
         public async Task DeleteRider(string userId)

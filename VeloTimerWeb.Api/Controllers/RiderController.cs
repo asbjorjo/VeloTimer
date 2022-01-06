@@ -51,7 +51,7 @@ namespace VeloTimerWeb.Api.Controllers
         [Route("{userId}")]
         public async Task<ActionResult<RiderWeb>> Get(string userId)
         {
-            var rider = await _context.Set<Rider>().AsNoTracking().SingleOrDefaultAsync(r => r.UserId == userId);
+            var rider = await _riderService.GetRiderByUserId(userId);
 
             if (rider == null)
             {
@@ -66,11 +66,14 @@ namespace VeloTimerWeb.Api.Controllers
         public async Task<ActionResult> Delete(string userId)
         {
             if (string.IsNullOrWhiteSpace(userId)) return BadRequest();
-            if (!User.Identity.IsAuthenticated || User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != userId) return Unauthorized();
+            if (User.Identity.IsAuthenticated && User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value == userId)
+            {
+                await _riderService.DeleteRider(userId);
 
-            await _riderService.DeleteRider(userId);
+                return Ok();
+            }
 
-            return Ok();
+            return Unauthorized();
         }
 
         [HttpPut]
@@ -78,27 +81,27 @@ namespace VeloTimerWeb.Api.Controllers
         public async Task<ActionResult<RiderWeb>> Update(string userId, RiderWeb profile)
         {
             if (string.IsNullOrWhiteSpace(userId)) return BadRequest();
-            if (userId != profile.UserId) return BadRequest();
-            if (!User.Identity.IsAuthenticated || User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != userId) return Unauthorized();
 
-            _logger.LogInformation(User?.Identity.Name);
-            foreach (var claim in User.Claims)
+            if (userId != profile.UserId) return BadRequest();
+
+            if (User.Identity.IsAuthenticated && User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value == userId)
             {
-                _logger.LogInformation($"Claim: {claim.Type} - {claim.Value} - {claim.Subject}");
+                _logger.LogInformation(User?.Identity.Name);
+                foreach (var claim in User.Claims)
+                {
+                    _logger.LogInformation($"Claim: {claim.Type} - {claim.Value} - {claim.Subject}");
+                }
+
+                var rider = _mapper.Map<Rider>(profile);
+                var success = await _riderService.UpdateRider(rider);
+
+                if (success)
+                    return _mapper.Map<RiderWeb>(rider);
+
+                return BadRequest();
             }
 
-            var rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == userId);
-
-            if (rider == null) return NotFound();
-
-            rider.Name = profile.DisplayName;
-            rider.FirstName = profile.FirstName;
-            rider.LastName = profile.LastName;
-            rider.IsPublic = profile.IsPublic;
-
-            await _context.SaveChangesAsync();
-
-            return _mapper.Map<RiderWeb>(rider);
+            return Unauthorized();
         }
 
         [Route("active")]
