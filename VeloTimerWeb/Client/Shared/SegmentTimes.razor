@@ -131,7 +131,7 @@ else
         await base.OnInitializedAsync();
 
         _segments = await Api.GetStatisticsItems("sola-arena");
-        _items = _segments.GroupBy(x => x.StatisticsItem.Label).Select(x => x.First()).OrderBy(x => x.StatisticsItem.Distance).Select(x => x.StatisticsItem);
+        _items = _segments.GroupBy(x => x.StatisticsItem.Label).Select(x => x.First()).OrderBy(x => x.StatisticsItem.Distance).Select(x => x.StatisticsItem).ToList();
     }
 
     protected async override Task OnParametersSetAsync()
