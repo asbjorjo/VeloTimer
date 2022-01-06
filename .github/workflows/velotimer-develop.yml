@@ -3,6 +3,9 @@ on:
   push:
     branches:
     - develop
+concurrency: 
+  group: ${{ github.ref }}
+  cancel-in-progress: true
 env:
   ASPNETCORE_ENVIRONMENT: Staging
   DOTNET_CORE_VERSION: 5.0.x
