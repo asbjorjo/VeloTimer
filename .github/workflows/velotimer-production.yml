@@ -24,10 +24,8 @@ jobs:
         dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
     - name: Restore
       run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
-    - name: Build API
-      run: dotnet build "${{ env.API_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
-    - name: Build AmmcLoad
-      run: dotnet build "${{ env.AMMC_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
+    - name: Build solution
+      run: dotnet build --configuration ${{ env.CONFIGURATION }} --no-restore
     - name: Run tests
       run: dotnet test --no-build
     - name: Publish API
