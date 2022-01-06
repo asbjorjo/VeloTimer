@@ -12,6 +12,8 @@ env:
   AzureVault: https://velotimer-dev-vault.vault.azure.net/
 jobs:
   build:
+    environment:
+      name: testing
     env:
       CONFIGURATION: Release
       API_WORKING_DIRECTORY: VeloTimerWeb.Api
@@ -47,7 +49,7 @@ jobs:
         path: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
     - uses: azure/login@v1
       with:
-        creds: ${{ secrets.AZURE_DEVELOP_CREDENTIALS }}
+        creds: ${{ secrets.AZURE_CI }}
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v1
       with:
@@ -63,6 +65,9 @@ jobs:
     - name: Azure Logout
       run: az logout
   deploy_api:
+    environment:
+      name: testing
+      url: https://velotime-dev.azurewebsites.net
     env:
       AZURE_WEBAPP_NAME: 'velotime-dev'
     needs: build
@@ -74,7 +79,7 @@ jobs:
         name: api
     - uses: azure/login@v1
       with:
-        creds: ${{ secrets.AZURE_DEVELOP_CREDENTIALS }}
+        creds: ${{ secrets.AZURE_CI }}
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v2
       with:
@@ -83,6 +88,9 @@ jobs:
     - name: Azure Logout
       run: az logout
   deploy_ammcload:
+    environment:
+      name: testing
+      url: https://velotime-dev-ammc.azurewebsites.net
     env:
       AZURE_AMMC_NAME: 'velotime-dev-ammc'
     needs: build
@@ -94,7 +102,7 @@ jobs:
         name: ammcload
     - uses: azure/login@v1
       with:
-        creds: ${{ secrets.AZURE_DEVELOP_CREDENTIALS }}
+        creds: ${{ secrets.AZURE_CI }}
     - name: Deploy to Azure AmmcLoader
       uses: azure/webapps-deploy@v2
       with:
