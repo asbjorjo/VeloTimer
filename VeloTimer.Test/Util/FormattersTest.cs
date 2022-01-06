@@ -10,7 +10,7 @@ namespace Test.Shared.Util
 {
     public class FormattersTest
     {
-        [Fact]
+        [Fact]  
         public void FormatTimeLessThanMinute()
         {
             double Time = 0.0;
