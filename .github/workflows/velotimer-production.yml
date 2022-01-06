@@ -10,9 +10,9 @@ env:
   DOTNET_CORE_VERSION: 5.0.x
   AzureVault: https://velotime-vault.vault.azure.net/
 jobs:
+  build:
     environment:
       name: staging
-  build:
     env:
       CONFIGURATION: Release
       API_WORKING_DIRECTORY: VeloTimerWeb.Api
