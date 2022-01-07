@@ -1,4 +1,4 @@
-name: Build and deploy to Azure development environment
+name: Build and deploy to Azure production staging environment
 on:
   push:
     branches:
