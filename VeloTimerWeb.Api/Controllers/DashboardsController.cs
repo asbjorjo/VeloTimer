@@ -62,8 +62,9 @@ namespace VeloTimerWeb.Api.Controllers
             dashData.RiderWithTransponderCount = await _context.Set<TransponderOwnership>().Select(x => x.Owner).Distinct().CountAsync();
             dashData.TransponderCount = await _context.Set<Transponder>().CountAsync();
             dashData.TransponderWithOwnerCount = await _context.Set<TransponderOwnership>().Select(x => x.Transponder).Distinct().CountAsync();
-            dashData.LapCount = await _context.Set<TransponderStatisticsItem>().Where(x => x.StatisticsItem.StatisticsItem.IsLapCounter).Where(x => x.StartTime > new DateTime(2021, 10, 28, 0, 0, 0)).CountAsync();
-            dashData.PassingCount = await _context.Set<Passing>().Where(x => x.Time > new DateTime(2021, 10, 28, 0, 0, 0)).CountAsync();
+            //dashData.LapCount = await _context.Set<TransponderStatisticsItem>().Where(x => x.StatisticsItem.StatisticsItem.IsLapCounter).Where(x => x.StartTime > fromDate).CountAsync();
+            dashData.LapCount = dailyCounts.Select(x => x.Count).Sum();
+            dashData.PassingCount = await _context.Set<Passing>().Where(x => x.Time > fromDate).CountAsync();
             dashData.Labels = dailyCounts.Select(x => new DateTimeOffset(x.Date)).ToList();
             dashData.LapCounts = dailyCounts.Select(x => Convert.ToDouble(x.Count)).ToList();
             dashData.RiderCounts = riderCounts.GroupBy(x => x.Date).Select(x => Convert.ToDouble(x.Count())).ToList();
