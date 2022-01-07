@@ -17,7 +17,7 @@
                 <MudCardContent>
                     @if (model != null)
                     {
-                        <MudChart ChartType="ChartType.Bar" ChartSeries="@series" ChartOptions="@(new ChartOptions{YAxisTicks = 100, MaxNumYAxisTicks = 10})" />
+                        <MudChart ChartType="ChartType.Bar" ChartSeries="@series" XAxisLabels="@labels" ChartOptions="@(new ChartOptions{YAxisTicks = 100, MaxNumYAxisTicks = 10})" />
                     }
                 </MudCardContent>
             </MudCard>
@@ -37,6 +37,6 @@
         model = await Api.GetAdminDashboardModel();
 
         series.Add(new ChartSeries { Name = "Runder", Data = model.LapCounts.ToArray() });
-        labels = model.Labels.Select(x => x.LocalDateTime.ToShortDateString()).ToArray();
+        labels = model.Labels.Select((x, idx) => idx % 5 == 0 ? x.LocalDateTime.ToShortDateString() : string.Empty).ToArray();
     }
 }
