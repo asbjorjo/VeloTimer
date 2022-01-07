@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.Statistics;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Services;
 

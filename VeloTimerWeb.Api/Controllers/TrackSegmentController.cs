@@ -5,9 +5,9 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.TrackSetup;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.TrackSetup;
 
 namespace VeloTimerWeb.Api.Controllers
 {

@@ -1,5 +1,5 @@
 ﻿using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.Timing;
 
 namespace VeloTimer.Shared.Hub
 {

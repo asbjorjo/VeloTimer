@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
-namespace VeloTimer.Shared.Models
+namespace VeloTimer.Shared.Models.TrackSetup
 {
     public class TrackWeb
     {

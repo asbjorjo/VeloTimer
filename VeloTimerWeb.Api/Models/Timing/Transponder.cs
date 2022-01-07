@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.Timing;
+using VeloTimerWeb.Api.Models.Riders;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.Timing
 {
     public class Transponder
     {

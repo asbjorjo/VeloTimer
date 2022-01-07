@@ -2,8 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using VeloTimerWeb.Api.Models.Timing;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.TrackSetup
 {
     public class TrackLayout
     {

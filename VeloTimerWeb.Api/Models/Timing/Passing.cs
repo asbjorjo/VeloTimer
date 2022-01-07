@@ -1,6 +1,7 @@
 ﻿using System;
+using VeloTimerWeb.Api.Models.TrackSetup;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.Timing
 {
     public class Passing
     {

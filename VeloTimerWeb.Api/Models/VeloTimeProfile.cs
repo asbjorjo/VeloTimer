@@ -1,7 +1,14 @@
 ﻿using AutoMapper;
 using System.Linq;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.Riders;
+using VeloTimer.Shared.Models.Statistics;
+using VeloTimer.Shared.Models.Timing;
+using VeloTimer.Shared.Models.TrackSetup;
 using VeloTimer.Shared.Util;
+using VeloTimerWeb.Api.Models.Riders;
+using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.Timing;
+using VeloTimerWeb.Api.Models.TrackSetup;
 
 namespace VeloTimerWeb.Api.Models
 {

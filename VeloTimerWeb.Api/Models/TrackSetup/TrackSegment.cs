@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.TrackSetup
 {
     public class TrackSegment
     {

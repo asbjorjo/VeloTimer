@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
+using VeloTimerWeb.Api.Models.Timing;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.TrackSetup
 {
     public class TimingLoop
     {

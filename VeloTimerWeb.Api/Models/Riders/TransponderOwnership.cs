@@ -1,6 +1,7 @@
 ﻿using System;
+using VeloTimerWeb.Api.Models.Timing;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.Riders
 {
     public class TransponderOwnership
     {

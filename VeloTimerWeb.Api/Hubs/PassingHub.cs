@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Hub;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Timing;
 
 namespace VeloTimerWeb.Api.Hubs
 {

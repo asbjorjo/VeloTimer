@@ -1,6 +1,6 @@
 ﻿using Slugify;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.Statistics
 {
     public class StatisticsItem
     {

@@ -17,6 +17,7 @@ using VeloTimer.Shared.Hub;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
 using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Identity;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api

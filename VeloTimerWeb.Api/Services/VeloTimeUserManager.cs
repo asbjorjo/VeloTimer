@@ -8,7 +8,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Riders;
 
 namespace VeloTimerWeb.Api.Services
 {

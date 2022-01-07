@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace VeloTimer.Shared.Models
+namespace VeloTimer.Shared.Models.Timing
 {
     public class PassingRegister
     {

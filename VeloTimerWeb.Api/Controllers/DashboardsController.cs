@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimer.Shared.Util;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Statistics;
 
 namespace VeloTimerWeb.Api.Controllers
 {

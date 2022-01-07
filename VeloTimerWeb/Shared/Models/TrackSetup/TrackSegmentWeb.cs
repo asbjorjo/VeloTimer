@@ -1,4 +1,4 @@
-﻿namespace VeloTimer.Shared.Models
+﻿namespace VeloTimer.Shared.Models.TrackSetup
 {
     public class TrackSegmentWeb
     {

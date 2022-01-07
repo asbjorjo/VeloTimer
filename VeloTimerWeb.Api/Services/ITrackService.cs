@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.TrackSetup;
 
 namespace VeloTimerWeb.Api.Services
 {

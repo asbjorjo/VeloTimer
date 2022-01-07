@@ -1,4 +1,6 @@
-﻿namespace VeloTimer.Shared.Models
+﻿using VeloTimer.Shared.Models.TrackSetup;
+
+namespace VeloTimer.Shared.Models.Statistics
 {
     public class StatisticsItemWeb
     {

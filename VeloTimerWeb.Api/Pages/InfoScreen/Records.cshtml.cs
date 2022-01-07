@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.TrackSetup;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Pages.InfoScreen

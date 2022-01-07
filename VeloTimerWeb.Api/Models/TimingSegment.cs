@@ -1,4 +1,6 @@
-﻿namespace VeloTimerWeb.Api.Models
+﻿using VeloTimerWeb.Api.Models.TrackSetup;
+
+namespace VeloTimerWeb.Api.Models
 {
     public class TimingSegment
     {

@@ -1,7 +1,7 @@
 ﻿using Slugify;
 using System.Collections.Generic;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.TrackSetup
 {
     public class Track
     {

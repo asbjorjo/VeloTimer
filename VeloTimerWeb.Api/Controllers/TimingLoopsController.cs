@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.TrackSetup;
 
 namespace VeloTimerWeb.Api.Controllers
 {

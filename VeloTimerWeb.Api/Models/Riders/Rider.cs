@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.Riders
 {
     public class Rider
     {

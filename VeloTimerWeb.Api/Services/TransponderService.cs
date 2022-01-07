@@ -6,7 +6,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Riders;
+using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.Timing;
 
 namespace VeloTimerWeb.Api.Services
 {

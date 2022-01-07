@@ -1,6 +1,7 @@
 ﻿using System;
+using VeloTimer.Shared.Models.TrackSetup;
 
-namespace VeloTimer.Shared.Models
+namespace VeloTimer.Shared.Models.Timing
 {
     public class PassingWeb
     {
