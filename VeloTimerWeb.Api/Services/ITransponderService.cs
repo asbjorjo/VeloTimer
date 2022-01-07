@@ -2,13 +2,15 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Riders;
+using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.Timing;
 
 namespace VeloTimerWeb.Api.Services
 {
     public interface ITransponderService
     {
-        Task<PaginatedList<Transponder>> GetAll(PaginationParameters pagination);   
+        Task<PaginatedList<Transponder>> GetAll(PaginationParameters pagination);
         Task<PaginatedList<TransponderOwnership>> GetTransponderOwnershipAsync(PaginationParameters pagination);
         Task<int> GetActiveCount(DateTimeOffset fromtime, DateTimeOffset? totime);
         Task<IEnumerable<double>> GetFastest(Transponder transponder, StatisticsItem statisticsItem, DateTimeOffset fromtime, DateTimeOffset? totime, int Count = 10);

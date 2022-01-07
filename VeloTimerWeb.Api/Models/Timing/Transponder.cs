@@ -1,9 +1,8 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
-using VeloTimer.Shared.Models;
-using VeloTimer.Shared.Util;
+using VeloTimer.Shared.Models.Timing;
+using VeloTimerWeb.Api.Models.Riders;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.Timing
 {
     public class Transponder
     {
@@ -15,19 +14,5 @@ namespace VeloTimerWeb.Api.Models
 
         public ICollection<Passing> Passings { get; set; } = new List<Passing>();
         public ICollection<TransponderOwnership> Owners { get; set; } = new List<TransponderOwnership>();
-
-        public TransponderWeb ToWeb()
-        {
-            var web = new TransponderWeb
-            {
-                Label = TransponderIdConverter.IdToCode(SystemId),
-                SystemId = SystemId,
-                TimingSystem = TimingSystem.ToString()
-            };
-
-            web.LastSeen = Passings.OrderByDescending(x => x.Time).FirstOrDefault()?.ToWeb(web);
-
-            return web;
-        }
     }
 }

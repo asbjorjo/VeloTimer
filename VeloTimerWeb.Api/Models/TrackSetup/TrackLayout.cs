@@ -2,9 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using VeloTimer.Shared.Models;
+using VeloTimerWeb.Api.Models.Timing;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.TrackSetup
 {
     public class TrackLayout
     {
@@ -14,19 +14,6 @@ namespace VeloTimerWeb.Api.Models
         public ICollection<TrackLayoutSector> Sectors { get; private set; } = new List<TrackLayoutSector>();
         public double Distance { get; set; }
         public string Slug { get; set; }
-
-        public TrackLayoutWeb ToWeb()
-        {
-            var web = new TrackLayoutWeb
-            {
-                Name = Name,
-                Slug = Slug,
-                Length = Distance,
-                Track = Track?.ToWeb()
-            };
-
-            return web;
-        }
 
         public static TrackLayout Create(Track track, string name, IOrderedEnumerable<TrackSector> sectors)
         {
@@ -40,7 +27,7 @@ namespace VeloTimerWeb.Api.Models
             };
 
             int order = 1;
-            foreach(var sector in sectors)
+            foreach (var sector in sectors)
             {
                 var layoutSegment = TrackLayoutSector.Create(trackLayout, sector, order);
                 trackLayout.Sectors.Add(layoutSegment);

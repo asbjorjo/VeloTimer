@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Identity;
 
 namespace VeloTimerWeb.Api.Areas.Identity.Pages.Account
 {

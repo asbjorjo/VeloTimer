@@ -1,6 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using VeloTimer.Shared.Models;
-using VeloTimerWeb.Api.Models;
+using VeloTimer.Shared.Models.Timing;
+using VeloTimerWeb.Api.Models.Riders;
+using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.Timing;
+using VeloTimerWeb.Api.Models.TrackSetup;
 using VeloTimerWeb.Api.Util;
 
 namespace VeloTimerWeb.Api.Data
@@ -237,7 +240,8 @@ namespace VeloTimerWeb.Api.Data
                     .IncludeProperties("TransponderId");
             });
 
-            builder.Entity<TrackStatisticsItem>(x => {
+            builder.Entity<TrackStatisticsItem>(x =>
+            {
                 x.HasOne(x => x.StatisticsItem)
                     .WithMany()
                     .IsRequired();

@@ -2,13 +2,12 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.Timing;
 
 namespace VeloTimer.AmmcLoad.Services
 {
@@ -107,7 +106,7 @@ namespace VeloTimer.AmmcLoad.Services
             foreach (var passing in passings)
             {
                 var posted = await _httpClient.PostAsJsonAsync("passings/register", new PassingRegister
-               {
+                {
                     LoopId = passing.LoopId,
                     Source = passing.Id,
                     Time = passing.UtcTime,

@@ -1,10 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using VeloTimer.Shared.Models.TrackSetup;
 
-namespace VeloTimer.Shared.Models
+namespace VeloTimer.Shared.Models.Statistics
 {
     public class StatisticsItemWeb
     {
@@ -17,7 +13,7 @@ namespace VeloTimer.Shared.Models
     public class TrackStatisticsItemWeb
     {
         public StatisticsItemWeb StatisticsItem { get; set; }
-        public TrackLayoutWeb TrackLayout { get; set; }
+        public TrackLayoutWeb Layout { get; set; }
         public int Laps { get; set; }
         public double MinTime { get; set; }
         public double MaxTime { get; set; }

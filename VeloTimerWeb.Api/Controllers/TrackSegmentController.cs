@@ -1,27 +1,23 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.TrackSetup;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.TrackSetup;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class TrackSegmentController : ControllerBase
+    public class TrackSegmentController : BaseController
     {
         private readonly VeloTimerDbContext _context;
-        private readonly ILogger<TrackSegmentController> _logger;
-
-        public TrackSegmentController(VeloTimerDbContext context, ILogger<TrackSegmentController> logger)
+        
+        public TrackSegmentController(IMapper mapper, VeloTimerDbContext context, ILogger<TrackSegmentController> logger) : base(mapper, logger)
         {
             _context = context;
-            _logger = logger;
         }
 
         public async Task<ActionResult<IEnumerable<TrackSegmentWeb>>> GetForTrack(string Track)
@@ -35,7 +31,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             var segments = await _context.Set<TrackSegment>().Where(x => x.Start.Track == track).ToListAsync();
 
-            return Ok(segments.Select(x => x.ToWeb()));
+            return _mapper.Map<List<TrackSegmentWeb>>(segments);
         }
     }
 }

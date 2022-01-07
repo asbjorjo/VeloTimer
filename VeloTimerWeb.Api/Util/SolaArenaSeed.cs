@@ -2,9 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.Timing;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.Timing;
+using VeloTimerWeb.Api.Models.TrackSetup;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Util
@@ -71,15 +73,15 @@ namespace VeloTimerWeb.Api.Util
             AddNewSegment(segment);
             segment = new TrackSegment(Start: timingloops.Single(t => t.LoopId == 2), End: timingloops.Single(t => t.LoopId == 3));
             AddNewSegment(segment);
-            segment = new TrackSegment(Start: timingloops.Single(t => t.LoopId == 3), End: timingloops.Single(t => t.LoopId == 0 ));
+            segment = new TrackSegment(Start: timingloops.Single(t => t.LoopId == 3), End: timingloops.Single(t => t.LoopId == 0));
             AddNewSegment(segment);
-            
+
             AddNewTimingSystem(new TransponderType { System = TransponderType.TimingSystem.Mylaps_X2 });
 
             _context.SaveChanges();
 
             AddInitialPassing();
-            
+
             _context.SaveChanges();
 
 
@@ -173,7 +175,7 @@ namespace VeloTimerWeb.Api.Util
                 TrackStatisticsItem.Create(_context.Set<StatisticsItem>().Single(s => s.Label == "Runde"), Layouts.Single(x => x.Name == "Runde"), 1)
             };
 
-            var laps = new int[] { 1, 2, 3, 4, 6, 8, 12, 16};
+            var laps = new int[] { 1, 2, 3, 4, 6, 8, 12, 16 };
             foreach (var layout in Layouts.Where(x => x.Name != "200m" && x.Name != "Runde"))
             {
                 foreach (var lap in laps)
@@ -226,7 +228,8 @@ namespace VeloTimerWeb.Api.Util
             if (existing == null)
             {
                 _context.Add(layout);
-            } else
+            }
+            else
             {
                 layout = existing;
             }
@@ -245,8 +248,8 @@ namespace VeloTimerWeb.Api.Util
         private void AddInitialPassing()
         {
             var passing = _context.Set<Passing>().SingleOrDefault(p => p.SourceId == "617ac814b7c51f1d4a6da859");
-            
-            if (passing == null) 
+
+            if (passing == null)
             {
                 var loop = _context.Set<TimingLoop>().SingleOrDefault(l => l.LoopId == 1 && l.Track.Name == "Sola Arena");
                 var transponder = _context.Set<Transponder>().SingleOrDefault(t => t.SystemId == "115458410" && t.TimingSystem == TransponderType.TimingSystem.Mylaps_X2)

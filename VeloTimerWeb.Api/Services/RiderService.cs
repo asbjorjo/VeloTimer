@@ -7,7 +7,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Identity;
+using VeloTimerWeb.Api.Models.Riders;
+using VeloTimerWeb.Api.Models.Timing;
 
 namespace VeloTimerWeb.Api.Services
 {
@@ -24,13 +26,39 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
+        public async Task<Rider> GetRiderByUserId(string userId)
+        {
+            var rider = await _context.Set<Rider>().SingleOrDefaultAsync(r => r.UserId == userId);
+
+            return rider;
+        }
+
         public async Task<PaginatedList<Rider>> GetAll(PaginationParameters pagination)
         {
             var query = _context.Set<Rider>();
 
-            var riders = await query.ToPaginatedListAsync(pagination.PageNumber, pagination.PageSize);
+            var riders = await query.AsNoTracking().ToPaginatedListAsync(pagination.PageNumber, pagination.PageSize);
 
             return riders;
+        }
+
+        public async Task<bool> UpdateRider(Rider rider)
+        {
+            var dbRider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider.UserId);
+
+            if (dbRider != null)
+            {
+                dbRider.IsPublic = rider.IsPublic;
+                dbRider.FirstName = rider.FirstName;
+                dbRider.LastName = rider.LastName;
+                dbRider.Name = rider.Name;
+
+                await _context.SaveChangesAsync();
+
+                return true;
+            }
+
+            return false;
         }
 
         public async Task DeleteRider(string userId)
@@ -45,7 +73,7 @@ namespace VeloTimerWeb.Api.Services
             if (user != null)
             {
                 var result = await _userManager.DeleteAsync(user);
-                
+
                 if (!result.Succeeded)
                 {
                     _logger.LogError(result.ToString());
@@ -87,7 +115,7 @@ namespace VeloTimerWeb.Api.Services
 
             var query = from t in _context.Set<TransponderOwnership>()
                         from p in _context.Set<Passing>()
-                        where p.Time >= fromtime && p.Time <= totime 
+                        where p.Time >= fromtime && p.Time <= totime
                             && p.Transponder == t.Transponder && p.Time >= t.OwnedFrom && p.Time < t.OwnedUntil
                         orderby p.Time descending
                         group p by t.Owner.Id into passings
@@ -95,7 +123,7 @@ namespace VeloTimerWeb.Api.Services
 
             var riders = await query
                 .AsNoTracking()
-                .ToDictionaryAsync(k => k.Key, v => v.Last );
+                .ToDictionaryAsync(k => k.Key, v => v.Last);
 
             return riders;
         }

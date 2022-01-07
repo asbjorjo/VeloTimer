@@ -1,12 +1,6 @@
 ﻿using Slugify;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.Statistics
 {
     public class StatisticsItem
     {
@@ -16,19 +10,6 @@ namespace VeloTimerWeb.Api.Models
         public double Distance { get; set; }
         public bool IsLapCounter { get; set; } = false;
         public string Slug { get; set; }
-
-        public StatisticsItemWeb ToWeb()
-        {
-            var web = new StatisticsItemWeb
-            {
-                Label = Label,
-                Slug = Slug,
-                Distance = Distance,
-                IsLapCounter = IsLapCounter
-            };
-
-            return web;
-        }
 
         public static StatisticsItem Create(string label, double distance, bool isLapCounter)
         {

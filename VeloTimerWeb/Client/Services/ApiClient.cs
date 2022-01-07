@@ -11,6 +11,10 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.Riders;
+using VeloTimer.Shared.Models.Statistics;
+using VeloTimer.Shared.Models.Timing;
+using VeloTimer.Shared.Models.TrackSetup;
 using VeloTimerWeb.Client.Components;
 
 namespace VeloTimerWeb.Client.Services
@@ -201,7 +205,7 @@ namespace VeloTimerWeb.Client.Services
 
             url.Append("?").Append(pagingParameters.ToQueryString()).Append("&").Append(timeParameters.ToQueryString());
             url.Append("&orderby=").Append(statisticsParameters.OrderBy);
-                        
+
             using var response = await _client.GetAsync(url.ToString());
             response.EnsureSuccessStatusCode();
 
@@ -274,7 +278,8 @@ namespace VeloTimerWeb.Client.Services
             if (Track != null)
             {
                 url = $"statisticsitem/track/{Track}";
-            } else
+            }
+            else
             {
                 url = $"statisticsitem";
             }
@@ -305,7 +310,7 @@ namespace VeloTimerWeb.Client.Services
 
             using var response = await _client.GetAsync($"track/sola-arena/count/{StatsItem}?FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}");
             response.EnsureSuccessStatusCode();
-            
+
             var counts = await response.Content.ReadFromJsonAsync<IEnumerable<SegmentDistance>>();
 
             return counts;
@@ -370,7 +375,7 @@ namespace VeloTimerWeb.Client.Services
         {
             using var response = await _client.GetAsync($"transponders/ownerships?{pagination.ToQueryString()}");
             response.EnsureSuccessStatusCode();
-            
+
             var transponders = new PaginatedResponse<TransponderOwnershipWeb>
             {
                 Items = await response.Content.ReadFromJsonAsync<List<TransponderOwnershipWeb>>(),
@@ -378,6 +383,14 @@ namespace VeloTimerWeb.Client.Services
             };
 
             return transponders;
+        }
+
+        public async Task<AdminDashboardModel> GetAdminDashboardModel()
+        {
+            using var response = await _client.GetAsync("dashboards/admin");
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<AdminDashboardModel>();
         }
     }
 }

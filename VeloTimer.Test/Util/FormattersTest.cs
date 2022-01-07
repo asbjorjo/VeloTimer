@@ -1,16 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using VeloTimer.Shared.Util;
+﻿using VeloTimer.Shared.Util;
 using Xunit;
 
 namespace Test.Shared.Util
 {
     public class FormattersTest
     {
-        [Fact]  
+        [Fact]
         public void FormatTimeLessThanMinute()
         {
             double Time = 0.0;

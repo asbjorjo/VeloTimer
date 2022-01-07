@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+﻿using System.Linq;
+using VeloTimerWeb.Api.Models.TrackSetup;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.Statistics
 {
     public class TrackStatisticsItem
     {
@@ -34,20 +30,6 @@ namespace VeloTimerWeb.Api.Models
             }
 
             return item;
-        }
-
-        public TrackStatisticsItemWeb ToWeb()
-        {
-            var web = new TrackStatisticsItemWeb
-            {
-                StatisticsItem = StatisticsItem.ToWeb(),
-                TrackLayout = Layout.ToWeb(),
-                Laps = Laps,
-                MinTime = MinTime,
-                MaxTime = MaxTime
-            };
-
-            return web;
         }
     }
 }

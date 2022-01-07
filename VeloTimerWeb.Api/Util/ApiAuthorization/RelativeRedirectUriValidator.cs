@@ -1,5 +1,4 @@
-﻿using IdentityServer4.Models;
-using IdentityServer4.Validation;
+﻿using IdentityServer4.Validation;
 using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
 using System;
 using System.Collections.Generic;

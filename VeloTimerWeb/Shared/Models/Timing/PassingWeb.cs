@@ -1,17 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using VeloTimer.Shared.Models.TrackSetup;
 
-namespace VeloTimer.Shared.Models
+namespace VeloTimer.Shared.Models.Timing
 {
     public class PassingWeb
     {
         public DateTime Time { get; set; }
         public TransponderWeb Transponder { get; set; }
         public TrackWeb Track { get; set; }
-        public string LoopName { get; set; }
+        public string LoopDescription { get; set; }
         public string SourceId { get; set; }
     }
 }

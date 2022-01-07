@@ -1,28 +1,22 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.Statistics;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class StatisticsItemController : ControllerBase
+    public class StatisticsItemController : BaseController
     {
-        private readonly VeloTimerDbContext _context;
         private readonly IStatisticsService _statisticsService;
-        private readonly ILogger<StatisticsItemController> _logger;
 
-        public StatisticsItemController(IStatisticsService statisticsService, ILogger<StatisticsItemController> logger)
+        public StatisticsItemController(IMapper mapper, IStatisticsService statisticsService, ILogger<StatisticsItemController> logger) : base(mapper, logger)
         {
             _statisticsService = statisticsService;
-            _logger = logger;
         }
 
         [HttpGet]
@@ -31,7 +25,7 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var items = await _statisticsService.GetTrackItemsBySlugs(Track, Label);
 
-            return items.Any() ? items.Select(x => x.ToWeb()).ToList() : NotFound();
+            return items.Any() ? _mapper.Map<List<TrackStatisticsItemWeb>>(items) : NotFound();
         }
 
         [HttpGet]
@@ -40,7 +34,7 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var items = await _statisticsService.GetTrackItemsBySlugs(Track);
 
-            return items.Any() ? items.Select(x => x.ToWeb()).ToList() : NotFound();
+            return items.Any() ? _mapper.Map<List<TrackStatisticsItemWeb>>(items) : NotFound();
         }
     }
 }

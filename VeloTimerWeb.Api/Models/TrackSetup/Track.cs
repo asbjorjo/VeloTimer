@@ -1,12 +1,7 @@
 ﻿using Slugify;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
 
-namespace VeloTimerWeb.Api.Models
+namespace VeloTimerWeb.Api.Models.TrackSetup
 {
     public class Track
     {
@@ -27,15 +22,6 @@ namespace VeloTimerWeb.Api.Models
                 Length = length,
                 Slug = slugHelper.GenerateSlug(name)
             };
-        }
-
-        public TrackWeb ToWeb()
-        {
-            var webLayouts = Layouts?.Select(x => TrackLayoutWeb.Create(x.Name, x.Slug, x.Distance));
-
-            var web = TrackWeb.Create(Name, Slug, Length, webLayouts);
-
-            return web;
         }
     }
 }

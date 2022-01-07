@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using VeloTimer.Shared.Util;
+﻿using VeloTimer.Shared.Util;
 using Xunit;
 
 namespace VeloTimer.Test.Shared.Util
@@ -17,7 +12,7 @@ namespace VeloTimer.Test.Shared.Util
             long Expected = 106187718;
 
             long Id = TransponderIdConverter.CodeToId(Code);
-            
+
             Assert.Equal(Expected, Id);
         }
 

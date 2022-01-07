@@ -1,4 +1,4 @@
-﻿using IdentityModel;
+﻿using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -11,29 +11,30 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.Riders;
+using VeloTimer.Shared.Models.Timing;
 using VeloTimer.Shared.Util;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Riders;
+using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.Timing;
+using VeloTimerWeb.Api.Models.TrackSetup;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
     [Authorize]
-    [Route("api/[controller]")]
-    [ApiController]
-    public class RiderController : ControllerBase
+    public class RiderController : BaseController
     {
         private readonly IRiderService _riderService;
         private readonly ITransponderService _transponderService;
-        private readonly ILogger<RiderController> _logger;
         private readonly VeloTimerDbContext _context;
         private readonly DbSet<Rider> _dbset;
 
-        public RiderController(IRiderService riderService, ITransponderService transponderService, ILogger<RiderController> logger, VeloTimerDbContext context) : base()
+        public RiderController(IMapper mapper, IRiderService riderService, ITransponderService transponderService, ILogger<RiderController> logger, VeloTimerDbContext context) : base(mapper, logger)
         {
             _riderService = riderService;
             _transponderService = transponderService;
-            _logger = logger;
             _context = context;
             _dbset = _context.Set<Rider>();
         }
@@ -46,7 +47,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(riders.Pagination));
 
-            var response = riders.Select(x => x.ToWeb());
+            var response = _mapper.Map<IEnumerable<RiderWeb>>(riders);
 
             return Ok(response);
         }
@@ -55,14 +56,14 @@ namespace VeloTimerWeb.Api.Controllers
         [Route("{userId}")]
         public async Task<ActionResult<RiderWeb>> Get(string userId)
         {
-            var rider = await _context.Set<Rider>().AsNoTracking().SingleOrDefaultAsync(r => r.UserId == userId);
+            var rider = await _riderService.GetRiderByUserId(userId);
 
             if (rider == null)
             {
                 return NotFound();
             }
 
-            return rider.ToWeb();
+            return _mapper.Map<RiderWeb>(rider);
         }
 
         [HttpDelete]
@@ -70,11 +71,14 @@ namespace VeloTimerWeb.Api.Controllers
         public async Task<ActionResult> Delete(string userId)
         {
             if (string.IsNullOrWhiteSpace(userId)) return BadRequest();
-            if (!User.Identity.IsAuthenticated || User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != userId) return Unauthorized();
+            if (User.Identity.IsAuthenticated && User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value == userId)
+            {
+                await _riderService.DeleteRider(userId);
 
-            await _riderService.DeleteRider(userId);
+                return Ok();
+            }
 
-            return Ok();
+            return Unauthorized();
         }
 
         [HttpPut]
@@ -82,27 +86,27 @@ namespace VeloTimerWeb.Api.Controllers
         public async Task<ActionResult<RiderWeb>> Update(string userId, RiderWeb profile)
         {
             if (string.IsNullOrWhiteSpace(userId)) return BadRequest();
-            if (userId != profile.UserId) return BadRequest();
-            if (!User.Identity.IsAuthenticated || User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value != userId) return Unauthorized();
 
-            _logger.LogInformation(User?.Identity.Name);
-            foreach (var claim in User.Claims)
+            if (userId != profile.UserId) return BadRequest();
+
+            if (User.Identity.IsAuthenticated && User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value == userId)
             {
-                _logger.LogInformation($"Claim: {claim.Type} - {claim.Value} - {claim.Subject}");
+                _logger.LogInformation(User?.Identity.Name);
+                foreach (var claim in User.Claims)
+                {
+                    _logger.LogInformation($"Claim: {claim.Type} - {claim.Value} - {claim.Subject}");
+                }
+
+                var rider = _mapper.Map<Rider>(profile);
+                var success = await _riderService.UpdateRider(rider);
+
+                if (success)
+                    return _mapper.Map<RiderWeb>(rider);
+
+                return BadRequest();
             }
 
-            var rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == userId);
-
-            if (rider == null) return NotFound();
-
-            rider.Name = profile.RiderDisplayName;
-            rider.FirstName = profile.RiderFirstName;
-            rider.LastName = profile.RiderLastName;
-            rider.IsPublic = profile.RiderIsPublic;
-
-            await _context.SaveChangesAsync();
-
-            return rider.ToWeb();
+            return Unauthorized();
         }
 
         [Route("active")]
@@ -111,7 +115,7 @@ namespace VeloTimerWeb.Api.Controllers
         {
             var active = await _riderService.GetActive(fromtime, totime);
 
-            return Ok(active.Select(x => x.ToWeb()));
+            return Ok(_mapper.Map<IEnumerable<RiderWeb>>(active));
         }
 
         [AllowAnonymous]
@@ -123,7 +127,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             return active;
         }
-        
+
         [HttpGet]
         [Route("{rider}/transponders")]
         public async Task<ActionResult<IEnumerable<TransponderOwnershipWeb>>> GetTransponders(string rider)
@@ -136,17 +140,16 @@ namespace VeloTimerWeb.Api.Controllers
                 .Include(x => x.Transponder)
                 .ToListAsync();
 
-            var transponders = transponders1
-                .Select(to => to.ToWeb()).ToList();
+            var transponders = _mapper.Map<IEnumerable<TransponderOwnershipWeb>>(transponders1);
 
-            return transponders;
+            return Ok(transponders);
         }
 
         [HttpGet]
         [Route("{rider}/fastest/{statsitem}")]
         public async Task<ActionResult<IEnumerable<SegmentTime>>> GetFastest(
-            string rider, 
-            string statsitem, 
+            string rider,
+            string statsitem,
             DateTimeOffset? FromTime,
             DateTimeOffset? ToTime)
         {
@@ -269,7 +272,7 @@ namespace VeloTimerWeb.Api.Controllers
             }
 
             var dbrider = await _dbset.Where(r => r.UserId == rider).SingleAsync();
-            
+
             var value = new TransponderOwnership
             {
                 OwnedFrom = ownfrom.UtcDateTime,
@@ -280,9 +283,8 @@ namespace VeloTimerWeb.Api.Controllers
 
             await _context.AddAsync(value);
             await _context.SaveChangesAsync();
-            ownerWeb.Owner = dbrider.ToWeb();
 
-            return Ok();
+            return Ok(_mapper.Map<TransponderOwnershipWeb>(value));
         }
 
         [HttpDelete]

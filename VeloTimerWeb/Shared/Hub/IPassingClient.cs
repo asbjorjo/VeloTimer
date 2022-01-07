@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+﻿using System.Threading.Tasks;
+using VeloTimer.Shared.Models.Timing;
 
 namespace VeloTimer.Shared.Hub
 {

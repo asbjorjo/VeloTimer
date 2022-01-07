@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System;
 using System.Threading.Tasks;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Identity;
 using VeloTimerWeb.Api.Util;
 
 namespace VeloTimerWeb.Api.Data
@@ -59,7 +59,7 @@ namespace VeloTimerWeb.Api.Data
 
             builder.Entity<Role>()
                 .HasData(
-                    new Role { Id = Guid.NewGuid(),Name = "User", NormalizedName = "USER " },
+                    new Role { Id = Guid.NewGuid(), Name = "User", NormalizedName = "USER " },
                     new Role { Id = Guid.NewGuid(), Name = "Admin", NormalizedName = "ADMIN" }
                 );
         }
