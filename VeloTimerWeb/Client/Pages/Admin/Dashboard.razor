@@ -8,15 +8,69 @@
 @inject IApiClient Api
 
 <MudContainer>
-    <MudPaper>
-        @if (model != null)
-        {
-            @*<MudChart ChartType="ChartType.Donut" InputData="@(model.LapCounts.ToArray())" InputLabels="@labels" ChartOptions="@(new ChartOptions{YAxisTicks = 200, MaxNumYAxisTicks = 10})" />
-            <MudChart ChartType="ChartType.Donut" InputData="@(model.RiderCounts.ToArray())" InputLabels="@labels" ChartOptions="@(new ChartOptions{YAxisTicks = 200, MaxNumYAxisTicks = 10})" />*@
-            <MudChart Height="300" ChartType="ChartType.Bar" ChartSeries="@lapseries" XAxisLabels="@labels" ChartOptions="@(new ChartOptions{YAxisTicks = 200, MaxNumYAxisTicks = 10})" />
-            <MudChart Height="300" ChartType="ChartType.Bar" ChartSeries="@riderseries" XAxisLabels="@labels" ChartOptions="@(new ChartOptions{YAxisTicks = 5, MaxNumYAxisTicks = 10})" />
-        }
-    </MudPaper>
+    <MudGrid>
+    @if (model != null)
+    {
+        <MudItem>
+            <MudCard>
+                <MudCardHeader>
+                    Bane
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem>
+                            Runder
+                        </MudItem>
+                        <MudItem>
+                            @model.LapCount
+                        </MudItem>
+                        <MudItem>
+                            Passinger
+                        </MudItem>
+                        <MudItem>
+                            @model.PassingCount
+                        </MudItem>
+                    </MudGrid>
+                    <MudChart Height="300" ChartType="ChartType.Bar" ChartSeries="@lapseries" XAxisLabels="@labels" ChartOptions="@(new ChartOptions{YAxisTicks = 200, MaxNumYAxisTicks = 10})" />
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem>
+            <MudCard>
+                <MudCardHeader>
+                    Brukere
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudGrid>
+                        <MudItem>
+                            Ryttere
+                        </MudItem>
+                        <MudItem>
+                            @model.RiderCount
+                        </MudItem>
+                        <MudItem>
+                            Med brikke
+                        </MudItem>
+                        <MudItem>
+                            @model.RiderWithTransponderCount
+                        </MudItem>
+                        <MudItem>
+                            Med offentlig profil
+                        </MudItem>
+                        <MudItem>
+                            @model.RiderPublicCount
+                        </MudItem>
+                    </MudGrid>
+                    <MudChart Height="300" ChartType="ChartType.Bar" ChartSeries="@riderseries" XAxisLabels="@labels" ChartOptions="@(new ChartOptions{YAxisTicks = 5, MaxNumYAxisTicks = 10})" />
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        @*<MudPaper>
+                <MudChart ChartType="ChartType.Donut" InputData="@(model.LapCounts.ToArray())" InputLabels="@labels" ChartOptions="@(new ChartOptions{YAxisTicks = 200, MaxNumYAxisTicks = 10})" />
+                <MudChart ChartType="ChartType.Donut" InputData="@(model.RiderCounts.ToArray())" InputLabels="@labels" ChartOptions="@(new ChartOptions{YAxisTicks = 200, MaxNumYAxisTicks = 10})" />
+        </MudPaper>*@
+    }
+    </MudGrid>
 </MudContainer>
 
 @code {
@@ -32,8 +86,8 @@
 
         model = await Api.GetAdminDashboardModel();
 
-        lapseries.Add(new ChartSeries { Name = "Runder", Data = model.LapCounts.ToArray() });
-        riderseries.Add(new ChartSeries { Name = "Ryttere", Data = model.RiderCounts.ToArray() });
+        lapseries.Add(new ChartSeries { Name = "Runder siste 30 dager", Data = model.LapCounts.ToArray() });
+        riderseries.Add(new ChartSeries { Name = "Ryttere siste 30 dager", Data = model.RiderCounts.ToArray() });
         series.AddRange(lapseries.Concat(riderseries));
         labels = model.Labels.Select((x, idx) => idx%5==0 ? x.LocalDateTime.ToShortDateString() : string.Empty).ToArray();
     }
