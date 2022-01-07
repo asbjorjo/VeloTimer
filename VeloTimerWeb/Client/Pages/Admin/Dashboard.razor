@@ -5,16 +5,20 @@
 @using VeloTimer.Shared.Util
 @using VeloTimer.Shared.Models
 @layout MainLayout
+@inject IApiClient Api
 
 <MudContainer>
     <MudGrid>
-        <MudItem>
+        <MudItem xs=12>
             <MudCard>
                 <MudCardHeader>
                     <MudText Typo=Typo.h6>Aktivitet</MudText>
                 </MudCardHeader>
                 <MudCardContent>
-                    Chart with lap counts by day.
+                    @if (model != null)
+                    {
+                        <MudChart ChartType="ChartType.Bar" ChartSeries="@series" ChartOptions="@(new ChartOptions{YAxisTicks = 100, MaxNumYAxisTicks = 10})" />
+                    }
                 </MudCardContent>
             </MudCard>
         </MudItem>
@@ -22,5 +26,17 @@
 </MudContainer>
 
 @code {
+    private AdminDashboardModel model;
+    private List<ChartSeries> series = new();
+    private string[] labels;
 
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        model = await Api.GetAdminDashboardModel();
+
+        series.Add(new ChartSeries { Name = "Runder", Data = model.LapCounts.ToArray() });
+        labels = model.Labels.Select(x => x.LocalDateTime.ToShortDateString()).ToArray();
+    }
 }

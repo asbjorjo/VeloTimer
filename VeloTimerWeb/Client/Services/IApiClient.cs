@@ -34,5 +34,7 @@ namespace VeloTimerWeb.Client.Services
         Task<IEnumerable<TrackStatisticsItemWeb>> GetStatisticsItems(string Track);
 
         Task<IEnumerable<TimingLoopWeb>> GetTimingPoints(string Track);
+
+        Task<AdminDashboardModel> GetAdminDashboardModel();
     }
 }

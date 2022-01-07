@@ -380,5 +380,13 @@ namespace VeloTimerWeb.Client.Services
 
             return transponders;
         }
+
+        public async Task<AdminDashboardModel> GetAdminDashboardModel()
+        {
+            using var response = await _client.GetAsync("dashboards/admin");
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<AdminDashboardModel>();
+        }
     }
 }
