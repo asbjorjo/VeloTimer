@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -14,10 +15,11 @@ namespace VeloTimer.AmmcLoad.Services
 
         private const long BAD_LOOP_ID = uint.MaxValue;
 
-        public AmmcPassingService(IPassingDatabaseSettings settings, ILogger<AmmcPassingService> logger)
+        public AmmcPassingService(IOptions<PassingDatabaseSettings> options, ILogger<AmmcPassingService> logger)
         {
             _logger = logger;
             _logger.LogInformation("creating");
+            var settings = options.Value;
 
             var client = new MongoClient(settings.ConnectionString);
             _logger.LogInformation("client ready");
@@ -48,7 +50,7 @@ namespace VeloTimer.AmmcLoad.Services
 
             var builder = Builders<PassingAmmc>.Filter;
             var filter = builder.Ne(p => p.LoopId, BAD_LOOP_ID) & builder.Gt(p => p.Id, id);
-            var passings = _passings.Find<PassingAmmc>(filter);
+            var passings = await _passings.FindAsync<PassingAmmc>(filter);
 
             return await passings.ToListAsync();
         }
