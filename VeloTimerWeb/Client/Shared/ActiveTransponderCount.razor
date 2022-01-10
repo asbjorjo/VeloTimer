@@ -20,7 +20,7 @@ else
 
 @code {
     [Parameter]
-    public DateTimeOffset FromTime { get; set; } = DateTimeOffset.Now.AddHours(-1);
+    public DateTimeOffset FromTime { get; set; } = DateTimeOffset.Now.AddMinutes(-15);
     [Parameter]
     public DateTimeOffset? ToTime { get; set; }
 
