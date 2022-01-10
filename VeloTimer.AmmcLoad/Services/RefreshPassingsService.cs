@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using AutoMapper;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
@@ -21,8 +22,8 @@ namespace VeloTimer.AmmcLoad.Services
         private readonly ILogger<RefreshPassingsService> _logger;
         private readonly AmmcPassingService _passingService;
         private readonly IServiceScopeFactory _serviceScopeFactory;
-        private HttpClient _httpClient;
-
+        private IApiService _apiService;
+        
         public RefreshPassingsService(IServiceScopeFactory servicesScopeFactory,
                                       AmmcPassingService passingService,
                                       ILogger<RefreshPassingsService> logger)
@@ -65,26 +66,9 @@ namespace VeloTimer.AmmcLoad.Services
         private async Task LoadMostRecentPassing()
         {
             using var scope = _serviceScopeFactory.CreateScope();
-            _httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
+            _apiService = scope.ServiceProvider.GetRequiredService<IApiService>();
 
-            try
-            {
-                mostRecent = await _httpClient.GetFromJsonAsync<PassingWeb>("passings/mostrecent");
-            }
-            catch (HttpRequestException ex)
-            {
-                if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-                {
-                    mostRecent = null;
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-
-            _logger.LogInformation("Most recent passing found {0}", mostRecent?.SourceId);
+            mostRecent = await _apiService.GetMostRecentPassing();
         }
 
         private async Task RefreshPassings()
@@ -99,48 +83,20 @@ namespace VeloTimer.AmmcLoad.Services
 
             _logger.LogInformation("Found {0} number of passings", passings.Count);
 
-            //var tasks = new List<Task>();
-
             using var scope = _serviceScopeFactory.CreateScope();
-            _httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
+            _apiService = scope.ServiceProvider.GetRequiredService<IApiService>();
             foreach (var passing in passings)
             {
-                var posted = await _httpClient.PostAsJsonAsync("passings/register", new PassingRegister
+                var attempts = 1;
+                while (! await _apiService.RegisterPassing(passing))
                 {
-                    LoopId = passing.LoopId,
-                    Source = passing.Id,
-                    Time = passing.UtcTime,
-                    TimingSystem = TransponderType.TimingSystem.Mylaps_X2,
-                    TransponderId = passing.TransponderId.ToString()
-                });
-
-                if (!posted.IsSuccessStatusCode)
-                {
-                    _logger.LogError($"Could not post passing - {passing.Id} - {posted.StatusCode}");
+                    _logger.LogInformation($"Registering passing failed, attempt {attempts}");
+                    await Task.Delay(TimeSpan.FromMilliseconds(500*attempts));
+                    attempts++;
                 }
-                //tasks.Add(PostPassing(new PassingRegister
-                //{
-                //    LoopId = passing.LoopId,
-                //    Source = passing.Id,
-                //    Time = passing.UtcTime,
-                //    TimingSystem = TransponderType.TimingSystem.Mylaps_X2,
-                //    TransponderId = passing.TransponderId.ToString()
-                //}));
             }
 
-            //await Task.WhenAll(tasks);
-
-            await LoadMostRecentPassing();
-        }
-
-        private async Task PostPassing(PassingRegister passing)
-        {
-            var posted = await _httpClient.PostAsJsonAsync("passings/register", passing);
-
-            if (!posted.IsSuccessStatusCode)
-            {
-                _logger.LogError($"Could not post passing - {passing.Source} - {posted.StatusCode}");
-            }
+            mostRecent = await _apiService.GetMostRecentPassing();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using System;
 using System.Net.Http;
 using VeloTimer.AmmcLoad.Data;
+using VeloTimer.AmmcLoad.Models;
 using VeloTimer.AmmcLoad.Services;
 
 namespace VeloTimer.AmmcLoad
@@ -27,9 +28,13 @@ namespace VeloTimer.AmmcLoad
 
             services.Configure<PassingDatabaseSettings>(
                                          Configuration.GetSection(nameof(PassingDatabaseSettings)));
+            services.AddAutoMapper(typeof(AmmcProfile));
             services.AddSingleton<IPassingDatabaseSettings>(sp =>
                         sp.GetRequiredService<IOptions<PassingDatabaseSettings>>().Value);
             services.AddSingleton<AmmcPassingService>();
+            
+            services.AddScoped<IApiService, ApiService>();
+
             services.AddTransient<VeloHttpClientHandler>();
             services.AddHttpClient(
                 "VeloTimerWeb.ServerAPI",
