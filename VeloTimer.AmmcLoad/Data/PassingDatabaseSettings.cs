@@ -1,4 +1,6 @@
-﻿namespace VeloTimer.AmmcLoad.Data
+﻿using Microsoft.Extensions.Options;
+
+namespace VeloTimer.AmmcLoad.Data
 {
     public class PassingDatabaseSettings : IPassingDatabaseSettings
     {

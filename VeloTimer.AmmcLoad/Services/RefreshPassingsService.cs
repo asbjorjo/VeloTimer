@@ -23,12 +23,15 @@ namespace VeloTimer.AmmcLoad.Services
         private readonly AmmcPassingService _passingService;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private IApiService _apiService;
+        private IMessagingService _messagingService;
         
         public RefreshPassingsService(IServiceScopeFactory servicesScopeFactory,
                                       AmmcPassingService passingService,
+                                      IMessagingService messagingService,
                                       ILogger<RefreshPassingsService> logger)
         {
             _passingService = passingService;
+            _messagingService = messagingService;
             _logger = logger;
             _serviceScopeFactory = servicesScopeFactory;
         }
@@ -87,6 +90,8 @@ namespace VeloTimer.AmmcLoad.Services
             _apiService = scope.ServiceProvider.GetRequiredService<IApiService>();
             foreach (var passing in passings)
             {
+                await _messagingService.SubmitPassing(passing);
+
                 var attempts = 1;
                 while (! await _apiService.RegisterPassing(passing))
                 {
