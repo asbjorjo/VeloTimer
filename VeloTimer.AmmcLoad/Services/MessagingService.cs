@@ -9,20 +9,21 @@ using System.Threading.Tasks;
 using VeloTimer.AmmcLoad.Models;
 using VeloTimer.Shared.Models.Timing;
 using VeloTimer.Shared.Configuration;
+using System;
 
 namespace VeloTimer.AmmcLoad.Services
 {
     public class MessagingService : IMessagingService
     {
-        private readonly MessageBusSettings _options;
+        private readonly MessageBusOptions _options;
         private readonly ILogger<MessagingService> _logger;
         private readonly IMapper _mapper;
         private ServiceBusClient _client;
         private ServiceBusSender _sender;
 
-        public MessagingService(IOptions<MessageBusSettings> options, ILogger<MessagingService> logger, IMapper mapper)
+        public MessagingService(MessageBusOptions options, ILogger<MessagingService> logger, IMapper mapper)
         {
-            _options = options.Value;
+            _options = options ?? throw new ArgumentNullException(nameof(options));
             _logger = logger;
             _mapper = mapper;
         }

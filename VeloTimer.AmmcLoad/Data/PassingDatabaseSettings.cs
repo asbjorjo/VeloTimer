@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace VeloTimer.AmmcLoad.Data
 {
@@ -14,5 +17,19 @@ namespace VeloTimer.AmmcLoad.Data
         string PassingCollection { get; set; }
         string PassingDatabase { get; set; }
         string ConnectionString { get; set; }
+    }
+
+    public static class PassingDatabaseSettingsExtensions
+    {
+        public static IPassingDatabaseSettings ConfigurePassingDatabase(this IServiceCollection services, IConfiguration config)
+        {
+            var passingconfig = config.GetSection(nameof(PassingDatabaseSettings));
+            var settings = passingconfig.Get<PassingDatabaseSettings>();
+            settings.ConnectionString = config.GetConnectionString("PassingDatabase");
+
+            services.TryAddSingleton(settings);
+
+            return settings;
+        }
     }
 }

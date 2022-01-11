@@ -40,7 +40,7 @@ namespace VeloTimerWeb.Api
         {
             services.AddApplicationInsightsTelemetry();
 
-            services.Configure<MessageBusSettings>(Configuration.GetSection(MessageBusSettings.Section));
+            services.ConfigureMessaging(Configuration);
 
             services.AddDbContext<VeloTimerDbContext>(options =>
             {

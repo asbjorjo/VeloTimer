@@ -27,10 +27,8 @@ namespace VeloTimer.AmmcLoad
         {
             services.AddApplicationInsightsTelemetry();
 
-            services.Configure<PassingDatabaseSettings>(
-                Configuration.GetSection(nameof(PassingDatabaseSettings)));
-            services.Configure<MessageBusSettings>(
-                Configuration.GetSection(MessageBusSettings.Section));
+            services.ConfigurePassingDatabase(Configuration);
+            services.ConfigureMessaging(Configuration);
 
             services.AddAutoMapper(typeof(AmmcProfile));
             services.AddSingleton<AmmcPassingService>();

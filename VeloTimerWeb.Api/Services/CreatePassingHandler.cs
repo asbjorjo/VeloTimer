@@ -18,7 +18,7 @@ namespace VeloTimerWeb.Api.Services
 {
     public class CreatePassingHandler : BackgroundService
     {
-        private readonly MessageBusSettings _settings;
+        private readonly MessageBusOptions _settings;
         private readonly ILogger<CreatePassingHandler> _logger;
         private readonly IMapper _mapper;
         private readonly IServiceScopeFactory _serviceScopeFactory;
@@ -26,12 +26,12 @@ namespace VeloTimerWeb.Api.Services
         private ServiceBusSessionProcessor _processor;
 
         public CreatePassingHandler(
-            IOptions<MessageBusSettings> options,
+            MessageBusOptions options,
             ILogger<CreatePassingHandler> logger,
             IMapper mapper,
             IServiceScopeFactory serviceScopeFactory)
         {
-            _settings = options.Value;
+            _settings = options;
             _logger = logger;
             _mapper = mapper;
             _serviceScopeFactory = serviceScopeFactory;

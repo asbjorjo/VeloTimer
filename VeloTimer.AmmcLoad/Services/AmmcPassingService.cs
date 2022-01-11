@@ -15,11 +15,11 @@ namespace VeloTimer.AmmcLoad.Services
 
         private const long BAD_LOOP_ID = uint.MaxValue;
 
-        public AmmcPassingService(IOptions<PassingDatabaseSettings> options, ILogger<AmmcPassingService> logger)
+        public AmmcPassingService(PassingDatabaseSettings options, ILogger<AmmcPassingService> logger)
         {
             _logger = logger;
             _logger.LogInformation("creating");
-            var settings = options.Value;
+            var settings = options;
 
             var client = new MongoClient(settings.ConnectionString);
             _logger.LogInformation("client ready");
