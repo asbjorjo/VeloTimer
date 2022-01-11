@@ -1,14 +1,10 @@
-﻿using AutoMapper;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models.Timing;
 
 namespace VeloTimer.AmmcLoad.Services
 {
@@ -17,7 +13,7 @@ namespace VeloTimer.AmmcLoad.Services
         private const long TimerInterval = 1000;
         private int _lock = 0;
         private Timer _timer;
-        private PassingWeb mostRecent;
+        private string mostRecent;
 
         private readonly ILogger<RefreshPassingsService> _logger;
         private readonly AmmcPassingService _passingService;
@@ -71,12 +67,13 @@ namespace VeloTimer.AmmcLoad.Services
             using var scope = _serviceScopeFactory.CreateScope();
             _apiService = scope.ServiceProvider.GetRequiredService<IApiService>();
 
-            mostRecent = await _apiService.GetMostRecentPassing();
+            var passing = await _apiService.GetMostRecentPassing();
+            mostRecent = passing?.SourceId;
         }
 
         private async Task RefreshPassings()
         {
-            var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent.SourceId));
+            var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent));
 
             if (!passings.Any())
             {
@@ -88,20 +85,10 @@ namespace VeloTimer.AmmcLoad.Services
 
             using var scope = _serviceScopeFactory.CreateScope();
             _apiService = scope.ServiceProvider.GetRequiredService<IApiService>();
-            foreach (var passing in passings)
-            {
-                await _messagingService.SubmitPassing(passing);
 
-                var attempts = 1;
-                while (! await _apiService.RegisterPassing(passing))
-                {
-                    _logger.LogInformation($"Registering passing failed, attempt {attempts}");
-                    await Task.Delay(TimeSpan.FromMilliseconds(500*attempts));
-                    attempts++;
-                }
-            }
+            await _messagingService.SubmitPassings(passings);
 
-            mostRecent = await _apiService.GetMostRecentPassing();
+            mostRecent = passings.Last().Id;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
