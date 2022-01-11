@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using System;
 using System.Net.Http;
 using VeloTimer.AmmcLoad.Data;
@@ -33,7 +32,7 @@ namespace VeloTimer.AmmcLoad
             services.AddAutoMapper(typeof(AmmcProfile));
             services.AddSingleton<AmmcPassingService>();
             services.AddSingleton<IMessagingService, MessagingService>();
-            
+
             services.AddScoped<IApiService, ApiService>();
 
             services.AddTransient<VeloHttpClientHandler>();
