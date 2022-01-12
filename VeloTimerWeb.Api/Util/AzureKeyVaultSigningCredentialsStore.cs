@@ -1,5 +1,5 @@
-﻿using IdentityServer4.Models;
-using IdentityServer4.Stores;
+﻿using Duende.IdentityServer.Models;
+using Duende.IdentityServer.Stores;
 using Microsoft.Azure.KeyVault;
 using Microsoft.Azure.KeyVault.Models;
 using Microsoft.Extensions.Caching.Memory;

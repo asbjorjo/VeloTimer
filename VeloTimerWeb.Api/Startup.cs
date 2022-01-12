@@ -1,5 +1,5 @@
-using IdentityServer4.Models;
-using IdentityServer4.Services;
+using Duende.IdentityServer.Models;
+using Duende.IdentityServer.Services;
 using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -111,7 +111,7 @@ namespace VeloTimerWeb.Api
             })
                 .AddModifiedApiAuthorization<User, VeloIdentityDbContext>(options =>
                 {
-                    options.Clients.Add(new IdentityServer4.Models.Client
+                    options.Clients.Add(new Duende.IdentityServer.Models.Client
                     {
                         ClientId = "WebApi.Loader",
                         AllowedGrantTypes = { GrantType.ClientCredentials },

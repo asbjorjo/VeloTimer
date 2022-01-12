@@ -1,4 +1,4 @@
-﻿using IdentityServer4.Stores;
+﻿using Duende.IdentityServer.Stores;
 using Microsoft.Azure.KeyVault;
 using Microsoft.Azure.Services.AppAuthentication;
 using Microsoft.Extensions.DependencyInjection;
