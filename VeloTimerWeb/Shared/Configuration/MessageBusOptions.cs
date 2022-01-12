@@ -18,7 +18,7 @@ namespace VeloTimer.Shared.Configuration
         public static MessageBusOptions ConfigureMessaging(this IServiceCollection services, IConfiguration config)
         {
             var mbconfig = config.GetSection(MessageBusOptions.Section);
-            var settings = mbconfig.Get<MessageBusOptions>();
+            var settings = mbconfig.Get<MessageBusOptions>() ?? new MessageBusOptions();
             settings.ConnectionString = config.GetConnectionString("MessageBus");
 
             services.TryAddSingleton(settings);
