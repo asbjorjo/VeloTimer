@@ -10,7 +10,7 @@ namespace VeloTimer.AmmcLoad.Services
 {
     public class RefreshPassingsService : IHostedService, IDisposable
     {
-        private const long TimerInterval = 1000;
+        private TimeSpan TimerInterval = TimeSpan.FromSeconds(1);
         private int _lock = 0;
         private Timer _timer;
         private string mostRecent;
@@ -36,9 +36,9 @@ namespace VeloTimer.AmmcLoad.Services
         {
             _logger.LogInformation("Passings Refresh started");
 
-            await LoadMostRecentPassing();
+            _timer = new Timer(DoRefresh, null, TimeSpan.Zero, TimerInterval);
 
-            _timer = new Timer(DoRefresh, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(TimerInterval));
+            await Task.CompletedTask;
         }
 
         private async void DoRefresh(object state)
@@ -56,7 +56,7 @@ namespace VeloTimer.AmmcLoad.Services
 
                 finally
                 {
-                    _timer.Change(TimeSpan.FromMilliseconds(TimerInterval), TimeSpan.FromMilliseconds(TimerInterval));
+                    _timer.Change(TimerInterval, TimerInterval);
                     _lock = 0;
                 }
             }
@@ -73,6 +73,20 @@ namespace VeloTimer.AmmcLoad.Services
 
         private async Task RefreshPassings()
         {
+            if (string.IsNullOrEmpty(mostRecent))
+            {
+                try
+                {
+                    await LoadMostRecentPassing();
+                    TimerInterval = TimeSpan.FromSeconds(1);
+                }
+                catch
+                {
+                    TimerInterval = TimeSpan.FromSeconds(5);
+                    return;
+                }
+            }
+
             var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent));
 
             if (!passings.Any())
