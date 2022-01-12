@@ -106,6 +106,8 @@ namespace VeloTimerWeb.Api
                 // see https://identityserver4.readthedocs.io/en/latest/topics/resources.html
                 options.EmitStaticAudienceClaim = true;
 
+                options.LicenseKey = Configuration["LicenseKeys:IdentityServer"];
+
                 //if (Environment.IsProduction())
                 //    options.IssuerUri = "https://veloti.me";
             })
