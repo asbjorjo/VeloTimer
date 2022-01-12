@@ -1,7 +1,7 @@
-﻿using IdentityServer4.EntityFramework.Entities;
-using IdentityServer4.EntityFramework.Extensions;
-using IdentityServer4.EntityFramework.Interfaces;
-using IdentityServer4.EntityFramework.Options;
+﻿using Duende.IdentityServer.EntityFramework.Entities;
+using Duende.IdentityServer.EntityFramework.Extensions;
+using Duende.IdentityServer.EntityFramework.Interfaces;
+using Duende.IdentityServer.EntityFramework.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +26,7 @@ namespace VeloTimerWeb.Api.Data
 
         public DbSet<PersistedGrant> PersistedGrants { get; set; }
         public DbSet<DeviceFlowCodes> DeviceFlowCodes { get; set; }
+        public DbSet<Key> Keys { get; set; }
 
         Task<int> IPersistedGrantDbContext.SaveChangesAsync() => base.SaveChangesAsync();
 
@@ -54,6 +55,8 @@ namespace VeloTimerWeb.Api.Data
                 .ToTable("device_codes");
             builder.Entity<PersistedGrant>()
                 .ToTable("persisted_grants");
+            builder.Entity<Key>()
+                .ToTable("keys");
 
             builder.SnakeCaseModel();
 

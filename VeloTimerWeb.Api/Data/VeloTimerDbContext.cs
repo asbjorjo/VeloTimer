@@ -236,8 +236,7 @@ namespace VeloTimerWeb.Api.Data
                     .IsRequired()
                     .OnDelete(DeleteBehavior.Restrict);
 
-                x.HasIndex(x => new { x.StartTime, x.EndTime })
-                    .IncludeProperties("TransponderId");
+                x.HasIndex(x => new { x.StartTime, x.EndTime });
             });
 
             builder.Entity<TrackStatisticsItem>(x =>
@@ -287,8 +286,7 @@ namespace VeloTimerWeb.Api.Data
                     .WithMany()
                     .IsRequired();
 
-                x.HasIndex(x => new { x.EndTime, x.StartTime })
-                    .IncludeProperties("StatisticsItemId", "Time", "TransponderId");
+                x.HasIndex(x => new { x.EndTime, x.StartTime });
 
                 x.Ignore(x => x.LayoutPassings);
             });

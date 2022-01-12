@@ -1,6 +1,6 @@
-﻿using IdentityModel;
-using IdentityServer4.Models;
-using IdentityServer4.Services;
+﻿using Duende.IdentityServer.Models;
+using Duende.IdentityServer.Services;
+using IdentityModel;
 using System.Threading.Tasks;
 
 namespace VeloTimerWeb.Api.Services

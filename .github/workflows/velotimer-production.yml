@@ -1,4 +1,4 @@
-name: Build and deploy to Azure development environment
+name: Build and deploy to Azure production staging environment
 on:
   push:
     branches:
@@ -90,7 +90,7 @@ jobs:
   deploy_ammcload:
     environment:
       name: staging
-      url: https://velotime-noe-ammc.azurewebsites.net
+      url: https://velotime-ammc-noe.azurewebsites.net
     env:
       AZURE_AMMC_NAME: 'velotime-ammc-noe'
     needs: build

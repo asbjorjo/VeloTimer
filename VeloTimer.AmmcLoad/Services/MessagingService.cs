@@ -1,15 +1,14 @@
 ﻿using AutoMapper;
 using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using System.Linq;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using VeloTimer.AmmcLoad.Models;
-using VeloTimer.Shared.Models.Timing;
 using VeloTimer.Shared.Configuration;
-using System;
+using VeloTimer.Shared.Models.Timing;
 
 namespace VeloTimer.AmmcLoad.Services
 {

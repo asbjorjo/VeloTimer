@@ -20,7 +20,7 @@ namespace VeloTimer.AmmcLoad.Services
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private IApiService _apiService;
         private IMessagingService _messagingService;
-        
+
         public RefreshPassingsService(IServiceScopeFactory servicesScopeFactory,
                                       AmmcPassingService passingService,
                                       IMessagingService messagingService,
