@@ -90,7 +90,7 @@ jobs:
   deploy_ammcload:
     environment:
       name: staging
-      url: https://velotime-noe-ammc.azurewebsites.net
+      url: https://velotime-ammc-noe.azurewebsites.net
     env:
       AZURE_AMMC_NAME: 'velotime-ammc-noe'
     needs: build
