@@ -1,7 +1,7 @@
-﻿using IdentityServer4.Configuration;
-using IdentityServer4.EntityFramework.Interfaces;
-using IdentityServer4.Hosting;
-using IdentityServer4.Validation;
+﻿using Duende.IdentityServer.Configuration;
+using Duende.IdentityServer.EntityFramework.Interfaces;
+using Duende.IdentityServer.Hosting;
+using Duende.IdentityServer.Validation;
 using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;

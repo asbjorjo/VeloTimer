@@ -2,13 +2,13 @@ name: Build and deploy to Azure development environment
 on:
   push:
     branches:
-    - develop
+    - feature-dotnet-6
 concurrency: 
   group: ${{ github.ref }}
   cancel-in-progress: true
 env:
   ASPNETCORE_ENVIRONMENT: Staging
-  DOTNET_CORE_VERSION: 5.0.x
+  DOTNET_CORE_VERSION: 6.0.x
   AzureVault: https://velotimer-dev-vault.vault.azure.net/
 jobs:
   build:

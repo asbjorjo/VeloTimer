@@ -1,4 +1,4 @@
-﻿using IdentityServer4.Extensions;
+﻿using Duende.IdentityServer.Extensions;
 using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
