@@ -7,7 +7,7 @@ concurrency:
   group: ${{ github.ref }}
 env:
   ASPNETCORE_ENVIRONMENT: Production
-  DOTNET_CORE_VERSION: 5.0.x
+  DOTNET_CORE_VERSION: 6.0.x
   AzureVault: https://velotime-vault.vault.azure.net/
 jobs:
   build:
