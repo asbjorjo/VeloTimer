@@ -5,7 +5,7 @@ using VeloTimer.AmmcLoad.Util;
 
 namespace VeloTimer.AmmcLoad.Models
 {
-    public class Passing
+    public class PassingAmmc
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]

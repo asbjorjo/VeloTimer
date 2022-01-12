@@ -3,11 +3,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models.Timing;
 
 namespace VeloTimer.AmmcLoad.Services
 {
@@ -16,18 +13,21 @@ namespace VeloTimer.AmmcLoad.Services
         private const long TimerInterval = 1000;
         private int _lock = 0;
         private Timer _timer;
-        private PassingWeb mostRecent;
+        private string mostRecent;
 
         private readonly ILogger<RefreshPassingsService> _logger;
         private readonly AmmcPassingService _passingService;
         private readonly IServiceScopeFactory _serviceScopeFactory;
-        private HttpClient _httpClient;
+        private IApiService _apiService;
+        private IMessagingService _messagingService;
 
         public RefreshPassingsService(IServiceScopeFactory servicesScopeFactory,
                                       AmmcPassingService passingService,
+                                      IMessagingService messagingService,
                                       ILogger<RefreshPassingsService> logger)
         {
             _passingService = passingService;
+            _messagingService = messagingService;
             _logger = logger;
             _serviceScopeFactory = servicesScopeFactory;
         }
@@ -65,31 +65,15 @@ namespace VeloTimer.AmmcLoad.Services
         private async Task LoadMostRecentPassing()
         {
             using var scope = _serviceScopeFactory.CreateScope();
-            _httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
+            _apiService = scope.ServiceProvider.GetRequiredService<IApiService>();
 
-            try
-            {
-                mostRecent = await _httpClient.GetFromJsonAsync<PassingWeb>("passings/mostrecent");
-            }
-            catch (HttpRequestException ex)
-            {
-                if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-                {
-                    mostRecent = null;
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-
-            _logger.LogInformation("Most recent passing found {0}", mostRecent?.SourceId);
+            var passing = await _apiService.GetMostRecentPassing();
+            mostRecent = passing?.SourceId;
         }
 
         private async Task RefreshPassings()
         {
-            var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent.SourceId));
+            var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent));
 
             if (!passings.Any())
             {
@@ -99,48 +83,12 @@ namespace VeloTimer.AmmcLoad.Services
 
             _logger.LogInformation("Found {0} number of passings", passings.Count);
 
-            //var tasks = new List<Task>();
-
             using var scope = _serviceScopeFactory.CreateScope();
-            _httpClient = scope.ServiceProvider.GetRequiredService<HttpClient>();
-            foreach (var passing in passings)
-            {
-                var posted = await _httpClient.PostAsJsonAsync("passings/register", new PassingRegister
-                {
-                    LoopId = passing.LoopId,
-                    Source = passing.Id,
-                    Time = passing.UtcTime,
-                    TimingSystem = TransponderType.TimingSystem.Mylaps_X2,
-                    TransponderId = passing.TransponderId.ToString()
-                });
+            _apiService = scope.ServiceProvider.GetRequiredService<IApiService>();
 
-                if (!posted.IsSuccessStatusCode)
-                {
-                    _logger.LogError($"Could not post passing - {passing.Id} - {posted.StatusCode}");
-                }
-                //tasks.Add(PostPassing(new PassingRegister
-                //{
-                //    LoopId = passing.LoopId,
-                //    Source = passing.Id,
-                //    Time = passing.UtcTime,
-                //    TimingSystem = TransponderType.TimingSystem.Mylaps_X2,
-                //    TransponderId = passing.TransponderId.ToString()
-                //}));
-            }
+            await _messagingService.SubmitPassings(passings);
 
-            //await Task.WhenAll(tasks);
-
-            await LoadMostRecentPassing();
-        }
-
-        private async Task PostPassing(PassingRegister passing)
-        {
-            var posted = await _httpClient.PostAsJsonAsync("passings/register", passing);
-
-            if (!posted.IsSuccessStatusCode)
-            {
-                _logger.LogError($"Could not post passing - {passing.Source} - {posted.StatusCode}");
-            }
+            mostRecent = passings.Last().Id;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

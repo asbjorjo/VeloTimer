@@ -13,6 +13,7 @@ using Microsoft.OpenApi.Models;
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography.X509Certificates;
+using VeloTimer.Shared.Configuration;
 using VeloTimer.Shared.Hub;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
@@ -38,6 +39,8 @@ namespace VeloTimerWeb.Api
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddApplicationInsightsTelemetry();
+
+            services.ConfigureMessaging(Configuration);
 
             services.AddDbContext<VeloTimerDbContext>(options =>
             {
@@ -177,6 +180,8 @@ namespace VeloTimerWeb.Api
             services.AddScoped<IStatisticsService, StatisticsService>();
             services.AddScoped<ITrackService, TrackService>();
             services.AddScoped<ITransponderService, TransponderService>();
+
+            services.AddHostedService<CreatePassingHandler>();
 
             services.AddCors(options =>
             {

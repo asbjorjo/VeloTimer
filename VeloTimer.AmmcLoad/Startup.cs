@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using System;
 using System.Net.Http;
 using VeloTimer.AmmcLoad.Data;
+using VeloTimer.AmmcLoad.Models;
 using VeloTimer.AmmcLoad.Services;
+using VeloTimer.Shared.Configuration;
 
 namespace VeloTimer.AmmcLoad
 {
@@ -25,11 +26,15 @@ namespace VeloTimer.AmmcLoad
         {
             services.AddApplicationInsightsTelemetry();
 
-            services.Configure<PassingDatabaseSettings>(
-                                         Configuration.GetSection(nameof(PassingDatabaseSettings)));
-            services.AddSingleton<IPassingDatabaseSettings>(sp =>
-                        sp.GetRequiredService<IOptions<PassingDatabaseSettings>>().Value);
+            services.ConfigurePassingDatabase(Configuration);
+            services.ConfigureMessaging(Configuration);
+
+            services.AddAutoMapper(typeof(AmmcProfile));
             services.AddSingleton<AmmcPassingService>();
+            services.AddSingleton<IMessagingService, MessagingService>();
+
+            services.AddScoped<IApiService, ApiService>();
+
             services.AddTransient<VeloHttpClientHandler>();
             services.AddHttpClient(
                 "VeloTimerWeb.ServerAPI",
