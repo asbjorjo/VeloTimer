@@ -1,7 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
@@ -9,27 +8,24 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
-using VeloTimerWeb.Api.Data;
+using VeloTimer.Shared.Models.TrackSetup;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class TrackController : ControllerBase
+    public class TrackController : BaseController
     {
         private readonly ITrackService _trackService;
         private readonly IStatisticsService _statisticsService;
-        private readonly ILogger<TrackController> _logger;
 
         public TrackController(
+            IMapper mapper,
             ITrackService trackService,
             IStatisticsService statisticsService,
-            ILogger<TrackController> logger) : base()
+            ILogger<TrackController> logger) : base(mapper, logger)
         {
             _trackService = trackService;
             _statisticsService = statisticsService;
-            _logger = logger;
         }
 
         [AllowAnonymous]
@@ -42,7 +38,7 @@ namespace VeloTimerWeb.Api.Controllers
                 return NotFound();
             }
 
-            return value.ToWeb();
+            return _mapper.Map<TrackWeb>(value);
         }
 
         [AllowAnonymous]
@@ -89,7 +85,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             if (FromTime.HasValue) fromtime = FromTime.Value;
             if (ToTime.HasValue) totime = ToTime.Value;
-            
+
             var times = await _trackService.GetFastest(statsitems, fromtime, totime, Count);
 
             return Ok(times);
@@ -98,8 +94,8 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet]
         [Route("{Track}/times/{StatisticsItem}")]
         public async Task<IActionResult> Recent(
-            string Track, 
-            string StatisticsItem, 
+            string Track,
+            string StatisticsItem,
             [FromQuery] TimeParameters timeParameters,
             [FromQuery] PaginationParameters pagingParameters,
             [FromQuery] string orderBy)
@@ -112,7 +108,7 @@ namespace VeloTimerWeb.Api.Controllers
             }
 
             var times = await _trackService.GetRecent(statsitems, timeParameters, pagingParameters, orderBy);
-            
+
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
 
             return Ok(times);

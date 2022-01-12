@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
@@ -8,8 +7,10 @@ using System.Threading.Tasks;
 using VeloTimer.Shared.Hub;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
-using VeloTimerWeb.Api.Models;
-using static VeloTimer.Shared.Models.TransponderType;
+using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.Timing;
+using VeloTimerWeb.Api.Models.TrackSetup;
+using static VeloTimer.Shared.Models.Timing.TransponderType;
 
 namespace VeloTimerWeb.Api.Services
 {
@@ -78,7 +79,7 @@ namespace VeloTimerWeb.Api.Services
                     if (layoutpassings.Any())
                     {
                         await _context.SaveChangesAsync();
-                        
+
                         var transponderstats = Enumerable.Empty<TransponderStatisticsItem>();
                         foreach (var layoutpassing in layoutpassings)
                         {
@@ -209,7 +210,7 @@ namespace VeloTimerWeb.Api.Services
                 .Include(x => x.Segments)
                 .ThenInclude(x => x.Segment)
                 .ToListAsync();
-            
+
             if (trackSectors.Any())
             {
                 var segmentpassings = await _context.Set<TrackSegmentPassing>()

@@ -1,6 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using VeloTimer.Shared.Models;
-using VeloTimerWeb.Api.Models;
+using VeloTimer.Shared.Models.Timing;
+using VeloTimerWeb.Api.Models.Riders;
+using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.Timing;
+using VeloTimerWeb.Api.Models.TrackSetup;
 using VeloTimerWeb.Api.Util;
 
 namespace VeloTimerWeb.Api.Data
@@ -233,11 +236,11 @@ namespace VeloTimerWeb.Api.Data
                     .IsRequired()
                     .OnDelete(DeleteBehavior.Restrict);
 
-                x.HasIndex(x => new { x.StartTime, x.EndTime })
-                    .IncludeProperties("TransponderId");
+                x.HasIndex(x => new { x.StartTime, x.EndTime });
             });
 
-            builder.Entity<TrackStatisticsItem>(x => {
+            builder.Entity<TrackStatisticsItem>(x =>
+            {
                 x.HasOne(x => x.StatisticsItem)
                     .WithMany()
                     .IsRequired();
@@ -283,8 +286,7 @@ namespace VeloTimerWeb.Api.Data
                     .WithMany()
                     .IsRequired();
 
-                x.HasIndex(x => new { x.EndTime, x.StartTime })
-                    .IncludeProperties("StatisticsItemId", "Time", "TransponderId");
+                x.HasIndex(x => new { x.EndTime, x.StartTime });
 
                 x.Ignore(x => x.LayoutPassings);
             });

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Hub;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Timing;
 
 namespace VeloTimerWeb.Api.Hubs
 {
@@ -22,17 +22,17 @@ namespace VeloTimerWeb.Api.Hubs
 
         public async Task RegisterPassingWithClients(Passing passing)
         {
-            await Clients.All.RegisterPassing(passing.ToWeb());
+            //await Clients.All.RegisterPassing(passing.ToWeb());
         }
 
         public async Task RegisterLoopPassing(Passing passing)
         {
-            await Clients.Group(passing.Loop.Id.ToString()).RegisterPassing(passing.ToWeb());
+            //await Clients.Group(passing.Loop.Id.ToString()).RegisterPassing(passing.ToWeb());
         }
 
         public async Task SendLastPassingToClients(Passing passing)
         {
-            await Clients.All.LastPassing(passing.ToWeb());
+            //await Clients.All.LastPassing(passing.ToWeb());
         }
 
         public async Task NotifyClientsOfNewPassings()

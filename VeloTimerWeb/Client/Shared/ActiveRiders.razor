@@ -1,8 +1,5 @@
 ﻿@using Microsoft.Extensions.Logging;
 @using VeloTimer.Shared.Hub
-@using VeloTimer.Shared.Models
-@using VeloTimer.Shared.Util
-@using VeloTimerWeb.Client.Services
 @inherits ComponentBase
 @inject IApiClient Api
 @inject NavigationManager NavigationManager
@@ -15,7 +12,7 @@
         {
             @foreach(var rider in activeriders)
             {
-                <MudItem>@rider.RiderDisplayName</MudItem>
+                <MudItem>@rider.DisplayName</MudItem>
             }
         }
         else

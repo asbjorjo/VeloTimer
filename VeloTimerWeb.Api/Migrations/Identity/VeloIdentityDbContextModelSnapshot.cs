@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VeloTimerWeb.Api.Data;
 
+#nullable disable
+
 namespace VeloTimerWeb.Api.Migrations.Identity
 {
     [DbContext(typeof(VeloIdentityDbContext))]
@@ -16,11 +18,12 @@ namespace VeloTimerWeb.Api.Migrations.Identity
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128)
-                .HasAnnotation("ProductVersion", "5.0.12")
-                .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                .HasAnnotation("ProductVersion", "6.0.1")
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
-            modelBuilder.Entity("IdentityServer4.EntityFramework.Entities.DeviceFlowCodes", b =>
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
+
+            modelBuilder.Entity("Duende.IdentityServer.EntityFramework.Entities.DeviceFlowCodes", b =>
                 {
                     b.Property<string>("UserCode")
                         .HasMaxLength(200)
@@ -79,10 +82,56 @@ namespace VeloTimerWeb.Api.Migrations.Identity
                     b.HasIndex("Expiration")
                         .HasDatabaseName("ix_device_codes_expiration");
 
-                    b.ToTable("device_codes");
+                    b.ToTable("device_codes", "identity");
                 });
 
-            modelBuilder.Entity("IdentityServer4.EntityFramework.Entities.PersistedGrant", b =>
+            modelBuilder.Entity("Duende.IdentityServer.EntityFramework.Entities.Key", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Algorithm")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("algorithm");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("datetime2")
+                        .HasColumnName("created");
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("data");
+
+                    b.Property<bool>("DataProtected")
+                        .HasColumnType("bit")
+                        .HasColumnName("data_protected");
+
+                    b.Property<bool>("IsX509Certificate")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_x509_certificate");
+
+                    b.Property<string>("Use")
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("use");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_keys");
+
+                    b.HasIndex("Use")
+                        .HasDatabaseName("ix_keys_use");
+
+                    b.ToTable("keys", "identity");
+                });
+
+            modelBuilder.Entity("Duende.IdentityServer.EntityFramework.Entities.PersistedGrant", b =>
                 {
                     b.Property<string>("Key")
                         .HasMaxLength(200)
@@ -137,6 +186,9 @@ namespace VeloTimerWeb.Api.Migrations.Identity
                     b.HasKey("Key")
                         .HasName("pk_persisted_grants");
 
+                    b.HasIndex("ConsumedTime")
+                        .HasDatabaseName("ix_persisted_grants_consumed_time");
+
                     b.HasIndex("Expiration")
                         .HasDatabaseName("ix_persisted_grants_expiration");
 
@@ -146,7 +198,7 @@ namespace VeloTimerWeb.Api.Migrations.Identity
                     b.HasIndex("SubjectId", "SessionId", "Type")
                         .HasDatabaseName("ix_persisted_grants_subject_id_session_id_type");
 
-                    b.ToTable("persisted_grants");
+                    b.ToTable("persisted_grants", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -154,8 +206,9 @@ namespace VeloTimerWeb.Api.Migrations.Identity
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
                     b.Property<string>("ClaimType")
                         .HasColumnType("nvarchar(max)")
@@ -175,7 +228,7 @@ namespace VeloTimerWeb.Api.Migrations.Identity
                     b.HasIndex("RoleId")
                         .HasDatabaseName("ix_role_claims_role_id");
 
-                    b.ToTable("role_claims");
+                    b.ToTable("role_claims", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
@@ -183,8 +236,9 @@ namespace VeloTimerWeb.Api.Migrations.Identity
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasColumnName("id")
-                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
                     b.Property<string>("ClaimType")
                         .HasColumnType("nvarchar(max)")
@@ -204,7 +258,7 @@ namespace VeloTimerWeb.Api.Migrations.Identity
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_user_claims_user_id");
 
-                    b.ToTable("user_claims");
+                    b.ToTable("user_claims", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
@@ -233,7 +287,7 @@ namespace VeloTimerWeb.Api.Migrations.Identity
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_user_logins_user_id");
 
-                    b.ToTable("user_logins");
+                    b.ToTable("user_logins", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
@@ -252,7 +306,7 @@ namespace VeloTimerWeb.Api.Migrations.Identity
                     b.HasIndex("RoleId")
                         .HasDatabaseName("ix_userroles_role_id");
 
-                    b.ToTable("userroles");
+                    b.ToTable("userroles", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
@@ -278,10 +332,10 @@ namespace VeloTimerWeb.Api.Migrations.Identity
                     b.HasKey("UserId", "LoginProvider", "Name")
                         .HasName("pk_user_tokens");
 
-                    b.ToTable("user_tokens");
+                    b.ToTable("user_tokens", "identity");
                 });
 
-            modelBuilder.Entity("VeloTimer.Shared.Models.Role", b =>
+            modelBuilder.Entity("VeloTimerWeb.Api.Models.Identity.Role", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -311,26 +365,26 @@ namespace VeloTimerWeb.Api.Migrations.Identity
                         .HasDatabaseName("role_name_index")
                         .HasFilter("[normalized_name] IS NOT NULL");
 
-                    b.ToTable("roles");
+                    b.ToTable("roles", "identity");
 
                     b.HasData(
                         new
                         {
-                            Id = new Guid("4e1f32a7-6ca3-4e83-bf0c-dbb1af1d1548"),
-                            ConcurrencyStamp = "9255d92c-9ccc-4c6c-a660-53709ac9df81",
+                            Id = new Guid("2dc43bd1-17df-417d-847f-22e0aafaf35e"),
+                            ConcurrencyStamp = "cd06b01d-c5d0-47ee-a1a2-b26ca3240c98",
                             Name = "User",
                             NormalizedName = "USER "
                         },
                         new
                         {
-                            Id = new Guid("c3e05341-2076-4566-b97f-d1b2d49cd25a"),
-                            ConcurrencyStamp = "9ad35705-add0-44d8-915b-44667507ea37",
+                            Id = new Guid("02e6487b-8f91-4cb8-91cc-626d7a6e17ad"),
+                            ConcurrencyStamp = "e3e4dd15-dc4d-4afb-a920-85757271938c",
                             Name = "Admin",
                             NormalizedName = "ADMIN"
                         });
                 });
 
-            modelBuilder.Entity("VeloTimer.Shared.Models.User", b =>
+            modelBuilder.Entity("VeloTimerWeb.Api.Models.Identity.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -409,64 +463,64 @@ namespace VeloTimerWeb.Api.Migrations.Identity
                         .HasDatabaseName("user_name_index")
                         .HasFilter("[normalized_user_name] IS NOT NULL");
 
-                    b.ToTable("users");
+                    b.ToTable("users", "identity");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
-                    b.HasOne("VeloTimer.Shared.Models.Role", null)
+                    b.HasOne("VeloTimerWeb.Api.Models.Identity.Role", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
-                        .HasConstraintName("fk_role_claims_roles_role_id")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_role_claims_roles_role_id");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
                 {
-                    b.HasOne("VeloTimer.Shared.Models.User", null)
+                    b.HasOne("VeloTimerWeb.Api.Models.Identity.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .HasConstraintName("fk_user_claims_users_user_id")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_user_claims_users_user_id");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
                 {
-                    b.HasOne("VeloTimer.Shared.Models.User", null)
+                    b.HasOne("VeloTimerWeb.Api.Models.Identity.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .HasConstraintName("fk_user_logins_users_user_id")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_user_logins_users_user_id");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
                 {
-                    b.HasOne("VeloTimer.Shared.Models.Role", null)
+                    b.HasOne("VeloTimerWeb.Api.Models.Identity.Role", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
-                        .HasConstraintName("fk_userroles_roles_role_id")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_userroles_roles_role_id");
 
-                    b.HasOne("VeloTimer.Shared.Models.User", null)
+                    b.HasOne("VeloTimerWeb.Api.Models.Identity.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .HasConstraintName("fk_userroles_users_user_id")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_userroles_users_user_id");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
                 {
-                    b.HasOne("VeloTimer.Shared.Models.User", null)
+                    b.HasOne("VeloTimerWeb.Api.Models.Identity.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .HasConstraintName("fk_user_tokens_users_user_id")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_user_tokens_users_user_id");
                 });
 #pragma warning restore 612, 618
         }

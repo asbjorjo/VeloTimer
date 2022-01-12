@@ -1,5 +1,4 @@
-﻿@using VeloTimer.Shared.Models
-<h3>ProfileVisibility</h3>
+﻿<h3>ProfileVisibility</h3>
 <MudGrid>
     <MudItem xs="12" xl="7">
     @if (profile != null)
@@ -8,7 +7,7 @@
             <MudCardContent>
                 <MudForm>
                     <MudField Label="Synlighet">
-                        <MudCheckBox @bind-Checked="@profile.RiderIsPublic" Label="Vis i statistikk"/>
+                        <MudCheckBox @bind-Checked="@profile.IsPublic" Label="Vis i statistikk"/>
                         <MudPaper>
                         <MudText Typo="Typo.caption">
                             Når du velger å inkluderes i offentlig statistikk vil navn og tider vises i statistikker og skjermer på velodromen.<br />

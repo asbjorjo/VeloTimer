@@ -1,13 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Riders;
+using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.Timing;
 
 namespace VeloTimerWeb.Api.Services
 {
@@ -106,7 +107,7 @@ namespace VeloTimerWeb.Api.Services
                             Speed = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps / tsi.Time * 3.6,
                             Time = tsi.Time
                         };
-                            
+
             _logger.LogDebug(query.Take(Count).ToQueryString());
 
             times = await query.Take(Count).ToListAsync();
@@ -138,7 +139,7 @@ namespace VeloTimerWeb.Api.Services
                             PassingTime = tsi.EndTime,
                             Speed = tsi.Speed * 3.6,
                             Time = tsi.Time,
-                            Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select( x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time})
+                            Intermediates = tsi.LayoutPassingList.SelectMany(x => x.LayoutPassing.Passings).Select(x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time })
                         };
 
             query = query.ApplySort(orderby);
@@ -179,7 +180,7 @@ namespace VeloTimerWeb.Api.Services
 
             return times;
         }
-        
+
         public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, ICollection<TrackStatisticsItem> statisticsItems, TimeParameters timeParameters, PaginationParameters paginationParameters, string orderby)
         {
             var fromtime = timeParameters.FromTime;

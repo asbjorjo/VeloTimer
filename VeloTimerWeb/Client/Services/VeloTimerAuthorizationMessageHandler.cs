@@ -28,9 +28,9 @@ namespace VeloTimerWeb.Client.Services
         private AccessTokenRequestOptions _tokenOptions;
 
         public VeloTimerAuthorizationMessageHandler(
-            IAccessTokenProvider provider, 
-            AuthenticationStateProvider authStateProvider, 
-            NavigationManager navigation, 
+            IAccessTokenProvider provider,
+            AuthenticationStateProvider authStateProvider,
+            NavigationManager navigation,
             IConfiguration config,
             ILogger<VeloTimerAuthorizationMessageHandler> logger)
         {
@@ -60,7 +60,7 @@ namespace VeloTimerWeb.Client.Services
 
             var authState = await _authStateProvider.GetAuthenticationStateAsync();
             _logger.LogInformation($"Authentication User Identities: {authState.User?.Identity?.Name?.ToString() + " " + authState.User?.Identity?.IsAuthenticated.ToString()}");
-            
+
             if (authState.User.Identity.IsAuthenticated && _authorizedUris.Any(uri => uri.IsBaseOf(request.RequestUri)))
             {
                 if (_lastToken == null || now >= _lastToken.Expires.AddMinutes(-5))
@@ -85,7 +85,7 @@ namespace VeloTimerWeb.Client.Services
                 // not be able to provision a token without user interaction).
                 request.Headers.Authorization = _cachedHeader;
             }
- 
+
             return await base.SendAsync(request, cancellationToken);
         }
 

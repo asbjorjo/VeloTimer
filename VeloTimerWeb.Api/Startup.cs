@@ -1,5 +1,5 @@
-using IdentityServer4.Models;
-using IdentityServer4.Services;
+using Duende.IdentityServer.Models;
+using Duende.IdentityServer.Services;
 using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -13,10 +13,12 @@ using Microsoft.OpenApi.Models;
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography.X509Certificates;
+using VeloTimer.Shared.Configuration;
 using VeloTimer.Shared.Hub;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
 using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Identity;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api
@@ -37,6 +39,8 @@ namespace VeloTimerWeb.Api
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddApplicationInsightsTelemetry();
+
+            services.ConfigureMessaging(Configuration);
 
             services.AddDbContext<VeloTimerDbContext>(options =>
             {
@@ -76,7 +80,8 @@ namespace VeloTimerWeb.Api
                             "https://velotime-noe-github-ci.azurewebsites.net"
                         };
                     });
-            } else if (Environment.IsStaging())
+            }
+            else if (Environment.IsStaging())
             {
                 services.Configure<JwtBearerOptions>(
                     IdentityServerJwtConstants.IdentityServerJwtBearerScheme,
@@ -101,12 +106,14 @@ namespace VeloTimerWeb.Api
                 // see https://identityserver4.readthedocs.io/en/latest/topics/resources.html
                 options.EmitStaticAudienceClaim = true;
 
+                options.LicenseKey = Configuration["LicenseKeys:IdentityServer"];
+
                 //if (Environment.IsProduction())
                 //    options.IssuerUri = "https://veloti.me";
             })
                 .AddModifiedApiAuthorization<User, VeloIdentityDbContext>(options =>
                 {
-                    options.Clients.Add(new IdentityServer4.Models.Client
+                    options.Clients.Add(new Duende.IdentityServer.Models.Client
                     {
                         ClientId = "WebApi.Loader",
                         AllowedGrantTypes = { GrantType.ClientCredentials },
@@ -168,11 +175,15 @@ namespace VeloTimerWeb.Api
 
             services.AddDatabaseDeveloperPageExceptionFilter();
 
+            services.AddAutoMapper(typeof(VeloTimeProfile));
+
             services.AddScoped<IPassingService, PassingService>();
             services.AddScoped<IRiderService, RiderService>();
             services.AddScoped<IStatisticsService, StatisticsService>();
             services.AddScoped<ITrackService, TrackService>();
             services.AddScoped<ITransponderService, TransponderService>();
+
+            services.AddHostedService<CreatePassingHandler>();
 
             services.AddCors(options =>
             {

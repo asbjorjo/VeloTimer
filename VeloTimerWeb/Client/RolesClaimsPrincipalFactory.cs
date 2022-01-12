@@ -1,9 +1,9 @@
-﻿using System.Linq;
+﻿using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
+using Microsoft.AspNetCore.Components.WebAssembly.Authentication.Internal;
+using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
-using Microsoft.AspNetCore.Components.WebAssembly.Authentication.Internal;
 
 namespace VeloTimerWeb.Client
 {
@@ -20,7 +20,7 @@ namespace VeloTimerWeb.Client
             RemoteAuthenticationUserOptions options)
         {
             var user = await base.CreateUserAsync(account, options);
-            
+
             if (user.Identity.IsAuthenticated)
             {
                 var identity = (ClaimsIdentity)user.Identity;

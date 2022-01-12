@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace VeloTimer.Shared.Models
 {
@@ -10,7 +6,7 @@ namespace VeloTimer.Shared.Models
     {
         private DateTime _fromTime = DateTime.MinValue.ToUniversalTime();
         public DateTime FromTime
-        { 
+        {
             get
             {
                 return _fromTime;

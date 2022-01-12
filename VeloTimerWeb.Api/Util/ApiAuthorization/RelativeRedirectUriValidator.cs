@@ -1,5 +1,4 @@
-﻿using IdentityServer4.Models;
-using IdentityServer4.Validation;
+﻿using Duende.IdentityServer.Validation;
 using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
 using System;
 using System.Collections.Generic;
@@ -21,7 +20,7 @@ namespace VeloTimerWeb.Api.Util.ApiAuthorization
 
         public IAbsoluteUrlFactory AbsoluteUrlFactory { get; }
 
-        public override Task<bool> IsRedirectUriValidAsync(string requestedUri, IdentityServer4.Models.Client client)
+        public override Task<bool> IsRedirectUriValidAsync(string requestedUri, Duende.IdentityServer.Models.Client client)
         {
             if (IsLocalSPA(client))
             {
@@ -33,7 +32,7 @@ namespace VeloTimerWeb.Api.Util.ApiAuthorization
             }
         }
 
-        public override Task<bool> IsPostLogoutRedirectUriValidAsync(string requestedUri, IdentityServer4.Models.Client client)
+        public override Task<bool> IsPostLogoutRedirectUriValidAsync(string requestedUri, Duende.IdentityServer.Models.Client client)
         {
             if (IsLocalSPA(client))
             {
@@ -45,7 +44,7 @@ namespace VeloTimerWeb.Api.Util.ApiAuthorization
             }
         }
 
-        private static bool IsLocalSPA(IdentityServer4.Models.Client client) =>
+        private static bool IsLocalSPA(Duende.IdentityServer.Models.Client client) =>
             client.Properties.TryGetValue(ApplicationProfilesPropertyNames.Profile, out var clientType) &&
             ApplicationProfiles.IdentityServerSPA == clientType;
 

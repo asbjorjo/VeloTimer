@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -8,24 +9,25 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.Riders;
+using VeloTimer.Shared.Models.Timing;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.Timing;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class TranspondersController : ControllerBase
+    public class TranspondersController : BaseController
     {
         private readonly VeloTimerDbContext _context;
-        private readonly ILogger<TranspondersController> _logger;
         private readonly ITransponderService _service;
-        
-        public TranspondersController(ITransponderService service, ILogger<TranspondersController> logger, VeloTimerDbContext context) : base()
+
+        public TranspondersController(IMapper mapper, ITransponderService service, ILogger<TranspondersController> logger, VeloTimerDbContext context) : base(mapper, logger)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _service = service ?? throw new ArgumentNullException(nameof(service));
         }
 
@@ -37,7 +39,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(transponders.Pagination));
 
-            var result = transponders.Select(x => x.ToWeb());
+            var result = _mapper.Map<IEnumerable<TransponderWeb>>(transponders);
 
             return Ok(result);
         }
@@ -51,7 +53,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(transponders.Pagination));
 
-            var result = transponders.Select(x => x.ToWeb());
+            var result = _mapper.Map<IEnumerable<TransponderOwnershipWeb>>(transponders);
 
             return Ok(result);
         }
@@ -84,10 +86,10 @@ namespace VeloTimerWeb.Api.Controllers
             }
 
             var value = _context.Set<Passing>().Where(p => p.Time >= fromtime && p.Time <= totime).Select(p => p.Transponder).Distinct();
-            
+
             var transponders = await value.ToListAsync();
 
-            return Ok(transponders.Select(x => x.ToWeb()));
+            return Ok(_mapper.Map<IEnumerable<TransponderWeb>>(transponders));
         }
 
         [AllowAnonymous]
@@ -103,8 +105,8 @@ namespace VeloTimerWeb.Api.Controllers
             var Transponder = await _context.Set<Transponder>().SingleOrDefaultAsync(x => x.Id == TransponderId.First());
             if (Transponder == null) { return NotFound(Transponder); }
             var Segment = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Id == SegmentId);
-            if (Segment == null) { return NotFound(Segment);}
-            
+            if (Segment == null) { return NotFound(Segment); }
+
             times = await _service.GetFastest(Transponder, Segment, fromtime, totime);
 
             return Ok(times);

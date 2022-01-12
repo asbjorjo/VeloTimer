@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -6,25 +7,24 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models;
+using VeloTimerWeb.Api.Models.TrackSetup;
 
 namespace VeloTimerWeb.Api.Controllers
 {
-    [Route("api/[controller]")]
-    public class TimingLoopsController : ControllerBase
+    public class TimingLoopsController : BaseController
     {
-        private readonly ILogger<TimingLoopsController> _logger;
         private readonly VeloTimerDbContext _context;
         private readonly DbSet<TimingLoop> _dbset;
 
-        public TimingLoopsController(VeloTimerDbContext context, ILogger<TimingLoopsController> logger) : base()
+        public TimingLoopsController(VeloTimerDbContext context, ILogger<TimingLoopsController> logger, IMapper mapper) : base(mapper, logger)
         {
-            _logger = logger;
             _context = context;
             _dbset = _context.Set<TimingLoop>();
         }
 
         [AllowAnonymous]
+        [HttpGet]
+        [Route("{id:long}")]
         public async Task<ActionResult<TimingLoop>> Get(long id)
         {
             var value = await _dbset.FindAsync(id);

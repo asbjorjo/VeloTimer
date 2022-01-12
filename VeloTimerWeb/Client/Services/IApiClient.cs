@@ -2,6 +2,10 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Models.Riders;
+using VeloTimer.Shared.Models.Statistics;
+using VeloTimer.Shared.Models.Timing;
+using VeloTimer.Shared.Models.TrackSetup;
 using VeloTimerWeb.Client.Components;
 
 namespace VeloTimerWeb.Client.Services
@@ -34,5 +38,7 @@ namespace VeloTimerWeb.Client.Services
         Task<IEnumerable<TrackStatisticsItemWeb>> GetStatisticsItems(string Track);
 
         Task<IEnumerable<TimingLoopWeb>> GetTimingPoints(string Track);
+
+        Task<AdminDashboardModel> GetAdminDashboardModel();
     }
 }
