@@ -17,18 +17,12 @@ namespace VeloTimer.AmmcLoad.Services
         public AmmcPassingService(PassingDatabaseSettings options, ILogger<AmmcPassingService> logger)
         {
             _logger = logger;
-            _logger.LogInformation("creating");
             var settings = options;
 
             var client = new MongoClient(settings.ConnectionString);
-            _logger.LogInformation("client ready");
             var database = client.GetDatabase(settings.PassingDatabase);
-            _logger.LogInformation("database ready");
 
             _passings = database.GetCollection<PassingAmmc>(settings.PassingCollection);
-            _logger.LogInformation("collection ready");
-
-            _logger.LogInformation("created");
         }
 
         public async Task<List<PassingAmmc>> GetAll()
