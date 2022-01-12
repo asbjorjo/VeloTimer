@@ -2,7 +2,7 @@ name: Build and deploy to Azure development environment
 on:
   push:
     branches:
-    - feature-dotnet-6
+    - develop
 concurrency: 
   group: ${{ github.ref }}
   cancel-in-progress: true
