@@ -60,16 +60,15 @@ namespace VeloTimerWeb.Api
             });
 
             var dpBuilder = services.AddDataProtection();
+            dpBuilder.PersistKeysToDbContext<VeloIdentityDbContext>();
 
             if (Environment.IsDevelopment())
             {
                 dpBuilder.SetApplicationName("veloti.me-development");
-                dpBuilder.PersistKeysToFileSystem(new DirectoryInfo(@"bin\debug\configuration"));
                 dpBuilder.SetDefaultKeyLifetime(TimeSpan.FromDays(7));
             } else
             {
                 dpBuilder.SetApplicationName("veloti.me");
-                dpBuilder.PersistKeysToAzureBlobStorage(new Uri(Configuration["Urls:DataProtectionStorage"]));
                 dpBuilder.ProtectKeysWithAzureKeyVault(new Uri(new Uri(Configuration["AzureVault"]), "keys/dataprotection"), new DefaultAzureCredential());
             }
 
