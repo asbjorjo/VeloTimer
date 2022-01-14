@@ -2,6 +2,7 @@
 using Duende.IdentityServer.EntityFramework.Extensions;
 using Duende.IdentityServer.EntityFramework.Interfaces;
 using Duende.IdentityServer.EntityFramework.Options;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,8 @@ using VeloTimerWeb.Api.Util;
 
 namespace VeloTimerWeb.Api.Data
 {
-    public class VeloIdentityDbContext : IdentityDbContext<User, Role, Guid>, IPersistedGrantDbContext
+    public class VeloIdentityDbContext : IdentityDbContext<User, Role, Guid>, IPersistedGrantDbContext, IDataProtectionKeyContext
+
     {
         private readonly IOptions<OperationalStoreOptions> _operationalStoreOptions;
 
@@ -27,6 +29,8 @@ namespace VeloTimerWeb.Api.Data
         public DbSet<PersistedGrant> PersistedGrants { get; set; }
         public DbSet<DeviceFlowCodes> DeviceFlowCodes { get; set; }
         public DbSet<Key> Keys { get; set; }
+
+        public DbSet<DataProtectionKey> DataProtectionKeys { get; set; }
 
         Task<int> IPersistedGrantDbContext.SaveChangesAsync() => base.SaveChangesAsync();
 
@@ -57,14 +61,16 @@ namespace VeloTimerWeb.Api.Data
                 .ToTable("persisted_grants");
             builder.Entity<Key>()
                 .ToTable("keys");
+            builder.Entity<DataProtectionKey>()
+                .ToTable("dataprotection_keys");
 
             builder.SnakeCaseModel();
 
-            builder.Entity<Role>()
-                .HasData(
-                    new Role { Id = Guid.NewGuid(), Name = "User", NormalizedName = "USER " },
-                    new Role { Id = Guid.NewGuid(), Name = "Admin", NormalizedName = "ADMIN" }
-                );
+            //builder.Entity<Role>()
+            //    .HasData(
+            //        new Role { Id = Guid.NewGuid(), Name = "User", NormalizedName = "USER " },
+            //        new Role { Id = Guid.NewGuid(), Name = "Admin", NormalizedName = "ADMIN" }
+            //    );
         }
     }
 }

@@ -20,6 +20,7 @@ namespace VeloTimerWeb.Api
                      if (!context.HostingEnvironment.IsDevelopment())
                      {
                          var keyVaultEndpoint = new Uri(Environment.GetEnvironmentVariable("AzureVault"));
+                         config.AddEnvironmentVariables("VELOTIME_");
                          config.AddAzureKeyVault(keyVaultEndpoint, new DefaultAzureCredential());
                      }
                  })
