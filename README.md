@@ -74,11 +74,12 @@ An aside is to produce fun statistics for riders and track owners.
 
 
 
-### Built With
+### Built Using
 
 * [ASP.NET Core](https://dotnet.microsoft.com/apps/aspnet)
 * [EntityFramework Core](https://docs.microsoft.com/en-us/ef/)
 * [Blazor](https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor)
+* [MudBlazor](https://mudblazor.com/)
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
