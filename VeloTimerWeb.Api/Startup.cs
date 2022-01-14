@@ -1,9 +1,11 @@
+using Azure.Identity;
 using Duende.IdentityServer.Models;
 using Duende.IdentityServer.Services;
 using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -12,6 +14,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using System;
 using System.IdentityModel.Tokens.Jwt;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using VeloTimer.Shared.Configuration;
 using VeloTimer.Shared.Hub;
@@ -55,6 +58,19 @@ namespace VeloTimerWeb.Api
             {
                 options.UseSqlServer(Configuration.GetConnectionString("Azure"));
             });
+
+            var dpBuilder = services.AddDataProtection();
+            dpBuilder.PersistKeysToDbContext<VeloIdentityDbContext>();
+
+            if (Environment.IsDevelopment())
+            {
+                dpBuilder.SetApplicationName("veloti.me-development");
+                dpBuilder.SetDefaultKeyLifetime(TimeSpan.FromDays(7));
+            } else
+            {
+                dpBuilder.SetApplicationName("veloti.me");
+                dpBuilder.ProtectKeysWithAzureKeyVault(new Uri(new Uri(Configuration["AzureVault"]), "keys/dataprotection"), new DefaultAzureCredential());
+            }
 
             services.AddDefaultIdentity<User>(options =>
             {
@@ -117,7 +133,7 @@ namespace VeloTimerWeb.Api
                     {
                         ClientId = "WebApi.Loader",
                         AllowedGrantTypes = { GrantType.ClientCredentials },
-                        ClientSecrets = { new Secret("secret".Sha256()) },
+                        ClientSecrets = { new Duende.IdentityServer.Models.Secret("secret".Sha256()) },
                         AllowedScopes = { "VeloTimer.Api", "VeloTimer.ApiAPI" }
                     });
                 });
