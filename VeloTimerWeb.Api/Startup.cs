@@ -69,7 +69,7 @@ namespace VeloTimerWeb.Api
             } else
             {
                 dpBuilder.SetApplicationName("veloti.me");
-                dpBuilder.PersistKeysToAzureBlobStorage(new Uri(new Uri("https://velotime.blob.core.windows.net/dataprotection"), "testing"), new DefaultAzureCredential());
+                dpBuilder.PersistKeysToAzureBlobStorage(new Uri(new Uri(Configuration.GetConnectionString("DataProtectionStorage")), "testing/keys.xml"), new DefaultAzureCredential());
                 dpBuilder.ProtectKeysWithAzureKeyVault(new Uri(new Uri(Configuration["AzureVault"]), "keys/dataprotection"), new DefaultAzureCredential());
             }
 
