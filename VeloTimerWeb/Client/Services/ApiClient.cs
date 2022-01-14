@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -328,7 +329,7 @@ namespace VeloTimerWeb.Client.Services
 
         private static string TimeFormatter(DateTimeOffset? time)
         {
-            var timeString = time?.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
+            var timeString = time?.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ", CultureInfo.InvariantCulture);
 
             if (!string.IsNullOrEmpty(timeString) && timeString.EndsWith("999000Z"))
             {
