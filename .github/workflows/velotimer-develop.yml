@@ -9,7 +9,7 @@ concurrency:
 env:
   ASPNETCORE_ENVIRONMENT: Staging
   DOTNET_CORE_VERSION: 6.0.x
-  AzureVault: https://velotimer-dev-vault.vault.azure.net/
+  VELOTIME_VAULT: https://velotimer-dev-vault.vault.azure.net/
 jobs:
   build:
     environment:
