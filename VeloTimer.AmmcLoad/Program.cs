@@ -21,11 +21,7 @@ namespace VeloTimer.AmmcLoad
                     if (!context.HostingEnvironment.IsDevelopment())
                     {
                         var keyVaultEndpoint = new Uri(Environment.GetEnvironmentVariable("VELOTIME_VAULT"));
-                        var options = new DefaultAzureCredentialOptions
-                        {
-                            ManagedIdentityClientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID")
-                        };
-                        config.AddAzureKeyVault(keyVaultEndpoint, new DefaultAzureCredential(options));
+                        config.AddAzureKeyVault(keyVaultEndpoint, new DefaultAzureCredential());
                     }
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
