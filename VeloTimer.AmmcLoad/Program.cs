@@ -17,9 +17,10 @@ namespace VeloTimer.AmmcLoad
             Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration((context, config) =>
                 {
+                    config.AddEnvironmentVariables("VELOTIME_");
                     if (!context.HostingEnvironment.IsDevelopment())
                     {
-                        var keyVaultEndpoint = new Uri(Environment.GetEnvironmentVariable("AzureVault"));
+                        var keyVaultEndpoint = new Uri(Environment.GetEnvironmentVariable("VELOTIME_VAULT"));
                         config.AddAzureKeyVault(keyVaultEndpoint, new DefaultAzureCredential());
                     }
                 })
