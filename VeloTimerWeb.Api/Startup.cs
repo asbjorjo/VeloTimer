@@ -41,6 +41,8 @@ namespace VeloTimerWeb.Api
 
         public void ConfigureServices(IServiceCollection services)
         {
+            var azureId = new DefaultAzureCredential();
+
             services.AddApplicationInsightsTelemetry();
 
             services.ConfigureMessaging(Configuration);
@@ -69,7 +71,7 @@ namespace VeloTimerWeb.Api
             } else
             {
                 dpBuilder.SetApplicationName("veloti.me");
-                dpBuilder.ProtectKeysWithAzureKeyVault(new Uri(new Uri(Configuration["AzureVault"]), "keys/dataprotection"), new DefaultAzureCredential());
+                dpBuilder.ProtectKeysWithAzureKeyVault(new Uri(new Uri(Configuration["VAULT"]), "keys/dataprotection"), azureId);
             }
 
             services.AddDefaultIdentity<User>(options =>

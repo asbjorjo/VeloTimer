@@ -8,7 +8,7 @@ concurrency:
 env:
   ASPNETCORE_ENVIRONMENT: Production
   DOTNET_CORE_VERSION: 6.0.x
-  AzureVault: https://velotime-vault.vault.azure.net/
+  VELOTIME_VAULT: https://velotime-vault.vault.azure.net/
 jobs:
   build:
     environment:
