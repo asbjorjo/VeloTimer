@@ -30,9 +30,9 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
         private readonly Dictionary<string, string> titles = new Dictionary<string, string>
         {
             { "alltime", "Rekorder" },
-            { "day", "Bestetider i dag" },
-            { "month", $"Bestetimer i {DateTimeOffset.Now.ToString("MMMM", CultureInfo.GetCultureInfo("nb-NO"))}" },
-            { "year", $"Bestetider i {DateTimeOffset.Now.ToString("yyyy")}" }
+            { "day", "Best i dag" },
+            { "month", $"Best i {DateTimeOffset.Now.ToString("MMMM", CultureInfo.GetCultureInfo("nb-NO"))}" },
+            { "year", $"Best i {DateTimeOffset.Now.ToString("yyyy")}" }
         };
 
         public Dictionary<string, IEnumerable<SegmentTime>> Times { get; set; } = new Dictionary<string, IEnumerable<SegmentTime>>();
