@@ -29,7 +29,16 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
         public async Task<IActionResult> OnGetAsync(string Track, string Label)
         {
-            var track = await _context.Set<Track>().FindAsync(long.Parse(Track));
+            Track track;
+
+            if (long.TryParse(Track, out var trackId))
+            {
+                track = await _context.Set<Track>().FindAsync(long.Parse(Track));
+            }
+            else {
+                track = await _service.GetTrackBySlug(Track);
+            }
+
             if (track == null)
             {
                 return NotFound($"Track: {Track}");

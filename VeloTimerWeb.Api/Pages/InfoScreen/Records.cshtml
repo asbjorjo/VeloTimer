@@ -1,6 +1,11 @@
-﻿@page "{Track}/{FromDate}/{ToDate}"
+﻿@page "{Track}/{Period}"
 @model VeloTimerWeb.Api.Pages.InfoScreen.RecordsModel
 @using VeloTimer.Shared.Util
+
+@section head
+{
+    <meta http-equiv="refresh" content=@($"12;url={Model.nextRecord}")>
+}
 
 @{
     if (Model.Times.Count > 0)
@@ -41,4 +46,37 @@
             </div>
         }
     }
+    <div class="col-3"></div>
+    <div class="col-6">
+        <div class="row text-center">
+            <div class="col">
+            <h3>Rundejeger</h3>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th scope="col" class="mw-100">Rytter</th>    
+                            <th scope="col" class="text-right">Runder</th>
+                            <th scope="col" class="text-right">km</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int position = 0; position < Model.Distances.Count(); position++)
+                        {
+                            <tr>
+                                <th scope="row">@(position+1)</th>
+                                <td>@Model.Distances.ElementAt(position).Rider</td>    
+                                <td class="text-right">@Model.Distances.ElementAt(position).Count</td>
+                                <td class="text-right">@String.Format("{0:0.00}", Model.Distances.ElementAt(position).Distance)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 }
