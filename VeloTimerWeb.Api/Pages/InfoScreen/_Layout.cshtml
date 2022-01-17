@@ -17,21 +17,15 @@
     <div class="page">
     <div class="main">
         <div class="content px-4">
-            <div class="d-flex row align-items-center">
-                <div class="d-flex col justify-content-start">
-                    <div>
-                        <img style="width: 164px; height: 90px;" alt="Sola Arena" src="https://sola-arena.no/wp-content/themes/solaarena/images/logo.svg?ver=4" />
-                    </div>
+            <div class="d-flex row align-items-center" style="height: 90px;">
+                <div class="d-flex col justify-content-start h-100">
+                    <img class="img-fluid" alt="Sola Arena" src="https://sola-arena.no/wp-content/themes/solaarena/images/logo.svg?ver=4" />
                 </div>
                 <div class="d-flex col justify-content-center text-center">
-                    <div>
-                        <h2>@ViewData["Title"]</h2>
-                    </div>
+                    <h2>@ViewData["Title"]</h2>
                 </div>
-                <div class="d-flex col justify-content-end">
-                    <div>
-                        @RenderSection("sponsor", false)
-                    </div>
+                <div class="d-flex col justify-content-end h-100">
+                    @RenderSection("sponsor", false)
                 </div>
             </div>
             <div class="row">
