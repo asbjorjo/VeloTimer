@@ -4,6 +4,11 @@ namespace VeloTimer.Shared.Util
 {
     public static class DateTimeUtils
     {
+        public static DateTimeOffset StartOfYear(this DateTimeOffset date)
+        {
+            return new DateTimeOffset(date.Year, 1, 1, 0, 0, 0, date.Offset);
+        }
+
         public static DateTimeOffset StartOfMonth(this DateTimeOffset date)
         {
             return new DateTimeOffset(date.Year, date.Month, 1, 0, 0, 0, date.Offset);
