@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Models;
@@ -30,8 +31,8 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
         {
             { "alltime", "Rekorder" },
             { "day", "Bestetider i dag" },
-            { "month", "Bestetimer denne måneden" },
-            { "year", "Bestetider i år" }
+            { "month", $"Bestetimer denne {DateTimeOffset.Now.ToString("MMMM", CultureInfo.GetCultureInfo("nb-NO"))}" },
+            { "year", $"Bestetider i {DateTimeOffset.Now.ToString("yyyy")}" }
         };
 
         public Dictionary<string, IEnumerable<SegmentTime>> Times { get; set; } = new Dictionary<string, IEnumerable<SegmentTime>>();
