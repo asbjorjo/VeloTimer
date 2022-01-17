@@ -31,7 +31,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
         {
             { "alltime", "Rekorder" },
             { "day", "Bestetider i dag" },
-            { "month", $"Bestetimer i {DateTimeOffset.Now.ToString("MMMM", CultureInfo.GetCultureInfo("nb-NO"))}" },
+            { "month", $"Bestetider i {DateTimeOffset.Now.ToString("MMMM", CultureInfo.GetCultureInfo("nb-NO"))}" },
             { "year", $"Bestetider i {DateTimeOffset.Now.ToString("yyyy")}" }
         };
 
