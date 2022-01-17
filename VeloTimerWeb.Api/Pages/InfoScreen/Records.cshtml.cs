@@ -46,7 +46,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
         public async Task<IActionResult> OnGetAsync(string Track, string Period)
         {
-            ViewData["Title"] = Period == "alltime" ? "Rekorder" : "Bestetider";
+            ViewData["Title"] = titles[Period];
 
             var track = await _service.GetTrackBySlug(Track);
             if (track == null)
