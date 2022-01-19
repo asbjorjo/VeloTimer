@@ -30,6 +30,16 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
         }
 
+        public async Task<Passing> Existing(Passing passing)
+        {
+            var existing = await _context.Set<Passing>()
+                                         .FirstOrDefaultAsync(x => x.TransponderId == passing.TransponderId
+                                                                   && x.LoopId == passing.LoopId
+                                                                   && x.Time == x.Time);
+
+            return existing;
+        }
+
         public async Task<Passing> RegisterNew(Passing passing, TimingSystem? timingSystem, string transponderId)
         {
             if (timingSystem.HasValue && transponderId != null)

@@ -220,7 +220,10 @@ namespace VeloTimerWeb.Api.Services
 
         public async Task<Track> GetTrackBySlug(string slug)
         {
-            var track = await _context.Set<Track>().SingleOrDefaultAsync(x => x.Slug == slug);
+            var track = await _context.Set<Track>()
+                .Include(x => x.TimingLoops)
+                .Include(x => x.Layouts)
+                .SingleOrDefaultAsync(x => x.Slug == slug);
 
             return track;
         }

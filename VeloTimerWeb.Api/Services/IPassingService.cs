@@ -6,6 +6,7 @@ namespace VeloTimerWeb.Api.Services
 {
     public interface IPassingService
     {
+        Task<Passing> Existing(Passing passing);
         Task<Passing> RegisterNew(Passing passing, TimingSystem? timingSystem, string transponderId);
     }
 }
