@@ -1,39 +1,25 @@
-﻿using AutoMapper;
-using Azure.Messaging.ServiceBus;
+﻿using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
-using VeloTimer.AmmcLoad.Models;
 using VeloTimer.Shared.Configuration;
 using VeloTimer.Shared.Models.Timing;
 
-namespace VeloTimer.AmmcLoad.Services
+namespace VeloTimer.PassingLoader.Services
 {
     public class MessagingService : IMessagingService
     {
         private readonly MessageBusOptions _options;
         private readonly ILogger<MessagingService> _logger;
-        private readonly IMapper _mapper;
         private ServiceBusClient _client;
         private ServiceBusSender _sender;
 
-        public MessagingService(MessageBusOptions options, ILogger<MessagingService> logger, IMapper mapper)
+        public MessagingService(MessageBusOptions options, ILogger<MessagingService> logger)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
             _logger = logger;
-            _mapper = mapper;
-        }
 
-        private void Connect()
-        {
-            if (_client is null || _sender is null)
-            {
-                _client = new ServiceBusClient(_options.ConnectionString);
-                _sender = _client.CreateSender(_options.QueueName);
-            }
+            _client = new ServiceBusClient(_options.ConnectionString);
+            _sender = _client.CreateSender(_options.QueueName);
         }
 
         private ServiceBusMessage PrepareMessage(PassingRegister passing)
@@ -48,27 +34,20 @@ namespace VeloTimer.AmmcLoad.Services
             return message;
         }
 
-        public async Task SubmitPassing(PassingAmmc passing)
+        public async Task SubmitPassing(PassingRegister passing)
         {
-            Connect();
-
-            var toRegister = _mapper.Map<PassingRegister>(passing);
-
-            var message = PrepareMessage(toRegister);
+            var message = PrepareMessage(passing);
 
             await _sender.SendMessageAsync(message);
         }
 
-        public async Task SubmitPassings(IEnumerable<PassingAmmc> passings)
+        public async Task SubmitPassings(IEnumerable<PassingRegister> passings)
         {
-            Connect();
-
             _logger.LogInformation($"Sending {passings.Count()} passings");
 
-            var registerpassings = _mapper.Map<IEnumerable<PassingRegister>>(passings);
             Queue<ServiceBusMessage> messages = new();
 
-            foreach (var passing in registerpassings)
+            foreach (var passing in passings)
             {
                 messages.Enqueue(PrepareMessage(passing));
             }

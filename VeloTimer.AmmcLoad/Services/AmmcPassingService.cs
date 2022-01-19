@@ -2,8 +2,8 @@
 using MongoDB.Driver;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using VeloTimer.AmmcLoad.Data;
 using VeloTimer.AmmcLoad.Models;
+using VeloTimer.PassingLoader.Configuration;
 
 namespace VeloTimer.AmmcLoad.Services
 {

@@ -3,6 +3,13 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <RootNamespace>VeloTimer.Shared</RootNamespace>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageId>VeloTimer.Shared</PackageId>
+    <Authors>Asbjoern L. Johansen</Authors>
+    <Company>VeloTime</Company>
+    <Product>VeloTime.Shared</Product>
+	<RepositoryUrl>https://github.com/asbjorjo/VeloTimer/</RepositoryUrl>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>

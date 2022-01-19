@@ -1,29 +1,23 @@
-﻿using AutoMapper;
-using Microsoft.Extensions.Logging;
-using System.Net.Http;
+﻿using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;
-using System.Threading.Tasks;
-using VeloTimer.AmmcLoad.Models;
 using VeloTimer.Shared.Models.Timing;
 
-namespace VeloTimer.AmmcLoad.Services
+namespace VeloTimer.PassingLoader.Services
 {
     public class ApiService : IApiService
     {
         private readonly ILogger<ApiService> _logger;
-        private readonly IMapper _mapper;
         private readonly HttpClient _httpClient;
 
-        public ApiService(ILogger<ApiService> logger, IMapper mapper, HttpClient httpClient)
+        public ApiService(ILogger<ApiService> logger, HttpClient httpClient)
         {
             _logger = logger;
-            _mapper = mapper;
             _httpClient = httpClient;
         }
 
-        public async Task<PassingWeb> GetMostRecentPassing()
+        public async Task<PassingWeb?> GetMostRecentPassing()
         {
-            PassingWeb passing;
+            PassingWeb? passing;
 
             try
             {
@@ -39,6 +33,7 @@ namespace VeloTimer.AmmcLoad.Services
                 }
                 else
                 {
+                    _logger.LogError($"{ex}");
                     throw;
                 }
             }
@@ -57,12 +52,6 @@ namespace VeloTimer.AmmcLoad.Services
 
             _logger.LogError($"Could not post passing - {passing.Source} - {posted.StatusCode}");
             return false;
-        }
-
-        public async Task<bool> RegisterPassing(PassingAmmc passing)
-        {
-            var toRegister = _mapper.Map<PassingRegister>(passing);
-            return await RegisterPassing(toRegister);
         }
     }
 }

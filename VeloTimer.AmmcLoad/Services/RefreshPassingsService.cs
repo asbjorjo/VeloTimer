@@ -1,10 +1,14 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using AutoMapper;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VeloTimer.PassingLoader.Services;
+using VeloTimer.Shared.Models.Timing;
 
 namespace VeloTimer.AmmcLoad.Services
 {
@@ -17,16 +21,19 @@ namespace VeloTimer.AmmcLoad.Services
 
         private readonly ILogger<RefreshPassingsService> _logger;
         private readonly AmmcPassingService _passingService;
+        private readonly IMapper _mapper;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private IApiService _apiService;
         private IMessagingService _messagingService;
 
         public RefreshPassingsService(IServiceScopeFactory servicesScopeFactory,
                                       AmmcPassingService passingService,
+                                      IMapper mapper,
                                       IMessagingService messagingService,
                                       ILogger<RefreshPassingsService> logger)
         {
             _passingService = passingService;
+            _mapper = mapper;
             _messagingService = messagingService;
             _logger = logger;
             _serviceScopeFactory = servicesScopeFactory;
@@ -97,10 +104,7 @@ namespace VeloTimer.AmmcLoad.Services
 
             _logger.LogInformation("Found {0} number of passings", passings.Count);
 
-            using var scope = _serviceScopeFactory.CreateScope();
-            _apiService = scope.ServiceProvider.GetRequiredService<IApiService>();
-
-            await _messagingService.SubmitPassings(passings);
+            await _messagingService.SubmitPassings(_mapper.Map<List<PassingRegister>>(passings));
 
             mostRecent = passings.Last().Id;
         }
