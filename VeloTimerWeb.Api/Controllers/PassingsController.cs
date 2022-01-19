@@ -32,10 +32,19 @@ namespace VeloTimerWeb.Api.Controllers
 
         [AllowAnonymous]
         [Route("mostrecent")]
+        [Route("mostrecent/{Track}")]
         [HttpGet]
-        public async Task<ActionResult<PassingWeb>> GetMostRecent()
+        public async Task<ActionResult<PassingWeb>> GetMostRecent(string Track = "")
         {
-            var value = await _dbset.AsNoTracking().OrderBy(p => p.SourceId).LastOrDefaultAsync();
+            Passing value = null;
+
+            if (string.IsNullOrEmpty(Track))
+            {
+                value = await _dbset.AsNoTracking().OrderBy(p => p.SourceId).LastOrDefaultAsync();
+            } else
+            {
+                value = await _dbset.AsNoTracking().Where(x => x.Loop.Track.Slug == Track).OrderBy(x => x.Time).LastOrDefaultAsync();
+            }
 
             if (value == null)
             {

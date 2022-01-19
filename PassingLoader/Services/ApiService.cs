@@ -42,6 +42,32 @@ namespace VeloTimer.PassingLoader.Services
             return passing;
         }
 
+        public async Task<PassingWeb?> GetMostRecentPassing(string Track)
+        {
+            PassingWeb? passing;
+
+            try
+            {
+                passing = await _httpClient.GetFromJsonAsync<PassingWeb>($"passings/mostrecent/{Track}");
+                _logger.LogInformation("Most recent passing found {0}", passing?.SourceId);
+            }
+            catch (HttpRequestException ex)
+            {
+                if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    _logger.LogInformation("Most recent passing not found");
+                    passing = null;
+                }
+                else
+                {
+                    _logger.LogError($"{ex}");
+                    throw;
+                }
+            }
+
+            return passing;
+        }
+
         public async Task<bool> RegisterPassing(PassingRegister passing)
         {
             var posted = await _httpClient.PostAsJsonAsync("passings/register", passing);

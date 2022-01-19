@@ -39,6 +39,8 @@ namespace VeloTimer.PassingLoader.Services
         {
             var message = PrepareMessage(passing);
 
+            _logger.LogInformation("passing -- {Track} -  {Time} - {Transponder} - {Loop}", passing.Track, passing.Time, passing.TransponderId, passing.LoopId);
+
             await _sender.SendMessageAsync(message);
         }
 

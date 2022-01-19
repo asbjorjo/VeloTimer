@@ -4,8 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Configuration;
@@ -44,26 +44,28 @@ namespace VeloTimerWeb.Api.Services
 
             using var scope = _serviceScopeFactory.CreateScope();
             var passingService = scope.ServiceProvider.GetRequiredService<IPassingService>();
-            var loopService = scope.ServiceProvider.GetRequiredService<VeloTimerDbContext>();
+            var transponderService = scope.ServiceProvider.GetRequiredService<ITransponderService>();
+            var trackService = scope.ServiceProvider.GetRequiredService<ITrackService>();
 
-            var existing = await loopService.Set<Passing>().SingleOrDefaultAsync(x =>
-                x.SourceId == passing.Source
-                && x.Loop.LoopId == passing.LoopId
-                && x.Time == passing.Time.UtcDateTime);
+            var transponder = await transponderService.FindOrRegister(passing.TimingSystem, passing.TransponderId);
 
-            if (existing != null)
+            if (transponder == null)
             {
-                await args.DeadLetterMessageAsync(args.Message);
-                _logger.LogWarning($"Duplicate passing found {args.Message.MessageId} -- {existing.Id}");
+                await DeadLetterPassing(args, $"Transponder not found or cannot be registered - {passing.TimingSystem} -- {passing.TransponderId}");
                 return;
             }
 
-            var loop = await loopService.Set<TimingLoop>().SingleOrDefaultAsync(x => x.LoopId == passing.LoopId);
+            var track = await trackService.GetTrackBySlug(passing.Track);
+            if (track == null)
+            {
+                await DeadLetterPassing(args, $"Track not configured - {passing.Track}");
+                return;
+            }            
 
+            var loop = track.TimingLoops.SingleOrDefault(x => x.LoopId == passing.LoopId);
             if (loop == null)
             {
-                await args.DeadLetterMessageAsync(args.Message);
-                _logger.LogWarning($"Loop not found for {args.Message.MessageId} -- {passing.LoopId}");
+                await DeadLetterPassing(args, $"No loop configured - {passing.Track} - {passing.LoopId}");
                 return;
             }
 
@@ -72,11 +74,25 @@ namespace VeloTimerWeb.Api.Services
                 SourceId = args.Message.MessageId,
                 Time = passing.Time.UtcDateTime,
                 Loop = loop,
+                Transponder = transponder
             };
+
+            var existing = await passingService.Existing(register);
+            if (existing != null)
+            {
+                await DeadLetterPassing(args, $"Duplicate passing -- {passing.Track} - {passing.Time} - {passing.TransponderId} - {passing.LoopId}");
+                return;
+            }
 
             await passingService.RegisterNew(register, passing.TimingSystem, passing.TransponderId);
 
             await args.CompleteMessageAsync(args.Message);
+        }
+
+        private async Task DeadLetterPassing(ProcessSessionMessageEventArgs args, string v)
+        {
+            _logger.LogWarning(v);
+            await args.DeadLetterMessageAsync(args.Message);
         }
 
         Task ErrorHandler(ProcessErrorEventArgs args)

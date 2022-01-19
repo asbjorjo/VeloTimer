@@ -26,7 +26,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.0" />
-    <PackageReference Include="VeloTime.X2.Core" Version="0.0.8" />
+    <PackageReference Include="VeloTime.X2.Core" Version="0.0.16" />
   </ItemGroup>
 
   <ItemGroup>
