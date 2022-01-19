@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 
 namespace VeloTimer.Shared.Models
 {
@@ -36,7 +37,7 @@ namespace VeloTimer.Shared.Models
 
         private static string TimeFormatter(DateTime time)
         {
-            return time.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ");
+            return time.ToString("yyyy-MM-ddTHH:mm:ss.ffffffZ", CultureInfo.InvariantCulture);
         }
     }
 }
