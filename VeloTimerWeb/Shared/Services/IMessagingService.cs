@@ -1,6 +1,8 @@
-﻿using VeloTimer.Shared.Models.Timing;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+using VeloTimer.Shared.Models.Timing;
 
-namespace VeloTimer.PassingLoader.Services
+namespace VeloTimer.Shared.Services
 {
     public interface IMessagingService
     {

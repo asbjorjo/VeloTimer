@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using VeloTimer.PassingLoader.Configuration;
 using VeloTimer.PassingLoader.Services;
 using VeloTimer.Shared.Configuration;
+using VeloTimer.Shared.Services;
 
 namespace VeloTimer.PassingLoader
 {

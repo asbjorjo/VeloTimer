@@ -16,7 +16,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AmmcLoad", "VeloTimer.AmmcL
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Test.Shared", "VeloTimer.Test\Test.Shared.csproj", "{CFEDED7A-E8D1-41A5-B43E-503C757D1722}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PassingLoader", "PassingLoader\PassingLoader.csproj", "{9637D6D3-6402-4CAF-9E41-2C4673F21763}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PassingLoader", "PassingLoader\PassingLoader.csproj", "{9637D6D3-6402-4CAF-9E41-2C4673F21763}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PassingLoaderApp", "PassingLoaderApp\PassingLoaderApp.csproj", "{443CDE08-0659-4986-803E-35EBDA4CCAB8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -48,6 +50,10 @@ Global
 		{9637D6D3-6402-4CAF-9E41-2C4673F21763}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9637D6D3-6402-4CAF-9E41-2C4673F21763}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9637D6D3-6402-4CAF-9E41-2C4673F21763}.Release|Any CPU.Build.0 = Release|Any CPU
+		{443CDE08-0659-4986-803E-35EBDA4CCAB8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{443CDE08-0659-4986-803E-35EBDA4CCAB8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{443CDE08-0659-4986-803E-35EBDA4CCAB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{443CDE08-0659-4986-803E-35EBDA4CCAB8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

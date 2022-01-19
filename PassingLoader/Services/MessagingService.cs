@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using VeloTimer.Shared.Configuration;
 using VeloTimer.Shared.Models.Timing;
+using VeloTimer.Shared.Services;
 
 namespace VeloTimer.PassingLoader.Services
 {

@@ -7,8 +7,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using VeloTimer.PassingLoader.Services;
 using VeloTimer.Shared.Models.Timing;
+using VeloTimer.Shared.Services;
 
 namespace VeloTimer.AmmcLoad.Services
 {

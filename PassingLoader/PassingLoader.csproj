@@ -9,9 +9,11 @@
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Authors>Asbjoern L. Johansen</Authors>
     <Company>VeloTime</Company>
-    <RepositoryUrl>https://github.com/asbjorjo/VeloTimer/</RepositoryUrl>
-	<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="C:\Users\asbjo\.nuget\packages\velotime.x2.core\0.0.4\contentFiles\any\net6.0\MylapsSDK.dll" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.5.1" />
