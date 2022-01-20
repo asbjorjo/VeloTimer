@@ -11,8 +11,8 @@ namespace VeloTimer.PassingLoader.Services
     {
         private readonly MessageBusOptions _options;
         private readonly ILogger<MessagingService> _logger;
-        private ServiceBusClient _client;
-        private ServiceBusSender _sender;
+        private readonly ServiceBusClient _client;
+        private readonly ServiceBusSender _sender;
 
         public MessagingService(MessageBusOptions options, ILogger<MessagingService> logger)
         {
@@ -23,7 +23,7 @@ namespace VeloTimer.PassingLoader.Services
             _sender = _client.CreateSender(_options.QueueName);
         }
 
-        private ServiceBusMessage PrepareMessage(PassingRegister passing)
+        private static ServiceBusMessage PrepareMessage(PassingRegister passing)
         {
             string messagePassing = JsonSerializer.Serialize(passing);
             var message = new ServiceBusMessage(messagePassing)
@@ -46,7 +46,7 @@ namespace VeloTimer.PassingLoader.Services
 
         public async Task SubmitPassings(IEnumerable<PassingRegister> passings)
         {
-            _logger.LogInformation($"Sending {passings.Count()} passings");
+            _logger.LogInformation("Sending {Count} passings", passings.Count());
 
             Queue<ServiceBusMessage> messages = new();
 
@@ -55,7 +55,7 @@ namespace VeloTimer.PassingLoader.Services
                 messages.Enqueue(PrepareMessage(passing));
             }
 
-            _logger.LogInformation($"Enqueued {messages.Count} messages for sending");
+            _logger.LogInformation("Enqueued {Count} messages for sending", messages.Count);
 
             while (messages.Count > 0)
             {
@@ -66,7 +66,7 @@ namespace VeloTimer.PassingLoader.Services
                     messages.Dequeue();
                 }
 
-                _logger.LogInformation($"Sending - {messages.Count} remaining");
+                _logger.LogInformation("Sending - {Count} remaining", messages.Count);
 
                 await _sender.SendMessagesAsync(batch);
             }

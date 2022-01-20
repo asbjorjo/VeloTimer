@@ -23,7 +23,7 @@ namespace VeloTimer.PassingLoader.Services
             try
             {
                 passing = await _httpClient.GetFromJsonAsync<PassingWeb>("passings/mostrecent");
-                _logger.LogInformation("Most recent passing found {0}", passing?.SourceId);
+                _logger.LogInformation("Most recent passing found {Passing}", passing?.SourceId);
             }
             catch (HttpRequestException ex)
             {
@@ -34,7 +34,7 @@ namespace VeloTimer.PassingLoader.Services
                 }
                 else
                 {
-                    _logger.LogError($"{ex}");
+                    _logger.LogError("{Excetion}", ex);
                     throw;
                 }
             }
@@ -49,7 +49,7 @@ namespace VeloTimer.PassingLoader.Services
             try
             {
                 passing = await _httpClient.GetFromJsonAsync<PassingWeb>($"passings/mostrecent/{Track}");
-                _logger.LogInformation("Most recent passing found {0}", passing?.SourceId);
+                _logger.LogInformation("Most recent passing found {Passing}", passing?.SourceId);
             }
             catch (HttpRequestException ex)
             {
@@ -60,7 +60,7 @@ namespace VeloTimer.PassingLoader.Services
                 }
                 else
                 {
-                    _logger.LogError($"{ex}");
+                    _logger.LogError("{Exception}", ex);
                     throw;
                 }
             }
@@ -77,7 +77,9 @@ namespace VeloTimer.PassingLoader.Services
                 return true;
             }
 
-            _logger.LogError($"Could not post passing - {passing.Source} - {posted.StatusCode}");
+            _logger.LogError("Could not post passing - {Passing} - {StatusCode}",
+                             passing.Source,
+                             posted.StatusCode);
             return false;
         }
     }

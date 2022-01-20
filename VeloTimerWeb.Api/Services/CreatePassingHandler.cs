@@ -20,20 +20,17 @@ namespace VeloTimerWeb.Api.Services
     {
         private readonly MessageBusOptions _settings;
         private readonly ILogger<CreatePassingHandler> _logger;
-        private readonly IMapper _mapper;
         private readonly IServiceScopeFactory _serviceScopeFactory;
-        private ServiceBusClient _client;
+        private readonly ServiceBusClient _client;
         private ServiceBusSessionProcessor _processor;
 
         public CreatePassingHandler(
             MessageBusOptions options,
             ILogger<CreatePassingHandler> logger,
-            IMapper mapper,
             IServiceScopeFactory serviceScopeFactory)
         {
             _settings = options;
             _logger = logger;
-            _mapper = mapper;
             _serviceScopeFactory = serviceScopeFactory;
             _client = new ServiceBusClient(_settings.ConnectionString);
         }
@@ -51,7 +48,7 @@ namespace VeloTimerWeb.Api.Services
 
             if (transponder == null)
             {
-                await DeadLetterPassing(args, $"Transponder not found or cannot be registered - {passing.TimingSystem} -- {passing.TransponderId}");
+                await DeadLetterPassing(args, $"Transponder not found or registered - {passing.TimingSystem} -- {passing.TransponderId}");
                 return;
             }
 
@@ -65,7 +62,7 @@ namespace VeloTimerWeb.Api.Services
             var loop = track.TimingLoops.SingleOrDefault(x => x.LoopId == passing.LoopId);
             if (loop == null)
             {
-                await DeadLetterPassing(args, $"No loop configured - {passing.Track} - {passing.LoopId}");
+                await DeadLetterPassing(args, $"Loop not configured - {passing.Track} - {passing.LoopId}");
                 return;
             }
 
@@ -80,7 +77,7 @@ namespace VeloTimerWeb.Api.Services
             var existing = await passingService.Existing(register);
             if (existing != null)
             {
-                await DeadLetterPassing(args, $"Duplicate passing -- {passing.Track} - {passing.Time} - {passing.TransponderId} - {passing.LoopId}");
+                await DeadLetterPassing(args, $"Duplicate -- {passing.Track} - {passing.Time} - {passing.TransponderId} - {passing.LoopId}");
                 return;
             }
 
@@ -89,18 +86,18 @@ namespace VeloTimerWeb.Api.Services
             await args.CompleteMessageAsync(args.Message);
         }
 
-        private async Task DeadLetterPassing(ProcessSessionMessageEventArgs args, string v)
+        private async Task DeadLetterPassing(ProcessSessionMessageEventArgs args, string message)
         {
-            _logger.LogWarning(v);
+            _logger.LogWarning("Passing not processed: {Reason}", message);
             await args.DeadLetterMessageAsync(args.Message);
         }
 
         Task ErrorHandler(ProcessErrorEventArgs args)
         {
-            _logger.LogError($"Source: {args.ErrorSource}");
-            _logger.LogError($"Namespace: {args.FullyQualifiedNamespace}");
-            _logger.LogError($"Entitypath: {args.EntityPath}");
-            _logger.LogError($"Exception: {args.Exception}");
+            _logger.LogError("{Source} -- {Namespace} - {EntityPath}",
+                             args.ErrorSource,
+                             args.FullyQualifiedNamespace,
+                             args.EntityPath);
 
             return Task.CompletedTask;
         }
@@ -118,14 +115,14 @@ namespace VeloTimerWeb.Api.Services
             _processor.ProcessMessageAsync += PassingHandler;
             _processor.ProcessErrorAsync += ErrorHandler;
 
-            await _processor.StartProcessingAsync();
+            await _processor.StartProcessingAsync(stoppingToken);
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken)
         {
             if (_processor != null)
             {
-                await _processor.StopProcessingAsync();
+                await _processor.StopProcessingAsync(cancellationToken);
             }
 
             await base.StopAsync(cancellationToken);
