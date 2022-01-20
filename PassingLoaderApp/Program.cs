@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using VeloTime.X2.Core.Configuration;
-using VeloTime.X2.Core.Services;
+using PassingLoader.Configuration;
 using VeloTimer.PassingLoader;
 using VeloTimer.Shared.Services;
 
