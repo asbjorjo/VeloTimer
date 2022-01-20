@@ -1,9 +1,9 @@
 ﻿using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using VeloTimer.Shared.Configuration;
-using VeloTimer.Shared.Models.Timing;
+using VeloTimer.Shared.Data.Models.Timing;
 using VeloTimer.Shared.Services;
+using VeloTimer.Shared.Services.Configuration;
 
 namespace VeloTimer.PassingLoader.Services
 {

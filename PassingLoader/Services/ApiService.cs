@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;
-using VeloTimer.Shared.Models.Timing;
+using VeloTimer.Shared.Data.Models.Timing;
 using VeloTimer.Shared.Services;
 
 namespace VeloTimer.PassingLoader.Services

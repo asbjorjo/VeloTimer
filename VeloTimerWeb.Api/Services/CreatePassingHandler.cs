@@ -1,18 +1,13 @@
-﻿using AutoMapper;
-using Azure.Messaging.ServiceBus;
-using Microsoft.EntityFrameworkCore;
+﻿using Azure.Messaging.ServiceBus;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Configuration;
-using VeloTimer.Shared.Models.Timing;
-using VeloTimerWeb.Api.Data;
+using VeloTimer.Shared.Data.Models.Timing;
+using VeloTimer.Shared.Services.Configuration;
 using VeloTimerWeb.Api.Models.Timing;
-using VeloTimerWeb.Api.Models.TrackSetup;
 
 namespace VeloTimerWeb.Api.Services
 {

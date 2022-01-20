@@ -4,6 +4,10 @@
     <TargetFramework>net6.0</TargetFramework>
 
     <IsPackable>false</IsPackable>
+
+    <RootNamespace>$(AssemblyName)</RootNamespace>
+
+    <AssemblyName>VeloTimer.Test.Shared</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 using VeloTimerWeb.Api.Models.Timing;
-using static VeloTimer.Shared.Models.Timing.TransponderType;
+using static VeloTimer.Shared.Data.Models.Timing.TransponderType;
 
 namespace VeloTimerWeb.Api.Services
 {

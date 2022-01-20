@@ -2,12 +2,13 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <RootNamespace>VeloTimer.Shared</RootNamespace>
-    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <RootNamespace>$(AssemblyName)</RootNamespace>
     <PackageId>VeloTimer.Shared</PackageId>
     <Authors>Asbjoern L. Johansen</Authors>
     <Company>VeloTime</Company>
     <Product>VeloTime.Shared</Product>
+    <RepositoryUrl>https://github.com/asbjorjo/VeloTimer/</RepositoryUrl>
+    <AssemblyName>VeloTimer.Shared</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +16,10 @@
     <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="6.0.1" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="6.0.0" />
     <PackageReference Include="Slugify.Core" Version="3.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared.Data\Shared.Data.csproj" />
   </ItemGroup>
 
   <ItemGroup>

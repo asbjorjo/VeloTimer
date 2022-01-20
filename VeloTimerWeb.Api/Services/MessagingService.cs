@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using VeloTimer.Shared.Configuration;
+using VeloTimer.Shared.Services.Configuration;
 
 namespace VeloTimerWeb.Api.Services
 {

@@ -10,7 +10,7 @@ using VeloTimerWeb.Api.Hubs;
 using VeloTimerWeb.Api.Models.Statistics;
 using VeloTimerWeb.Api.Models.Timing;
 using VeloTimerWeb.Api.Models.TrackSetup;
-using static VeloTimer.Shared.Models.Timing.TransponderType;
+using static VeloTimer.Shared.Data.Models.Timing.TransponderType;
 
 namespace VeloTimerWeb.Api.Services
 {

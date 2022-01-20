@@ -2,8 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <RootNamespace>VeloTimer.AmmcLoad</RootNamespace>
+    <RootNamespace>$(AssemblyName)</RootNamespace>
     <UserSecretsId>031c6ceb-81e1-4cc1-99a6-f8fd474f3988</UserSecretsId>
+    <AssemblyName>VeloTimer.AmmcLoad</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

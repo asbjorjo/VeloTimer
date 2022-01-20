@@ -2,7 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <RootNamespace>VeloTimerWeb.Client</RootNamespace>
+    <RootNamespace>$(AssemblyName)</RootNamespace>
+    <AssemblyName>VeloTimerWeb.Client</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Shared.Data\Shared.Data.csproj" />
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
 

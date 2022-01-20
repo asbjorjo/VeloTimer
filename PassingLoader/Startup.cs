@@ -3,8 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using VeloTimer.PassingLoader.Configuration;
 using VeloTimer.PassingLoader.Services;
-using VeloTimer.Shared.Configuration;
 using VeloTimer.Shared.Services;
+using VeloTimer.Shared.Services.Configuration;
 
 namespace VeloTimer.PassingLoader
 {
