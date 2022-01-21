@@ -2,12 +2,13 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <RootNamespace>$(AssemblyName)</RootNamespace>
     <PackageId>VeloTimer.Shared</PackageId>
     <Authors>Asbjoern L. Johansen</Authors>
     <Company>VeloTime</Company>
     <Product>VeloTime.Shared</Product>
+	<RepositoryUrl>https://github.com/asbjorjo/VeloTimer/</RepositoryUrl>
     <AssemblyName>VeloTimer.Shared</AssemblyName>
+    <RootNamespace>$(AssemblyName)</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

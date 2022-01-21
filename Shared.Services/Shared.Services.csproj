@@ -1,10 +1,13 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>VeloTimer.Shared.Services</AssemblyName>
+	<Authors>Asbjoern L. Johansen</Authors>
+	<Company>VeloTime</Company>
+	<RepositoryUrl>https://github.com/asbjorjo/VeloTimer/</RepositoryUrl>
+	<AssemblyName>VeloTimer.Shared.Services</AssemblyName>
     <RootNamespace>$(AssemblyName)</RootNamespace>
   </PropertyGroup>
 
