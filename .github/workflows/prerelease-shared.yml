@@ -16,12 +16,12 @@ jobs:
       with:
         dotnet-version: '6.0.x'
     - name: Pack
-      run: dotnet pack VeloTimerWeb/Shared --configuration Release /p:Version=${env:VERSION} --output .
+      run: dotnet pack VeloTimerWeb/Shared --configuration Release /p:Version=${VERSION} --output .
     - name: Pack
-      run: dotnet pack Shared.Data --configuration Release /p:Version=${env:VERSION} --output .
+      run: dotnet pack Shared.Data --configuration Release /p:Version=${VERSION} --output .
     - name: Pack
-      run: dotnet pack Shared.Services --configuration Release /p:Version=${env:VERSION} --output .
+      run: dotnet pack Shared.Services --configuration Release /p:Version=${VERSION} --output .
     - name: Push
-      run: dotnet nuget push VeloTimer.*.${env:VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${env:NUGET_TOKEN}
+      run: dotnet nuget push VeloTimer.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${env:NUGET_TOKEN}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

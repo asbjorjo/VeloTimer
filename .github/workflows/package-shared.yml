@@ -26,16 +26,16 @@ jobs:
     - name: Add nuget source
       run: dotnet nuget add source --username asbjorjo --password ${{ secrets.NUGET_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/asbjorjo/index.json"
     - name: Build
-      run: dotnet build --configuration Release /p:Version=${env:VERSION}
+      run: dotnet build --configuration Release /p:Version=${VERSION}
     - name: Test
-      run: dotnet test --configuration Release /p:Version=${env:VERSION} --no-build
+      run: dotnet test --configuration Release /p:Version=${VERSION} --no-build
     - name: Pack
-      run: dotnet pack VeloTimerWeb/Shared --configuration Release /p:Version=${env:VERSION} --no-build --output .
+      run: dotnet pack VeloTimerWeb/Shared --configuration Release /p:Version=${VERSION} --no-build --output .
     - name: Pack
-      run: dotnet pack Shared.Data --configuration Release /p:Version=${env:VERSION} --no-build --output .
+      run: dotnet pack Shared.Data --configuration Release /p:Version=${VERSION} --no-build --output .
     - name: Pack
-      run: dotnet pack Shared.Services --configuration Release /p:Version=${env:VERSION} --no-build --output .
+      run: dotnet pack Shared.Services --configuration Release /p:Version=${VERSION} --no-build --output .
     - name: Push
-      run: dotnet nuget push VeloTimer.*.${env:VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${env:NUGET_TOKEN}
+      run: dotnet nuget push VeloTimer.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
       env:
         NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
