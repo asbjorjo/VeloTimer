@@ -12,11 +12,11 @@ jobs:
     - name: Set VERSION variable from tag
       run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
     - name: Pack
-      run: dotnet pack VeloTimerWeb/Shared --configuration Release /p:Version=${env:VERSION} --no-build --output .
+      run: dotnet pack VeloTimerWeb/Shared --configuration Release /p:Version=${env:VERSION} --output .
     - name: Pack
-      run: dotnet pack Shared.Data --configuration Release /p:Version=${env:VERSION} --no-build --output .
+      run: dotnet pack Shared.Data --configuration Release /p:Version=${env:VERSION} --output .
     - name: Pack
-      run: dotnet pack Shared.Services --configuration Release /p:Version=${env:VERSION} --no-build --output .
+      run: dotnet pack Shared.Services --configuration Release /p:Version=${env:VERSION} --output .
     - name: Push
       run: dotnet nuget push VeloTimer.*.${env:VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${env:NUGET_TOKEN}
       env:
