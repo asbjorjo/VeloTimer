@@ -38,4 +38,4 @@ jobs:
     - name: Push
       run: dotnet nuget push VeloTimer.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
       env:
-        NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}
+        NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
