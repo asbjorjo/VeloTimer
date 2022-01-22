@@ -239,7 +239,10 @@ namespace VeloTimerWeb.Api
                 app.UseWebAssemblyDebugging();
             }
 
-            app.UseHttpsRedirection();
+            if (!env.IsDevelopment())
+            {
+                app.UseHttpsRedirection();
+            }
             app.UseBlazorFrameworkFiles();
             app.UseStaticFiles();
 
