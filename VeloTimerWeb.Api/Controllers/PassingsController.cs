@@ -54,7 +54,6 @@ namespace VeloTimerWeb.Api.Controllers
             return _mapper.Map<PassingWeb>(value);
         }
 
-        [AllowAnonymous]
         [Route("register")]
         [HttpPost]
         public async Task<ActionResult<PassingWeb>> Register(PassingRegister passing)
