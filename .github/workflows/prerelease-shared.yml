@@ -1,3 +1,4 @@
+name: Build pre-release
 on:
   push:
     tags:
