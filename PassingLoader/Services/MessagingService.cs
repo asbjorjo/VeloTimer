@@ -26,10 +26,11 @@ namespace VeloTimer.PassingLoader.Services
         private static ServiceBusMessage PrepareMessage(PassingRegister passing)
         {
             string messagePassing = JsonSerializer.Serialize(passing);
+            string messageId = $"{passing.Track}_{passing.LoopId}_{passing.TransponderId}_{passing.Time.UtcDateTime.Ticks}";
             var message = new ServiceBusMessage(messagePassing)
             {
                 SessionId = passing.TransponderId,
-                MessageId = passing.Source
+                MessageId = messageId
             };
 
             return message;
