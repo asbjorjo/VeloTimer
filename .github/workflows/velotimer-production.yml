@@ -1,24 +1,47 @@
-name: Build and deploy to Azure production staging environment
+name: Build and deploy release
 on:
   push:
-    branches:
-    - staging
+    tags:
+    - "v[0-9]+.[0-9]+.[0-9]+"
+    - "v[0-9]+.[0-9]+.[0-9]+.[0-9]+"
 concurrency: 
   group: ${{ github.ref }}
 env:
   ASPNETCORE_ENVIRONMENT: Production
   DOTNET_CORE_VERSION: 6.0.x
   VELOTIME_VAULT: https://velotime-vault.vault.azure.net/
+  CONFIGURATION: Release
 jobs:
-  build:
+  build-packages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Set VERSION variable from tag
+      run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+    - name: Setup dotnet
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
+    - name: Pack PassingLoader
+      run: dotnet pack PassingLoader --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+    - name: Pack Shared
+      run: dotnet pack VeloTimerWeb/Shared --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+    - name: Pack Shared.Data
+      run: dotnet pack Shared.Data --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+    - name: Pack Shared.Services
+      run: dotnet pack Shared.Services --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+    - name: Push
+      run: dotnet nuget push VeloTimer.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
+      env:
+        NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  build-webapp:
     environment:
       name: staging
     env:
-      CONFIGURATION: Release
       API_WORKING_DIRECTORY: VeloTimerWeb.Api
-      AMMC_WORKING_DIRECTORY: VeloTimer.AmmcLoad
       AZURE_API_PACKAGE_PATH: VeloTimerWeb.Api/publish
-      AZURE_AMMC_PACKAGE_PATH: VeloTimer.AmccLoad/publish
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -34,18 +57,11 @@ jobs:
       run: dotnet test --no-build
     - name: Publish API
       run: dotnet publish "${{ env.API_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_API_PACKAGE_PATH }}"
-    - name: Publish AmmcLoad
-      run: dotnet publish "${{ env.AMMC_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_AMMC_PACKAGE_PATH }}"
-    - name: Upload API Artifacts
+\    - name: Upload API Artifacts
       uses: actions/upload-artifact@v1.0.0
       with:
         name: api
         path: ${{ env.AZURE_API_PACKAGE_PATH }}
-    - name: Upload AmmcLoad Artifacts
-      uses: actions/upload-artifact@v1.0.0
-      with:
-        name: ammcload
-        path: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
     - uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CI }}
@@ -87,26 +103,4 @@ jobs:
         package: .
     - name: Azure Logout
       run: az logout
-  deploy_ammcload:
-    environment:
-      name: staging
-      url: https://velotime-ammc-noe.azurewebsites.net
-    env:
-      AZURE_AMMC_NAME: 'velotime-ammc-noe'
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download artifact from build job
-      uses: actions/download-artifact@v2
-      with:
-        name: ammcload
-    - uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CI }}
-    - name: Deploy to Azure AmmcLoader
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: ${{ env.AZURE_AMMC_NAME }}
-        package: .
-    - name: Azure Logout
-      run: az logout
+ 
