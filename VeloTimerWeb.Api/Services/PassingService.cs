@@ -33,9 +33,9 @@ namespace VeloTimerWeb.Api.Services
         public async Task<Passing> Existing(Passing passing)
         {
             var existing = await _context.Set<Passing>()
-                                         .FirstOrDefaultAsync(x => x.TransponderId == passing.TransponderId
+                                         .SingleOrDefaultAsync(x => x.TransponderId == passing.TransponderId
                                                                    && x.LoopId == passing.LoopId
-                                                                   && x.Time == x.Time);
+                                                                   && x.Time == passing.Time);
 
             return existing;
         }
