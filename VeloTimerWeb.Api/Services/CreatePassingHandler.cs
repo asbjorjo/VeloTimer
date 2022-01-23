@@ -34,6 +34,8 @@ namespace VeloTimerWeb.Api.Services
         {
             var passing = args.Message.Body.ToObjectFromJson<PassingRegister>();
 
+            if (string.IsNullOrWhiteSpace(passing.Track)) passing.Track = "sola-arena";
+
             using var scope = _serviceScopeFactory.CreateScope();
             var passingService = scope.ServiceProvider.GetRequiredService<IPassingService>();
             var transponderService = scope.ServiceProvider.GetRequiredService<ITransponderService>();
