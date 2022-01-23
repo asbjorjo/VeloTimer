@@ -29,7 +29,7 @@
         "AzureVault": "https://velotimer-dev-vault.vault.azure.net/",
         "AZURE_USERNAME": "asbjorjo@gmail.com"
       },
-      "applicationUrl": "https://localhost:44387;http://localhost:58223;http://10.123.42.8:58223",
+      "applicationUrl": "https://localhost:44387;http://localhost:58223;http://host.docker.internal:58223",
       "dotnetRunMessages": "true"
     }
   }
