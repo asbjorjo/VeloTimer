@@ -19,6 +19,8 @@ namespace VeloTimer.PassingLoader.Services
             _options = options ?? throw new ArgumentNullException(nameof(options));
             _logger = logger;
 
+            _logger.LogInformation("Sending passings to {Queue}", options.QueueName);
+
             _client = new ServiceBusClient(_options.ConnectionString);
             _sender = _client.CreateSender(_options.QueueName);
         }
