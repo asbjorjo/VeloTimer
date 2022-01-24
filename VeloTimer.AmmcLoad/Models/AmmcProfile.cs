@@ -1,5 +1,5 @@
 ﻿using AutoMapper;
-using VeloTimer.Shared.Models.Timing;
+using VeloTimer.Shared.Data.Models.Timing;
 
 namespace VeloTimer.AmmcLoad.Models
 {
