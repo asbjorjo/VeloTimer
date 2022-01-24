@@ -1,6 +1,6 @@
 ﻿using VeloTimer.Shared.Data.Models.Timing;
 
-namespace VeloTimer.Shared.Services.Api
+namespace VeloTimer.PassingLoader.Services.Api
 {
     public interface IApiService
     {

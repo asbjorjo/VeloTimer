@@ -1,4 +1,4 @@
-﻿namespace VeloTimer.Shared.Services.Messaging
+﻿namespace VeloTimer.PassingLoader.Services.Messaging
 {
     public class MessageBusOptions
     {

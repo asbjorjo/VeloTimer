@@ -1,3 +1,4 @@
+using AmmcLoad.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -23,6 +24,7 @@ namespace VeloTimer.AmmcLoad
         {
             services.AddApplicationInsightsTelemetry();
 
+            services.ConfigurePassingDatabase(Configuration);
             services.ConfigurePassingLoader(Configuration);
             
             services.AddAutoMapper(typeof(AmmcProfile));

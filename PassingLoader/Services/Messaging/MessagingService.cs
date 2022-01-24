@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using VeloTimer.Shared.Data.Models.Timing;
 
-namespace VeloTimer.Shared.Services.Messaging
+namespace VeloTimer.PassingLoader.Services.Messaging
 {
     public class MessagingService : IMessagingService
     {

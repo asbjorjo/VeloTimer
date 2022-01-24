@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace VeloTimer.PassingLoader.Configuration
+namespace AmmcLoad.Configuration
 {
     public class PassingDatabaseSettings : IPassingDatabaseSettings
     {

@@ -1,6 +1,6 @@
 ﻿using VeloTimer.Shared.Data.Models.Timing;
 
-namespace VeloTimer.Shared.Services.Messaging
+namespace VeloTimer.PassingLoader.Services.Messaging
 {
     public interface IMessagingService
     {

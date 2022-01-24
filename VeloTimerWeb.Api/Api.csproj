@@ -47,7 +47,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Shared.Services\Shared.Services.csproj" />
     <ProjectReference Include="..\VeloTimerWeb\Client\Client.csproj" />
     <ProjectReference Include="..\VeloTimerWeb\Shared\Shared.csproj" />
   </ItemGroup>

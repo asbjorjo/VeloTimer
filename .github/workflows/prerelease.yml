@@ -30,8 +30,6 @@ jobs:
       run: dotnet pack VeloTimerWeb/Shared --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
     - name: Pack Shared.Data
       run: dotnet pack Shared.Data --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
-    - name: Pack Shared.Services
-      run: dotnet pack Shared.Services --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
     - name: Push
       run: dotnet nuget push VeloTimer.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
       env:

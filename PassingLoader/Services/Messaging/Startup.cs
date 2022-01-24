@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace VeloTimer.Shared.Services.Messaging
+namespace VeloTimer.PassingLoader.Services.Messaging
 {
     public static class Startup
     {

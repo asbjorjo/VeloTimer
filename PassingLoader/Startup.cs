@@ -1,8 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using VeloTimer.PassingLoader.Configuration;
-using VeloTimer.Shared.Services.Api;
-using VeloTimer.Shared.Services.Messaging;
+using VeloTimer.PassingLoader.Services.Api;
+using VeloTimer.PassingLoader.Services.Messaging;
 
 namespace VeloTimer.PassingLoader
 {
@@ -10,7 +9,6 @@ namespace VeloTimer.PassingLoader
     {
         public static void ConfigurePassingLoader(this IServiceCollection services, IConfiguration config)
         {
-            services.ConfigurePassingDatabase(config);
             services.ConfigureMessaging(config);
             services.ConfigureApiClient(config);
         }
