@@ -8,7 +8,7 @@ namespace VeloTimer.AmmcLoad.Models
         public AmmcProfile()
         {
             CreateMap<PassingAmmc, PassingRegister>()
-                .ForMember(dest => dest.Track, opt => opt.MapFrom("sola-arena"))
+                .ForMember(dest => dest.Track, opt => opt.MapFrom(src => "sola-arena"))
                 .ForMember(dest => dest.Source, opt => opt.MapFrom(src => src.Id))
                 .ForMember(dest => dest.Time, opt => opt.MapFrom(src => src.UtcTime))
                 .ForMember(dest => dest.TimingSystem, opt => opt.MapFrom(src => TransponderType.TimingSystem.Mylaps_X2));
