@@ -88,6 +88,7 @@ jobs:
       url: https://velotime-dev.azurewebsites.net
     env:
       AZURE_WEBAPP_NAME: 'velotime-dev'
+      AZURE_AMMC_NAME: 'velotime-dev-ammc'
     runs-on: ubuntu-latest
     steps:
     - name: Download artifact from build job
@@ -97,6 +98,10 @@ jobs:
     - uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CI }}
+    - name: Stop AMMC
+      uses: azure/CLI@v1
+      with:
+      inlineScript: az webapp stop --name ${{ env.AZURE_AMMC_NAME }}
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v2
       with:
@@ -149,5 +154,9 @@ jobs:
       with:
         app-name: ${{ env.AZURE_AMMC_NAME }}
         package: .
+    - name: Start AMMC
+      uses: azure/CLI@v1
+      with:
+      inlineScript: az webapp start --name ${{ env.AZURE_AMMC_NAME }}
     - name: Azure Logout
       run: az logout
