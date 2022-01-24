@@ -16,7 +16,7 @@ using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography.X509Certificates;
 using VeloTimer.Shared.Hub;
-using VeloTimer.Shared.Services.Configuration;
+using VeloTimer.Shared.Services.Messaging;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
 using VeloTimerWeb.Api.Models;

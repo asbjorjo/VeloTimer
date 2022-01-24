@@ -2,10 +2,8 @@
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using VeloTimer.Shared.Data.Models.Timing;
-using VeloTimer.Shared.Services;
-using VeloTimer.Shared.Services.Configuration;
 
-namespace VeloTimer.PassingLoader.Services
+namespace VeloTimer.Shared.Services.Messaging
 {
     public class MessagingService : IMessagingService
     {
