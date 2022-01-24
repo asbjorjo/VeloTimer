@@ -101,7 +101,7 @@ jobs:
     - name: Stop AMMC
       uses: azure/CLI@v1
       with:
-      inlineScript: az webapp stop --name ${{ env.AZURE_AMMC_NAME }}
+        inlineScript: az webapp stop --name ${{ env.AZURE_AMMC_NAME }}
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v2
       with:
@@ -157,6 +157,6 @@ jobs:
     - name: Start AMMC
       uses: azure/CLI@v1
       with:
-      inlineScript: az webapp start --name ${{ env.AZURE_AMMC_NAME }}
+        inlineScript: az webapp start --name ${{ env.AZURE_AMMC_NAME }}
     - name: Azure Logout
       run: az logout
