@@ -134,7 +134,7 @@ jobs:
       url: https://velotime-dev-ammc.azurewebsites.net
     env:
       AZURE_AMMC_NAME: 'velotime-dev-ammc'
-    needs: build-ammc
+    needs: [build-ammc, deploy-webapp]
     runs-on: ubuntu-latest
     steps:
     - name: Download artifact from build job
