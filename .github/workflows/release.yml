@@ -5,7 +5,7 @@ on:
     - "v[0-9]+.[0-9]+.[0-9]+"
     - "v[0-9]+.[0-9]+.[0-9]+.[0-9]+"
 concurrency: 
-  group: ${{ github.ref }}
+  group: "release"
 env:
   ASPNETCORE_ENVIRONMENT: Production
   DOTNET_CORE_VERSION: 6.0.x

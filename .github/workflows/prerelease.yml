@@ -4,7 +4,7 @@ on:
     tags:
     - "v[0-9]+.[0-9]+.[0-9]+-preview[0-9][0-9][0-9]"
 concurrency: 
-  group: ${{ github.ref }}
+  group: "prerelease"
   cancel-in-progress: true
 env:
   ASPNETCORE_ENVIRONMENT: Staging
