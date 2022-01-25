@@ -78,7 +78,7 @@ namespace VeloTimerWeb.Api.Services
                 return;
             }
 
-            await passingService.RegisterNew(register, passing.TimingSystem, passing.TransponderId);
+            await passingService.RegisterNew(register);
 
             await args.CompleteMessageAsync(args.Message);
         }
