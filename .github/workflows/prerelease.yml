@@ -1,4 +1,4 @@
-name: Build pre-release
+name: Build pre-release and deploy to testing
 on:
   push:
     tags:
