@@ -18,7 +18,7 @@ namespace VeloTimer.AmmcLoad.Services
         private TimeSpan TimerInterval = TimeSpan.FromSeconds(1);
         private int _lock = 0;
         private Timer _timer;
-        private string mostRecent;
+        private DateTime? mostRecent;
 
         private readonly ILogger<RefreshPassingsService> _logger;
         private readonly AmmcPassingService _passingService;
@@ -76,12 +76,12 @@ namespace VeloTimer.AmmcLoad.Services
             _apiService = scope.ServiceProvider.GetRequiredService<IApiService>();
 
             var passing = await _apiService.GetMostRecentPassing();
-            mostRecent = passing?.SourceId;
+            mostRecent = passing?.Time.ToUniversalTime() ?? DateTime.MinValue;
         }
 
         private async Task RefreshPassings()
         {
-            if (string.IsNullOrEmpty(mostRecent))
+            if (mostRecent == null)
             {
                 try
                 {
@@ -95,7 +95,7 @@ namespace VeloTimer.AmmcLoad.Services
                 }
             }
 
-            var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent));
+            var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterTime(mostRecent.Value - TimeSpan.FromMinutes(15)));
 
             if (!passings.Any())
             {
@@ -103,11 +103,11 @@ namespace VeloTimer.AmmcLoad.Services
                 return;
             }
 
-            _logger.LogInformation("Found {0} number of passings", passings.Count);
+            _logger.LogInformation("Found {Count} number of passings", passings.Count);
 
             await _messagingService.SubmitPassings(_mapper.Map<List<PassingRegister>>(passings));
 
-            mostRecent = passings.Last().Id;
+            mostRecent = passings.Last().UtcTime.UtcDateTime;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
