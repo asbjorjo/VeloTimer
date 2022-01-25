@@ -102,10 +102,12 @@ namespace VeloTimer.AmmcLoad.Services
             if (mostRecent == null && lastFromDb == null)
             {
                 passings = await _passingService.GetAll();
-            } else if (mostRecent != null && lastFromDb == null)
+            } 
+            else if (mostRecent != null && lastFromDb == null)
             {
-                passings = await _passingService.GetAfterTime(mostRecent.Time.ToUniversalTime() - TimeSpan.FromMinutes(15)));
-            } else
+                passings = await _passingService.GetAfterTime(mostRecent.Time.ToUniversalTime() - TimeSpan.FromMinutes(15));
+            } 
+            else
             {
                 passings = await _passingService.GetAfterEntry(lastFromDb.Id);
             }
