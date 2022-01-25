@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VeloTimer.AmmcLoad.Models;
 using VeloTimer.PassingLoader.Services.Api;
 using VeloTimer.PassingLoader.Services.Messaging;
 using VeloTimer.Shared.Data.Models.Timing;
@@ -18,7 +19,8 @@ namespace VeloTimer.AmmcLoad.Services
         private TimeSpan TimerInterval = TimeSpan.FromSeconds(1);
         private int _lock = 0;
         private Timer _timer;
-        private DateTime? mostRecent;
+        private PassingWeb mostRecent;
+        private PassingAmmc lastFromDb;
 
         private readonly ILogger<RefreshPassingsService> _logger;
         private readonly AmmcPassingService _passingService;
@@ -76,7 +78,7 @@ namespace VeloTimer.AmmcLoad.Services
             _apiService = scope.ServiceProvider.GetRequiredService<IApiService>();
 
             var passing = await _apiService.GetMostRecentPassing();
-            mostRecent = passing?.Time.ToUniversalTime() ?? DateTime.MinValue;
+            mostRecent = passing;
         }
 
         private async Task RefreshPassings()
@@ -95,7 +97,18 @@ namespace VeloTimer.AmmcLoad.Services
                 }
             }
 
-            var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterTime(mostRecent.Value - TimeSpan.FromMinutes(15)));
+            List<PassingAmmc> passings;
+            
+            if (mostRecent == null && lastFromDb == null)
+            {
+                passings = await _passingService.GetAll();
+            } else if (mostRecent != null && lastFromDb == null)
+            {
+                passings = await _passingService.GetAfterTime(mostRecent.Time.ToUniversalTime() - TimeSpan.FromMinutes(15)));
+            } else
+            {
+                passings = await _passingService.GetAfterEntry(lastFromDb.Id);
+            }
 
             if (!passings.Any())
             {
@@ -107,7 +120,7 @@ namespace VeloTimer.AmmcLoad.Services
 
             await _messagingService.SubmitPassings(_mapper.Map<List<PassingRegister>>(passings));
 
-            mostRecent = passings.Last().UtcTime.UtcDateTime;
+            lastFromDb = passings.Last();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
