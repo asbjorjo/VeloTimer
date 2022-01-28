@@ -43,7 +43,13 @@ namespace VeloTimerWeb.Api.Controllers
                 value = await _dbset.AsNoTracking().OrderByDescending(x => x.Time).FirstOrDefaultAsync();
             } else
             {
-                value = await _dbset.AsNoTracking().Where(x => x.Loop.Track.Slug == Track).OrderByDescending(x => x.Time).FirstOrDefaultAsync();
+                value = await _dbset
+                    .Include(x => x.Loop)
+                    .Include(x => x.Transponder)
+                    .AsNoTracking()
+                    .Where(x => x.Loop.Track.Slug == Track)
+                    .OrderByDescending(x => x.Time)
+                    .FirstOrDefaultAsync();
             }
 
             if (value == null)
