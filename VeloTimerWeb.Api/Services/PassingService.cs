@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,7 +11,7 @@ using VeloTimerWeb.Api.Hubs;
 using VeloTimerWeb.Api.Models.Statistics;
 using VeloTimerWeb.Api.Models.Timing;
 using VeloTimerWeb.Api.Models.TrackSetup;
-using static VeloTimer.Shared.Models.Timing.TransponderType;
+using static VeloTimer.Shared.Data.Models.Timing.TransponderType;
 
 namespace VeloTimerWeb.Api.Services
 {
@@ -28,6 +29,26 @@ namespace VeloTimerWeb.Api.Services
             _context = context;
             _hubContext = hubContext;
             _logger = logger;
+        }
+
+        public async Task<bool> Exists(Passing passing)
+        {
+            return (await Existing(passing)) != null;
+        }
+
+        public async Task<Passing> Existing(Passing passing)
+        {
+            if (passing == null) throw new ArgumentNullException(nameof(passing));
+            if (passing.Time == default) throw new ArgumentOutOfRangeException(nameof(passing.Time)); 
+            if (passing.Transponder == null) throw new ArgumentNullException(nameof(passing.Transponder));
+            if (passing.Loop == null) throw new ArgumentNullException(nameof(passing.Loop));
+
+            var existing = await _context.Set<Passing>()
+                                         .SingleOrDefaultAsync(x => x.Transponder == passing.Transponder
+                                                                   && x.Loop == passing.Loop
+                                                                   && x.Time == passing.Time);
+
+            return existing;
         }
 
         public async Task<Passing> RegisterNew(Passing passing, TimingSystem? timingSystem, string transponderId)
@@ -50,6 +71,16 @@ namespace VeloTimerWeb.Api.Services
                 }
 
                 passing.Transponder = transponder;
+            }
+
+            return await RegisterNew(passing);
+        }
+
+        public async Task<Passing> RegisterNew(Passing passing)
+        {
+            if (await Exists(passing))
+            {
+                _logger.LogWarning("Tried to register existing -- {Track} - {Loop} - {Time} - {Transponder}", passing.Loop.Track.Slug, passing.Loop.LoopId, passing.Time, passing.Transponder.Id);
             }
 
             _context.Add(passing);

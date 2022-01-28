@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Data.Parameters;
 
 namespace VeloTimerWeb.Client.Components
 {

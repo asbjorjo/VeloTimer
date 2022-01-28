@@ -1,0 +1,117 @@
+name: Build release and deploy to staging
+on:
+  push:
+    tags:
+    - "v[0-9]+.[0-9]+.[0-9]+"
+    - "v[0-9]+.[0-9]+.[0-9]+.[0-9]+"
+concurrency: 
+  group: "release"
+env:
+  ASPNETCORE_ENVIRONMENT: Production
+  DOTNET_CORE_VERSION: 6.0.x
+  VELOTIME_VAULT: https://velotime-vault.vault.azure.net/
+  CONFIGURATION: Release
+jobs:
+  build-packages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Verify commit exists in origin/master
+      run: git branch --remote --contains | grep origin/master
+    - name: Extract release notes
+      run: |
+        git log --pretty=format:'%d %s' ${GITHUB_REF} | perl -pe 's| \(.*tag: v(\d+.\d+.\d+(-preview\d{3})?)(, .*?)*\)|\n## \1\n|g' > RELEASE-NOTES
+    - name: Set VERSION variable from tag
+      run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+    - name: Setup dotnet
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
+    - name: Build
+      run: dotnet build --configuration Release /p:Version=${VERSION}
+    - name: Test
+      run: dotnet test --configuration Release /p:Version=${VERSION} --no-build
+    - name: Pack PassingLoader
+      run: dotnet pack PassingLoader --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+    - name: Pack Shared
+      run: dotnet pack VeloTimerWeb/Shared --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+    - name: Pack Shared.Data
+      run: dotnet pack Shared.Data --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+    - name: Pack Shared.Services
+      run: dotnet pack Shared.Services --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+    - name: Push
+      run: dotnet nuget push VeloTimer.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
+      env:
+        NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  build-webapp:
+    environment:
+      name: staging
+    env:
+      API_WORKING_DIRECTORY: VeloTimerWeb.Api
+      AZURE_API_PACKAGE_PATH: VeloTimerWeb.Api/publish
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
+    - name: Restore
+      run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
+    - name: Build solution
+      run: dotnet build --configuration ${{ env.CONFIGURATION }} --no-restore
+    - name: Run tests
+      run: dotnet test --no-build
+    - name: Publish API
+      run: dotnet publish "${{ env.API_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_API_PACKAGE_PATH }}"
+    - name: Upload API Artifacts
+      uses: actions/upload-artifact@v1.0.0
+      with:
+        name: api
+        path: ${{ env.AZURE_API_PACKAGE_PATH }}
+    - uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CI }}
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
+    - name: Install EF Tool
+      run: |
+          dotnet new tool-manifest
+          dotnet tool install dotnet-ef
+    - name: Update Identity Database
+      run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloIdentityDbContext --no-build
+    - name: Update VeloTimer Database
+      run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
+    - name: Azure Logout
+      run: az logout
+  deploy_api:
+    environment:
+      name: staging
+      url: https://velotime-noe-github-ci.azurewebsites.net
+    env:
+      AZURE_WEBAPP_NAME: 'velotime-noe'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download artifact from build job
+      uses: actions/download-artifact@v2
+      with:
+        name: api
+    - uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CI }}
+    - name: Deploy to Azure WebApp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        slot-name: github-ci
+        package: .
+    - name: Azure Logout
+      run: az logout
+ 
