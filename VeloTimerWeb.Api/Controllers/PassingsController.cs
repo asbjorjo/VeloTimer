@@ -40,10 +40,10 @@ namespace VeloTimerWeb.Api.Controllers
 
             if (string.IsNullOrEmpty(Track))
             {
-                value = await _dbset.AsNoTracking().OrderBy(p => p.SourceId).LastOrDefaultAsync();
+                value = await _dbset.AsNoTracking().OrderByDescending(x => x.Time).FirstOrDefaultAsync();
             } else
             {
-                value = await _dbset.AsNoTracking().Where(x => x.Loop.Track.Slug == Track).OrderBy(x => x.Time).LastOrDefaultAsync();
+                value = await _dbset.AsNoTracking().Where(x => x.Loop.Track.Slug == Track).OrderByDescending(x => x.Time).FirstOrDefaultAsync();
             }
 
             if (value == null)
