@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Data;
+using VeloTimer.Shared.Data.Models;
+using VeloTimer.Shared.Data.Parameters;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Models.Riders;
 using VeloTimerWeb.Api.Models.Statistics;
@@ -220,7 +222,10 @@ namespace VeloTimerWeb.Api.Services
 
         public async Task<Track> GetTrackBySlug(string slug)
         {
-            var track = await _context.Set<Track>().SingleOrDefaultAsync(x => x.Slug == slug);
+            var track = await _context.Set<Track>()
+                .Include(x => x.TimingLoops)
+                .Include(x => x.Layouts)
+                .SingleOrDefaultAsync(x => x.Slug == slug);
 
             return track;
         }

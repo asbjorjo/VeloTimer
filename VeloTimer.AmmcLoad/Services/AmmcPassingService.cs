@@ -1,8 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using AmmcLoad.Configuration;
+using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using VeloTimer.AmmcLoad.Data;
 using VeloTimer.AmmcLoad.Models;
 
 namespace VeloTimer.AmmcLoad.Services
@@ -29,6 +30,15 @@ namespace VeloTimer.AmmcLoad.Services
         {
             var builder = Builders<PassingAmmc>.Filter;
             var filter = builder.Ne(p => p.LoopId, BAD_LOOP_ID);
+            var passings = await _passings.FindAsync<PassingAmmc>(filter);
+
+            return await passings.ToListAsync();
+        }
+
+        public async Task<List<PassingAmmc>> GetAfterTime(DateTime time)
+        {
+            var builder = Builders<PassingAmmc>.Filter;
+            var filter = builder.Ne(p => p.LoopId, BAD_LOOP_ID) & builder.Gt(p => p.UtcTime, time);
             var passings = await _passings.FindAsync<PassingAmmc>(filter);
 
             return await passings.ToListAsync();

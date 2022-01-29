@@ -1,10 +1,16 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using AutoMapper;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VeloTimer.AmmcLoad.Models;
+using VeloTimer.PassingLoader.Services.Api;
+using VeloTimer.PassingLoader.Services.Messaging;
+using VeloTimer.Shared.Data.Models.Timing;
 
 namespace VeloTimer.AmmcLoad.Services
 {
@@ -13,20 +19,24 @@ namespace VeloTimer.AmmcLoad.Services
         private TimeSpan TimerInterval = TimeSpan.FromSeconds(1);
         private int _lock = 0;
         private Timer _timer;
-        private string mostRecent;
+        private PassingWeb mostRecent;
+        private PassingAmmc lastFromDb;
 
         private readonly ILogger<RefreshPassingsService> _logger;
         private readonly AmmcPassingService _passingService;
+        private readonly IMapper _mapper;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private IApiService _apiService;
         private IMessagingService _messagingService;
 
         public RefreshPassingsService(IServiceScopeFactory servicesScopeFactory,
                                       AmmcPassingService passingService,
+                                      IMapper mapper,
                                       IMessagingService messagingService,
                                       ILogger<RefreshPassingsService> logger)
         {
             _passingService = passingService;
+            _mapper = mapper;
             _messagingService = messagingService;
             _logger = logger;
             _serviceScopeFactory = servicesScopeFactory;
@@ -68,12 +78,12 @@ namespace VeloTimer.AmmcLoad.Services
             _apiService = scope.ServiceProvider.GetRequiredService<IApiService>();
 
             var passing = await _apiService.GetMostRecentPassing();
-            mostRecent = passing?.SourceId;
+            mostRecent = passing;
         }
 
         private async Task RefreshPassings()
         {
-            if (string.IsNullOrEmpty(mostRecent))
+            if (mostRecent == null)
             {
                 try
                 {
@@ -87,7 +97,20 @@ namespace VeloTimer.AmmcLoad.Services
                 }
             }
 
-            var passings = await (mostRecent is null ? _passingService.GetAll() : _passingService.GetAfterEntry(mostRecent));
+            List<PassingAmmc> passings;
+            
+            if (mostRecent == null && lastFromDb == null)
+            {
+                passings = await _passingService.GetAll();
+            } 
+            else if (mostRecent != null && lastFromDb == null)
+            {
+                passings = await _passingService.GetAfterTime(mostRecent.Time.ToUniversalTime() - TimeSpan.FromMinutes(15));
+            } 
+            else
+            {
+                passings = await _passingService.GetAfterEntry(lastFromDb.Id);
+            }
 
             if (!passings.Any())
             {
@@ -95,14 +118,11 @@ namespace VeloTimer.AmmcLoad.Services
                 return;
             }
 
-            _logger.LogInformation("Found {0} number of passings", passings.Count);
+            _logger.LogInformation("Found {Count} number of passings", passings.Count);
 
-            using var scope = _serviceScopeFactory.CreateScope();
-            _apiService = scope.ServiceProvider.GetRequiredService<IApiService>();
+            await _messagingService.SubmitPassings(_mapper.Map<List<PassingRegister>>(passings));
 
-            await _messagingService.SubmitPassings(passings);
-
-            mostRecent = passings.Last().Id;
+            lastFromDb = passings.Last();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

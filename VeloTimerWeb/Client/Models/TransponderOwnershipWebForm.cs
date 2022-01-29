@@ -1,7 +1,7 @@
 ﻿using MudBlazor;
 using System;
 using System.ComponentModel.DataAnnotations;
-using VeloTimer.Shared.Models.Riders;
+using VeloTimer.Shared.Data.Models.Riders;
 using VeloTimer.Shared.Util;
 
 namespace VeloTimerWeb.Client.Models

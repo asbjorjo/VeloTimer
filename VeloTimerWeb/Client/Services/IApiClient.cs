@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
-using VeloTimer.Shared.Models.Riders;
-using VeloTimer.Shared.Models.Statistics;
-using VeloTimer.Shared.Models.Timing;
-using VeloTimer.Shared.Models.TrackSetup;
+using VeloTimer.Shared.Data.Models;
+using VeloTimer.Shared.Data.Models.Riders;
+using VeloTimer.Shared.Data.Models.Statistics;
+using VeloTimer.Shared.Data.Models.Timing;
+using VeloTimer.Shared.Data.Models.TrackSetup;
+using VeloTimer.Shared.Data.Parameters;
 using VeloTimerWeb.Client.Components;
 
 namespace VeloTimerWeb.Client.Services

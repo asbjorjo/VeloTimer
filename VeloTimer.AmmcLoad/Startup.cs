@@ -1,14 +1,12 @@
+﻿using AmmcLoad.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
-using System.Net.Http;
-using VeloTimer.AmmcLoad.Data;
 using VeloTimer.AmmcLoad.Models;
 using VeloTimer.AmmcLoad.Services;
-using VeloTimer.Shared.Configuration;
+using VeloTimer.PassingLoader;
 
 namespace VeloTimer.AmmcLoad
 {
@@ -27,19 +25,11 @@ namespace VeloTimer.AmmcLoad
             services.AddApplicationInsightsTelemetry();
 
             services.ConfigurePassingDatabase(Configuration);
-            services.ConfigureMessaging(Configuration);
-
+            services.ConfigurePassingLoader(Configuration);
+            
             services.AddAutoMapper(typeof(AmmcProfile));
             services.AddSingleton<AmmcPassingService>();
-            services.AddSingleton<IMessagingService, MessagingService>();
-
-            services.AddScoped<IApiService, ApiService>();
-
-            services.AddTransient<VeloHttpClientHandler>();
-            services.AddHttpClient(
-                "VeloTimerWeb.ServerAPI",
-                client => client.BaseAddress = new Uri(new Uri(Configuration["VELOTIMER_API_URL"]), "api/")).ConfigurePrimaryHttpMessageHandler<VeloHttpClientHandler>();
-            services.AddSingleton(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("VeloTimerWeb.ServerAPI"));
+            
             services.AddHostedService<RefreshPassingsService>();
 
             services.AddRazorPages();
@@ -70,14 +60,6 @@ namespace VeloTimer.AmmcLoad
             {
                 endpoints.MapRazorPages();
             });
-        }
-    }
-
-    public class VeloHttpClientHandler : HttpClientHandler
-    {
-        public VeloHttpClientHandler()
-        {
-            MaxConnectionsPerServer = 20;
         }
     }
 }

@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Data.Models;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Models.Riders;
 using VeloTimerWeb.Api.Models.Statistics;

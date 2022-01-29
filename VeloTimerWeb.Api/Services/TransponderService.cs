@@ -4,7 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Data;
+using VeloTimer.Shared.Data.Models;
+using VeloTimer.Shared.Data.Models.Timing;
+using VeloTimer.Shared.Data.Parameters;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Models.Riders;
 using VeloTimerWeb.Api.Models.Statistics;
@@ -211,6 +214,20 @@ namespace VeloTimerWeb.Api.Services
             var times = await query.ToPaginatedListAsync(paginationParameters.PageNumber, paginationParameters.PageSize);
 
             return times;
+        }
+
+        public async Task<Transponder> FindOrRegister(TransponderType.TimingSystem timingSystem, string systemId)
+        {
+            var existing = await _context.Set<Transponder>().FirstOrDefaultAsync(x => x.TimingSystem == timingSystem && x.SystemId == systemId);
+
+            if (existing == null)
+            {
+                existing = new Transponder { SystemId = systemId, TimingSystem = timingSystem };
+                _context.Add(existing);
+                await _context.SaveChangesAsync();
+            }
+
+            return existing;
         }
     }
 }

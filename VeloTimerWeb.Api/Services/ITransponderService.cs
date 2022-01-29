@@ -1,15 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models;
+using VeloTimer.Shared.Data;
+using VeloTimer.Shared.Data.Models;
+using VeloTimer.Shared.Data.Parameters;
 using VeloTimerWeb.Api.Models.Riders;
 using VeloTimerWeb.Api.Models.Statistics;
 using VeloTimerWeb.Api.Models.Timing;
+using static VeloTimer.Shared.Data.Models.Timing.TransponderType;
 
 namespace VeloTimerWeb.Api.Services
 {
     public interface ITransponderService
     {
+        Task<Transponder> FindOrRegister(TimingSystem timingSystem, string systemId);
         Task<PaginatedList<Transponder>> GetAll(PaginationParameters pagination);
         Task<PaginatedList<TransponderOwnership>> GetTransponderOwnershipAsync(PaginationParameters pagination);
         Task<int> GetActiveCount(DateTimeOffset fromtime, DateTimeOffset? totime);

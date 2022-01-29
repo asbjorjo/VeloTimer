@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Threading.Tasks;
-using VeloTimer.Shared.Models.Timing;
+using VeloTimer.Shared.Data.Models.Timing;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Models.Timing;
 using VeloTimerWeb.Api.Models.TrackSetup;
@@ -32,10 +32,25 @@ namespace VeloTimerWeb.Api.Controllers
 
         [AllowAnonymous]
         [Route("mostrecent")]
+        [Route("mostrecent/{Track}")]
         [HttpGet]
-        public async Task<ActionResult<PassingWeb>> GetMostRecent()
+        public async Task<ActionResult<PassingWeb>> GetMostRecent(string Track = "")
         {
-            var value = await _dbset.AsNoTracking().OrderBy(p => p.SourceId).LastOrDefaultAsync();
+            Passing value = null;
+
+            if (string.IsNullOrEmpty(Track))
+            {
+                value = await _dbset.AsNoTracking().OrderByDescending(x => x.Time).FirstOrDefaultAsync();
+            } else
+            {
+                value = await _dbset
+                    .Include(x => x.Loop)
+                    .Include(x => x.Transponder)
+                    .AsNoTracking()
+                    .Where(x => x.Loop.Track.Slug == Track)
+                    .OrderByDescending(x => x.Time)
+                    .FirstOrDefaultAsync();
+            }
 
             if (value == null)
             {
@@ -45,7 +60,6 @@ namespace VeloTimerWeb.Api.Controllers
             return _mapper.Map<PassingWeb>(value);
         }
 
-        [AllowAnonymous]
         [Route("register")]
         [HttpPost]
         public async Task<ActionResult<PassingWeb>> Register(PassingRegister passing)
