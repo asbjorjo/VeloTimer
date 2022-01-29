@@ -91,13 +91,13 @@ jobs:
       run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
     - name: Azure Logout
       run: az logout
-  deploy_api:
+  deploy-webapp:
     environment:
       name: ${{ env.GH_ENVIRONMENT }}
       url: https://velotime-noe-github-ci.azurewebsites.net
     env:
       AZURE_WEBAPP_NAME: 'velotime-noe'
-    needs: build
+    needs: build-webapp
     runs-on: ubuntu-latest
     steps:
     - name: Download artifact from build job
@@ -115,7 +115,7 @@ jobs:
         package: .
     - name: Azure Logout
       run: az logout
-   build-ammc:
+  build-ammc:
     environment:
       name: ${{ env.GH_ENVIRONMENT }}
     env:
