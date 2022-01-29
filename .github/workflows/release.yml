@@ -10,7 +10,6 @@ env:
   ASPNETCORE_ENVIRONMENT: Production
   CONFIGURATION: Release
   DOTNET_CORE_VERSION: 6.0.x
-  GH_ENVIRONMENT: staging
   VELOTIME_VAULT: https://velotime-vault.vault.azure.net/
 jobs:
   build-packages:
@@ -50,7 +49,7 @@ jobs:
         NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build-webapp:
     environment:
-      name: ${{ env.GH_ENVIRONMENT }}
+      name: staging
     env:
       API_WORKING_DIRECTORY: VeloTimerWeb.Api
       AZURE_API_PACKAGE_PATH: VeloTimerWeb.Api/publish
@@ -91,13 +90,14 @@ jobs:
       run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
     - name: Azure Logout
       run: az logout
-  deploy_api:
+  deploy-webapp:
     environment:
-      name: ${{ env.GH_ENVIRONMENT }}
+      name: staging
       url: https://velotime-noe-github-ci.azurewebsites.net
     env:
       AZURE_WEBAPP_NAME: 'velotime-noe'
-    needs: build
+      AZURE_AMMC_NAME: 'velotime-ammc-noe'
+    needs: build-webapp
     runs-on: ubuntu-latest
     steps:
     - name: Download artifact from build job
@@ -107,6 +107,10 @@ jobs:
     - uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CI }}
+    - name: Stop AMMC
+      uses: azure/CLI@v1
+      with:
+        inlineScript: az webapp stop --name ${{ env.AZURE_AMMC_NAME }} --resource-group velotime-rg-noe-lnx
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v2
       with:
@@ -115,9 +119,9 @@ jobs:
         package: .
     - name: Azure Logout
       run: az logout
-   build-ammc:
+  build-ammc:
     environment:
-      name: ${{ env.GH_ENVIRONMENT }}
+      name: staging
     env:
       AMMC_WORKING_DIRECTORY: VeloTimer.AmmcLoad
       AZURE_AMMC_PACKAGE_PATH: VeloTimer.AmccLoad/publish
@@ -139,7 +143,7 @@ jobs:
         path: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
   deploy_ammcload:
     environment:
-      name: ${{ env.GH_ENVIRONMENT }}
+      name: staging
       url: https://velotime-ammc-noe.azurewebsites.net
     env:
       AZURE_AMMC_NAME: 'velotime-ammc-noe'

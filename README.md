@@ -17,6 +17,8 @@
 *** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
 *** https://www.markdownguide.org/basic-syntax/#reference-style-links
 -->
+[![Build pre-release](https://github.com/asbjorjo/VeloTimer/actions/workflows/prerelease.yml/badge.svg)](https://github.com/asbjorjo/VeloTimer/actions/workflows/prerelease.yml)
+<br/>
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
