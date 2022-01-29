@@ -96,6 +96,7 @@ jobs:
       url: https://velotime-noe-github-ci.azurewebsites.net
     env:
       AZURE_WEBAPP_NAME: 'velotime-noe'
+      AZURE_AMMC_NAME: 'velotime-ammc-noe'
     needs: build-webapp
     runs-on: ubuntu-latest
     steps:
