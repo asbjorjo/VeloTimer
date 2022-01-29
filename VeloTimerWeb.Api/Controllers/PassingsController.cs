@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using VeloTimer.Shared.Data.Models.Timing;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Models.Timing;
-using VeloTimerWeb.Api.Models.TrackSetup;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers

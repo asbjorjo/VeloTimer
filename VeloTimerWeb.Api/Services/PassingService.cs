@@ -81,6 +81,7 @@ namespace VeloTimerWeb.Api.Services
             if (await Exists(passing))
             {
                 _logger.LogWarning("Tried to register existing -- {Track} - {Loop} - {Time} - {Transponder}", passing.Loop.Track.Slug, passing.Loop.LoopId, passing.Time, passing.Transponder.Id);
+                return passing;
             }
 
             _context.Add(passing);
