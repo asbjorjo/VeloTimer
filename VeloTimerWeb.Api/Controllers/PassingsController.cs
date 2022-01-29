@@ -36,21 +36,19 @@ namespace VeloTimerWeb.Api.Controllers
         [HttpGet]
         public async Task<ActionResult<PassingWeb>> GetMostRecent(string Track = "")
         {
-            Passing value = null;
-
-            if (string.IsNullOrEmpty(Track))
-            {
-                value = await _dbset.AsNoTracking().OrderByDescending(x => x.Time).FirstOrDefaultAsync();
-            } else
-            {
-                value = await _dbset
+            var dbset = _dbset
                     .Include(x => x.Loop)
                     .Include(x => x.Transponder)
-                    .AsNoTracking()
-                    .Where(x => x.Loop.Track.Slug == Track)
+                    .AsNoTracking();
+
+            if (!string.IsNullOrEmpty(Track))
+            {
+                dbset = dbset.Where(x => x.Loop.Track.Slug == Track);
+            }
+
+            var value = await dbset
                     .OrderByDescending(x => x.Time)
                     .FirstOrDefaultAsync();
-            }
 
             if (value == null)
             {
@@ -58,43 +56,6 @@ namespace VeloTimerWeb.Api.Controllers
             }
 
             return _mapper.Map<PassingWeb>(value);
-        }
-
-        [Route("register")]
-        [HttpPost]
-        public async Task<ActionResult<PassingWeb>> Register(PassingRegister passing)
-        {
-            var existing = await _context.Set<Passing>().SingleOrDefaultAsync(x =>
-                x.SourceId == passing.Source
-                && x.Loop.LoopId == passing.LoopId
-                && x.Time == passing.Time.UtcDateTime);
-
-            if (existing != null)
-            {
-                return Conflict(existing);
-            }
-
-            var newpassing = new Passing
-            {
-                SourceId = passing.Source,
-                Time = passing.Time.UtcDateTime
-            };
-
-            var loop = await _context.Set<TimingLoop>()
-                .Where(t => t.LoopId == passing.LoopId)
-                .SingleOrDefaultAsync();
-
-            if (loop == null)
-            {
-                ModelState.AddModelError(nameof(passing.LoopId), "Not found.");
-                return BadRequest(ModelState);
-            }
-
-            newpassing.Loop = loop;
-
-            await _passingService.RegisterNew(newpassing, TransponderType.TimingSystem.Mylaps_X2, passing.TransponderId);
-
-            return Ok(_mapper.Map<PassingWeb>(newpassing));
         }
     }
 }
