@@ -106,6 +106,10 @@ jobs:
     - uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CI }}
+    - name: Stop AMMC
+      uses: azure/CLI@v1
+      with:
+        inlineScript: az webapp stop --name ${{ env.AZURE_AMMC_NAME }} --resource-group velotime-rg-noe-lnx
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v2
       with:
