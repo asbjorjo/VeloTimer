@@ -29,8 +29,9 @@ namespace VeloTimer.PassingLoader.Services.Messaging
             string messageId = $"{passing.Track}_{passing.LoopId}_{passing.TransponderId}_{passing.Time.UtcDateTime.Ticks}";
             var message = new ServiceBusMessage(messagePassing)
             {
+                Subject = "raw",
                 SessionId = passing.TransponderId,
-                MessageId = messageId
+                MessageId = messageId                
             };
 
             return message;
