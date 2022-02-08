@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using VeloTimer.PassingLoader.Services.Api;
-using VeloTimer.PassingLoader.Services.Messaging;
+using VeloTime.Shared.Messaging;
 
 namespace VeloTimer.PassingLoader
 {

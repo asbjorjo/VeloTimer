@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Shared.Messaging\Shared.Messaging.csproj" />
     <ProjectReference Include="..\VeloTimerWeb\Shared\Shared.csproj" />
   </ItemGroup>
 

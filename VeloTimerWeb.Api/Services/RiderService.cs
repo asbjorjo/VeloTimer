@@ -5,12 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using VeloTime.Storage.Data;
+using VeloTime.Storage.Models.Riders;
+using VeloTime.Storage.Models.Timing;
 using VeloTimer.Shared.Data;
 using VeloTimer.Shared.Data.Parameters;
-using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Models.Identity;
-using VeloTimerWeb.Api.Models.Riders;
-using VeloTimerWeb.Api.Models.Timing;
 
 namespace VeloTimerWeb.Api.Services
 {

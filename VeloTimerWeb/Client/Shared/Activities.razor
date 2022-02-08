@@ -1,0 +1,28 @@
+﻿@namespace VeloTimerWeb.Client.Shared
+@inject IApiClient Api
+@inherits ComponentBase
+
+@if(activities != null)
+{
+    @foreach(var activity in activities)
+    {
+        <ActivityListing Activity=@activity />
+    }
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    private List<ActivityWeb> activities;
+
+    protected async override Task OnInitializedAsync()
+    {
+        var authstate = await authenticationStateTask;
+        var userId = authstate.User.Claims.First(x => x.Type == "sub").Value;
+
+        var paginatedActivities = await Api.GetActivitiesForRider(userId, new PaginationParameters());
+
+        activities = paginatedActivities.Items;
+    }
+}

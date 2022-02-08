@@ -19,6 +19,8 @@ namespace VeloTimerWeb.Client.Services
         Task DeleteRiderProfile(string userid);
         Task SaveRiderProfile(RiderWeb riderWeb);
 
+        Task<PaginatedResponse<ActivityWeb>> GetActivitiesForRider(string userId, PaginationParameters pagination);
+
         Task<PaginatedResponse<TransponderWeb>> GetTransponders(PaginationParameters pagination);
         Task<PaginatedResponse<TransponderOwnershipWeb>> GetTransponderOwners(PaginationParameters pagination);
         Task<int> GetActiveTransponderCount(DateTimeOffset fromtime, DateTimeOffset? totime);

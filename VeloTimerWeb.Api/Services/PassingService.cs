@@ -5,12 +5,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using VeloTime.Storage.Data;
+using VeloTime.Storage.Models.Statistics;
+using VeloTime.Storage.Models.Timing;
+using VeloTime.Storage.Models.TrackSetup;
 using VeloTimer.Shared.Hub;
-using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
-using VeloTimerWeb.Api.Models.Statistics;
-using VeloTimerWeb.Api.Models.Timing;
-using VeloTimerWeb.Api.Models.TrackSetup;
 using static VeloTimer.Shared.Data.Models.Timing.TransponderType;
 
 namespace VeloTimerWeb.Api.Services
@@ -39,7 +39,7 @@ namespace VeloTimerWeb.Api.Services
         public async Task<Passing> Existing(Passing passing)
         {
             if (passing == null) throw new ArgumentNullException(nameof(passing));
-            if (passing.Time == default) throw new ArgumentOutOfRangeException(nameof(passing.Time)); 
+            if (passing.Time == default) throw new ArgumentNullException(nameof(passing.Time)); 
             if (passing.Transponder == null) throw new ArgumentNullException(nameof(passing.Transponder));
             if (passing.Loop == null) throw new ArgumentNullException(nameof(passing.Loop));
 

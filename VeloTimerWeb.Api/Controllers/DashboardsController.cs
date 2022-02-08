@@ -1,17 +1,16 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using VeloTime.Storage.Data;
+using VeloTime.Storage.Models.Riders;
+using VeloTime.Storage.Models.Statistics;
+using VeloTime.Storage.Models.Timing;
 using VeloTimer.Shared.Data.Models;
 using VeloTimer.Shared.Util;
-using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models.Riders;
-using VeloTimerWeb.Api.Models.Statistics;
-using VeloTimerWeb.Api.Models.Timing;
 
 namespace VeloTimerWeb.Api.Controllers
 {

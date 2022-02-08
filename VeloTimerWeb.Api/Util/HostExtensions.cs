@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using VeloTimerWeb.Api.Data;
+using VeloTime.Storage.Data;
 using VeloTimerWeb.Api.Services;
 using VeloTimerWeb.Api.Util;
 

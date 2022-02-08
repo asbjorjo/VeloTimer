@@ -1,0 +1,21 @@
+﻿@namespace VeloTimerWeb.Client.Shared
+@inherits ComponentBase
+@inject IApiClient Api
+
+@code {
+    [Parameter]
+    public ActivityWeb Activity { get; set; }
+
+    private List<string> distances = new List<string>{ "Runde", "200m", "1000m", "4000m" };
+
+    private List<SegmentTime> bests;
+
+    protected async override Task OnParametersSetAsync()
+    {
+        foreach (var distance in distances)
+        {
+            var time = await Api.GetBestTimes(distance, Activity.Start, Activity.End, 1, Activity.Rider.UserId);
+            bests.Add(time.First());
+        }
+    }
+}

@@ -3,8 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using VeloTime.Storage.Models.Timing;
 using VeloTimer.Shared.Hub;
-using VeloTimerWeb.Api.Models.Timing;
 
 namespace VeloTimerWeb.Api.Hubs
 {

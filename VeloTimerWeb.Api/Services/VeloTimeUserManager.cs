@@ -7,8 +7,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models.Riders;
+using VeloTime.Storage.Data;
+using VeloTime.Storage.Models.Riders;
 
 namespace VeloTimerWeb.Api.Services
 {

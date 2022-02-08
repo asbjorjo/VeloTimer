@@ -66,20 +66,5 @@ namespace VeloTimer.PassingLoader.Services.Api
 
             return passing;
         }
-
-        public async Task<bool> RegisterPassing(PassingRegister passing)
-        {
-            var posted = await _httpClient.PostAsJsonAsync("passings/register", passing);
-
-            if (posted.IsSuccessStatusCode)
-            {
-                return true;
-            }
-
-            _logger.LogError("Could not post passing - {Passing} - {StatusCode}",
-                             passing.Source,
-                             posted.StatusCode);
-            return false;
-        }
     }
 }

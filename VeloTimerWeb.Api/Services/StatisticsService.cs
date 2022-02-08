@@ -4,10 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using VeloTime.Storage.Data;
+using VeloTime.Storage.Models.Riders;
+using VeloTime.Storage.Models.Statistics;
+using VeloTime.Storage.Models.Timing;
 using VeloTimer.Shared.Data.Models;
-using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models.Riders;
-using VeloTimerWeb.Api.Models.Statistics;
 
 namespace VeloTimerWeb.Api.Services
 {
@@ -20,6 +21,49 @@ namespace VeloTimerWeb.Api.Services
         {
             _context = context;
             _logger = logger;
+        }
+
+        public async Task<Activity> CreateOrUpdateActivity(Passing passing)
+        {
+            //_logger.LogDebug("{Transponder} - {Time} - {Loop} - {Track}",
+            //    TransponderIdConverter.IdToCode(passing.Transponder.SystemId),
+            //    passing.Time,
+            //    passing.Loop.LoopId,
+            //    passing.Loop.Track.Slug);
+
+            var query = _context.Set<Activity>()
+                .Where(x => x.Track == passing.Loop.Track)
+                .Where(x => x.Transponder == passing.Transponder)
+                .Where(x => x.Sessions.Max(x => x.End) >= passing.Time.AddHours(-1));
+
+            var activity = await query
+                .Include(x => x.Transponder)
+                .Include(x => x.Sessions)
+                .SingleOrDefaultAsync();
+
+            if (activity == null)
+            {
+                activity = Activity.Create(passing);
+                _context.Add(activity);
+            }
+            else
+            {
+                var lastSession = activity.Sessions.OrderByDescending(x => x.End).FirstOrDefault();
+
+                if (lastSession.End >= passing.Time.AddMinutes(-5))
+                {
+                    lastSession.UpdateEnd(passing);
+                }
+                else
+                {
+                    lastSession = Session.Create(passing, activity);
+                    activity.Sessions.Add(lastSession);
+                    _context.Add(lastSession);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return activity;
         }
 
         public async Task<IEnumerable<SegmentTime>> GetBestTimes(StatisticsItem StatisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count = 10)

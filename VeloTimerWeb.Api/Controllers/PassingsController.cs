@@ -5,9 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Threading.Tasks;
+using VeloTime.Storage.Data;
+using VeloTime.Storage.Models.Timing;
 using VeloTimer.Shared.Data.Models.Timing;
-using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models.Timing;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers

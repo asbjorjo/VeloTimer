@@ -8,12 +8,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using VeloTime.Storage.Data;
+using VeloTime.Storage.Models.Statistics;
+using VeloTime.Storage.Models.Timing;
 using VeloTimer.Shared.Data.Models.Riders;
 using VeloTimer.Shared.Data.Models.Timing;
 using VeloTimer.Shared.Data.Parameters;
-using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models.Statistics;
-using VeloTimerWeb.Api.Models.Timing;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers

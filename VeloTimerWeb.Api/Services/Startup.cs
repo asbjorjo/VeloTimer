@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using VeloTimerWeb.Api.Models;
 
 namespace VeloTimerWeb.Api.Services
 {
@@ -7,6 +6,7 @@ namespace VeloTimerWeb.Api.Services
     {
         public static IServiceCollection AddVeloTimeServices(this IServiceCollection services)
         {
+            services.AddScoped<IActivityService, ActivityService>();
             services.AddScoped<IPassingService, PassingService>();
             services.AddScoped<IRiderService, RiderService>();
             services.AddScoped<IStatisticsService, StatisticsService>();
@@ -14,8 +14,6 @@ namespace VeloTimerWeb.Api.Services
             services.AddScoped<ITransponderService, TransponderService>();
 
             services.AddHostedService<CreatePassingHandler>();
-
-            services.AddAutoMapper(typeof(VeloTimeProfile));
 
             return services;
         }

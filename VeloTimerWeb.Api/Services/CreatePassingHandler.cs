@@ -5,9 +5,9 @@ using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VeloTime.Shared.Messaging;
+using VeloTime.Storage.Models.Timing;
 using VeloTimer.Shared.Data.Models.Timing;
-using VeloTimer.PassingLoader.Services.Messaging;
-using VeloTimerWeb.Api.Models.Timing;
 
 namespace VeloTimerWeb.Api.Services
 {
@@ -40,26 +40,27 @@ namespace VeloTimerWeb.Api.Services
             var passingService = scope.ServiceProvider.GetRequiredService<IPassingService>();
             var transponderService = scope.ServiceProvider.GetRequiredService<ITransponderService>();
             var trackService = scope.ServiceProvider.GetRequiredService<ITrackService>();
+            var statService = scope.ServiceProvider.GetRequiredService<IStatisticsService>();
 
             var transponder = await transponderService.FindOrRegister(passing.TimingSystem, passing.TransponderId);
 
             if (transponder == null)
             {
-                await DeadLetterPassing(args, $"Transponder not found or registered - {passing.TimingSystem} -- {passing.TransponderId}");
+                await AbandonPassing(args, $"Transponder not found or registered - {passing.TimingSystem} -- {passing.TransponderId}");
                 return;
             }
 
             var track = await trackService.GetTrackBySlug(passing.Track);
             if (track == null)
             {
-                await DeadLetterPassing(args, $"Track not configured - {passing.Track}");
+                await AbandonPassing(args, $"Track not configured - {passing.Track}");
                 return;
             }            
 
             var loop = track.TimingLoops.SingleOrDefault(x => x.LoopId == passing.LoopId);
             if (loop == null)
             {
-                await DeadLetterPassing(args, $"Loop not configured - {passing.Track} - {passing.LoopId}");
+                await AbandonPassing(args, $"Loop not configured - {passing.Track} - {passing.LoopId}");
                 return;
             }
 
@@ -74,11 +75,17 @@ namespace VeloTimerWeb.Api.Services
             var existing = await passingService.Existing(register);
             if (existing != null)
             {
+                _logger.LogDebug("{MessageId} - {SourceId}", register.SourceId, existing.SourceId);
                 await DeadLetterPassing(args, $"Duplicate -- {passing.Track} - {passing.Time} - {passing.TransponderId} - {passing.LoopId}");
                 return;
             }
 
-            await passingService.RegisterNew(register);
+            var newPassing = await passingService.RegisterNew(register);
+
+            if (newPassing != null)
+            {
+                await statService.CreateOrUpdateActivity(newPassing);
+            }
 
             await args.CompleteMessageAsync(args.Message);
         }
@@ -89,12 +96,21 @@ namespace VeloTimerWeb.Api.Services
             await args.DeadLetterMessageAsync(args.Message);
         }
 
+        private async Task AbandonPassing(ProcessSessionMessageEventArgs args, string message)
+        {
+            _logger.LogWarning("Passing not processed: {Reason}", message);
+            await args.AbandonMessageAsync(args.Message);
+        }
+
         Task ErrorHandler(ProcessErrorEventArgs args)
         {
-            _logger.LogError("{Source} -- {Namespace} - {EntityPath}",
+            _logger.LogError("{Source} -- {Namespace} - {EntityPath} - {Exception} - {ExSource} - {ExMessage}",
                              args.ErrorSource,
                              args.FullyQualifiedNamespace,
-                             args.EntityPath);
+                             args.EntityPath,
+                             args.Exception.GetType(),
+                             args.Exception.Source,
+                             args.Exception.Message);
 
             return Task.CompletedTask;
         }
@@ -107,7 +123,7 @@ namespace VeloTimerWeb.Api.Services
                 MaxConcurrentSessions = 10,
             };
 
-            _processor = _client.CreateSessionProcessor(_settings.QueueName, options);
+            _processor = _client.CreateSessionProcessor(_settings.QueueName, "incoming", options);
 
             _processor.ProcessMessageAsync += PassingHandler;
             _processor.ProcessErrorAsync += ErrorHandler;

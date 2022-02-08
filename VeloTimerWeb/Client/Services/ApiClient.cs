@@ -394,5 +394,19 @@ namespace VeloTimerWeb.Client.Services
 
             return await response.Content.ReadFromJsonAsync<AdminDashboardModel>();
         }
+
+        public async Task<PaginatedResponse<ActivityWeb>> GetActivitiesForRider(string userId, PaginationParameters pagination)
+        {
+            using var response = await _client.GetAsync($"activity/user/{userId}");
+            response.EnsureSuccessStatusCode();
+
+            var activities = new PaginatedResponse<ActivityWeb>
+            {
+                Items = await response.Content.ReadFromJsonAsync<List<ActivityWeb>>(),
+                Pagination = JsonSerializer.Deserialize<Pagination>(response.Headers.GetValues("X-Pagination").First())
+            };
+
+            return activities;
+        }
     }
 }

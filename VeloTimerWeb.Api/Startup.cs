@@ -4,7 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
-using VeloTimer.PassingLoader.Services.Messaging;
+using VeloTime.Shared.Messaging;
+using VeloTime.Storage.Data;
 using VeloTimer.Shared.Hub;
 using VeloTimerWeb.Api.Configuration;
 using VeloTimerWeb.Api.Data;
@@ -31,7 +32,7 @@ namespace VeloTimerWeb.Api
             services.AddApplicationInsightsTelemetry();
 
             services.ConfigureMessaging(Configuration);
-            services.ConfigureData(Configuration);
+            services.ConfigureStorage(Configuration);
 
             services.AddIdentityServices(Configuration, Environment);
             services.AddVeloTimeServices();

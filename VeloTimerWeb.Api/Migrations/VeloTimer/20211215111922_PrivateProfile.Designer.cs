@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using VeloTimerWeb.Api.Data;
+using VeloTime.Storage.Data;
 
 namespace VeloTimerWeb.Api.Migrations.VeloTimer
 {

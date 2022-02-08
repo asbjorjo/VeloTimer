@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using VeloTime.Storage.Models.Riders;
+using VeloTime.Storage.Models.Statistics;
+using VeloTime.Storage.Models.Timing;
 using VeloTimer.Shared.Data;
 using VeloTimer.Shared.Data.Models;
 using VeloTimer.Shared.Data.Parameters;
-using VeloTimerWeb.Api.Models.Riders;
-using VeloTimerWeb.Api.Models.Statistics;
-using VeloTimerWeb.Api.Models.Timing;
 using static VeloTimer.Shared.Data.Models.Timing.TransponderType;
 
 namespace VeloTimerWeb.Api.Services
