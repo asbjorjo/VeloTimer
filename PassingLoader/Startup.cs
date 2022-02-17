@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using VeloTimer.PassingLoader.Services.Api;
 using VeloTime.Shared.Messaging;
+using VeloTimer.Shared.Data.Models.Timing;
 
 namespace VeloTimer.PassingLoader
 {
@@ -11,6 +12,7 @@ namespace VeloTimer.PassingLoader
         {
             services.ConfigureMessaging(config);
             services.ConfigureApiClient(config);
+            services.AddMessaging();
         }
     }
 }

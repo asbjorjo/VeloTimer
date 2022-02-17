@@ -13,8 +13,13 @@ namespace VeloTime.Shared.Messaging
             settings.ConnectionString = configuration.GetConnectionString(MessageBusOptions.ConnectionStringProperty);
 
             services.TryAddSingleton(settings);
-            services.TryAddSingleton<IMessagingService, MessagingService>();
 
+            return services;
+        }
+
+        public static IServiceCollection AddMessaging(this IServiceCollection services)
+        {
+            services.TryAddSingleton<IMessagingService, MessagingService>();
             return services;
         }
     }

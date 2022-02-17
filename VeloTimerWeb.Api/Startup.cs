@@ -8,7 +8,6 @@ using VeloTime.Shared.Messaging;
 using VeloTime.Storage.Data;
 using VeloTimer.Shared.Hub;
 using VeloTimerWeb.Api.Configuration;
-using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
 using VeloTimerWeb.Api.Services;
 

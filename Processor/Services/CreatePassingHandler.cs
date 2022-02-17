@@ -1,15 +1,10 @@
 ﻿using Azure.Messaging.ServiceBus;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using VeloTime.Shared.Messaging;
 using VeloTime.Storage.Models.Timing;
 using VeloTimer.Shared.Data.Models.Timing;
+using VeloTimerWeb.Api.Services;
 
-namespace VeloTimerWeb.Api.Services
+namespace VeloTime.Processor.Services
 {
     public class CreatePassingHandler : BackgroundService
     {
@@ -28,6 +23,14 @@ namespace VeloTimerWeb.Api.Services
             _logger = logger;
             _serviceScopeFactory = serviceScopeFactory;
             _client = new ServiceBusClient(_settings.ConnectionString);
+
+
+            var processoptions = new ServiceBusSessionProcessorOptions
+            {
+                AutoCompleteMessages = false,
+                MaxConcurrentSessions = 10,
+            };
+            _processor = _client.CreateSessionProcessor(_settings.QueueName, "incoming", processoptions);
         }
 
         async Task PassingHandler(ProcessSessionMessageEventArgs args)
@@ -55,7 +58,7 @@ namespace VeloTimerWeb.Api.Services
             {
                 await AbandonPassing(args, $"Track not configured - {passing.Track}");
                 return;
-            }            
+            }
 
             var loop = track.TimingLoops.SingleOrDefault(x => x.LoopId == passing.LoopId);
             if (loop == null)
@@ -117,14 +120,6 @@ namespace VeloTimerWeb.Api.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var options = new ServiceBusSessionProcessorOptions
-            {
-                AutoCompleteMessages = false,
-                MaxConcurrentSessions = 10,
-            };
-
-            _processor = _client.CreateSessionProcessor(_settings.QueueName, "incoming", options);
-
             _processor.ProcessMessageAsync += PassingHandler;
             _processor.ProcessErrorAsync += ErrorHandler;
 

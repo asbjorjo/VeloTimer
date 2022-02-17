@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using VeloTime.Shared.Messaging;
 using VeloTimer.AmmcLoad.Models;
 using VeloTimer.PassingLoader.Services.Api;
 using VeloTimer.PassingLoader.Services.Messaging;
@@ -27,12 +28,12 @@ namespace VeloTimer.AmmcLoad.Services
         private readonly IMapper _mapper;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private IApiService _apiService;
-        private IMessagingService _messagingService;
+        private IMessagingService<PassingRegister> _messagingService;
 
         public RefreshPassingsService(IServiceScopeFactory servicesScopeFactory,
                                       AmmcPassingService passingService,
                                       IMapper mapper,
-                                      IMessagingService messagingService,
+                                      IMessagingService<PassingRegister> messagingService,
                                       ILogger<RefreshPassingsService> logger)
         {
             _passingService = passingService;
@@ -109,7 +110,7 @@ namespace VeloTimer.AmmcLoad.Services
             } 
             else
             {
-                passings = await _passingService.GetAfterEntry(lastFromDb.Id);
+                passings = await _passingService.GetAfterTime(lastFromDb.UtcTime.DateTime);
             }
 
             if (!passings.Any())
@@ -120,7 +121,7 @@ namespace VeloTimer.AmmcLoad.Services
 
             _logger.LogInformation("Found {Count} number of passings", passings.Count);
 
-            await _messagingService.SubmitPassings(_mapper.Map<List<PassingRegister>>(passings));
+            await _messagingService.SendMessages(_mapper.Map<List<PassingRegister>>(passings));
 
             lastFromDb = passings.Last();
         }

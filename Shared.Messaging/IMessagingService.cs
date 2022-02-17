@@ -4,7 +4,7 @@ namespace VeloTime.Shared.Messaging
 {
     public interface IMessagingService
     {
-        Task SubmitPassing(PassingRegister passing);
-        Task SubmitPassings(IEnumerable<PassingRegister> passings);
+        Task SendMessage(IMessage message);
+        Task SendMessages(IEnumerable<IMessage> messages);
     }
 }
