@@ -4,6 +4,9 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+	<Authors>Asbjoern L. Johansen</Authors>
+	<Company>VeloTime</Company>
+	<RepositoryUrl>https://github.com/asbjorjo/VeloTimer/</RepositoryUrl>
     <AssemblyName>VeloTime.Shared.Messaging</AssemblyName>
     <RootNamespace>$(AssemblyName)</RootNamespace>
   </PropertyGroup>
