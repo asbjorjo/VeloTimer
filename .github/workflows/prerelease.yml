@@ -33,7 +33,7 @@ jobs:
     - name: Pack Shared.Messaging
       run: dotnet pack Shared.Messaging --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
     - name: Push
-      run: dotnet nuget push VeloTimer.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
+      run: dotnet nuget push VeloTime*.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
       env:
         NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build-webapp:
