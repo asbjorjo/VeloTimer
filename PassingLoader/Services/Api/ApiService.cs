@@ -2,7 +2,7 @@
 using System.Net.Http.Json;
 using VeloTimer.Shared.Data.Models.Timing;
 
-namespace VeloTimer.PassingLoader.Services.Api
+namespace VeloTime.PassingLoader.Services.Api
 {
     public class ApiService : IApiService
     {

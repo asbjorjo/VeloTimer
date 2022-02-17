@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace VeloTimer.PassingLoader.Services.Api
+namespace VeloTime.PassingLoader.Services.Api
 {
     public static class Startup
     {

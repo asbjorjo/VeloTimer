@@ -1,10 +1,9 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using VeloTimer.PassingLoader.Services.Api;
+using VeloTime.PassingLoader.Services.Api;
 using VeloTime.Shared.Messaging;
-using VeloTimer.Shared.Data.Models.Timing;
 
-namespace VeloTimer.PassingLoader
+namespace VeloTime.PassingLoader
 {
     public static class Startup
     {

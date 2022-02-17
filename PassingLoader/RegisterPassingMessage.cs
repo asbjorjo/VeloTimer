@@ -1,6 +1,7 @@
-﻿using VeloTimer.Shared.Data.Models.Timing;
+﻿using VeloTime.Shared.Messaging;
+using VeloTimer.Shared.Data.Models.Timing;
 
-namespace VeloTime.Shared.Messaging.Models
+namespace VeloTime.PassingLoader
 {
     public class RegisterPassingMessage : IMessage
     {

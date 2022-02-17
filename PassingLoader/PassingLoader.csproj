@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>$(AssemblyName)</RootNamespace>
-    <AssemblyName>VeloTimer.PassingLoader</AssemblyName>
+    <AssemblyName>VeloTime.PassingLoader</AssemblyName>
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
     <Authors>Asbjoern L. Johansen</Authors>
     <Company>VeloTime</Company>
