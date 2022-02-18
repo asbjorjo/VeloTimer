@@ -12,7 +12,7 @@ namespace VeloTime.Processor.Services
         private readonly ILogger<PassingHandler> _logger;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ServiceBusClient _client;
-        private ServiceBusSessionProcessor _processor;
+        private readonly ServiceBusSessionProcessor _processor;
 
         public PassingHandler(
             MessageBusOptions options,

@@ -27,12 +27,12 @@ namespace VeloTime.Services
             return await Existing(passing) != null;
         }
 
-        public async Task<Passing> Existing(Passing passing)
+        public async Task<Passing?> Existing(Passing passing)
         {
             if (passing == null) throw new ArgumentNullException(nameof(passing));
-            if (passing.Time == default) throw new ArgumentNullException(nameof(passing.Time));
-            if (passing.Transponder == null) throw new ArgumentNullException(nameof(passing.Transponder));
-            if (passing.Loop == null) throw new ArgumentNullException(nameof(passing.Loop));
+            if (passing.Time == default) throw new ArgumentNullException(nameof(passing), "Time");
+            if (passing.Transponder == null) throw new ArgumentNullException(nameof(passing), "Transponder");
+            if (passing.Loop == null) throw new ArgumentNullException(nameof(passing), "Loop");
 
             var existing = await _context.Set<Passing>()
                                          .SingleOrDefaultAsync(x => x.Transponder == passing.Transponder
@@ -259,7 +259,7 @@ namespace VeloTime.Services
             return passings;
         }
 
-        public async Task<TrackSegmentPassing> RegisterTransponderPassing(Passing passing)
+        public async Task<TrackSegmentPassing?> RegisterTransponderPassing(Passing passing)
         {
             var trackSegment = await _context.Set<TrackSegment>()
                 .Include(s => s.Start)

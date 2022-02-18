@@ -4,7 +4,7 @@ namespace VeloTime.PassingLoader.Services.Api
 {
     public interface IApiService
     {
-        Task<PassingWeb> GetMostRecentPassing();
-        Task<PassingWeb> GetMostRecentPassing(string Track);
+        Task<PassingWeb?> GetMostRecentPassing();
+        Task<PassingWeb?> GetMostRecentPassing(string Track);
     }
 }

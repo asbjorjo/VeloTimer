@@ -7,14 +7,14 @@ namespace VeloTime.PassingLoader
     {
         public RegisterPassingMessage(PassingRegister passing)
         {
-            this.passing = passing;
+            this.Passing = passing;
         }
 
-        public PassingRegister passing { get; private set; }
+        public PassingRegister Passing { get; private set; }
 
-        public string Id { get => $"{passing.Track}_{passing.LoopId}_{passing.TransponderId}_{passing.Time.UtcDateTime.Ticks}"; }
-        public string Topic { get => passing.TransponderId; }
+        public string Id { get => $"{Passing.Track}_{Passing.LoopId}_{Passing.TransponderId}_{Passing.Time.UtcDateTime.Ticks}"; }
+        public string Topic { get => Passing.TransponderId; }
         public string Subject { get => "register"; }
-        public object Content { get => passing; }
+        public object Content { get => Passing; }
     }
 }

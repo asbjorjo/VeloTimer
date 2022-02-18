@@ -216,7 +216,7 @@ namespace VeloTime.Services
             return times;
         }
 
-        public async Task<Track> GetTrackBySlug(string slug)
+        public async Task<Track?> GetTrackBySlug(string slug)
         {
             var track = await _context.Set<Track>()
                 .Include(x => x.TimingLoops)
