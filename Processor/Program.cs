@@ -1,5 +1,6 @@
 using Azure.Identity;
 using VeloTime.Processor.Services;
+using VeloTime.Shared.Messaging;
 using VeloTime.Storage.Data;
 using VeloTimerWeb.Api.Services;
 
@@ -13,6 +14,7 @@ if (!builder.Environment.IsDevelopment())
     builder.Configuration.AddAzureKeyVault(keyVaultEndpoint, new DefaultAzureCredential());
 };
 
+builder.Services.ConfigureMessaging(builder.Configuration);
 builder.Services.ConfigureStorage(builder.Configuration);
 builder.Services.AddVeloTimeServices();
 builder.Services.AddHostedService<PassingHandler>();
