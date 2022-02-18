@@ -1,29 +1,21 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using VeloTime.Storage.Data;
 using VeloTime.Storage.Models.Riders;
 using VeloTime.Storage.Models.Timing;
 using VeloTimer.Shared.Data;
 using VeloTimer.Shared.Data.Parameters;
-using VeloTimerWeb.Api.Models.Identity;
 
-namespace VeloTimerWeb.Api.Services
+namespace VeloTime.Services
 {
     public class RiderService : IRiderService
     {
         private readonly VeloTimerDbContext _context;
-        private readonly UserManager<User> _userManager;
         private readonly ILogger<RiderService> _logger;
 
-        public RiderService(VeloTimerDbContext context, UserManager<User> userManager, ILogger<RiderService> logger)
+        public RiderService(VeloTimerDbContext context, ILogger<RiderService> logger)
         {
             _context = context;
-            _userManager = userManager;
             _logger = logger;
         }
 
@@ -69,16 +61,6 @@ namespace VeloTimerWeb.Api.Services
             if (rider == null)
             {
                 throw new ArgumentNullException(nameof(userId));
-            }
-            var user = await _userManager.FindByIdAsync(userId);
-            if (user != null)
-            {
-                var result = await _userManager.DeleteAsync(user);
-
-                if (!result.Succeeded)
-                {
-                    _logger.LogError(result.ToString());
-                }
             }
 
             _context.Remove(rider);

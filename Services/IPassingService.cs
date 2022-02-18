@@ -2,7 +2,7 @@
 using VeloTime.Storage.Models.Timing;
 using static VeloTimer.Shared.Data.Models.Timing.TransponderType;
 
-namespace VeloTimerWeb.Api.Services
+namespace VeloTime.Services
 {
     public interface IPassingService
     {

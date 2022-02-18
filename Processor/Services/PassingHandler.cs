@@ -1,22 +1,22 @@
 ﻿using Azure.Messaging.ServiceBus;
+using VeloTime.Services;
 using VeloTime.Shared.Messaging;
 using VeloTime.Storage.Models.Timing;
 using VeloTimer.Shared.Data.Models.Timing;
-using VeloTimerWeb.Api.Services;
 
 namespace VeloTime.Processor.Services
 {
-    public class CreatePassingHandler : BackgroundService
+    public class PassingHandler : BackgroundService
     {
         private readonly MessageBusOptions _settings;
-        private readonly ILogger<CreatePassingHandler> _logger;
+        private readonly ILogger<PassingHandler> _logger;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ServiceBusClient _client;
         private ServiceBusSessionProcessor _processor;
 
-        public CreatePassingHandler(
+        public PassingHandler(
             MessageBusOptions options,
-            ILogger<CreatePassingHandler> logger,
+            ILogger<PassingHandler> logger,
             IServiceScopeFactory serviceScopeFactory)
         {
             _settings = options;
@@ -33,7 +33,7 @@ namespace VeloTime.Processor.Services
             _processor = _client.CreateSessionProcessor(_settings.QueueName, "incoming", processoptions);
         }
 
-        async Task PassingHandler(ProcessSessionMessageEventArgs args)
+        async Task HandlePassing(ProcessSessionMessageEventArgs args)
         {
             var passing = args.Message.Body.ToObjectFromJson<PassingRegister>();
 
@@ -120,7 +120,7 @@ namespace VeloTime.Processor.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _processor.ProcessMessageAsync += PassingHandler;
+            _processor.ProcessMessageAsync += HandlePassing;
             _processor.ProcessErrorAsync += ErrorHandler;
 
             await _processor.StartProcessingAsync(stoppingToken);

@@ -1,45 +1,36 @@
-﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using VeloTime.Storage.Data;
 using VeloTime.Storage.Models.Statistics;
 using VeloTime.Storage.Models.Timing;
 using VeloTime.Storage.Models.TrackSetup;
 using VeloTimer.Shared.Hub;
-using VeloTimerWeb.Api.Hubs;
 using static VeloTimer.Shared.Data.Models.Timing.TransponderType;
 
-namespace VeloTimerWeb.Api.Services
+namespace VeloTime.Services
 {
     public class PassingService : IPassingService
     {
         private readonly VeloTimerDbContext _context;
-        private readonly IHubContext<PassingHub, IPassingClient> _hubContext;
         private readonly ILogger<PassingService> _logger;
 
         public PassingService(
             VeloTimerDbContext context,
-            IHubContext<PassingHub, IPassingClient> hubContext,
             ILogger<PassingService> logger)
         {
             _context = context;
-            _hubContext = hubContext;
             _logger = logger;
         }
 
         public async Task<bool> Exists(Passing passing)
         {
-            return (await Existing(passing)) != null;
+            return await Existing(passing) != null;
         }
 
         public async Task<Passing> Existing(Passing passing)
         {
             if (passing == null) throw new ArgumentNullException(nameof(passing));
-            if (passing.Time == default) throw new ArgumentNullException(nameof(passing.Time)); 
+            if (passing.Time == default) throw new ArgumentNullException(nameof(passing.Time));
             if (passing.Transponder == null) throw new ArgumentNullException(nameof(passing.Transponder));
             if (passing.Loop == null) throw new ArgumentNullException(nameof(passing.Loop));
 
@@ -86,9 +77,6 @@ namespace VeloTimerWeb.Api.Services
 
             _context.Add(passing);
             await _context.SaveChangesAsync();
-
-            await _hubContext.Clients.Group($"timingloop_{passing.Loop.Id}").NewPassings();
-            await _hubContext.Clients.Group($"transponder_{passing.Transponder.Id}").NewPassings();
 
             var transponderPassing = await RegisterTransponderPassing(passing);
 

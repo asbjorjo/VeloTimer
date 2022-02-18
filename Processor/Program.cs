@@ -15,7 +15,7 @@ if (!builder.Environment.IsDevelopment())
 
 builder.Services.ConfigureStorage(builder.Configuration);
 builder.Services.AddVeloTimeServices();
-builder.Services.AddHostedService<CreatePassingHandler>();
+builder.Services.AddHostedService<PassingHandler>();
 
 var app = builder.Build();
 

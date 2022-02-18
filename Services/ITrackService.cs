@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using VeloTime.Storage.Models.Statistics;
+﻿using VeloTime.Storage.Models.Statistics;
 using VeloTime.Storage.Models.TrackSetup;
 using VeloTimer.Shared.Data;
 using VeloTimer.Shared.Data.Models;
 using VeloTimer.Shared.Data.Parameters;
 
-namespace VeloTimerWeb.Api.Services
+namespace VeloTime.Services
 {
     public interface ITrackService
     {

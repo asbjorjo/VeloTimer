@@ -17,10 +17,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Services\Services.csproj" />
     <ProjectReference Include="..\Shared.Data\Shared.Data.csproj" />
     <ProjectReference Include="..\Shared.Messaging\Shared.Messaging.csproj" />
     <ProjectReference Include="..\Storage\Storage.csproj" />
-    <ProjectReference Include="..\VeloTimerWeb.Api\Api.csproj" />
   </ItemGroup>
 
 </Project>

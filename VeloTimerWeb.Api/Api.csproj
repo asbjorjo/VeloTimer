@@ -48,6 +48,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PassingLoader\PassingLoader.csproj" />
+    <ProjectReference Include="..\Services\Services.csproj" />
     <ProjectReference Include="..\Storage\Storage.csproj" />
     <ProjectReference Include="..\VeloTimerWeb\Client\Client.csproj" />
     <ProjectReference Include="..\VeloTimerWeb\Shared\Shared.csproj" />

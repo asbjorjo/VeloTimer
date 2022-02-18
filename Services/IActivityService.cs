@@ -1,9 +1,8 @@
-﻿using System.Threading.Tasks;
-using VeloTime.Storage.Models.Statistics;
+﻿using VeloTime.Storage.Models.Statistics;
 using VeloTimer.Shared.Data;
 using VeloTimer.Shared.Data.Parameters;
 
-namespace VeloTimerWeb.Api.Services
+namespace VeloTime.Services
 {
     public interface IActivityService
     {

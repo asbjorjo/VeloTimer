@@ -1,4 +1,4 @@
-﻿namespace VeloTimerWeb.Api.Services
+﻿namespace VeloTime.Services
 {
     public interface IMessagingService
     {
