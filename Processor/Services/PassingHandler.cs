@@ -28,8 +28,9 @@ namespace VeloTime.Processor.Services
             var processoptions = new ServiceBusSessionProcessorOptions
             {
                 AutoCompleteMessages = false,
-                MaxConcurrentSessions = 10,
+                MaxConcurrentSessions = _settings.MaxConcurrency,
             };
+
             _processor = _client.CreateSessionProcessor(_settings.QueueName, "incoming", processoptions);
         }
 
@@ -123,6 +124,7 @@ namespace VeloTime.Processor.Services
             _processor.ProcessMessageAsync += HandlePassing;
             _processor.ProcessErrorAsync += ErrorHandler;
 
+            _logger.LogInformation("Start processing");
             await _processor.StartProcessingAsync(stoppingToken);
         }
 
