@@ -65,8 +65,8 @@ namespace VeloTime.Shared.Messaging
             var serviceBusMessage = new ServiceBusMessage(messageBody)
             {
                 MessageId = message.Id,
-                Subject = message.Topic,
-                SessionId = message.Subject
+                Subject = message.Subject,
+                SessionId = message.Group
             };
 
             return serviceBusMessage;
