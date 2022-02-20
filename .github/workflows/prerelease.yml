@@ -79,6 +79,39 @@ jobs:
       run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
     - name: Azure Logout
       run: az logout
+  build-processor:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+    - name: Log in to container registry
+      uses: docker/login-action@v1
+      with:
+        registry: https://ghcr.io/
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v3
+      with:
+        images: |
+          ghcr.io/${{ github.repository }}
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+    #- name: Build and push container image to registry
+    #  uses: docker/build-push-action@v2
+    #  with:
+    #    context: .
+    #    push: true
+    #    tags: ghcr.io/${{ secrets.AzureAppService_ContainerUsername_44d36d676c4345d2879be7faaf1bf611 }}/velotime/processor:${{ github.sha }}
+    #    file: ./Dockerfile
   deploy-webapp:
     needs: build-webapp
     environment:
@@ -100,5 +133,20 @@ jobs:
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         package: .
+#  deploy-processor:
+#    runs-on: ubuntu-latest
+#    needs: build
+#    environment:
+#      name: 'production'
+#      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+#    steps:
+#      - name: Deploy to Azure Web App
+#        id: deploy-to-webapp
+#        uses: azure/webapps-deploy@v2
+#        with:
+#          app-name: 'velotime-process'
+#          slot-name: 'production'
+#          publish-profile: ${{ secrets.AzureAppService_PublishProfile_5d710f34518c40f68cd30a1355bea3e1 }}
+#          images: 'ghcr.io/${{ secrets.AzureAppService_ContainerUsername_44d36d676c4345d2879be7faaf1bf611 }}/velotime/processor:${{ github.sha }}'
     - name: Azure Logout
       run: az logout
