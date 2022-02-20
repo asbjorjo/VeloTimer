@@ -20,19 +20,19 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
         private readonly VeloTimerDbContext _context;
 
         private readonly string[] items = { "Runde", "200m", "3000m", "4000m" };
-        private readonly Dictionary<string, TimeParameters> periods = new Dictionary<string, TimeParameters>
+        private readonly Dictionary<string, TimeParameters> periods = new()
         {
             { "alltime", new TimeParameters() },
             { "day", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfDay().UtcDateTime } },
             { "month", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfMonth().UtcDateTime } },
             { "year", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfYear().UtcDateTime } }
         };
-        private readonly Dictionary<string, string> titles = new Dictionary<string, string>
+        private readonly Dictionary<string, string> titles = new()
         {
             { "alltime", "Rekorder" },
             { "day", "Best i dag" },
             { "month", $"Best i {DateTimeOffset.Now.ToString("MMMM", CultureInfo.GetCultureInfo("nb-NO"))}" },
-            { "year", $"Best i {DateTimeOffset.Now.ToString("yyyy")}" }
+            { "year", $"Best i {DateTimeOffset.Now:yyyy}" }
         };
 
         public Dictionary<string, IEnumerable<SegmentTime>> Times { get; set; } = new Dictionary<string, IEnumerable<SegmentTime>>();

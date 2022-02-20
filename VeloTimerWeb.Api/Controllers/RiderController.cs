@@ -92,10 +92,13 @@ namespace VeloTimerWeb.Api.Controllers
 
             if (User.Identity.IsAuthenticated && User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value == userId)
             {
-                _logger.LogInformation(User?.Identity.Name);
+                _logger.LogInformation("User name: {Name}", User?.Identity.Name);
                 foreach (var claim in User.Claims)
                 {
-                    _logger.LogInformation($"Claim: {claim.Type} - {claim.Value} - {claim.Subject}");
+                    _logger.LogInformation("Claim: {Type} - {Value} - {Subject}",
+                                           claim.Type,
+                                           claim.Value,
+                                           claim.Subject);
                 }
 
                 var rider = _mapper.Map<Rider>(profile);
@@ -242,9 +245,13 @@ namespace VeloTimerWeb.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<ActionResult<TransponderOwnershipWeb>> RegisterTransponder(string rider, TransponderOwnershipWeb ownerWeb)
         {
-            _logger.LogInformation($"Transponder: {ownerWeb.Transponder.Label}"
-                                   + $" - Name: {ownerWeb.Owner}"
-                                   + $" - Validity: {ownerWeb.OwnedFrom}-{ownerWeb.OwnedUntil}");
+            _logger.LogInformation("Transponder: {Label}"
+                                   + " - Name: {Owner}"
+                                   + " - Validity: {From}-{Until}",
+                                   ownerWeb.Transponder.Label,
+                                   ownerWeb.Owner,
+                                   ownerWeb.OwnedFrom,
+                                   ownerWeb.OwnedUntil);
 
             var transponderId = TransponderIdConverter.CodeToId(ownerWeb.Transponder.Label).ToString();
 

@@ -46,7 +46,7 @@ namespace VeloTime.Services
             {
                 var lastSession = activity.Sessions.OrderByDescending(x => x.End).FirstOrDefault();
 
-                if (lastSession.End >= passing.Time.AddMinutes(-5))
+                if (lastSession?.End >= passing.Time.AddMinutes(-5))
                 {
                     lastSession.UpdateEnd(passing);
                 }
@@ -99,7 +99,7 @@ namespace VeloTime.Services
             return times;
         }
 
-        public async Task<StatisticsItem> GetItemBySlug(string slug)
+        public async Task<StatisticsItem?> GetItemBySlug(string slug)
         {
             var item = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Slug == slug);
 
@@ -142,7 +142,7 @@ namespace VeloTime.Services
             return counts;
         }
 
-        public async Task<TrackStatisticsItem> GetTrackItemBySlugs(string item, string track, string layout)
+        public async Task<TrackStatisticsItem?> GetTrackItemBySlugs(string item, string track, string layout)
         {
             var Item = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.StatisticsItem.Slug == item && x.Layout.Slug == layout && x.Layout.Track.Slug == track);
 

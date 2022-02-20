@@ -72,7 +72,7 @@ namespace VeloTime.Services
                 .Select(x => x.Time)
                 .Take(Count);
 
-            _logger.LogDebug(query.ToQueryString());
+            //_logger.LogDebug(query.ToQueryString());
 
             times = await query.ToListAsync();
 
@@ -107,7 +107,7 @@ namespace VeloTime.Services
                             Time = tsi.Time
                         };
 
-            _logger.LogDebug(query.Take(Count).ToQueryString());
+            //_logger.LogDebug(query.Take(Count).ToQueryString());
 
             times = await query.Take(Count).ToListAsync();
 

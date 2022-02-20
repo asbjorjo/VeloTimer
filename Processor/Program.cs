@@ -10,8 +10,15 @@ builder.Configuration.AddEnvironmentVariables("VELOTIME_");
     
 if (!builder.Environment.IsDevelopment())
 {
-    var keyVaultEndpoint = new Uri(Environment.GetEnvironmentVariable("VELOTIME_VAULT"));
-    builder.Configuration.AddAzureKeyVault(keyVaultEndpoint, new DefaultAzureCredential());
+    var vault = Environment.GetEnvironmentVariable("VELOTIME_VAULT");
+    if (vault != null)
+    {
+        var keyVaultEndpoint = new Uri(vault);
+        builder.Configuration.AddAzureKeyVault(keyVaultEndpoint, new DefaultAzureCredential());
+    } else
+    {
+        throw new Exception("Vault not configured");
+    }
 };
 
 builder.Services.ConfigureMessaging(builder.Configuration);

@@ -10,23 +10,36 @@ namespace VeloTime.Storage.Util
             foreach (var entity in builder.Model.GetEntityTypes())
             {
                 // Replace table names
-                entity.SetTableName(entity.GetTableName().ToSnakeCase());
-
-                // Replace column names            
-                foreach (var property in entity.GetProperties())
+                var tableName = entity.GetTableName();
+                if (tableName != null)
                 {
-                    property.SetColumnName(property.GetColumnName(StoreObjectIdentifier.Table(entity.GetTableName(), entity.GetSchema())).ToSnakeCase());
+
+                    entity.SetTableName(tableName.ToSnakeCase());
+
+                    // Replace column names            
+                    foreach (var property in entity.GetProperties())
+                    {
+                        var columnName = property.GetColumnName(StoreObjectIdentifier.Table(tableName, entity.GetSchema()));
+                        if (columnName != null)
+                            property.SetColumnName(columnName.ToSnakeCase());
+                    }
                 }
 
                 foreach (var key in entity.GetKeys())
                 {
-                    key.SetName(key.GetName().ToSnakeCase());
+                    var keyName = key.GetName();
+                    if (keyName != null)
+                        key.SetName(keyName.ToSnakeCase());
                 }
 
                 foreach (var key in entity.GetForeignKeys())
                 {
-                    key.PrincipalKey.SetName(key.PrincipalKey.GetName().ToSnakeCase());
-                    key.SetConstraintName(key.GetConstraintName().ToSnakeCase());
+                    var principalKeyName = key.PrincipalKey.GetName();
+                    if (principalKeyName != null)
+                        key.PrincipalKey.SetName(principalKeyName.ToSnakeCase());
+                    var constraintName = key.GetConstraintName();
+                    if (constraintName != null)
+                        key.SetConstraintName(constraintName.ToSnakeCase());
                 }
 
                 foreach (var index in entity.GetIndexes())
