@@ -91,27 +91,27 @@ jobs:
         registry: https://ghcr.io/
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-#    - name: Extract metadata (tags, labels) for Docker
-#      id: meta
-#      uses: docker/metadata-action@v3
-#      with:
-#        images: |
-#          ghcr.io/${{ github.repository }}
-#    - name: Build and push Docker image
-#      uses: docker/build-push-action@v2
-#      with:
-#        context: .
-#        file: Processor/Dockerfile
-#        push: true
-#        tags: ${{ steps.meta.outputs.tags }}
-#        labels: ${{ steps.meta.outputs.labels }}
-    - name: Build and push container image to registry
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v3
+      with:
+        images: |
+          ghcr.io/${{ github.repository }}
+    - name: Build and push Docker image
       uses: docker/build-push-action@v2
       with:
         context: .
-        push: true
-        tags: ghcr.io/${{ github.repository }}/velotime/processor:${{ github.sha }}
         file: Processor/Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+#    - name: Build and push container image to registry
+#      uses: docker/build-push-action@v2
+#      with:
+#        context: .
+#        push: true
+#        tags: ghcr.io/${{ github.repository }}/velotime/processor:${{ github.sha }}
+#        file: Processor/Dockerfile
   deploy-webapp:
     needs: build-webapp
     environment:
