@@ -8,16 +8,16 @@ EXPOSE 443
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
 COPY ["nuget.config", "."]
-COPY ["PassingProcessor/PassingProcessor.csproj", "PassingProcessor/"]
-RUN dotnet restore "PassingProcessor/PassingProcessor.csproj"
+COPY ["Processor/Processor.csproj", "Processor/"]
+RUN dotnet restore "Processor/Processor.csproj"
 COPY . .
-WORKDIR "/src/PassingProcessor"
-RUN dotnet build "PassingProcessor.csproj" -c Release -o /app/build
+WORKDIR "/src/Processor"
+RUN dotnet build "Processor.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "PassingProcessor.csproj" -c Release -o /app/publish
+RUN dotnet publish "Processor.csproj" -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "PassingProcessor.dll"]
+ENTRYPOINT ["dotnet", "Processor.dll"]
