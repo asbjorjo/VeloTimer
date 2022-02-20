@@ -103,9 +103,9 @@ jobs:
         context: .
         file: Processor/Dockerfile
         push: true
-        tags: ghcr.io/${{ github.repository }}/velotime/processor:${{ github.sha }}
-#        tags: ${{ steps.meta.outputs.tags }}
-#        labels: ${{ steps.meta.outputs.labels }}
+#        tags: ghcr.io/${{ github.repository }}/velotime/processor:${{ github.sha }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
 #    - name: Build and push container image to registry
 #      uses: docker/build-push-action@v2
 #      with:
@@ -152,6 +152,6 @@ jobs:
         with:
           app-name: velotime-process-dev
           slot-name: production
-          images: ghcr.io/${{ github.repository }}/velotime/processor:${{ github.sha }}
+          images: ghcr.io/${{ github.repository }}/velotime/processor:${{ github.ref_name }}
       - name: Azure Logout
         run: az logout
