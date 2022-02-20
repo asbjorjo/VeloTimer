@@ -5,10 +5,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 using System.Threading.Tasks;
+using VeloTime.Services;
 using VeloTime.Storage.Data;
 using VeloTime.Storage.Models.Timing;
 using VeloTimer.Shared.Data.Models.Timing;
-using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {

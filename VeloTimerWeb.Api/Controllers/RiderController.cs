@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using VeloTime.Services;
 using VeloTime.Storage.Data;
 using VeloTime.Storage.Models.Riders;
 using VeloTime.Storage.Models.Statistics;
@@ -20,7 +21,6 @@ using VeloTimer.Shared.Data.Models.Riders;
 using VeloTimer.Shared.Data.Models.Timing;
 using VeloTimer.Shared.Data.Parameters;
 using VeloTimer.Shared.Util;
-using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {

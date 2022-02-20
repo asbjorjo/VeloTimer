@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
+using VeloTime.Services;
 using VeloTimerWeb.Api.Models.Identity;
-using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Areas.Identity.Pages.Account.Manage
 {

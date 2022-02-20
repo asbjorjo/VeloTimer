@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using VeloTime.Services;
 using VeloTime.Storage.Data;
-using VeloTimerWeb.Api.Services;
 using VeloTimerWeb.Api.Util;
 
 namespace Microsoft.Extensions.Hosting

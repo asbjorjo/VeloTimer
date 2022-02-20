@@ -5,11 +5,11 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using VeloTime.Services;
 using VeloTime.Storage.Models.Statistics;
 using VeloTimer.Shared.Data;
 using VeloTimer.Shared.Data.Models.Statistics;
 using VeloTimer.Shared.Data.Parameters;
-using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Controllers
 {
