@@ -143,6 +143,10 @@ jobs:
       name: testing
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     steps:
+      - id: reponame
+        uses: ASzc/change-string-case-action@v2
+        with:
+          string: ${{ github.repository }}
       - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CI }}
@@ -152,6 +156,6 @@ jobs:
         with:
           app-name: velotime-process-dev
           slot-name: production
-          images: ghcr.io/${{ github.repository }}/velotime/processor:${{ github.ref_name }}
+          images: ghcr.io/${{ steps.reponame.outputs.lowercase }}/velotime/processor:${{ github.ref_name }}
       - name: Azure Logout
         run: az logout
