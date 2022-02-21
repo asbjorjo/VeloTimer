@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore.Migrations;
 
-namespace VeloTimerWeb.Api.Migrations.VeloTimer
+namespace VeloTime.Storage.Migrations
 {
     public partial class SectorSegmentPassing : Migration
     {

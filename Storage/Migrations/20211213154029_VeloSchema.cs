@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
-namespace VeloTimerWeb.Api.Migrations.VeloTimer
+namespace VeloTime.Storage.Migrations
 {
     public partial class VeloSchema : Migration
     {

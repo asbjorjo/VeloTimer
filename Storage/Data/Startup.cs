@@ -16,6 +16,7 @@ namespace VeloTime.Storage.Data
                         .GetConnectionString("PgSql"), sqloptions =>
                         {
                             sqloptions.CommandTimeout((int)TimeSpan.FromMinutes(5).TotalSeconds);
+                            sqloptions.MigrationsAssembly("VeloTime.Storage");
                         });
             });
 

@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace VeloTimerWeb.Api.Migrations.VeloTimer
+namespace VeloTime.Storage.Migrations
 {
     public partial class Activities : Migration
     {

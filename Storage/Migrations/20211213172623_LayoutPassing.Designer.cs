@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VeloTime.Storage.Data;
 
-namespace VeloTimerWeb.Api.Migrations.VeloTimer
+namespace VeloTime.Storage.Migrations
 {
     [DbContext(typeof(VeloTimerDbContext))]
     [Migration("20211213172623_LayoutPassing")]

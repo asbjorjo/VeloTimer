@@ -2,20 +2,18 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VeloTime.Storage.Data;
 
 #nullable disable
 
-namespace VeloTimerWeb.Api.Migrations.VeloTimer
+namespace VeloTime.Storage.Migrations
 {
     [DbContext(typeof(VeloTimerDbContext))]
-    [Migration("20220201123348_EF6")]
-    partial class EF6
+    partial class VeloTimerDbContextModelSnapshot : ModelSnapshot
     {
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -130,6 +128,65 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasDatabaseName("ix_transponder_ownership_transponder_id");
 
                     b.ToTable("transponder_ownership", "velotimer");
+                });
+
+            modelBuilder.Entity("VeloTimerWeb.Api.Models.Statistics.Activity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("TrackId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("track_id");
+
+                    b.Property<long>("TransponderId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("transponder_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_activity");
+
+                    b.HasIndex("TrackId")
+                        .HasDatabaseName("ix_activity_track_id");
+
+                    b.HasIndex("TransponderId")
+                        .HasDatabaseName("ix_activity_transponder_id");
+
+                    b.ToTable("activity", "velotimer");
+                });
+
+            modelBuilder.Entity("VeloTimerWeb.Api.Models.Statistics.Session", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ActivityId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("activity_id");
+
+                    b.Property<DateTime>("End")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end");
+
+                    b.Property<DateTime>("Start")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start");
+
+                    b.HasKey("Id")
+                        .HasName("pk_session");
+
+                    b.HasIndex("ActivityId")
+                        .HasDatabaseName("ix_session_activity_id");
+
+                    b.ToTable("session", "velotimer");
                 });
 
             modelBuilder.Entity("VeloTimerWeb.Api.Models.Statistics.StatisticsItem", b =>
@@ -786,6 +843,37 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                     b.Navigation("Transponder");
                 });
 
+            modelBuilder.Entity("VeloTimerWeb.Api.Models.Statistics.Activity", b =>
+                {
+                    b.HasOne("VeloTimerWeb.Api.Models.TrackSetup.Track", "Track")
+                        .WithMany()
+                        .HasForeignKey("TrackId")
+                        .HasConstraintName("fk_activity_track_track_id");
+
+                    b.HasOne("VeloTimerWeb.Api.Models.Timing.Transponder", "Transponder")
+                        .WithMany()
+                        .HasForeignKey("TransponderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_activity_transponder_transponder_id");
+
+                    b.Navigation("Track");
+
+                    b.Navigation("Transponder");
+                });
+
+            modelBuilder.Entity("VeloTimerWeb.Api.Models.Statistics.Session", b =>
+                {
+                    b.HasOne("VeloTimerWeb.Api.Models.Statistics.Activity", "Activity")
+                        .WithMany("Sessions")
+                        .HasForeignKey("ActivityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_session_activity_activity_id");
+
+                    b.Navigation("Activity");
+                });
+
             modelBuilder.Entity("VeloTimerWeb.Api.Models.Statistics.TrackStatisticsItem", b =>
                 {
                     b.HasOne("VeloTimerWeb.Api.Models.TrackSetup.TrackLayout", "Layout")
@@ -1079,6 +1167,11 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
             modelBuilder.Entity("VeloTimerWeb.Api.Models.Riders.Rider", b =>
                 {
                     b.Navigation("Transponders");
+                });
+
+            modelBuilder.Entity("VeloTimerWeb.Api.Models.Statistics.Activity", b =>
+                {
+                    b.Navigation("Sessions");
                 });
 
             modelBuilder.Entity("VeloTimerWeb.Api.Models.Statistics.TransponderStatisticsItem", b =>

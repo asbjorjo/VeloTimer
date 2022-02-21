@@ -7,11 +7,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VeloTime.Storage.Data;
 
-namespace VeloTimerWeb.Api.Migrations.VeloTimer
+namespace VeloTime.Storage.Migrations
 {
     [DbContext(typeof(VeloTimerDbContext))]
-    [Migration("20211222101529_Slugs")]
-    partial class Slugs
+    [Migration("20211230173341_SlugAltKeys")]
+    partial class SlugAltKeys
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -146,11 +146,15 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnName("label");
 
                     b.Property<string>("Slug")
+                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("slug");
 
                     b.HasKey("Id")
                         .HasName("pk_statistics_item");
+
+                    b.HasAlternateKey("Slug")
+                        .HasName("ak_statistics_item_slug");
 
                     b.ToTable("statistics_item");
                 });
@@ -205,11 +209,15 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnName("name");
 
                     b.Property<string>("Slug")
+                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("slug");
 
                     b.HasKey("Id")
                         .HasName("pk_track");
+
+                    b.HasAlternateKey("Slug")
+                        .HasName("ak_track_slug");
 
                     b.ToTable("track");
                 });
@@ -232,6 +240,7 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                         .HasColumnName("name");
 
                     b.Property<string>("Slug")
+                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("slug");
 
@@ -241,6 +250,9 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
 
                     b.HasKey("Id")
                         .HasName("pk_track_layout");
+
+                    b.HasAlternateKey("Slug")
+                        .HasName("ak_track_layout_slug");
 
                     b.HasAlternateKey("TrackId", "Name")
                         .HasName("ak_track_layout_track_id_name");
