@@ -30,7 +30,8 @@
         "AZURE_USERNAME": "asbjorjo@gmail.com"
       },
       "applicationUrl": "https://localhost:44387;http://localhost:58223;http://host.docker.internal:58223",
-      "dotnetRunMessages": "true"
+      "dotnetRunMessages": "true",
+      "inspectUri": "{wsProtocol}://{url.hostname}:{url.port}/_framework/debug/ws-proxy?browser={browserInspectUri}"
     }
   }
 }
