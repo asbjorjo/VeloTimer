@@ -13,9 +13,9 @@ namespace VeloTime.Storage.Util
                 var tableName = entity.GetTableName();
                 if (tableName != null)
                 {
-
-                    entity.SetTableName(tableName.ToSnakeCase());
-
+                    tableName = tableName.ToSnakeCase();
+                    entity.SetTableName(tableName);
+                 
                     // Replace column names            
                     foreach (var property in entity.GetProperties())
                     {
