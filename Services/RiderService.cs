@@ -77,7 +77,7 @@ namespace VeloTime.Services
 
             var riders = await _context.Set<Rider>()
                 .AsNoTracking()
-                .Where(r => active.ContainsKey(r.Id))
+                .Where(r => active.Keys.Contains(r.Id))
                 .Where(r => r.IsPublic)
                 .ToListAsync();
 
