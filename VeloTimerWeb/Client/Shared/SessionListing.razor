@@ -3,23 +3,18 @@
 @inject IApiClient Api
 
 <MudPaper>
-@Activity.Start -- @Activity.End -- @Activity.Sessions.Count<br/>
+@Session.Start -- @Session.End<br/>
 @foreach(var best in bests)
 {
     <MudPaper>
         @best.Key -- @best.Value.Time<br/>
     </MudPaper>
 }
-    @foreach(var session in Activity.Sessions)
-    {
-        session.Activity = Activity;
-        <SessionListing Session=session />
-    }
 </MudPaper>
 
 @code {
     [Parameter]
-    public ActivityWeb Activity { get; set; }
+    public SessionWeb Session { get; set; }
 
     private List<string> distances = new List<string>{ "runde", "200m", "1000m", "4000m" };
 
@@ -31,9 +26,9 @@
 
         foreach (var distance in distances)
         {
-            var time = await Api.GetBestTimes(distance, Activity.Start, Activity.End, 1, Activity.Rider.UserId);
+            var time = await Api.GetBestTimes(distance, Session.Start, Session.End, 1, Session.Activity.Rider.UserId);
             if (time.Count() > 0)
-                bests.Add(distance, time.First());
+                bests.TryAdd(distance, time.First());
         }
     }
 }

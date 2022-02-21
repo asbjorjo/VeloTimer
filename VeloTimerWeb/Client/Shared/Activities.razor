@@ -4,10 +4,12 @@
 
 @if(activities != null)
 {
+    <MudPaper>
     @foreach(var activity in activities)
     {
         <ActivityListing Activity=@activity />
     }
+    </MudPaper>
 }
 
 @code {
