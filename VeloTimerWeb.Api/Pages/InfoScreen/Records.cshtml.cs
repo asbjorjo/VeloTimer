@@ -68,7 +68,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             var counter = _context.Set<TrackStatisticsItem>().SingleOrDefault(x => x.Layout.Track == track && x.StatisticsItem.IsLapCounter);
             if (counter != null)
             {
-                Distances = await _service.GetCount(counter, fromdate, todate, 5);
+                Distances = await _service.GetCount(counter, fromdate, todate, 3);
             }
             
             var scheme = Request.Scheme;
