@@ -96,7 +96,6 @@ jobs:
       url: https://velotime-noe-github-ci.azurewebsites.net
     env:
       AZURE_WEBAPP_NAME: 'velotime-noe'
-      AZURE_AMMC_NAME: 'velotime-ammc-noe'
     needs: build-webapp
     runs-on: ubuntu-latest
     steps:
@@ -107,64 +106,11 @@ jobs:
     - uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CI }}
-    - name: Stop AMMC
-      uses: azure/CLI@v1
-      with:
-        inlineScript: az webapp stop --name ${{ env.AZURE_AMMC_NAME }} --resource-group velotime-rg-noe-lnx
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         slot-name: github-ci
         package: .
-    - name: Azure Logout
-      run: az logout
-  build-ammc:
-    environment:
-      name: staging
-    env:
-      AMMC_WORKING_DIRECTORY: VeloTimer.AmmcLoad
-      AZURE_AMMC_PACKAGE_PATH: VeloTimer.AmccLoad/publish
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
-    - name: Build AMMC
-      run: dotnet build --configuration ${{ env.CONFIGURATION }} "${{ env.AMMC_WORKING_DIRECTORY }}"
-    - name: Publish AmmcLoad
-      run: dotnet publish "${{ env.AMMC_WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-build --output "${{ env.AZURE_AMMC_PACKAGE_PATH }}"
-    - name: Upload AmmcLoad Artifacts
-      uses: actions/upload-artifact@v1.0.0
-      with:
-        name: ammcload
-        path: ${{ env.AZURE_AMMC_PACKAGE_PATH }}
-  deploy_ammcload:
-    environment:
-      name: staging
-      url: https://velotime-ammc-noe.azurewebsites.net
-    env:
-      AZURE_AMMC_NAME: 'velotime-ammc-noe'
-    needs: [build-ammc, deploy-webapp]
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download artifact from build job
-      uses: actions/download-artifact@v2
-      with:
-        name: ammcload
-    - uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CI }}
-    - name: Deploy to Azure AmmcLoader
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: ${{ env.AZURE_AMMC_NAME }}
-        package: .
-    - name: Start AMMC
-      uses: azure/CLI@v1
-      with:
-        inlineScript: az webapp start --name ${{ env.AZURE_AMMC_NAME }} --resource-group velotime-rg-noe-lnx
     - name: Azure Logout
       run: az logout
