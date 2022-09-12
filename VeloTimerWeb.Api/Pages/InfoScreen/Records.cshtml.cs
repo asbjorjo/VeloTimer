@@ -5,34 +5,45 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using VeloTime.Services;
-using VeloTime.Storage.Data;
-using VeloTime.Storage.Models.Statistics;
 using VeloTimer.Shared.Data.Models;
 using VeloTimer.Shared.Data.Parameters;
 using VeloTimer.Shared.Util;
+using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Pages.InfoScreen
 {
     public class RecordsModel : PageModel
     {
+        private const int SeasonStartMth = 9;
+        private const int SeasonEndMth = 3;
+
         private readonly ITrackService _service;
         private readonly VeloTimerDbContext _context;
 
         private readonly string[] items = { "Runde", "200m", "3000m", "4000m" };
-        private readonly Dictionary<string, TimeParameters> periods = new()
+        private readonly Dictionary<string, TimeParameters> periods = new Dictionary<string, TimeParameters>
         {
             { "alltime", new TimeParameters() },
             { "day", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfDay().UtcDateTime } },
             { "month", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfMonth().UtcDateTime } },
-            { "year", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfYear().UtcDateTime } }
+            { "season", new TimeParameters{
+                FromTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonStartMth-1).UtcDateTime, 
+                ToTime = DateTimeOffset.Now.StartOfYear().AddYears(1).AddMonths(SeasonEndMth-1).EndOfMonth().UtcDateTime } },
+            { "prevseason", new TimeParameters{
+                FromTime = DateTimeOffset.Now.StartOfYear().AddYears(-1).AddMonths(SeasonStartMth-1).UtcDateTime,
+                ToTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonEndMth-1).EndOfMonth().UtcDateTime } }
+            //{ "year", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfYear().UtcDateTime } }
         };
-        private readonly Dictionary<string, string> titles = new()
+        private readonly Dictionary<string, string> titles = new Dictionary<string, string>
         {
             { "alltime", "Rekorder" },
             { "day", "Best i dag" },
             { "month", $"Best i {DateTimeOffset.Now.ToString("MMMM", CultureInfo.GetCultureInfo("nb-NO"))}" },
-            { "year", $"Best i {DateTimeOffset.Now:yyyy}" }
+            { "season", $"Sesong {DateTimeOffset.Now.ToString("yyyy")}-{DateTimeOffset.Now.AddYears(1).ToString("yyyy")}" },
+            { "prevseason", $"Sesong {DateTimeOffset.Now.AddYears(-1).ToString("yyyy")}-{DateTimeOffset.Now.ToString("yyyy")}" }
+            //{ "year", $"Best i {DateTimeOffset.Now.ToString("yyyy")}" }
         };
 
         public Dictionary<string, IEnumerable<SegmentTime>> Times { get; set; } = new Dictionary<string, IEnumerable<SegmentTime>>();
@@ -47,7 +58,9 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
         public async Task<IActionResult> OnGetAsync(string Track, string Period)
         {
-            ViewData["Title"] = titles[Period];
+            string periodKey = periods.ContainsKey(Period) ? Period : periods.First().Key;
+
+            ViewData["Title"] = titles[periodKey];
 
             var track = await _service.GetTrackBySlug(Track);
             if (track == null)
@@ -55,7 +68,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
                 return NotFound($"Track: {Track}");
             }
 
-            var period = periods[Period];
+            var period = periods[periodKey];
 
             var fromdate = period.FromTime;
             var todate = period.ToTime;
@@ -68,7 +81,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             var counter = _context.Set<TrackStatisticsItem>().SingleOrDefault(x => x.Layout.Track == track && x.StatisticsItem.IsLapCounter);
             if (counter != null)
             {
-                Distances = await _service.GetCount(counter, fromdate, todate, 5);
+                Distances = await _service.GetCount(counter, fromdate, todate, 3);
             }
             
             var scheme = Request.Scheme;
@@ -78,7 +91,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             
             var periodEnumerator = periods.GetEnumerator();
 
-            while (periodEnumerator.MoveNext() && periodEnumerator.Current.Key != Period)
+            while (periodEnumerator.MoveNext() && periodEnumerator.Current.Key != periodKey)
             {               
             }
             if (periodEnumerator.MoveNext())
