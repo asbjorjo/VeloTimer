@@ -29,11 +29,11 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             { "day", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfDay().UtcDateTime } },
             { "month", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfMonth().UtcDateTime } },
             { "season", new TimeParameters{
-                FromTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonStartMth).UtcDateTime, 
-                ToTime = DateTimeOffset.Now.StartOfYear().AddYears(1).AddMonths(SeasonEndMth).UtcDateTime } }
+                FromTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonStartMth-1).UtcDateTime, 
+                ToTime = DateTimeOffset.Now.StartOfYear().AddYears(1).AddMonths(SeasonEndMth-1).EndOfMonth().UtcDateTime } },
             { "prevseason", new TimeParameters{
-                FromTime = DateTimeOffset.Now.StartOfYear().AddYears(-1).AddMonths(SeasonStartMth).UtcDateTime,
-                ToTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonEndMth).UtcDateTime } }
+                FromTime = DateTimeOffset.Now.StartOfYear().AddYears(-1).AddMonths(SeasonStartMth-1).UtcDateTime,
+                ToTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonEndMth-1).EndOfMonth().UtcDateTime } }
             //{ "year", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfYear().UtcDateTime } }
         };
         private readonly Dictionary<string, string> titles = new Dictionary<string, string>
@@ -41,7 +41,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             { "alltime", "Rekorder" },
             { "day", "Best i dag" },
             { "month", $"Best i {DateTimeOffset.Now.ToString("MMMM", CultureInfo.GetCultureInfo("nb-NO"))}" },
-            { "season", $"Sesong {DateTimeOffset.Now.ToString("yyyy")}-{DateTimeOffset.Now.AddYears(1).ToString("yyyy")}" }
+            { "season", $"Sesong {DateTimeOffset.Now.ToString("yyyy")}-{DateTimeOffset.Now.AddYears(1).ToString("yyyy")}" },
             { "prevseason", $"Sesong {DateTimeOffset.Now.AddYears(-1).ToString("yyyy")}-{DateTimeOffset.Now.ToString("yyyy")}" }
             //{ "year", $"Best i {DateTimeOffset.Now.ToString("yyyy")}" }
         };
@@ -58,7 +58,9 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
         public async Task<IActionResult> OnGetAsync(string Track, string Period)
         {
-            ViewData["Title"] = titles[Period];
+            string periodKey = periods.ContainsKey(Period) ? Period : periods.First().Key;
+
+            ViewData["Title"] = titles[periodKey];
 
             var track = await _service.GetTrackBySlug(Track);
             if (track == null)
@@ -66,7 +68,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
                 return NotFound($"Track: {Track}");
             }
 
-            var period = periods[Period];
+            var period = periods[periodKey];
 
             var fromdate = period.FromTime;
             var todate = period.ToTime;
@@ -89,7 +91,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             
             var periodEnumerator = periods.GetEnumerator();
 
-            while (periodEnumerator.MoveNext() && periodEnumerator.Current.Key != Period)
+            while (periodEnumerator.MoveNext() && periodEnumerator.Current.Key != periodKey)
             {               
             }
             if (periodEnumerator.MoveNext())
