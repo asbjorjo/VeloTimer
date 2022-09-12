@@ -16,6 +16,9 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 {
     public class RecordsModel : PageModel
     {
+        private const int SeasonStartMth = 9;
+        private const int SeasonEndMth = 3;
+
         private readonly ITrackService _service;
         private readonly VeloTimerDbContext _context;
 
@@ -25,14 +28,22 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             { "alltime", new TimeParameters() },
             { "day", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfDay().UtcDateTime } },
             { "month", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfMonth().UtcDateTime } },
-            { "year", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfYear().UtcDateTime } }
+            { "season", new TimeParameters{
+                FromTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonStartMth).UtcDateTime, 
+                ToTime = DateTimeOffset.Now.StartOfYear().AddYears(1).AddMonths(SeasonEndMth).UtcDateTime } }
+            { "prevseason", new TimeParameters{
+                FromTime = DateTimeOffset.Now.StartOfYear().AddYears(-1).AddMonths(SeasonStartMth).UtcDateTime,
+                ToTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonEndMth).UtcDateTime } }
+            //{ "year", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfYear().UtcDateTime } }
         };
         private readonly Dictionary<string, string> titles = new Dictionary<string, string>
         {
             { "alltime", "Rekorder" },
             { "day", "Best i dag" },
             { "month", $"Best i {DateTimeOffset.Now.ToString("MMMM", CultureInfo.GetCultureInfo("nb-NO"))}" },
-            { "year", $"Best i {DateTimeOffset.Now.ToString("yyyy")}" }
+            { "season", $"Sesong {DateTimeOffset.Now.ToString("yyyy")}-{DateTimeOffset.Now.AddYears(1).ToString("yyyy")}" }
+            { "prevseason", $"Sesong {DateTimeOffset.Now.AddYears(-1).ToString("yyyy")}-{DateTimeOffset.Now.ToString("yyyy")}" }
+            //{ "year", $"Best i {DateTimeOffset.Now.ToString("yyyy")}" }
         };
 
         public Dictionary<string, IEnumerable<SegmentTime>> Times { get; set; } = new Dictionary<string, IEnumerable<SegmentTime>>();
