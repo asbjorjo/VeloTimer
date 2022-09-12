@@ -66,6 +66,11 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
                 return NotFound($"Track: {Track}");
             }
 
+            if (!periods.ContainsKey(Period))
+            {
+                Period = periods.First().Key;
+            }
+
             var period = periods[Period];
 
             var fromdate = period.FromTime;
