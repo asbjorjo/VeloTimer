@@ -29,11 +29,11 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             { "day", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfDay().UtcDateTime } },
             { "month", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfMonth().UtcDateTime } },
             { "season", new TimeParameters{
-                FromTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonStartMth).UtcDateTime, 
-                ToTime = DateTimeOffset.Now.StartOfYear().AddYears(1).AddMonths(SeasonEndMth).UtcDateTime } },
+                FromTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonStartMth-1).UtcDateTime, 
+                ToTime = DateTimeOffset.Now.StartOfYear().AddYears(1).AddMonths(SeasonEndMth-1).EndOfMonth().UtcDateTime } },
             { "prevseason", new TimeParameters{
-                FromTime = DateTimeOffset.Now.StartOfYear().AddYears(-1).AddMonths(SeasonStartMth).UtcDateTime,
-                ToTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonEndMth).UtcDateTime } }
+                FromTime = DateTimeOffset.Now.StartOfYear().AddYears(-1).AddMonths(SeasonStartMth-1).UtcDateTime,
+                ToTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonEndMth-1).EndOfMonth().UtcDateTime } }
             //{ "year", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfYear().UtcDateTime } }
         };
         private readonly Dictionary<string, string> titles = new Dictionary<string, string>
