@@ -58,15 +58,15 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
         public async Task<IActionResult> OnGetAsync(string Track, string Period)
         {
-            ViewData["Title"] = titles[Period];
+            string periodKey = periods.ContainsKey(Period) ? Period : periods.First().Key;
+
+            ViewData["Title"] = titles[periodKey];
 
             var track = await _service.GetTrackBySlug(Track);
             if (track == null)
             {
                 return NotFound($"Track: {Track}");
             }
-
-            string periodKey = periods.ContainsKey(Period) ? Period : periods.First().Key;
 
             var period = periods[periodKey];
 
@@ -91,7 +91,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             
             var periodEnumerator = periods.GetEnumerator();
 
-            while (periodEnumerator.MoveNext() && periodEnumerator.Current.Key != Period)
+            while (periodEnumerator.MoveNext() && periodEnumerator.Current.Key != periodKey)
             {               
             }
             if (periodEnumerator.MoveNext())
