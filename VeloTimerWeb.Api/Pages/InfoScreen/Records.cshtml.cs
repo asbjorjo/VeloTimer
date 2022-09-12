@@ -30,7 +30,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             { "month", new TimeParameters{ FromTime = DateTimeOffset.Now.StartOfMonth().UtcDateTime } },
             { "season", new TimeParameters{
                 FromTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonStartMth).UtcDateTime, 
-                ToTime = DateTimeOffset.Now.StartOfYear().AddYears(1).AddMonths(SeasonEndMth).UtcDateTime } }
+                ToTime = DateTimeOffset.Now.StartOfYear().AddYears(1).AddMonths(SeasonEndMth).UtcDateTime } },
             { "prevseason", new TimeParameters{
                 FromTime = DateTimeOffset.Now.StartOfYear().AddYears(-1).AddMonths(SeasonStartMth).UtcDateTime,
                 ToTime = DateTimeOffset.Now.StartOfYear().AddMonths(SeasonEndMth).UtcDateTime } }
@@ -41,7 +41,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             { "alltime", "Rekorder" },
             { "day", "Best i dag" },
             { "month", $"Best i {DateTimeOffset.Now.ToString("MMMM", CultureInfo.GetCultureInfo("nb-NO"))}" },
-            { "season", $"Sesong {DateTimeOffset.Now.ToString("yyyy")}-{DateTimeOffset.Now.AddYears(1).ToString("yyyy")}" }
+            { "season", $"Sesong {DateTimeOffset.Now.ToString("yyyy")}-{DateTimeOffset.Now.AddYears(1).ToString("yyyy")}" },
             { "prevseason", $"Sesong {DateTimeOffset.Now.AddYears(-1).ToString("yyyy")}-{DateTimeOffset.Now.ToString("yyyy")}" }
             //{ "year", $"Best i {DateTimeOffset.Now.ToString("yyyy")}" }
         };
