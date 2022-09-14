@@ -7,11 +7,10 @@
     <DialogContent>
         <MudCardMedia Image="images/mylaps-prochip-flex.png" Height="200"/>
         <MudForm Model="@transponderName" @ref="@_transponderForm">
-            <MudTextField Mask="@transponderLabelMask"
-                          @bind-Value="transponderName.TransponderLabel" 
+            <MudTextField @bind-Value="transponderName.TransponderLabel" 
                           Label="Brikke" For="@(() => transponderName.TransponderLabel)" 
                           Validation="@(_formValidator.ValidateValue)" 
-                          Immediate="true" 
+                          Immediate="true"
                           Counter=8 />
             <MudDateRangePicker Label="Gyldighet" @bind-DateRange="transponderName.ValidPeriod" @ref="@_dateRangePicker" PickerVariant="PickerVariant.Dialog" DisplayMonths=1>
                 <PickerActions>
@@ -41,7 +40,7 @@
     public PatternMask transponderLabelMask = new PatternMask("AA-nnnnn")
     {
         MaskChars = new[] { 
-            new MaskChar('A', @"[a-zA-Z]"),
+            new MaskChar('A', @"[cCfFgGhHkKlLnNpPrTsStTvVwWxXzZ]"),
             new MaskChar('n', @"[0-9]")
         },
         Transformation = AllUpperCase
