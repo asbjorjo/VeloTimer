@@ -63,7 +63,7 @@ namespace VeloTimer.Shared.Util
                 code = "C" + code;
             }
 
-            if (code.Length == 8)
+            if (code.Length == 8 && int.TryParse(code.Substring(3, 5), out _))
             {
                 var codeArray = code.ToCharArray();
 
