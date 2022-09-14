@@ -7,7 +7,12 @@
     <DialogContent>
         <MudCardMedia Image="images/mylaps-prochip-flex.png" Height="200"/>
         <MudForm Model="@transponderName" @ref="@_transponderForm">
-            <MudTextField @bind-Value="transponderName.TransponderLabel" Label="Brikke" For="@(() => transponderName.TransponderLabel)" Validation="@(_formValidator.ValidateValue)" Immediate="true" Counter=8 />
+            <MudTextField Mask="@transponderLabelMask"
+                          @bind-Value="transponderName.TransponderLabel" 
+                          Label="Brikke" For="@(() => transponderName.TransponderLabel)" 
+                          Validation="@(_formValidator.ValidateValue)" 
+                          Immediate="true" 
+                          Counter=8 />
             <MudDateRangePicker Label="Gyldighet" @bind-DateRange="transponderName.ValidPeriod" @ref="@_dateRangePicker" PickerVariant="PickerVariant.Dialog" DisplayMonths=1>
                 <PickerActions>
                     <MudButton Class="mr-auto align-self-start" OnClick="@(() => _dateRangePicker.Clear())">Nullstill</MudButton>
@@ -27,16 +32,27 @@
 </MudDialog>
 
 @code {
-    [CascadingParameter]
-    MudDialogInstance MudDialog { get; set; }
+        [CascadingParameter]
+        MudDialogInstance MudDialog { get; set; }
 
-    [Parameter]
-    public TransponderOwnershipWeb TransponderOwnership { get; set; }
+        [Parameter]
+        public TransponderOwnershipWeb TransponderOwnership { get; set; }
+
+    public PatternMask transponderLabelMask = new PatternMask("AA-nnnnn")
+    {
+        MaskChars = new[] { 
+            new MaskChar('A', @"[a-zA-Z]"),
+            new MaskChar('n', @"[0-9]")
+        },
+        Transformation = AllUpperCase
+    };
 
     private MudDateRangePicker _dateRangePicker;
     private MudForm _transponderForm;
     private TransponderOwnershipWebForm transponderName = new();
     private TransponderOwnershipValidator _formValidator = new();
+
+    private static char AllUpperCase(char c) => c.ToString().ToUpperInvariant()[0];
 
     protected async override Task OnParametersSetAsync()
     {
