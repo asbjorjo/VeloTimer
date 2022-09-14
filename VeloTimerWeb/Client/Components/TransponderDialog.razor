@@ -101,14 +101,24 @@
 
     public class TransponderOwnershipValidator : AbstractValidator<TransponderOwnershipWebForm>
     {
+        private static readonly char[] Characters = { 'C', 'F', 'G', 'H', 'K', 'L', 'N', 'P', 'R', 'S', 'T', 'V', 'W', 'X', 'Z' };
+
         public TransponderOwnershipValidator()
         {
+
             RuleFor(x => x.Owner)
                 .NotEmpty().WithMessage("Eier for brikke mangler");
 
             RuleFor(x => x.TransponderLabel)
                 .NotEmpty().WithMessage("Skriv inn kode fra brikke")
-                .Length(8).WithMessage("For få tegn i kode")
+                .Must((value) => value.ToUpper().IndexOfAny(Characters) == 0)
+                    .WithMessage("Ugyldige første tegn i kode")
+                .Must((value) => value.Length < 2 || value.ToUpper().LastIndexOfAny(Characters) == 1)
+                    .WithMessage("Ugyldige andre tegn i kode")
+                .Must((value) => value.Length < 3 || value.IndexOf('-') == 2)
+                    .WithMessage("Tredje tegn må være bindestrek")
+                .MinimumLength(8).WithMessage("For få tegn i kode")
+                .MaximumLength(8).WithMessage("For mange tegn i kode")
                 .Must((value) => TransponderIdConverter.CodeToId(value) > 0).WithMessage("{PropertyValue} er ikke en gyldig kode");
         }
 
