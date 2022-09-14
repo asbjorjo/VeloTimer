@@ -11,7 +11,7 @@
     <PackageReference Include="AspNet.Security.OAuth.Strava" Version="6.0.11" />
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="8.1.1" />
     <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.2.2" />
-    <PackageReference Include="Azure.Extensions.AspNetCore.DataProtection.Blobs" Version="1.2.2" />
+    <PackageReference Include="Azure.Extensions.AspNetCore.DataProtection.Blobs" Version="1.2.3" />
     <PackageReference Include="Azure.Extensions.AspNetCore.DataProtection.Keys" Version="1.1.0" />
     <PackageReference Include="Azure.Identity" Version="1.6.1" />
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.10.0" />
@@ -26,7 +26,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="6.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="6.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Abstractions" Version="2.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="6.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="6.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="6.0.8" />
     <PackageReference Include="Microsoft.Azure.Services.AppAuthentication" Version="1.6.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.8" />
