@@ -31,11 +31,11 @@
 </MudDialog>
 
 @code {
-        [CascadingParameter]
-        MudDialogInstance MudDialog { get; set; }
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
 
-        [Parameter]
-        public TransponderOwnershipWeb TransponderOwnership { get; set; }
+    [Parameter]
+    public TransponderOwnershipWeb TransponderOwnership { get; set; }
 
     public PatternMask transponderLabelMask = new PatternMask("AA-nnnnn")
     {
@@ -111,14 +111,16 @@
 
             RuleFor(x => x.TransponderLabel)
                 .NotEmpty().WithMessage("Skriv inn kode fra brikke")
-                .Must((value) => value.ToUpper().IndexOfAny(Characters) == 0)
-                    .WithMessage("Ugyldige første tegn i kode")
-                .Must((value) => value.Length < 2 || value.ToUpper().LastIndexOfAny(Characters) == 1)
-                    .WithMessage("Ugyldige andre tegn i kode")
-                .Must((value) => value.Length < 3 || value.IndexOf('-') == 2)
-                    .WithMessage("Tredje tegn må være bindestrek")
-                .MinimumLength(8).WithMessage("For få tegn i kode")
                 .MaximumLength(8).WithMessage("For mange tegn i kode")
+                .Must((value) => value.Length < 1 || Characters.Contains(value.ToUpper().First()))
+                .WithMessage("Ugyldige første tegn i kode")
+                .Must((value) => value.Length < 2 || Characters.Contains(value.ToUpper().ElementAt(1)))
+                    .WithMessage("Ugyldige andre tegn i kode")
+                .Must((value) => value.Length < 3 || value.ElementAt(2) == '-')
+                    .WithMessage("Tredje tegn må være bindestrek")
+                .Must((value) => value.Length < 4 || int.TryParse(value.Substring(3), out _))
+                    .WithMessage("Tegn 5-8 må være tall")
+                .MinimumLength(8).WithMessage("For få tegn i kode")
                 .Must((value) => TransponderIdConverter.CodeToId(value) > 0).WithMessage("{PropertyValue} er ikke en gyldig kode");
         }
 
