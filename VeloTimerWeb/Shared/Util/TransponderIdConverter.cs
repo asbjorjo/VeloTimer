@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace VeloTimer.Shared.Util
 {
@@ -63,7 +64,7 @@ namespace VeloTimer.Shared.Util
                 code = "C" + code;
             }
 
-            if (code.Length == 8 && int.TryParse(code.Substring(3, 5), out _))
+            if (code.Length == 8 && code.Substring(3, 5).All(char.IsDigit))
             {
                 var codeArray = code.ToCharArray();
 

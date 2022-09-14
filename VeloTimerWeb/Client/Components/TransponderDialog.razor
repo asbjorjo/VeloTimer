@@ -118,7 +118,7 @@
                     .WithMessage("Ugyldige andre tegn i kode")
                 .Must((value) => value.Length < 3 || value.ElementAt(2) == '-')
                     .WithMessage("Tredje tegn må være bindestrek")
-                .Must((value) => value.Length < 4 || int.TryParse(value.Substring(3), out _))
+                .Must((value) => value.Length < 4 || value.Substring(3).All(Char.IsDigit))
                     .WithMessage("Tegn 5-8 må være tall")
                 .MinimumLength(8).WithMessage("For få tegn i kode")
                 .Must((value) => TransponderIdConverter.CodeToId(value) > 0).WithMessage("{PropertyValue} er ikke en gyldig kode");
