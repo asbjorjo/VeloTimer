@@ -8,7 +8,7 @@
 
     @section sponsor
     {
-    <img class="img-fluid" alt="Tørst Energidrikk" src="/img/toerst-energidrikk.png" />
+    <img class="img-fluid" style="width: 100% \9;" alt="Tørst Energidrikk" src="/img/toerst-energidrikk.png" />
 }
 
 @model VeloTimerWeb.Api.Pages.InfoScreen.LapTimesModel
@@ -29,25 +29,25 @@
 @{
             if (Model.Times == null)
             {
-                <tr>
-                    <td colspan="3">
-                        Laster...
-                    </td>
-                </tr>
+                    <tr>
+                        <td colspan="3">
+                            Laster...
+                        </td>
+                    </tr>
             }
             else
             {
                 foreach (var segment in Model.Times)
                 {
-                    <tr>
-                        <td>@segment.Rider</td>
-                        @if(Model.HasSplit)
+                        <tr>
+                            <td>@segment.Rider</td>
+                            @if(Model.HasSplit)
                         {
-                            <td class="text-right">@Formatters.FormatTime(segment.Intermediates.First().Time)</td>
+                                <td class="text-right">@Formatters.FormatTime(segment.Intermediates.First().Time)</td>
                         }
-                        <td class="text-right">@Formatters.FormatTime(segment.Time)</td>
-                        <td class="text-right">@Formatters.FormatSpeed(segment.Speed)</td>
-                    </tr>
+                            <td class="text-right">@Formatters.FormatTime(segment.Time)</td>
+                            <td class="text-right">@Formatters.FormatSpeed(segment.Speed)</td>
+                        </tr>
                 }
             }
     }
