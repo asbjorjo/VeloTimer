@@ -22,7 +22,11 @@
                     <img class="img-fluid" alt="Sola Arena" src="https://varenergiarenasola.no/wp-content/themes/solaarena/images/logo.svg?ver=7" />
                 </div>
                 <div class="d-flex col justify-content-center text-center">
-                    <h2>@ViewData["Title"]</h2>
+                    @RenderSection("title", false)
+                    @if (ViewData["Title"] is not null)
+                    {
+                        < h2 > @ViewData["Title"] </ h2 >
+                    }
                 </div>
                 <div class="d-flex col justify-content-end h-100">
                     @RenderSection("sponsor", false)

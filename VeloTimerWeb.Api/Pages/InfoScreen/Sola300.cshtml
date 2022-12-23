@@ -1,0 +1,75 @@
+﻿@page
+@model VeloTimerWeb.Api.Pages.InfoScreen.Sola300Model
+@using VeloTimer.Shared.Util
+
+@section head
+{
+    <meta http-equiv="refresh" content="60")>
+}
+
+@section title
+{
+    <img style="height: 90px" alt="Sola 300" src="/img/julefestchallenge.png" />
+}
+
+@section sponsor
+{
+    <img class="img-fluid" style="width: 100% \9;" alt="Tørst Energidrikk" src="/img/toerst-energidrikk.png" />
+}
+
+@{
+    <div class="col-12 col-xl-6">
+        <div class="row">
+            <div class="col">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th scope="col" class="mw-100">Rytter</th>    
+                            <th scope="col" class="text-right">Runder</th>
+                            <th scope="col" class="text-right">km</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int position = 0; position < Model.Distances.Count() && position < 12; position++)
+                        {
+                            <tr>
+                                <th scope="row">@(position+1)</th>
+                                <td>@Model.Distances.ElementAt(position).Rider</td>    
+                                <td class="text-right">@Model.Distances.ElementAt(position).Count</td>
+                                <td class="text-right">@String.Format("{0:0.00}", Model.Distances.ElementAt(position).Distance)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-6">
+            <div class="row">
+                <div class="col">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th scope="col" class="mw-100">Rytter</th>    
+                                <th scope="col" class="text-right">Runder</th>
+                                <th scope="col" class="text-right">km</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @for (int position = 12; position < Model.Distances.Count(); position++)
+                        {
+                                    <tr>
+                                        <th scope="row">@(position + 1)</th>
+                                        <td>@Model.Distances.ElementAt(position).Rider</td>    
+                                        <td class="text-right">@Model.Distances.ElementAt(position).Count</td>
+                                        <td class="text-right">@String.Format("{0:0.00}", Model.Distances.ElementAt(position).Distance)</td>
+                                    </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+    </div>
+}
