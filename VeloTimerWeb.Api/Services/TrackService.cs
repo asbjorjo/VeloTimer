@@ -68,7 +68,12 @@ namespace VeloTimerWeb.Api.Services
 
         public async Task<IEnumerable<SegmentDistance>> GetCount(IEnumerable<TrackStatisticsItem> counter, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count = 10)
         {
-            if (counter.Count() == 1) return await GetCount(counter.First(), FromTime, ToTime, Count);
+            if (counter.Count() == 1)
+            {
+                _logger.LogInformation("Passing a list of one, do it the old way.");
+
+                return await GetCount(counter.First(), FromTime, ToTime, Count);
+            }
 
             var counts = Enumerable.Empty<SegmentDistance>();
             var fromtime = FromTime.UtcDateTime;
@@ -104,6 +109,8 @@ namespace VeloTimerWeb.Api.Services
                     Count = g.Count(),
                     Distance = g.Count() * counter.First().Layout.Distance * counter.First().Laps / 1000
                 };
+
+            _logger.LogInformation(query.ToString());
 
             counts = await query
                 .Take(Count)
