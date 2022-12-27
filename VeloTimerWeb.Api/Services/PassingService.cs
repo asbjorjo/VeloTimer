@@ -90,7 +90,7 @@ namespace VeloTimerWeb.Api.Services
 
             _context.Add(passing);
             await _context.SaveChangesAsync();
-            _logger.LogInformation("New passing -- {Track} - {Loop} - {Time} - {Transponder}", passing.Loop.Track.Slug, passing.Loop.LoopId, passing.Time, passing.Transponder.Id);
+            _logger.LogInformation("New passing -- {Track} - {Loop}/{LoopDescr} - {Time} - {Transponder}", passing.Loop.Track.Slug, passing.Loop.LoopId, passing.Loop.Description, passing.Time, passing.Transponder.Id);
 
             await _hubContext.Clients.Group($"timingloop_{passing.Loop.Id}").NewPassings();
             await _hubContext.Clients.Group($"transponder_{passing.Transponder.Id}").NewPassings();
@@ -302,7 +302,7 @@ namespace VeloTimerWeb.Api.Services
                 .Include(s => s.End)
                 .SingleOrDefaultAsync(s => s.End == passing.Loop);
 
-            _logger.LogInformation("Found {Segment} ending with {Loop} at {Track}", trackSegment.Id, passing.Loop.Description, passing.Loop.Track.Slug);
+            _logger.LogInformation("Found {Segment} ending with {Loop}/{LoopDescr} at {Track}", trackSegment.Id, passing.Loop.Id, passing.Loop.Description, passing.Loop.Track.Slug);
 
             if (trackSegment != null)
             {
@@ -313,7 +313,8 @@ namespace VeloTimerWeb.Api.Services
                     .Include(s => s.Loop)
                     .FirstOrDefaultAsync();
 
-                if (previous != null) _logger.LogInformation("Found previous passing {Passing} at {Loop}", previous.Id, previous.Loop.Description);
+
+                if (previous != null) _logger.LogInformation("Found previous passing {Passing} past {Loop}/{LoopDescr} at {Time}", previous.Id, previous.Loop.Id, previous.Loop.Description, previous.Time);
 
                 if (previous != null && previous.Loop == trackSegment.Start)
                 {
