@@ -313,7 +313,7 @@ namespace VeloTimerWeb.Api.Services
                     .Include(s => s.Loop)
                     .FirstOrDefaultAsync();
 
-                if (previous != null) _logger.LogInformation("Found previous passing {Passing}", previous.Id);
+                if (previous != null) _logger.LogInformation("Found previous passing {Passing} at {Loop}", previous.Id, previous.Loop.Description);
 
                 if (previous != null && previous.Loop == trackSegment.Start)
                 {
