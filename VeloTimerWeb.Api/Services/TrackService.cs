@@ -110,7 +110,7 @@ namespace VeloTimerWeb.Api.Services
                     Distance = g.Count() * counter.First().Layout.Distance * counter.First().Laps / 1000
                 };
 
-            _logger.LogInformation(query.ToString());
+            _logger.LogInformation(query.ToQueryString());
 
             counts = await query
                 .Take(Count)
