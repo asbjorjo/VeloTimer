@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -57,7 +58,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             var fromdate = period.FromTime;
             var todate = period.ToTime;
 
-            var counter = _context.Set<TrackStatisticsItem>().SingleOrDefault(x => x.Layout.Track == track && x.StatisticsItem.IsLapCounter);
+            var counter = await _context.Set<TrackStatisticsItem>().Where(x => x.Layout.Track == track && x.StatisticsItem.IsLapCounter).ToListAsync();
             if (counter != null)
             {
                 Distances = await _service.GetCount(counter, fromdate, todate, 24);

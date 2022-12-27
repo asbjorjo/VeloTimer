@@ -66,6 +66,52 @@ namespace VeloTimerWeb.Api.Services
             return counts;
         }
 
+        public async Task<IEnumerable<SegmentDistance>> GetCount(IEnumerable<TrackStatisticsItem> counter, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count = 10)
+        {
+            if (counter.Count() == 1) return await GetCount(counter.First(), FromTime, ToTime, Count);
+
+            var counts = Enumerable.Empty<SegmentDistance>();
+            var fromtime = FromTime.UtcDateTime;
+            var totime = ToTime.UtcDateTime;
+
+            if (fromtime >= totime)
+                return counts;
+
+            foreach (var statisticsItem in counter)
+            {
+                await _context.Entry(statisticsItem)
+                    .Reference(x => x.Layout)
+                    .LoadAsync();
+            }
+
+            var query =
+                from tsi in _context.Set<TransponderStatisticsItem>()
+                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                where
+                    counter.Contains(tsi.StatisticsItem)
+                    && tsi.StartTime >= fromtime
+                    && tsi.EndTime <= totime
+                    && tsi.Time >= tsi.StatisticsItem.MinTime
+                    && tsi.Time <= tsi.StatisticsItem.MaxTime
+                    && town.OwnedFrom <= tsi.StartTime
+                    && town.OwnedUntil >= tsi.EndTime
+                    && town.Owner.IsPublic
+                group tsi by new { town.Owner.Id, town.Owner.Name } into g
+                orderby g.Count() descending
+                select new SegmentDistance
+                {
+                    Rider = g.Key.Name,
+                    Count = g.Count(),
+                    Distance = g.Count() * counter.First().Layout.Distance * counter.First().Laps / 1000
+                };
+
+            counts = await query
+                .Take(Count)
+                .ToListAsync();
+
+            return counts;
+        }
+
         public async Task<IEnumerable<SegmentTime>> GetFastest(IEnumerable<TrackStatisticsItem> StatisticsItems, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count)
         {
             var times = Enumerable.Empty<SegmentTime>();
