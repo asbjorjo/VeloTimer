@@ -85,6 +85,8 @@ namespace VeloTimerWeb.Api.Services
                 return passing;
             }
 
+            int changes;
+
             _context.Add(passing);
             await _context.SaveChangesAsync();
             _logger.LogInformation("New passing -- {Track} - {Loop} - {Time} - {Transponder}", passing.Loop.Track.Slug, passing.Loop.LoopId, passing.Time, passing.Transponder.Id);
@@ -101,8 +103,8 @@ namespace VeloTimerWeb.Api.Services
 
                 if (sectorPassings.Any())
                 {
-                    await _context.SaveChangesAsync();
-                    _logger.LogInformation("New sectorpassings -- {Transponder} - {Count}", sectorPassings.First().Transponder.Id, sectorPassings.Count());
+                    changes = await _context.SaveChangesAsync();
+                    _logger.LogInformation("New sectorpassings -- {Transponder} - {Count} - {Changes}", sectorPassings.First().Transponder.Id, sectorPassings.Count(), changes);
 
                     var layoutpassings = Enumerable.Empty<TrackLayoutPassing>();
 
@@ -114,8 +116,8 @@ namespace VeloTimerWeb.Api.Services
 
                     if (layoutpassings.Any())
                     {
-                        await _context.SaveChangesAsync();
-                        _logger.LogInformation("New layoutpassings -- {Transponder} - {Count}", layoutpassings.First().Transponder.Id, layoutpassings.Count());
+                        changes = await _context.SaveChangesAsync();
+                        _logger.LogInformation("New layoutpassings -- {Transponder} - {Count} - {Changes}", layoutpassings.First().Transponder.Id, layoutpassings.Count(), changes);
 
                         var transponderstats = Enumerable.Empty<TransponderStatisticsItem>();
                         foreach (var layoutpassing in layoutpassings)
@@ -133,7 +135,7 @@ namespace VeloTimerWeb.Api.Services
                 }
             }
 
-            var changes = await _context.SaveChangesAsync();
+            changes = await _context.SaveChangesAsync();
             _logger.LogInformation($"Changes: {changes}");
 
             return passing;
@@ -202,10 +204,14 @@ namespace VeloTimerWeb.Api.Services
                 .ThenInclude(x => x.Sector)
                 .ToListAsync();
 
+            _logger.LogInformation("Found {Layouts} ending with {Sector}", layouts.Count, sectorPassing.TrackSector);
+
             if (layouts.Any())
             {
                 foreach (var layout in layouts)
                 {
+                    _logger.LogInformation("Processing {Layout}", layout.Slug);
+
                     var transponderpassings = await _context.Set<TrackSectorPassing>()
                         .Where(x => x.Transponder == sectorPassing.Transponder)
                         .Where(x => x.EndTime <= sectorPassing.EndTime)
@@ -216,8 +222,10 @@ namespace VeloTimerWeb.Api.Services
                         .ToListAsync();
 
                     var sectors = layout.Sectors.OrderBy(x => x.Order).Select(x => x.Sector);
+                    _logger.LogInformation("Checking {Sectors} sectors using {Passings} passings", sectors.Count(), transponderpassings.Count);
 
                     var continuous = transponderpassings.Select(x => x.TrackSector.Id).SequenceEqual(sectors.Select(x => x.Id));
+                    _logger.LogInformation("Continuous? {Continuous}", continuous);
 
                     var previous = transponderpassings.First();
                     foreach (var transponderpassing in transponderpassings.Skip(1))
@@ -235,6 +243,8 @@ namespace VeloTimerWeb.Api.Services
                         _context.Add(passing);
                         passings = passings.Append(passing);
                     }
+
+                    _logger.LogInformation("Found {Passings} continous layouts", passings.Count());
                 }
             }
 
