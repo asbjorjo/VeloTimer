@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Npgsql.Replication.PgOutput.Messages;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -86,6 +87,7 @@ namespace VeloTimerWeb.Api.Services
 
             _context.Add(passing);
             await _context.SaveChangesAsync();
+            _logger.LogInformation("New passing -- {Track} - {Loop} - {Time} - {Transponder}", passing.Loop.Track.Slug, passing.Loop.LoopId, passing.Time, passing.Transponder.Id);
 
             await _hubContext.Clients.Group($"timingloop_{passing.Loop.Id}").NewPassings();
             await _hubContext.Clients.Group($"transponder_{passing.Transponder.Id}").NewPassings();
@@ -94,11 +96,13 @@ namespace VeloTimerWeb.Api.Services
 
             if (transponderPassing != null)
             {
+                _logger.LogInformation("New transponderpassing -- {Time} - {Transponder}", transponderPassing.EndTime, transponderPassing.Transponder.Id);
                 var sectorPassings = await RegisterTrackSectorPassings(transponderPassing);
 
                 if (sectorPassings.Any())
                 {
                     await _context.SaveChangesAsync();
+                    _logger.LogInformation("New sectorpassings -- {Transponder} - {Count}", sectorPassings.First().Transponder.Id, sectorPassings.Count());
 
                     var layoutpassings = Enumerable.Empty<TrackLayoutPassing>();
 
@@ -111,6 +115,7 @@ namespace VeloTimerWeb.Api.Services
                     if (layoutpassings.Any())
                     {
                         await _context.SaveChangesAsync();
+                        _logger.LogInformation("New layoutpassings -- {Transponder} - {Count}", layoutpassings.First().Transponder.Id, layoutpassings.Count());
 
                         var transponderstats = Enumerable.Empty<TransponderStatisticsItem>();
                         foreach (var layoutpassing in layoutpassings)
@@ -122,12 +127,14 @@ namespace VeloTimerWeb.Api.Services
                         if (transponderstats.Any())
                         {
                             await _context.SaveChangesAsync();
+                            _logger.LogInformation("New transponderstats -- {Transponder} - {Count}", transponderstats.First().Transponder.Id, transponderstats.Count());
                         }
                     }
                 }
             }
 
-            await _context.SaveChangesAsync();
+            var changes = await _context.SaveChangesAsync();
+            _logger.LogInformation($"Changes: {changes}");
 
             return passing;
         }
