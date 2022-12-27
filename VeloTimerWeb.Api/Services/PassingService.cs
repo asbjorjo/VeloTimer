@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using VeloTimer.Shared.Hub;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
+using VeloTimerWeb.Api.Migrations.VeloTimer;
 using VeloTimerWeb.Api.Models.Statistics;
 using VeloTimerWeb.Api.Models.Timing;
 using VeloTimerWeb.Api.Models.TrackSetup;
@@ -204,7 +205,7 @@ namespace VeloTimerWeb.Api.Services
                 .ThenInclude(x => x.Sector)
                 .ToListAsync();
 
-            _logger.LogInformation("Found {Layouts} ending with {Sector}", layouts.Count, sectorPassing.TrackSector);
+            _logger.LogInformation("Found {Layouts} ending with {Sector}", layouts.Count, sectorPassing.TrackSector.Id);
 
             if (layouts.Any())
             {
@@ -261,7 +262,9 @@ namespace VeloTimerWeb.Api.Services
                 .Where(x => x.Segments.OrderByDescending(x => x.Order).First().Segment == transponderPassing.TrackSegment)
                 .Include(x => x.Segments)
                 .ThenInclude(x => x.Segment)
-                .ToListAsync();
+            .ToListAsync();
+
+            _logger.LogInformation("Found {Sectors} ending with {Segment}", trackSectors.Count, transponderPassing.Id);
 
             if (trackSectors.Any())
             {
@@ -288,6 +291,7 @@ namespace VeloTimerWeb.Api.Services
                 }
             }
 
+            _logger.LogInformation("Produced {Passings} passings", passings.Count());
             return passings;
         }
 
@@ -298,6 +302,8 @@ namespace VeloTimerWeb.Api.Services
                 .Include(s => s.End)
                 .SingleOrDefaultAsync(s => s.End == passing.Loop);
 
+            _logger.LogInformation("Found {Segment} ending with {Loop} at {Track}", trackSegment.Id, passing.Loop.Description, passing.Loop.Track.Slug);
+
             if (trackSegment != null)
             {
                 var previous = await _context.Set<Passing>()
@@ -306,6 +312,8 @@ namespace VeloTimerWeb.Api.Services
                     .OrderByDescending(p => p.Time)
                     .Include(s => s.Loop)
                     .FirstOrDefaultAsync();
+
+                if (previous != null) _logger.LogInformation("Found previous passing {Passing}", previous.Id);
 
                 if (previous != null && previous.Loop == trackSegment.Start)
                 {
@@ -316,6 +324,7 @@ namespace VeloTimerWeb.Api.Services
                 }
             }
 
+            _logger.LogInformation("Found nothing, returning nothing");
             return null;
         }
     }
