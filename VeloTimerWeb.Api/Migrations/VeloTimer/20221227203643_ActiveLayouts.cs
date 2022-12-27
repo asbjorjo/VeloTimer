@@ -138,6 +138,9 @@ namespace VeloTimerWeb.Api.Migrations.VeloTimer
                 principalTable: "track_layout_passing",
                 principalColumn: "id",
                 onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.Sql("update velotimer.track_segment set active = true");
+            migrationBuilder.Sql("update velotimer.track_layout set active = true");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
