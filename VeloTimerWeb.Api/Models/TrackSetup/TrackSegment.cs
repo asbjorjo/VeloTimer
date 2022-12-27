@@ -24,6 +24,7 @@ namespace VeloTimerWeb.Api.Models.TrackSetup
         public TimingLoop End { get; private set; }
 
         public double Length { get; private set; }
+        public bool Active { get; set; } = false;
     }
 
     public class TrackSector

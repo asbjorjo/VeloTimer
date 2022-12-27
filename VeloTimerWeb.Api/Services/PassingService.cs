@@ -200,6 +200,7 @@ namespace VeloTimerWeb.Api.Services
             var passings = Enumerable.Empty<TrackLayoutPassing>();
 
             var layouts = await _context.Set<TrackLayout>()
+                .Where(x => x.Active)
                 .Where(x => x.Sectors.OrderByDescending(x => x.Order).First().Sector == sectorPassing.TrackSector)
                 .Include(x => x.Sectors)
                 .ThenInclude(x => x.Sector)
@@ -300,7 +301,7 @@ namespace VeloTimerWeb.Api.Services
             var trackSegment = await _context.Set<TrackSegment>()
                 .Include(s => s.Start)
                 .Include(s => s.End)
-                .SingleOrDefaultAsync(s => s.End == passing.Loop);
+                .SingleOrDefaultAsync(s => s.Active && s.End == passing.Loop);
 
             _logger.LogInformation("Found {Segment} ending with {Loop}/{LoopDescr} at {Track}", trackSegment.Id, passing.Loop.Id, passing.Loop.Description, passing.Loop.Track.Slug);
 

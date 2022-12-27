@@ -14,6 +14,7 @@ namespace VeloTimerWeb.Api.Models.TrackSetup
         public ICollection<TrackLayoutSector> Sectors { get; private set; } = new List<TrackLayoutSector>();
         public double Distance { get; set; }
         public string Slug { get; set; }
+        public bool Active { get; set; } = false;
 
         public static TrackLayout Create(Track track, string name, IOrderedEnumerable<TrackSector> sectors)
         {
