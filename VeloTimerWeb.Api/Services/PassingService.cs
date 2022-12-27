@@ -224,6 +224,9 @@ namespace VeloTimerWeb.Api.Services
                     var sectors = layout.Sectors.OrderBy(x => x.Order).Select(x => x.Sector);
                     _logger.LogInformation("Checking {Sectors} sectors using {Passings} passings", sectors.Count(), transponderpassings.Count);
 
+                    _logger.LogInformation("Layout sectors: {Sectors}", string.Join(",", sectors.Select(x => x.Id)));
+                    _logger.LogInformation("Passing sectors: {Sectors}", string.Join(",", transponderpassings.Select(x => x.TrackSector.Id)));
+
                     var continuous = transponderpassings.Select(x => x.TrackSector.Id).SequenceEqual(sectors.Select(x => x.Id));
                     _logger.LogInformation("Continuous? {Continuous}", continuous);
 
