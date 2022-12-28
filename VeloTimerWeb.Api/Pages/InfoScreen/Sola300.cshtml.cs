@@ -8,10 +8,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Data.Models;
 using VeloTimer.Shared.Data.Parameters;
-using VeloTimer.Shared.Util;
-using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models.Statistics;
-using VeloTimerWeb.Api.Services;
+using VeloTime.Services;
+using VeloTime.Storage.Data;
+using VeloTime.Storage.Models.Statistics;
 
 namespace VeloTimerWeb.Api.Pages.InfoScreen
 {
