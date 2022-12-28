@@ -5,12 +5,12 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using VeloTime.Services;
+using VeloTime.Storage.Data;
+using VeloTime.Storage.Models.Statistics;
 using VeloTimer.Shared.Data.Models;
 using VeloTimer.Shared.Data.Parameters;
 using VeloTimer.Shared.Util;
-using VeloTimerWeb.Api.Data;
-using VeloTimerWeb.Api.Models.Statistics;
-using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Pages.InfoScreen
 {
