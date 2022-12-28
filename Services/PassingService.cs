@@ -75,18 +75,23 @@ namespace VeloTime.Services
                 return passing;
             }
 
+            int changes;
+
             _context.Add(passing);
             await _context.SaveChangesAsync();
+            _logger.LogInformation("New passing -- {Track} - {Loop}/{LoopDescr} - {Time} - {Transponder}", passing.Loop.Track.Slug, passing.Loop.LoopId, passing.Loop.Description, passing.Time, passing.Transponder.Id);
 
             var transponderPassing = await RegisterTransponderPassing(passing);
 
             if (transponderPassing != null)
             {
+                _logger.LogInformation("New transponderpassing -- {Time} - {Transponder}", transponderPassing.EndTime, transponderPassing.Transponder.Id);
                 var sectorPassings = await RegisterTrackSectorPassings(transponderPassing);
 
                 if (sectorPassings.Any())
                 {
-                    await _context.SaveChangesAsync();
+                    changes = await _context.SaveChangesAsync();
+                    _logger.LogInformation("New sectorpassings -- {Transponder} - {Count} - {Changes}", sectorPassings.First().Transponder.Id, sectorPassings.Count(), changes);
 
                     var layoutpassings = Enumerable.Empty<TrackLayoutPassing>();
 
@@ -98,7 +103,8 @@ namespace VeloTime.Services
 
                     if (layoutpassings.Any())
                     {
-                        await _context.SaveChangesAsync();
+                        changes = await _context.SaveChangesAsync();
+                        _logger.LogInformation("New layoutpassings -- {Transponder} - {Count} - {Changes}", layoutpassings.First().Transponder.Id, layoutpassings.Count(), changes);
 
                         var transponderstats = Enumerable.Empty<TransponderStatisticsItem>();
                         foreach (var layoutpassing in layoutpassings)
@@ -110,12 +116,14 @@ namespace VeloTime.Services
                         if (transponderstats.Any())
                         {
                             await _context.SaveChangesAsync();
+                            _logger.LogInformation("New transponderstats -- {Transponder} - {Count}", transponderstats.First().Transponder.Id, transponderstats.Count());
                         }
                     }
                 }
             }
 
-            await _context.SaveChangesAsync();
+            changes = await _context.SaveChangesAsync();
+            _logger.LogInformation($"Changes: {changes}");
 
             return passing;
         }
@@ -178,15 +186,20 @@ namespace VeloTime.Services
             var passings = Enumerable.Empty<TrackLayoutPassing>();
 
             var layouts = await _context.Set<TrackLayout>()
+                .Where(x => x.Active)
                 .Where(x => x.Sectors.OrderByDescending(x => x.Order).First().Sector == sectorPassing.TrackSector)
                 .Include(x => x.Sectors)
                 .ThenInclude(x => x.Sector)
                 .ToListAsync();
 
+            _logger.LogInformation("Found {Layouts} ending with {Sector}", layouts.Count, sectorPassing.TrackSector.Id);
+
             if (layouts.Any())
             {
                 foreach (var layout in layouts)
                 {
+                    _logger.LogInformation("Processing {Layout}", layout.Slug);
+
                     var transponderpassings = await _context.Set<TrackSectorPassing>()
                         .Where(x => x.Transponder == sectorPassing.Transponder)
                         .Where(x => x.EndTime <= sectorPassing.EndTime)
@@ -197,8 +210,13 @@ namespace VeloTime.Services
                         .ToListAsync();
 
                     var sectors = layout.Sectors.OrderBy(x => x.Order).Select(x => x.Sector);
+                    _logger.LogInformation("Checking {Sectors} sectors using {Passings} passings", sectors.Count(), transponderpassings.Count);
+
+                    _logger.LogInformation("Layout sectors: {Sectors}", string.Join(",", sectors.Select(x => x.Id)));
+                    _logger.LogInformation("Passing sectors: {Sectors}", string.Join(",", transponderpassings.Select(x => x.TrackSector.Id)));
 
                     var continuous = transponderpassings.Select(x => x.TrackSector.Id).SequenceEqual(sectors.Select(x => x.Id));
+                    _logger.LogInformation("Continuous? {Continuous}", continuous);
 
                     var previous = transponderpassings.First();
                     foreach (var transponderpassing in transponderpassings.Skip(1))
@@ -216,6 +234,8 @@ namespace VeloTime.Services
                         _context.Add(passing);
                         passings = passings.Append(passing);
                     }
+
+                    _logger.LogInformation("Found {Passings} continous layouts", passings.Count());
                 }
             }
 
@@ -229,7 +249,9 @@ namespace VeloTime.Services
                 .Where(x => x.Segments.OrderByDescending(x => x.Order).First().Segment == transponderPassing.TrackSegment)
                 .Include(x => x.Segments)
                 .ThenInclude(x => x.Segment)
-                .ToListAsync();
+            .ToListAsync();
+
+            _logger.LogInformation("Found {Sectors} ending with {Segment}", trackSectors.Count, transponderPassing.Id);
 
             if (trackSectors.Any())
             {
@@ -256,6 +278,7 @@ namespace VeloTime.Services
                 }
             }
 
+            _logger.LogInformation("Produced {Passings} passings", passings.Count());
             return passings;
         }
 
@@ -264,7 +287,9 @@ namespace VeloTime.Services
             var trackSegment = await _context.Set<TrackSegment>()
                 .Include(s => s.Start)
                 .Include(s => s.End)
-                .SingleOrDefaultAsync(s => s.End == passing.Loop);
+                .SingleOrDefaultAsync(s => s.Active && s.End == passing.Loop);
+
+            _logger.LogInformation("Found {Segment} ending with {Loop}/{LoopDescr} at {Track}", trackSegment.Id, passing.Loop.Id, passing.Loop.Description, passing.Loop.Track.Slug);
 
             if (trackSegment != null)
             {
@@ -275,6 +300,9 @@ namespace VeloTime.Services
                     .Include(s => s.Loop)
                     .FirstOrDefaultAsync();
 
+
+                if (previous != null) _logger.LogInformation("Found previous passing {Passing} past {Loop}/{LoopDescr} at {Time}", previous.Id, previous.Loop.Id, previous.Loop.Description, previous.Time);
+
                 if (previous != null && previous.Loop == trackSegment.Start)
                 {
                     var transponderPassing = TrackSegmentPassing.Create(trackSegment, previous, passing);
@@ -284,6 +312,7 @@ namespace VeloTime.Services
                 }
             }
 
+            _logger.LogInformation("Found nothing, returning nothing");
             return null;
         }
     }

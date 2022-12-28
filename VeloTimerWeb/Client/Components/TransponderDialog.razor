@@ -7,7 +7,11 @@
     <DialogContent>
         <MudCardMedia Image="images/mylaps-prochip-flex.png" Height="200"/>
         <MudForm Model="@transponderName" @ref="@_transponderForm">
-            <MudTextField @bind-Value="transponderName.TransponderLabel" Label="Brikke" For="@(() => transponderName.TransponderLabel)" Validation="@(_formValidator.ValidateValue)" Immediate="true" Counter=8 />
+            <MudTextField @bind-Value="transponderName.TransponderLabel" 
+                          Label="Brikke" For="@(() => transponderName.TransponderLabel)" 
+                          Validation="@(_formValidator.ValidateValue)" 
+                          Immediate="true"
+                          Counter=8 />
             <MudDateRangePicker Label="Gyldighet" @bind-DateRange="transponderName.ValidPeriod" @ref="@_dateRangePicker" PickerVariant="PickerVariant.Dialog" DisplayMonths=1>
                 <PickerActions>
                     <MudButton Class="mr-auto align-self-start" OnClick="@(() => _dateRangePicker.Clear())">Nullstill</MudButton>
@@ -33,10 +37,21 @@
     [Parameter]
     public TransponderOwnershipWeb TransponderOwnership { get; set; }
 
+    public PatternMask transponderLabelMask = new PatternMask("AA-nnnnn")
+    {
+        MaskChars = new[] { 
+            new MaskChar('A', @"[cCfFgGhHkKlLnNpPrTsStTvVwWxXzZ]"),
+            new MaskChar('n', @"[0-9]")
+        },
+        Transformation = AllUpperCase
+    };
+
     private MudDateRangePicker _dateRangePicker;
     private MudForm _transponderForm;
     private TransponderOwnershipWebForm transponderName = new();
     private TransponderOwnershipValidator _formValidator = new();
+
+    private static char AllUpperCase(char c) => c.ToString().ToUpperInvariant()[0];
 
     protected async override Task OnParametersSetAsync()
     {
@@ -86,14 +101,26 @@
 
     public class TransponderOwnershipValidator : AbstractValidator<TransponderOwnershipWebForm>
     {
+        private static readonly char[] Characters = { 'C', 'F', 'G', 'H', 'K', 'L', 'N', 'P', 'R', 'S', 'T', 'V', 'W', 'X', 'Z' };
+
         public TransponderOwnershipValidator()
         {
+
             RuleFor(x => x.Owner)
                 .NotEmpty().WithMessage("Eier for brikke mangler");
 
             RuleFor(x => x.TransponderLabel)
                 .NotEmpty().WithMessage("Skriv inn kode fra brikke")
-                .Length(8).WithMessage("For få tegn i kode")
+                .MaximumLength(8).WithMessage("For mange tegn i kode")
+                .Must((value) => value.Length < 1 || Characters.Contains(value.ToUpper().First()))
+                .WithMessage("Ugyldige første tegn i kode")
+                .Must((value) => value.Length < 2 || Characters.Contains(value.ToUpper().ElementAt(1)))
+                    .WithMessage("Ugyldige andre tegn i kode")
+                .Must((value) => value.Length < 3 || value.ElementAt(2) == '-')
+                    .WithMessage("Tredje tegn må være bindestrek")
+                .Must((value) => value.Length < 4 || value.Substring(3).All(Char.IsDigit))
+                    .WithMessage("Tegn 5-8 må være tall")
+                .MinimumLength(8).WithMessage("For få tegn i kode")
                 .Must((value) => TransponderIdConverter.CodeToId(value) > 0).WithMessage("{PropertyValue} er ikke en gyldig kode");
         }
 
