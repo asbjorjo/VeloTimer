@@ -89,8 +89,8 @@ namespace VeloTimerWeb.Api.Services
             int changes;
 
             _context.Add(passing);
-            await _context.SaveChangesAsync();
-            _logger.LogInformation("New passing -- {Track} - {Loop}/{LoopDescr} - {Time} - {Transponder}", passing.Loop.Track.Slug, passing.Loop.LoopId, passing.Loop.Description, passing.Time, passing.Transponder.Id);
+            changes = await _context.SaveChangesAsync();
+            _logger.LogInformation("New passing -- {Track} - {Loop}/{LoopDescr} - {Time} - {Transponder} - {Changes}", passing.Loop.Track.Slug, passing.Loop.LoopId, passing.Loop.Description, passing.Time, passing.Transponder.Id, changes);
 
             await _hubContext.Clients.Group($"timingloop_{passing.Loop.Id}").NewPassings();
             await _hubContext.Clients.Group($"transponder_{passing.Transponder.Id}").NewPassings();
@@ -298,14 +298,15 @@ namespace VeloTimerWeb.Api.Services
 
         public async Task<TrackSegmentPassing> RegisterTransponderPassing(Passing passing)
         {
-            var trackSegment = await _context.Set<TrackSegment>()
+            var trackSegments = await _context.Set<TrackSegment>()
                 .Include(s => s.Start)
                 .Include(s => s.End)
-                .SingleOrDefaultAsync(s => s.Active && s.End == passing.Loop);
+                .Where(s => s.Active && s.End == passing.Loop)
+                .ToListAsync();
 
-            _logger.LogInformation("Found {Segment} ending with {Loop}/{LoopDescr} at {Track}", trackSegment.Id, passing.Loop.Id, passing.Loop.Description, passing.Loop.Track.Slug);
+            _logger.LogInformation("Found {Segments} ending with {Loop}/{LoopDescr} at {Track}", trackSegments.Count, passing.Loop.Id, passing.Loop.Description, passing.Loop.Track.Slug);
 
-            if (trackSegment != null)
+            foreach (var trackSegment in trackSegments)
             {
                 var previous = await _context.Set<Passing>()
                     .Where(p => p.Transponder == passing.Transponder)
