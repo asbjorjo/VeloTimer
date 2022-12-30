@@ -86,7 +86,7 @@ namespace VeloTimerWeb.Api.Services
         private async Task DeadLetterPassing(ProcessSessionMessageEventArgs args, string message)
         {
             _logger.LogWarning("Passing not processed: {Reason}", message);
-            await args.DeadLetterMessageAsync(args.Message);
+            await args.DeadLetterMessageAsync(args.Message, message);
         }
 
         Task ErrorHandler(ProcessErrorEventArgs args)
