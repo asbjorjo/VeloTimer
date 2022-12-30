@@ -265,7 +265,7 @@ namespace VeloTimerWeb.Api.Services
                 .ThenInclude(x => x.Segment)
             .ToListAsync();
 
-            _logger.LogInformation("Found {Sectors} ending with {Segment}", trackSectors.Count, transponderPassing.Id);
+            _logger.LogInformation("Found {Sectors} ending with {Segment}", trackSectors.Count, transponderPassing.TrackSegment.Id);
 
             if (trackSectors.Any())
             {
