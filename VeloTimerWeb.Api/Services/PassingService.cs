@@ -86,58 +86,71 @@ namespace VeloTimerWeb.Api.Services
                 return passing;
             }
 
-            int changes;
+            using var transaction = _context.Database.BeginTransaction();
 
-            _context.Add(passing);
-            changes = await _context.SaveChangesAsync();
-            _logger.LogInformation("New passing -- {Track} - {Loop}/{LoopDescr} - {Time} - {Transponder} - {Changes}", passing.Loop.Track.Slug, passing.Loop.LoopId, passing.Loop.Description, passing.Time, passing.Transponder.Id, changes);
-
-            await _hubContext.Clients.Group($"timingloop_{passing.Loop.Id}").NewPassings();
-            await _hubContext.Clients.Group($"transponder_{passing.Transponder.Id}").NewPassings();
-
-            var transponderPassing = await RegisterTransponderPassing(passing);
-
-            if (transponderPassing != null)
+            try
             {
-                _logger.LogInformation("New transponderpassing -- {Time} - {Transponder}", transponderPassing.EndTime, transponderPassing.Transponder.Id);
-                var sectorPassings = await RegisterTrackSectorPassings(transponderPassing);
+                int changes;
 
-                if (sectorPassings.Any())
+                _context.Add(passing);
+                changes = await _context.SaveChangesAsync();
+                _logger.LogInformation("New passing -- {Track} - {Loop}/{LoopDescr} - {Time} - {Transponder} - {Changes}", passing.Loop.Track.Slug, passing.Loop.LoopId, passing.Loop.Description, passing.Time, passing.Transponder.Id, changes);
+
+                await _hubContext.Clients.Group($"timingloop_{passing.Loop.Id}").NewPassings();
+                await _hubContext.Clients.Group($"transponder_{passing.Transponder.Id}").NewPassings();
+
+                var transponderPassing = await RegisterTransponderPassing(passing);
+
+                if (transponderPassing != null)
                 {
-                    changes = await _context.SaveChangesAsync();
-                    _logger.LogInformation("New sectorpassings -- {Transponder} - {Count} - {Changes}", sectorPassings.First().Transponder.Id, sectorPassings.Count(), changes);
+                    _logger.LogInformation("New transponderpassing -- {Time} - {Transponder}", transponderPassing.EndTime, transponderPassing.Transponder.Id);
+                    var sectorPassings = await RegisterTrackSectorPassings(transponderPassing);
 
-                    var layoutpassings = Enumerable.Empty<TrackLayoutPassing>();
-
-                    foreach (var sectorPassing in sectorPassings)
-                    {
-                        var lp = await RegisterLayoutPassings(sectorPassing);
-                        layoutpassings = layoutpassings.Concat(lp);
-                    }
-
-                    if (layoutpassings.Any())
+                    if (sectorPassings.Any())
                     {
                         changes = await _context.SaveChangesAsync();
-                        _logger.LogInformation("New layoutpassings -- {Transponder} - {Count} - {Changes}", layoutpassings.First().Transponder.Id, layoutpassings.Count(), changes);
+                        _logger.LogInformation("New sectorpassings -- {Transponder} - {Count} - {Changes}", sectorPassings.First().Transponder.Id, sectorPassings.Count(), changes);
 
-                        var transponderstats = Enumerable.Empty<TransponderStatisticsItem>();
-                        foreach (var layoutpassing in layoutpassings)
+                        var layoutpassings = Enumerable.Empty<TrackLayoutPassing>();
+
+                        foreach (var sectorPassing in sectorPassings)
                         {
-                            var tsi = await RegisterStatistics(layoutpassing);
-                            transponderstats = transponderstats.Concat(tsi);
+                            var lp = await RegisterLayoutPassings(sectorPassing);
+                            layoutpassings = layoutpassings.Concat(lp);
                         }
 
-                        if (transponderstats.Any())
+                        if (layoutpassings.Any())
                         {
-                            await _context.SaveChangesAsync();
-                            _logger.LogInformation("New transponderstats -- {Transponder} - {Count}", transponderstats.First().Transponder.Id, transponderstats.Count());
+                            changes = await _context.SaveChangesAsync();
+                            _logger.LogInformation("New layoutpassings -- {Transponder} - {Count} - {Changes}", layoutpassings.First().Transponder.Id, layoutpassings.Count(), changes);
+
+                            var transponderstats = Enumerable.Empty<TransponderStatisticsItem>();
+                            foreach (var layoutpassing in layoutpassings)
+                            {
+                                var tsi = await RegisterStatistics(layoutpassing);
+                                transponderstats = transponderstats.Concat(tsi);
+                            }
+
+                            if (transponderstats.Any())
+                            {
+                                await _context.SaveChangesAsync();
+                                _logger.LogInformation("New transponderstats -- {Transponder} - {Count}", transponderstats.First().Transponder.Id, transponderstats.Count());
+                            }
                         }
                     }
                 }
-            }
 
-            changes = await _context.SaveChangesAsync();
-            _logger.LogInformation($"Changes: {changes}");
+                changes = await _context.SaveChangesAsync();
+                _logger.LogInformation($"Changes: {changes}");
+
+                transaction.Commit();
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError("Unable to save passing.", ex);
+
+                throw;
+            }
 
             return passing;
         }
