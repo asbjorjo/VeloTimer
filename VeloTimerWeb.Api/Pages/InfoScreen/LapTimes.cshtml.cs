@@ -53,7 +53,14 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
             ViewData["Title"] = $"{Label}";
 
-            var seedtimes = await _service.GetRecent(statsitem, DateTimeOffset.Now.AddDays(-7), DateTimeOffset.MaxValue, 35);
+            var timeParameters = new TimeParameters();
+            timeParameters.FromTime = DateTimeOffset.Now.AddDays(-7);
+            timeParameters.ToTime = DateTimeOffset.MaxValue;
+
+            var paginationParameters = new PaginationParameters();
+            paginationParameters.PageSize = 35;
+
+            var seedtimes = await _service.GetRecent(statsitem, timeParameters, paginationParameters, "passingtime:desc");
             Times = new Queue<SegmentTime>(seedtimes);
 
             HasSplit = Times.FirstOrDefault()?.Intermediates.Count() == 2;
