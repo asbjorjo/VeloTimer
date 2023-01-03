@@ -44,7 +44,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
                 return NotFound($"Track: {Track}");
             }
 
-            var statsitem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Layout.Track == track && x.Layout.Active && x.StatisticsItem.Label == Label);
+            var statsitem = await _context.Set<TrackStatisticsItem>().Where(x => x.Layout.Track == track && x.Layout.Active && x.StatisticsItem.Label == Label).ToListAsync();
 
             if (statsitem == null)
             {
