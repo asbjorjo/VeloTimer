@@ -55,8 +55,8 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             ViewData["Title"] = $"{Label}";
 
             var timeParameters = new TimeParameters();
-            timeParameters.FromTime = DateTimeOffset.Now.AddDays(-7);
-            timeParameters.ToTime = DateTimeOffset.MaxValue;
+            timeParameters.FromTime = DateTime.Now.AddDays(-7);
+            timeParameters.ToTime = DateTime.MaxValue;
 
             var paginationParameters = new PaginationParameters();
             paginationParameters.PageSize = 35;
