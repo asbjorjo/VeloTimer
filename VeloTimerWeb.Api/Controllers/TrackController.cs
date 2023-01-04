@@ -64,7 +64,7 @@ namespace VeloTimerWeb.Api.Controllers
             if (FromTime.HasValue) fromtime = FromTime.Value;
             if (ToTime.HasValue) totime = ToTime.Value;
 
-            var counts = await _trackService.GetCount(statsitem.First(), fromtime, totime, Count);
+            var counts = await _trackService.GetCount(statsitem, fromtime, totime, Count);
 
             return Ok(counts);
         }
