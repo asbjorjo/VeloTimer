@@ -7,7 +7,7 @@ namespace VeloTime.PassingLoader
     {
         public RegisterPassingMessage(PassingRegister passing)
         {
-            this.Passing = passing;
+            Passing = passing;
         }
 
         public PassingRegister Passing { get; private set; }

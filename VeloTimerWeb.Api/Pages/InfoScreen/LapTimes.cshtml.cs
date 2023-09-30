@@ -44,7 +44,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
                 return NotFound($"Track: {Track}");
             }
 
-            var statsitem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Layout.Track == track && x.Layout.Active && x.StatisticsItem.Label == Label);
+            var statsitem = await _context.Set<TrackStatisticsItem>().Where(x => x.Layout.Track == track && x.Layout.Active && x.StatisticsItem.Label == Label).ToListAsync();
 
             if (statsitem == null)
             {
@@ -53,7 +53,14 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
             ViewData["Title"] = $"{Label}";
 
-            var seedtimes = await _service.GetRecent(statsitem, DateTimeOffset.Now.AddDays(-7), DateTimeOffset.MaxValue, 35);
+            var timeParameters = new TimeParameters();
+            timeParameters.FromTime = DateTime.Now.AddDays(-7);
+            timeParameters.ToTime = DateTime.MaxValue;
+
+            var paginationParameters = new PaginationParameters();
+            paginationParameters.PageSize = 35;
+
+            var seedtimes = await _service.GetRecent(statsitem, timeParameters, paginationParameters, "passingtime:desc");
             Times = new Queue<SegmentTime>(seedtimes);
 
             HasSplit = Times.FirstOrDefault()?.Intermediates.Count() == 2;
