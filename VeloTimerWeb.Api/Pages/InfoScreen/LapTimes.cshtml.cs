@@ -10,6 +10,7 @@ using VeloTime.Storage.Data;
 using VeloTime.Storage.Models.Statistics;
 using VeloTime.Storage.Models.TrackSetup;
 using VeloTimer.Shared.Data.Models;
+using VeloTimer.Shared.Data.Parameters;
 
 namespace VeloTimerWeb.Api.Pages.InfoScreen
 {

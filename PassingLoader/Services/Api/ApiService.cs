@@ -66,5 +66,10 @@ namespace VeloTime.PassingLoader.Services.Api
 
             return passing;
         }
+
+        Task<bool> IApiService.RegisterPassing(PassingRegister passing)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
