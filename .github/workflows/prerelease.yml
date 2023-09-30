@@ -121,7 +121,7 @@ jobs:
       name: testing
       url: https://velotime-dev.azurewebsites.net
     env:
-      AZURE_WEBAPP_NAME: 'velotime-upgrade'
+      AZURE_WEBAPP_NAME: 'velotime-dev'
     runs-on: ubuntu-latest
     steps:
     - name: Download artifact from build job
@@ -134,7 +134,7 @@ jobs:
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         slot-name: 'Production'
-        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_2A756B4B4E7949738CEC1803FF812D06 }}
+        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_26CECDC1D8724C3BAB273369AD449673 }}
         package: .
     # - uses: azure/login@v1
     #   with:
