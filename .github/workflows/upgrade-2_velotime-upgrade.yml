@@ -4,9 +4,9 @@
 name: Build and deploy ASP.Net Core app to Azure Web App - velotime-upgrade
 
 on:
-  push:
-    branches:
-      - upgrade-2
+      # push:
+      #   branches:
+      #     - upgrade-2
   workflow_dispatch:
 
 jobs:

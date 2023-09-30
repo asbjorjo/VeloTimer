@@ -1,41 +1,43 @@
 name: Build pre-release and deploy to testing
 on:
   push:
-    tags:
-    - "v[0-9]+.[0-9]+.[0-9]+-preview[0-9][0-9][0-9]"
+    branches:
+      - upgrade-2
+    # tags:
+    # - "v[0-9]+.[0-9]+.[0-9]+-preview[0-9][0-9][0-9]"
 concurrency: 
   group: "prerelease"
   cancel-in-progress: true
 env:
   ASPNETCORE_ENVIRONMENT: Staging
-  DOTNET_CORE_VERSION: 6.0.x
+  DOTNET_CORE_VERSION: 7.x
   VELOTIME_VAULT: https://velotimer-dev-vault.vault.azure.net/
   CONFIGURATION: Release
 jobs:
-  build-packages:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Set VERSION variable from tag
-      run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
-    - name: Setup dotnet
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
-    - name: Pack PassingLoader
-      run: dotnet pack PassingLoader --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
-    - name: Pack Shared
-      run: dotnet pack VeloTimerWeb/Shared --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
-    - name: Pack Shared.Data
-      run: dotnet pack Shared.Data --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
-    - name: Pack Shared.Messaging
-      run: dotnet pack Shared.Messaging --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
-    - name: Push
-      run: dotnet nuget push VeloTime*.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
-      env:
-        NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # build-packages:
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 15
+  #   steps:
+  #   - name: Checkout
+  #     uses: actions/checkout@v2
+  #   - name: Set VERSION variable from tag
+  #     run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+  #   - name: Setup dotnet
+  #     uses: actions/setup-dotnet@v1
+  #     with:
+  #       dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
+  #   - name: Pack PassingLoader
+  #     run: dotnet pack PassingLoader --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+  #   - name: Pack Shared
+  #     run: dotnet pack VeloTimerWeb/Shared --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+  #   - name: Pack Shared.Data
+  #     run: dotnet pack Shared.Data --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+  #   - name: Pack Shared.Messaging
+  #     run: dotnet pack Shared.Messaging --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+  #   - name: Push
+  #     run: dotnet nuget push VeloTime*.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
+  #     env:
+  #       NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build-webapp:
     environment:
       name: testing
@@ -79,33 +81,33 @@ jobs:
       run: dotnet ef database update -p Storage -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
     - name: Azure Logout
       run: az logout
-  build-processor:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
-    - name: Log in to container registry
-      uses: docker/login-action@v1
-      with:
-        registry: https://ghcr.io/
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: Extract metadata (tags, labels) for Docker
-      id: meta
-      uses: docker/metadata-action@v3
-      with:
-        images: |
-          ghcr.io/${{ github.repository }}/velotime/processor
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v2
-      with:
-        context: .
-        file: Processor/Dockerfile
-        push: true
+  # build-processor:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: actions/checkout@v2
+  #   - name: Set up Docker Buildx
+  #     uses: docker/setup-buildx-action@v1
+  #   - name: Log in to container registry
+  #     uses: docker/login-action@v1
+  #     with:
+  #       registry: https://ghcr.io/
+  #       username: ${{ github.actor }}
+  #       password: ${{ secrets.GITHUB_TOKEN }}
+  #   - name: Extract metadata (tags, labels) for Docker
+  #     id: meta
+  #     uses: docker/metadata-action@v3
+  #     with:
+  #       images: |
+  #         ghcr.io/${{ github.repository }}/velotime/processor
+  #   - name: Build and push Docker image
+  #     uses: docker/build-push-action@v2
+  #     with:
+  #       context: .
+  #       file: Processor/Dockerfile
+  #       push: true
 #        tags: ghcr.io/${{ github.repository }}/velotime/processor:${{ github.sha }}
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        # tags: ${{ steps.meta.outputs.tags }}
+        # labels: ${{ steps.meta.outputs.labels }}
 #    - name: Build and push container image to registry
 #      uses: docker/build-push-action@v2
 #      with:
@@ -119,43 +121,51 @@ jobs:
       name: testing
       url: https://velotime-dev.azurewebsites.net
     env:
-      AZURE_WEBAPP_NAME: 'velotime-dev'
+      AZURE_WEBAPP_NAME: 'velotime-upgrade'
     runs-on: ubuntu-latest
     steps:
     - name: Download artifact from build job
       uses: actions/download-artifact@v2
       with:
         name: api
-    - uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CI }}
-    - name: Deploy to Azure WebApp
+    - name: Deploy to Azure Web App
+      id: deploy-to-webapp
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        slot-name: 'Production'
+        publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_2A756B4B4E7949738CEC1803FF812D06 }}
         package: .
-    - name: Azure Logout
-      run: az logout  
-  deploy-processor:
-    runs-on: ubuntu-latest
-    needs: build-processor
-    environment:
-      name: testing
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
-    steps:
-      - id: reponame
-        uses: ASzc/change-string-case-action@v2
-        with:
-          string: ${{ github.repository }}
-      - uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CI }}
-      - name: Deploy to Azure Web App
-        id: deploy-to-webapp
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: velotime-process-dev
-          slot-name: production
-          images: ghcr.io/${{ steps.reponame.outputs.lowercase }}/velotime/processor:${{ github.ref_name }}
-      - name: Azure Logout
-        run: az logout
+    # - uses: azure/login@v1
+    #   with:
+    #     creds: ${{ secrets.AZURE_CI }}
+    # - name: Deploy to Azure WebApp
+    #   uses: azure/webapps-deploy@v2
+    #   with:
+    #     app-name: ${{ env.AZURE_WEBAPP_NAME }}
+    #     package: .
+    # - name: Azure Logout
+    #   run: az logout  
+  # deploy-processor:
+  #   runs-on: ubuntu-latest
+  #   needs: build-processor
+  #   environment:
+  #     name: testing
+  #     url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+  #   steps:
+  #     - id: reponame
+  #       uses: ASzc/change-string-case-action@v2
+  #       with:
+  #         string: ${{ github.repository }}
+  #     - uses: azure/login@v1
+  #       with:
+  #         creds: ${{ secrets.AZURE_CI }}
+  #     - name: Deploy to Azure Web App
+  #       id: deploy-to-webapp
+  #       uses: azure/webapps-deploy@v2
+  #       with:
+  #         app-name: velotime-process-dev
+  #         slot-name: production
+  #         images: ghcr.io/${{ steps.reponame.outputs.lowercase }}/velotime/processor:${{ github.ref_name }}
+  #     - name: Azure Logout
+  #       run: az logout
