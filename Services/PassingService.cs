@@ -85,7 +85,7 @@ namespace VeloTime.Services
                 changes = await _context.SaveChangesAsync();
                 _logger.LogInformation("New passing -- {Track} - {Loop}/{LoopDescr} - {Time} - {Transponder} - {Changes}", passing.Loop.Track.Slug, passing.Loop.LoopId, passing.Loop.Description, passing.Time, passing.Transponder.Id, changes);
 
-            var transponderPassing = await RegisterTransponderPassing(passing);
+                var transponderPassing = await RegisterTransponderPassing(passing);
 
                 if (transponderPassing != null)
                 {
@@ -134,6 +134,8 @@ namespace VeloTime.Services
             catch(Exception ex)
             {
                 _logger.LogError("Unable to save passing.", ex);
+
+                transaction.Rollback();
 
                 throw;
             }

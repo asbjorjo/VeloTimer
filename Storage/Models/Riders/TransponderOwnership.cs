@@ -10,5 +10,7 @@ namespace VeloTime.Storage.Models.Riders
         public Rider Owner { get; set; }
         public DateTime OwnedFrom { get; set; }
         public DateTime OwnedUntil { get; set; }
+
+        public long TransponderId { get; private set; }
     }
 }

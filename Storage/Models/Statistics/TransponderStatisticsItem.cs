@@ -15,6 +15,8 @@ namespace VeloTime.Storage.Models.Statistics
         public double Time { get; private set; }
         public double Speed { get; private set; }
 
+        public long TransponderId { get; private set; }
+
         public IReadOnlyCollection<TrackLayoutPassing> LayoutPassings => LayoutPassingList.Select(x => x.LayoutPassing).OrderBy(x => x.EndTime).ToList().AsReadOnly();
 
         public static TransponderStatisticsItem Create(TrackStatisticsItem statisticsItem, Transponder transponder, IEnumerable<TrackLayoutPassing> passings)

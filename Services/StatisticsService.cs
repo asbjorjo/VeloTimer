@@ -72,7 +72,7 @@ namespace VeloTime.Services
                 return times;
 
             var query = from tsi in _context.Set<TransponderStatisticsItem>()
-                        join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                        join town in _context.Set<TransponderOwnership>() on tsi.TransponderId equals town.TransponderId
                         where
                             tsi.StatisticsItem.StatisticsItem == StatisticsItem
                             && tsi.StartTime >= fromtime
@@ -117,7 +117,7 @@ namespace VeloTime.Services
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
-                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                join town in _context.Set<TransponderOwnership>() on tsi.TransponderId equals town.TransponderId
                 where
                     tsi.StatisticsItem.StatisticsItem == StatisticsItem
                     && tsi.StartTime >= fromtime

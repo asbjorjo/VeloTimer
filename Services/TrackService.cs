@@ -36,7 +36,7 @@ namespace VeloTime.Services
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
-                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                join town in _context.Set<TransponderOwnership>() on tsi.TransponderId equals town.TransponderId
                 where
                     tsi.StatisticsItem == statisticsItem
                     && tsi.StartTime >= fromtime
@@ -87,7 +87,7 @@ namespace VeloTime.Services
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
-                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                join town in _context.Set<TransponderOwnership>() on tsi.TransponderId equals town.TransponderId
                 where
                     counter.Contains(tsi.StatisticsItem)
                     && tsi.StartTime >= fromtime
@@ -126,7 +126,7 @@ namespace VeloTime.Services
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
-                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                join town in _context.Set<TransponderOwnership>() on tsi.TransponderId equals town.TransponderId
                 where
                     StatisticsItems.Contains(tsi.StatisticsItem)
                     && tsi.StartTime >= fromtime
@@ -164,7 +164,7 @@ namespace VeloTime.Services
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
-                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                join town in _context.Set<TransponderOwnership>() on tsi.TransponderId equals town.TransponderId
                 where
                     tsi.StatisticsItem.Layout.Track == Track
                     && tsi.StatisticsItem.StatisticsItem.Label == Label
@@ -203,7 +203,7 @@ namespace VeloTime.Services
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
-                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                join town in _context.Set<TransponderOwnership>() on tsi.TransponderId equals town.TransponderId
                 where
                     tsi.StatisticsItem == StatisticsItem
                     && tsi.StartTime >= fromtime
@@ -241,7 +241,7 @@ namespace VeloTime.Services
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
-                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                join town in _context.Set<TransponderOwnership>() on tsi.TransponderId equals town.TransponderId
                 where
                     statisticsItems.Contains(tsi.StatisticsItem)
                     && tsi.StartTime >= fromtime

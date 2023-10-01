@@ -99,7 +99,7 @@ namespace VeloTime.Services
             var query = from t in _context.Set<TransponderOwnership>()
                         from p in _context.Set<Passing>()
                         where p.Time >= fromtime && p.Time <= totime
-                            && p.Transponder == t.Transponder && p.Time >= t.OwnedFrom && p.Time < t.OwnedUntil
+                            && p.TransponderId == t.TransponderId && p.Time >= t.OwnedFrom && p.Time < t.OwnedUntil
                         orderby p.Time descending
                         group p by t.Owner.Id into passings
                         select new { passings.Key, Last = passings.Max(p => p.Time) };
