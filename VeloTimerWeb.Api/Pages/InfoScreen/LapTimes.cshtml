@@ -19,7 +19,13 @@
                 <th scope="col" class="mw-100">Rytter</th> 
                 @if (Model.HasSplit)
             {
+                @if (ViewData["Title"] is not null && ViewData["Title"].ToString().ToLower().Equals("200m"))
+            {
+                <th scope="col" class="text-right">100m</th>
+            } else
+            {
                 <th scope="col" class="text-right">Split</th>
+            }
             }
                 <th scope="col" class="text-right">Tid</th>
                 <th scope="col" class="text-right">Fart</th>
