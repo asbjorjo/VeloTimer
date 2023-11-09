@@ -13,6 +13,7 @@ namespace VeloTimer.PassingLoader
             services.ConfigureStorage(config);
             services.ConfigureMessaging(config);
             services.ConfigureApiClient(config);
+            services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(Startup).Assembly));
         }
     }
 }
