@@ -5,6 +5,11 @@
         public string TimingSystem { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;
         public string SystemId { get; set; } = string.Empty;
-        public PassingWeb? LastSeen { get; set; }
+        public PassingWeb LastSeen { get; set; }
+
+        public TransponderWeb()
+        {
+            LastSeen = new PassingWeb() { Transponder = this };
+        }
     }
 }
