@@ -15,47 +15,35 @@ namespace VeloTimer.PassingLoader.Services.Api
             _httpClient = httpClient;
         }
 
-        public async Task<PassingWeb?> GetMostRecentPassing()
+        public async Task<PassingWeb> GetMostRecentPassing()
         {
-            PassingWeb? passing;
+            return await GetMostRecentPassing(string.Empty);
+        }
+
+        public async Task<PassingWeb> GetMostRecentPassing(string Track)
+        {
+            PassingWeb passing = new PassingWeb();
+
+            string requestUri = string.IsNullOrEmpty(Track) ? "passings/mostrecent" : $"passings/mostrecent/{Track}";
 
             try
             {
-                passing = await _httpClient.GetFromJsonAsync<PassingWeb>("passings/mostrecent");
-                _logger.LogInformation("Most recent passing found {Passing}", passing?.SourceId);
-            }
-            catch (HttpRequestException ex)
-            {
-                if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                PassingWeb? _passing = await _httpClient.GetFromJsonAsync<PassingWeb>(requestUri);
+                if (_passing == null)
                 {
-                    _logger.LogInformation("Most recent passing not found");
-                    passing = null;
+                    _logger.LogError("Most recent passing not found");
                 }
                 else
                 {
-                    _logger.LogError("{Excetion}", ex);
-                    throw;
+                    passing = _passing;
+                    _logger.LogInformation("Most recent passing found {Passing}", passing.SourceId);
                 }
-            }
-
-            return passing;
-        }
-
-        public async Task<PassingWeb?> GetMostRecentPassing(string Track)
-        {
-            PassingWeb? passing;
-
-            try
-            {
-                passing = await _httpClient.GetFromJsonAsync<PassingWeb>($"passings/mostrecent/{Track}");
-                _logger.LogInformation("Most recent passing found {Passing}", passing?.SourceId);
             }
             catch (HttpRequestException ex)
             {
                 if (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
                     _logger.LogInformation("Most recent passing not found");
-                    passing = null;
                 }
                 else
                 {
