@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using VeloTimer.PassingLoader.Consumers;
 
 namespace VeloTimer.PassingLoader.Services.Messaging
 {
