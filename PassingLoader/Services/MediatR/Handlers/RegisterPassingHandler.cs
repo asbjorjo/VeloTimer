@@ -11,7 +11,7 @@ namespace VeloTime.X2.Core.Handlers
 
         public async Task Handle(RegisterPassingCommand request, CancellationToken cancellationToken)
         {
-            await _messagingService.SubmitPassings(request.Passings);
+            await _messagingService.SubmitPassing(request.Passing);
         }
     }
 }
