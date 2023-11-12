@@ -1,5 +1,5 @@
 ﻿using MassTransit;
-using MassTransit.Mediator;
+using MediatR;
 using System.Net.Http.Headers;
 using VeloTimer.PassingLoader.Contracts;
 using VeloTimer.Shared.Data.Models.Timing;
