@@ -1,30 +1,34 @@
 ﻿using MassTransit;
 using MassTransit.Mediator;
 using System.Net.Http.Headers;
+using VeloTimer.PassingLoader.Contracts;
 using VeloTimer.Shared.Data.Models.Timing;
 
-public class PassingObservedConsumer : IConsumer<PassingObserved>
+namespace VeloTimer.PassingLoader.Consumers
 {
-    private readonly IMediator _mediator;
-
-    public PassingObservedConsumer(IMediator mediator)
+    public class PassingObservedConsumer : IConsumer<PassingObserved>
     {
-        _mediator = mediator;
-    }
+        private readonly IMediator _mediator;
 
-    public Task Consume(ConsumeContext<PassingObserved> context)
-    {
-        PassingObserved message = context.Message;
-        PassingRegister passing = new PassingRegister
+        public PassingObservedConsumer(IMediator mediator)
         {
-            LoopId = message.PassingPoint,
-            Time = message.Time,
-            TimingSystem = message.TimingSystem,
-            Source = message.Source,
-            TransponderId = message.Transponder,
-            Track = ""
-        };
+            _mediator = mediator;
+        }
 
-        return _mediator.Send(new RegisterPassingCommand(passing));
+        public Task Consume(ConsumeContext<PassingObserved> context)
+        {
+            PassingObserved message = context.Message;
+            PassingRegister passing = new PassingRegister
+            {
+                LoopId = message.PassingPoint,
+                Time = message.Time,
+                TimingSystem = message.TimingSystem,
+                Source = message.Source,
+                TransponderId = message.Transponder,
+                Track = ""
+            };
+
+            return _mediator.Send(new RegisterPassingCommand(passing));
+        }
     }
 }

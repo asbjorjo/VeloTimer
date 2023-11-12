@@ -1,10 +1,13 @@
 ﻿using VeloTimer.Shared.Data.Models.Timing;
 
-public record PassingObserved
+namespace VeloTimer.PassingLoader.Contracts
 {
-    public DateTimeOffset Time { get; init; }
-    public string Transponder { get; init; } = string.Empty;
-    public TransponderType.TimingSystem TimingSystem {  get; init; }
-    public long PassingPoint {  get; init; }
-    public string Source {  get; init; } = string.Empty;
+    public record PassingObserved
+    {
+        public DateTimeOffset Time { get; init; }
+        public string Transponder { get; init; } = string.Empty;
+        public TransponderType.TimingSystem TimingSystem { get; init; }
+        public long PassingPoint { get; init; }
+        public string Source { get; init; } = string.Empty;
+    }
 }
