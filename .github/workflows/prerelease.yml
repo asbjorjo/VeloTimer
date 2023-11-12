@@ -51,10 +51,10 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Create nuget.config
-        run: echo $NUGET_CONFIG > nuget.config
-        env:
-          NUGET_CONFIG: ${{ secrets.NUGET_CONFIG }}
+      #- name: Create nuget.config
+      #  run: echo $NUGET_CONFIG > nuget.config
+      #  env:
+      #    NUGET_CONFIG: ${{ secrets.NUGET_CONFIG }}
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v3
