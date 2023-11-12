@@ -18,7 +18,10 @@ namespace VeloTimer.PassingLoader.Services.Messaging
             services.AddMassTransit(x =>
             {
                 x.AddConsumer<PassingObservedConsumer>();
-                x.UsingRabbitMq();
+                x.UsingRabbitMq((context, cfg) =>
+                {
+                    cfg.ConfigureEndpoints(context);
+                });
             });
 
             var mbconfig = configuration.GetSection(MessageBusOptions.Section);
