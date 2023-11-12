@@ -26,7 +26,7 @@ namespace VeloTimer.PassingLoader.Services.Messaging
             settings.ConnectionString = configuration.GetConnectionString(MessageBusOptions.ConnectionStringProperty);
 
             services.TryAddSingleton(settings);
-            services.TryAddSingleton<IMessagingService, MessagingService>();
+            services.TryAddSingleton<IMessagingService, LogMessagingService>();
 
             return services;
         }
