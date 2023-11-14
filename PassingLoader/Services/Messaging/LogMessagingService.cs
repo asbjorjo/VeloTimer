@@ -14,7 +14,7 @@ namespace VeloTimer.PassingLoader.Services.Messaging
 
         public async Task SubmitPassing(PassingRegister passing)
         {
-            _logger.LogDebug(passing.ToString());
+            _logger.LogInformation(passing.ToString());
 
             await Task.CompletedTask;
         }

@@ -1,6 +1,6 @@
 ﻿using MassTransit;
 using MediatR;
-using System.Net.Http.Headers;
+using VeloTimer.PassingLoader.Commands;
 using VeloTimer.PassingLoader.Contracts;
 using VeloTimer.Shared.Data.Models.Timing;
 
@@ -18,17 +18,8 @@ namespace VeloTimer.PassingLoader.Consumers
         public Task Consume(ConsumeContext<PassingObserved> context)
         {
             PassingObserved message = context.Message;
-            PassingRegister passing = new PassingRegister
-            {
-                LoopId = message.PassingPoint,
-                Time = message.Time,
-                TimingSystem = message.TimingSystem,
-                Source = message.Source,
-                TransponderId = message.Transponder,
-                Track = ""
-            };
 
-            return _mediator.Send(new RegisterPassingCommand(passing));
+            return _mediator.Send(new RegisterPassingCommand(message));
         }
     }
 }

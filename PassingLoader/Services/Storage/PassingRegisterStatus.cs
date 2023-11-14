@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Data.Models.Timing;
 
-namespace PassingLoader.Services.Storage
+namespace VeloTimer.PassingLoader.Services.Storage
 {
     public class PassingRegisterStatus
     {

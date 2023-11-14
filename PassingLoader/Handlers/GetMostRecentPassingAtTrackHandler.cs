@@ -1,8 +1,9 @@
 ﻿using MediatR;
+using VeloTimer.PassingLoader.Queries;
 using VeloTimer.PassingLoader.Services.Api;
 using VeloTimer.Shared.Data.Models.Timing;
 
-namespace PassingLoader.Services.MediatR.Handlers
+namespace VeloTimer.PassingLoader.Handlers
 {
     public class GetMostRecentPassingAtTrackHandler : IRequestHandler<GetMostRecentPassingAtTrackQuery, PassingWeb>
     {

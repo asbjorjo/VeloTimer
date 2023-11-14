@@ -34,9 +34,4 @@
     <ProjectReference Include="..\VeloTimerWeb\Shared\Shared.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Services\MediatR\Behaviours\" />
-    <Folder Include="Services\MediatR\Notifications\" />
-  </ItemGroup>
-
 </Project>

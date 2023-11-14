@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using PassingLoader.Services.Storage;
+using VeloTimer.PassingLoader.Services.Storage;
 
 namespace VeloTimer.PassingLoader.Services.Storage
 {
