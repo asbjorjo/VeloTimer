@@ -1,10 +1,10 @@
-﻿using VeloTimer.Shared.Data.Models.Timing;
+﻿using VeloTimer.PassingLoader.Contracts;
 
 namespace VeloTimer.PassingLoader.Services.Messaging
 {
     public interface IMessagingService
     {
-        Task SubmitPassing(PassingRegister passing);
-        Task SubmitPassings(IEnumerable<PassingRegister> passings);
+        public void RegisterPassing(PassingObserved passing);
+        public void RegisterPassings(IEnumerable<PassingObserved> passings);
     }
 }

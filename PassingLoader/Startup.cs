@@ -19,7 +19,7 @@ namespace VeloTimer.PassingLoader
                 .ConfigureServices((context, services) =>
                 {
                     //services.ConfigureStorage(context.Configuration);
-                    services.ConfigureMessaging(context.Configuration);
+                    services.AddExternalMessagingervice(context.Configuration);
                     services.ConfigureApiClient(context.Configuration);
                     services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(Startup).Assembly));
                 });

@@ -30,7 +30,7 @@ namespace VeloTimerWeb.Api
         {
             services.AddApplicationInsightsTelemetry();
 
-            services.ConfigureMessaging(Configuration);
+            services.AddExternalMessagingervice(Configuration);
             services.ConfigureData(Configuration);
 
             services.AddIdentityServices(Configuration, Environment);

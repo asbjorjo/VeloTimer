@@ -7,9 +7,9 @@ namespace VeloTimer.PassingLoader.Handlers
 {
     public class RegisterPassingHandler : IRequestHandler<RegisterPassingCommand>
     {
-        private readonly IMessagingService _messagingService;
+        private readonly IExternalMessagingService _messagingService;
 
-        public RegisterPassingHandler(IMessagingService messagingService) => _messagingService = messagingService;
+        public RegisterPassingHandler(IExternalMessagingService messagingService) => _messagingService = messagingService;
 
         public async Task Handle(RegisterPassingCommand request, CancellationToken cancellationToken)
         {

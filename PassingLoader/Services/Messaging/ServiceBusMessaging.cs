@@ -5,14 +5,14 @@ using VeloTimer.Shared.Data.Models.Timing;
 
 namespace VeloTimer.PassingLoader.Services.Messaging
 {
-    public class MessagingService : IMessagingService
+    public class ServiceBusMessaging : IExternalMessagingService
     {
         private readonly MessageBusOptions _options;
-        private readonly ILogger<MessagingService> _logger;
+        private readonly ILogger<ServiceBusMessaging> _logger;
         private readonly ServiceBusClient _client;
         private readonly ServiceBusSender _sender;
 
-        public MessagingService(MessageBusOptions options, ILogger<MessagingService> logger)
+        public ServiceBusMessaging(MessageBusOptions options, ILogger<ServiceBusMessaging> logger)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
             _logger = logger;

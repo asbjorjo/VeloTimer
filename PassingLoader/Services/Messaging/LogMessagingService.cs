@@ -3,7 +3,7 @@ using VeloTimer.Shared.Data.Models.Timing;
 
 namespace VeloTimer.PassingLoader.Services.Messaging
 {
-    internal class LogMessagingService : IMessagingService
+    internal class LogMessagingService : IExternalMessagingService
     {
         private readonly ILogger _logger;
 
