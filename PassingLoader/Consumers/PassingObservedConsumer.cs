@@ -6,7 +6,7 @@ using VeloTimer.Shared.Data.Models.Timing;
 
 namespace VeloTimer.PassingLoader.Consumers
 {
-    public class PassingObservedConsumer : IConsumer<PassingObserved>
+    public class PassingObservedConsumer : IConsumer<RawPassingObserved>
     {
         private readonly IMediator _mediator;
 
@@ -15,9 +15,9 @@ namespace VeloTimer.PassingLoader.Consumers
             _mediator = mediator;
         }
 
-        public Task Consume(ConsumeContext<PassingObserved> context)
+        public Task Consume(ConsumeContext<RawPassingObserved> context)
         {
-            PassingObserved message = context.Message;
+            RawPassingObserved message = context.Message;
 
             return _mediator.Send(new RegisterPassingCommand(message));
         }

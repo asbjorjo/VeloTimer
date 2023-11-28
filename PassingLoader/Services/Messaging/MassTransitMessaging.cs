@@ -15,14 +15,14 @@ namespace VeloTimer.PassingLoader.Services.Messaging
             _logger = logger;
         }
 
-        public void RegisterPassing(PassingObserved passing)
+        public void RegisterPassing(RawPassingObserved passing)
         {
             _logger.LogDebug("New passing");
-            _bus.Publish(passing);
+            _bus.Publish<RawPassingObserved>(passing);
             _logger.LogDebug("Published");
         }
 
-        public void RegisterPassings(IEnumerable<PassingObserved> passings)
+        public void RegisterPassings(IEnumerable<RawPassingObserved> passings)
         {
             foreach (var passing in passings)
             {

@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "PassingSubmitter": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}
