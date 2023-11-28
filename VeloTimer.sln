@@ -15,7 +15,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PassingLoader", "PassingLoa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Shared.Data", "Shared.Data\Shared.Data.csproj", "{54C5564F-BFB0-4E90-9C68-90AD0CD2FE52}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PassingSubmitter", "PassingSubmitter\PassingSubmitter.csproj", "{F32971D0-793C-43BE-BDA7-CB7D7B7AFEDB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PassingSubmitter", "PassingSubmitter\PassingSubmitter.csproj", "{F32971D0-793C-43BE-BDA7-CB7D7B7AFEDB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

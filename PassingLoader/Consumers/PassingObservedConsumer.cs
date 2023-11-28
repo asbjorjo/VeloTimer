@@ -2,7 +2,6 @@
 using MediatR;
 using VeloTimer.PassingLoader.Commands;
 using VeloTimer.PassingLoader.Contracts;
-using VeloTimer.Shared.Data.Models.Timing;
 
 namespace VeloTimer.PassingLoader.Consumers
 {
@@ -19,7 +18,7 @@ namespace VeloTimer.PassingLoader.Consumers
         {
             RawPassingObserved message = context.Message;
 
-            return _mediator.Send(new RegisterPassingCommand(message));
+            return _mediator.Send(new ProcessRawPassing(message));
         }
     }
 }

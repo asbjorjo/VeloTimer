@@ -35,7 +35,7 @@ jobs:
       env:
         NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-and-push-loader:
+  build-and-push-submitter:
     needs: build-packages
     runs-on: ubuntu-latest
     permissions:
@@ -65,7 +65,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: PassingLoader/Dockerfile
+          file: PassingSubmitter/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
