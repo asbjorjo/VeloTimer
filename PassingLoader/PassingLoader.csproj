@@ -10,7 +10,7 @@
     <Authors>Asbjoern L. Johansen</Authors>
     <Company>VeloTime</Company>
 	<RepositoryUrl>https://github.com/asbjorjo/VeloTimer/</RepositoryUrl>
-	<OutputType>Exe</OutputType>
+	<OutputType>Library</OutputType>
 	<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
   </PropertyGroup>
 
