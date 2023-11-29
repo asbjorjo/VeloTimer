@@ -4,7 +4,7 @@ namespace VeloTimer.PassingLoader.Services.Messaging
 {
     public interface IMessagingService
     {
-        public void RegisterPassing(RawPassingObserved passing);
-        public void RegisterPassings(IEnumerable<RawPassingObserved> passings);
+        public Task SendPassing(TrackPassingObserved passing);
+        public Task SendPassings(IEnumerable<TrackPassingObserved> passings);
     }
 }

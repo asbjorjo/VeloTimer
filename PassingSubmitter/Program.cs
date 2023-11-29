@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Hosting;
+using Serilog;
 using VeloTimer.PassingLoader;
 
 Console.WriteLine(System.Runtime.InteropServices.RuntimeInformation.OSDescription);
@@ -7,7 +8,8 @@ Console.WriteLine(System.Runtime.InteropServices.RuntimeInformation.RuntimeIdent
 
 IHostBuilder hostBuilder = Host
     .CreateDefaultBuilder(args)
-    .ConfigurePassingLoader();
+    .UseSerilog()
+    .UsePassingSubmitter();
 
 using IHost host = hostBuilder.Build();
 

@@ -2,4 +2,4 @@
 using VeloTimer.PassingLoader.Contracts;
 
 namespace VeloTimer.PassingLoader.Commands;
-public record ProcessRawPassing(RawPassingObserved Passing) : IRequest;
+public record SendTrackPassing(TrackPassingObserved TrackPassing) : IRequest;
