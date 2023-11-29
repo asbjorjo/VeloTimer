@@ -5,50 +5,51 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using VeloTimer.PassingLoader.Consumers;
 using VeloTimer.PassingLoader.Contracts;
 
-namespace VeloTimer.PassingLoader.Services.Messaging
+namespace VeloTimer.PassingLoader.Services.Messaging;
+
+public static class Startup
 {
-    public static class Startup
+    public static IServiceCollection AddExternalMessagingService(this IServiceCollection services, IConfiguration configuration)
     {
-        public static IServiceCollection AddExternalMessagingService(this IServiceCollection services, IConfiguration configuration)
+        var mbconfig = configuration.GetSection(MessageBusOptions.Section);
+        var settings = mbconfig.Get<MessageBusOptions>() ?? new MessageBusOptions();
+        settings.ConnectionString = configuration.GetConnectionString(MessageBusOptions.ConnectionStringProperty);
+
+        services.TryAddSingleton(settings);
+        services.TryAddSingleton<IExternalMessagingService, LogMessagingService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddMessagingService(this IServiceCollection services, IConfiguration config)
+    {
+        services.AddOptions<MassTransitHostOptions>().Configure(options =>
         {
-            var mbconfig = configuration.GetSection(MessageBusOptions.Section);
-            var settings = mbconfig.Get<MessageBusOptions>() ?? new MessageBusOptions();
-            settings.ConnectionString = configuration.GetConnectionString(MessageBusOptions.ConnectionStringProperty);
+            options.WaitUntilStarted = true;
+        });
 
-            services.TryAddSingleton(settings);
-            services.TryAddSingleton<IExternalMessagingService, LogMessagingService>();
-
-            return services;
-        }
-
-        public static IServiceCollection AddMessagingService(this IServiceCollection services, IConfiguration config)
+        services.AddOptions<RabbitMqTransportOptions>().Configure(options =>
         {
-            services.AddOptions<MassTransitHostOptions>().Configure(options =>
+            options.Host = "rabbitmq";
+            options.User = "guest";
+            options.Pass = "guest";
+        });
+        services.AddMassTransit(x =>
+        {
+            x.AddConsumer<PassingObservedConsumer>();
+            x.UsingRabbitMq((context, cfg) =>
             {
-                options.WaitUntilStarted = true;
-            });
-
-            services.AddOptions<RabbitMqTransportOptions>().Configure(options =>
-            {
-                options.Host = "rabbitmq";
-                options.User = "guest";
-                options.Pass = "guest";
-            });
-            services.AddMassTransit(x =>
-            {
-                x.AddConsumer<PassingObservedConsumer>();
-                x.UsingRabbitMq((context, cfg) =>
+                cfg.Publish<TrackPassingObserved>(x =>
                 {
-                    cfg.Publish<TrackPassingObserved>(x =>
-                    {
-                        x.Durable = true;
-                        x.AutoDelete = false;
-                    });
-                    cfg.ConfigureEndpoints(context);
+                    x.Durable = true;
+                    x.AutoDelete = false;
                 });
+                cfg.ConfigureEndpoints(context);
             });
+        });
 
-            return services;
-        }
+        services.TryAddSingleton<IMessagingService, MassTransitMessaging>();
+
+        return services;
     }
 }
