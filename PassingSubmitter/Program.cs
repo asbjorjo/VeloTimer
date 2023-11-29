@@ -8,7 +8,7 @@ Console.WriteLine(System.Runtime.InteropServices.RuntimeInformation.RuntimeIdent
 
 IHostBuilder hostBuilder = Host
     .CreateDefaultBuilder(args)
-    .UseSerilog()
+    //.UseSerilog()
     .UsePassingSubmitter();
 
 using IHost host = hostBuilder.Build();
