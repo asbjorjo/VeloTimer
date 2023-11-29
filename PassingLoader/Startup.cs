@@ -1,6 +1,9 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using MediatR;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using VeloTimer.PassingLoader.Commands;
+using VeloTimer.PassingLoader.Handlers;
 using VeloTimer.PassingLoader.Services.Messaging;
 
 namespace VeloTimer.PassingLoader
@@ -20,7 +23,8 @@ namespace VeloTimer.PassingLoader
                     services.AddMessagingService(context.Configuration);
                     //services.AddExternalMessagingervice(context.Configuration);
                     //services.ConfigureApiClient(context.Configuration);
-                    services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(Startup).Assembly));
+                    services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(IMediator).Assembly));
+                    services.AddScoped<IRequestHandler<SendTrackPassing>, SendTrackPassingHandler>();
                 });
 
             return builder;
@@ -39,7 +43,8 @@ namespace VeloTimer.PassingLoader
                     services.AddMessagingService(context.Configuration);
                     services.AddExternalMessagingervice(context.Configuration);
                     //services.ConfigureApiClient(context.Configuration);
-                    services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(Startup).Assembly));
+                    services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(IMediator).Assembly));
+                    services.AddScoped<IRequestHandler<RegisterTrackPassing>, RegisterTrackPassingHandler>();
                 });
 
             return builder;
