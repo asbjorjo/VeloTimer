@@ -37,7 +37,7 @@ namespace VeloTimer.PassingLoader
                     //services.ConfigureStorage(context.Configuration);
                     //services.AddExternalMessagingervice(context.Configuration);
                     //services.ConfigureApiClient(context.Configuration);
-                    services.AddScoped<IRequestHandler<SendTrackPassing>, SendTrackPassingHandler>();
+                    services.AddTransient<IRequestHandler<SendTrackPassing>, SendTrackPassingHandler>();
                 });
 
             return builder;
@@ -52,7 +52,7 @@ namespace VeloTimer.PassingLoader
                     //services.ConfigureStorage(context.Configuration);
                     services.AddExternalMessagingService(context.Configuration);
                     //services.ConfigureApiClient(context.Configuration);
-                    services.AddScoped<IRequestHandler<RegisterTrackPassing>, RegisterTrackPassingHandler>();
+                    services.AddTransient<IRequestHandler<RegisterTrackPassing>, RegisterTrackPassingHandler>();
                 });
 
             return builder;
