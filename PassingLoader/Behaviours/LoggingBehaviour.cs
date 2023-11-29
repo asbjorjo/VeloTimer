@@ -17,11 +17,11 @@ public class LoggingBehaviour<TRequest, TResponse> : IPipelineBehavior<TRequest,
 
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
-        _logger.LogWarning($"Handling {typeof(TRequest).Name}");
+        _logger.LogDebug($"Handling {typeof(TRequest).Name}");
 
         var response = await next();
 
-        _logger.LogWarning($"Handled {typeof(TRequest).Name}");
+        _logger.LogDebug($"Handled {typeof(TRequest).Name}");
 
         return response;
     }
