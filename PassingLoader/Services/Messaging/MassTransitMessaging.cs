@@ -18,7 +18,7 @@ namespace VeloTimer.PassingLoader.Services.Messaging
         public async Task SendPassing(TrackPassingObserved passing)
         {
             _logger.LogDebug("New passing");
-            await _bus.Send<TrackPassingObserved>(passing);
+            await _bus.Publish<TrackPassingObserved>(passing);
             _logger.LogDebug("Published");
         }
 

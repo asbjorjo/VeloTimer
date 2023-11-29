@@ -2,8 +2,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using VeloTimer.PassingLoader.Consumers;
-using VeloTimer.PassingLoader.Contracts;
 
 namespace VeloTimer.PassingLoader.Services.Messaging;
 
@@ -33,19 +31,6 @@ public static class Startup
             options.Host = "rabbitmq";
             options.User = "guest";
             options.Pass = "guest";
-        });
-        services.AddMassTransit(x =>
-        {
-            x.AddConsumer<PassingObservedConsumer>();
-            x.UsingRabbitMq((context, cfg) =>
-            {
-                cfg.Publish<TrackPassingObserved>(x =>
-                {
-                    x.Durable = true;
-                    x.AutoDelete = false;
-                });
-                cfg.ConfigureEndpoints(context);
-            });
         });
 
         services.TryAddSingleton<IMessagingService, MassTransitMessaging>();

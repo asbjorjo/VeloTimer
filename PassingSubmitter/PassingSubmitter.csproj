@@ -17,8 +17,4 @@
     <ProjectReference Include="..\PassingLoader\PassingLoader.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Services\" />
-  </ItemGroup>
-
 </Project>
