@@ -41,7 +41,7 @@ namespace VeloTimer.PassingLoader
                 {
                     //services.ConfigureStorage(context.Configuration);
                     services.AddMessagingService(context.Configuration);
-                    services.AddExternalMessagingervice(context.Configuration);
+                    services.AddExternalMessagingService(context.Configuration);
                     //services.ConfigureApiClient(context.Configuration);
                     services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(typeof(IMediator).Assembly));
                     services.AddScoped<IRequestHandler<RegisterTrackPassing>, RegisterTrackPassingHandler>();
