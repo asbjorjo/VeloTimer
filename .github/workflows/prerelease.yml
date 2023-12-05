@@ -32,8 +32,12 @@ jobs:
       run: dotnet pack Shared.Data --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
     - name: Pack VeloTime.Timing
       run: dotnet pack VeloTime.Timing --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
-    - name: Push
+    - name: Push VeloTimer
       run: dotnet nuget push VeloTimer.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
+      env:
+        NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Push VeloTime
+      run: dotnet nuget push VeloTime.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
       env:
         NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
