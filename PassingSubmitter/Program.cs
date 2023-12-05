@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Hosting;
-using Serilog;
 using VeloTimer.PassingLoader;
 
 Console.WriteLine(System.Runtime.InteropServices.RuntimeInformation.OSDescription);

@@ -30,6 +30,8 @@ jobs:
       run: dotnet pack VeloTimerWeb/Shared --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
     - name: Pack Shared.Data
       run: dotnet pack Shared.Data --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
+    - name: Pack VeloTime.Timing
+      run: dotnet pack VeloTime.Timing --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
     - name: Push
       run: dotnet nuget push VeloTimer.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
       env:
@@ -65,7 +67,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: PassingSubmitter/Dockerfile
+          file: VeloTime.Timing.Agents.EventSubmitter/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

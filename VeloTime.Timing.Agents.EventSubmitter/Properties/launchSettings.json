@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "VeloTime.Timing.Agents.EventSubmitter": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}
