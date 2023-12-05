@@ -68,7 +68,7 @@ jobs:
         uses: docker/metadata-action@v3
         with:
           images: |
-            ghcr.io/asbjorjo/velotime-agents-timing-eventsubmitter
+            ghcr.io/asbjorjo/velotime-timing-agents-eventsubmitter
       - name: Build and push Docker image
         uses: docker/build-push-action@v2
         with:
