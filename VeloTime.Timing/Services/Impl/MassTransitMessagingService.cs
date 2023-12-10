@@ -15,6 +15,11 @@ public class MassTransitMessagingService : IMessagingService
         _logger = logger;
     }
 
+    public async Task SendStartLoadingFrom(StartLoadingFrom startLoadingFrom)
+    {
+        await _messageBus.Send(startLoadingFrom);
+    }
+
     public async Task SendTrackPassing(TrackPassing passing)
     {
         await _messageBus.Publish(passing);
