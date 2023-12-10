@@ -8,7 +8,8 @@ IHostBuilder hostBuilder = Host
     //.AddServiceBusMessaging()
     .AddLoggingMessaging()
     .AddMasstransitMessaging()
-    .AddMassTransit();
+    .AddMassTransit()
+    .AddStartupService();
 
 using IHost host = hostBuilder.Build();
 
