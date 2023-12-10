@@ -38,6 +38,7 @@ public static class Extensions
                     {
                         x.Bind<TrackPassing>();
 
+                        x.ConfigureConsumeTopology = false;
                         x.Durable = true;
                         x.AutoDelete = false;
                     });
