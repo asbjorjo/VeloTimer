@@ -5,4 +5,6 @@ IHostBuilder hostBuilder = Host
     .CreateDefaultBuilder(args)
     .UsePassingObserver();
 
-hostBuilder.Start();
+using IHost host = hostBuilder.Build();
+
+await host.RunAsync();

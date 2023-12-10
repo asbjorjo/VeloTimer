@@ -1,5 +1,5 @@
 ﻿using MediatR;
-using VeloTime.Timing.Commands;
+using VeloTime.Timing.Agents.PassingObserver.Commands;
 using VeloTime.Timing.Services;
 
 namespace VeloTime.Timing.Handlers

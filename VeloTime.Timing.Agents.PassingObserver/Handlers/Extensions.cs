@@ -1,8 +1,9 @@
 ﻿using MediatR;
 using Microsoft.Extensions.DependencyInjection;
-using VeloTime.Timing.Commands;
+using VeloTime.Timing.Agents.PassingObserver.Commands;
+using VeloTime.Timing.Handlers;
 
-namespace VeloTime.Timing.Handlers;
+namespace VeloTime.Timing.Agents.PassingObserver.Handlers;
 
 public static class Extensions
 {

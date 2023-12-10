@@ -1,8 +1,9 @@
 ﻿using MassTransit;
+using MassTransit.Internals;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using VeloTime.Timing.Agents.PassingObserver.Handlers;
 using VeloTime.Timing.Contracts;
-using VeloTime.Timing.Handlers;
 using VeloTime.Timing.Services;
 using VeloTime.Timing.Services.Impl;
 
@@ -34,14 +35,7 @@ public static class Extensions
                         x.Durable = true;
                         x.AutoDelete = false;
                     });
-                    cfg.ReceiveEndpoint(nameof(TrackPassing),x =>
-                    {
-                        x.Bind<TrackPassing>();
 
-                        x.ConfigureConsumeTopology = false;
-                        x.Durable = true;
-                        x.AutoDelete = false;
-                    });
                     cfg.ConfigureEndpoints(context);
                 });
             });
