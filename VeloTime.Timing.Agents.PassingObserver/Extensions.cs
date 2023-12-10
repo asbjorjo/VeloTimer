@@ -34,6 +34,13 @@ public static class Extensions
                         x.Durable = true;
                         x.AutoDelete = false;
                     });
+                    cfg.ReceiveEndpoint(nameof(TrackPassing),x =>
+                    {
+                        x.Bind<TrackPassing>();
+
+                        x.Durable = true;
+                        x.AutoDelete = false;
+                    });
                     cfg.ConfigureEndpoints(context);
                 });
             });
