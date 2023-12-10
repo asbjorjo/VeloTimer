@@ -15,8 +15,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PassingLoader", "PassingLoa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Shared.Data", "Shared.Data\Shared.Data.csproj", "{54C5564F-BFB0-4E90-9C68-90AD0CD2FE52}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PassingSubmitter", "PassingSubmitter\PassingSubmitter.csproj", "{F32971D0-793C-43BE-BDA7-CB7D7B7AFEDB}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VeloTime.Timing", "VeloTime.Timing\VeloTime.Timing.csproj", "{F48BFDB8-C5C8-4BEB-A424-140CB8C9A906}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VeloTime.Timing.Agents.EventSubmitter", "VeloTime.Timing.Agents.EventSubmitter\VeloTime.Timing.Agents.EventSubmitter.csproj", "{D6FCDEC0-EB2D-40F2-A81E-5A78044D03E7}"
@@ -53,10 +51,6 @@ Global
 		{54C5564F-BFB0-4E90-9C68-90AD0CD2FE52}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{54C5564F-BFB0-4E90-9C68-90AD0CD2FE52}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{54C5564F-BFB0-4E90-9C68-90AD0CD2FE52}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F32971D0-793C-43BE-BDA7-CB7D7B7AFEDB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F32971D0-793C-43BE-BDA7-CB7D7B7AFEDB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F32971D0-793C-43BE-BDA7-CB7D7B7AFEDB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F32971D0-793C-43BE-BDA7-CB7D7B7AFEDB}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F48BFDB8-C5C8-4BEB-A424-140CB8C9A906}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F48BFDB8-C5C8-4BEB-A424-140CB8C9A906}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F48BFDB8-C5C8-4BEB-A424-140CB8C9A906}.Release|Any CPU.ActiveCfg = Release|Any CPU
