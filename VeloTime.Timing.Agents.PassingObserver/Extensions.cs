@@ -2,6 +2,7 @@
 using MassTransit.Internals;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using VeloTime.Timing.Agents.PassingObserver.Consumers;
 using VeloTime.Timing.Agents.PassingObserver.Handlers;
 using VeloTime.Timing.Contracts;
 using VeloTime.Timing.Services;
@@ -28,6 +29,8 @@ public static class Extensions
             });
             services.AddMassTransit(x =>
             {
+                x.AddConsumer<StartLoadingFromConsumer>();
+
                 x.UsingRabbitMq((context, cfg) =>
                 {
                     cfg.Publish<TrackPassing>(x =>

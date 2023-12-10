@@ -1,6 +1,7 @@
 ﻿using MassTransit;
 using Microsoft.Extensions.Hosting;
 using VeloTime.Timing.Agents.EventSubmitter.Consumers;
+using VeloTime.Timing.Contracts;
 
 namespace VeloTime.Timing.Agents.EventSubmitter;
 
@@ -16,6 +17,7 @@ public static class Extensions
                      x.AddConsumer<TrackPassingConsumer>();
                      x.UsingRabbitMq((context, cfg) =>
                      {
+                         cfg.Send<StartLoadingFrom>();
                          cfg.ConfigureEndpoints(context);
                      });
                  });
