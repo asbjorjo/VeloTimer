@@ -1,0 +1,13 @@
+version: '3.4'
+
+services:
+  velotime.timing.agents.dummypassingobserver:
+    image: ${DOCKER_REGISTRY-}velotimetimingagentsdummypassingobserver
+    build:
+      context: .
+      dockerfile: VeloTime.Timing.Agents.DummyPassingObserver/Dockerfile
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    ports:
+      - "5672"
+      - "15672:15672"

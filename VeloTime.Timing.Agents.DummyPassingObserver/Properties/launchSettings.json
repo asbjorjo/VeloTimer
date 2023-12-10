@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "VeloTime.Timing.Agents.DummyPassingObserver": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}
