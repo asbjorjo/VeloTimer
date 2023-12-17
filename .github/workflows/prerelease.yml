@@ -79,8 +79,6 @@ jobs:
         with:
           images: |
             ghcr.io/asbjorjo/velotime-timing-agents-eventsubmitter
-          labels: |
-            ${{ steps.nbgv.outputs.SemVer1 }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v2
         with:
@@ -88,7 +86,9 @@ jobs:
           file: VeloTime.Timing.Agents.EventSubmitter/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          labels: |
+              ${{ steps.meta.outputs.labels }}
+              ${{ steps.steps.nbgv.outputs.SemVer1 }}
 
   # build-webapp:
   #   environment:
