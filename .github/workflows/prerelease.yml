@@ -85,10 +85,10 @@ jobs:
           context: .
           file: VeloTime.Timing.Agents.EventSubmitter/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: |
-              ${{ steps.meta.outputs.labels }}
-              ${{ steps.steps.nbgv.outputs.SemVer1 }}
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            ${{ steps.steps.nbgv.outputs.SemVer1 }}
+          labels: ${{ steps.meta.outputs.labels }}
 
   # build-webapp:
   #   environment:
