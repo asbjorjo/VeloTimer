@@ -34,6 +34,11 @@ internal class ServiceBusMessagingService : IExternalMessagingService
         return message;
     }
 
+    public Task SendStartLoadingFrom(StartLoadingFrom startLoadingFrom)
+    {
+        throw new NotImplementedException();
+    }
+
     public async Task SendTrackPassing(TrackPassing passing)
     {
         var message = PrepareMessage(passing);

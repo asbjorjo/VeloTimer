@@ -9,6 +9,11 @@ public class LogMessagingService : IExternalMessagingService
 
     public LogMessagingService(ILogger<LogMessagingService> logger) => _logger = logger;
 
+    public Task SendStartLoadingFrom(StartLoadingFrom startLoadingFrom)
+    {
+        throw new NotImplementedException();
+    }
+
     public Task SendTrackPassing(TrackPassing passing)
     {
         _logger.LogInformation(passing.ToString());
