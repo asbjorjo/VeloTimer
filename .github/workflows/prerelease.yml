@@ -29,24 +29,24 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
-    # - name: Pack PassingLoader
-    #   run: dotnet pack PassingLoader --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
-    # - name: Pack Shared
-    #   run: dotnet pack VeloTimerWeb/Shared --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
-    # - name: Pack Shared.Data
-    #   run: dotnet pack Shared.Data --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
-    # - name: Pack VeloTime.Timing
-    #   run: dotnet pack VeloTime.Timing --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
-    # - name: Pack VeloTime.Timing.Agents.PassingObserver
-    #   run: dotnet pack VeloTime.Timing.Agents.PassingObserver --configuration ${{ env.CONFIGURATION }} /p:Version=${VERSION} --output .
-    # - name: Push VeloTimer
-    #   run: dotnet nuget push VeloTimer.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
-    #   env:
-    #     NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    # - name: Push VeloTime
-    #   run: dotnet nuget push VeloTime.*.${VERSION}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
-    #   env:
-    #     NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Pack PassingLoader
+      run: dotnet pack PassingLoader --configuration ${{ env.CONFIGURATION }} /p:Version=${{ steps.nbgv.outputs.NuGetPackageVersion }} --output .
+    - name: Pack Shared
+      run: dotnet pack VeloTimerWeb/Shared --configuration ${{ env.CONFIGURATION }} /p:Version=${{ steps.nbgv.outputs.NuGetPackageVersion }} --output .
+    - name: Pack Shared.Data
+      run: dotnet pack Shared.Data --configuration ${{ env.CONFIGURATION }} /p:Version=${{ steps.nbgv.outputs.NuGetPackageVersion }} --output .
+    - name: Pack VeloTime.Timing
+      run: dotnet pack VeloTime.Timing --configuration ${{ env.CONFIGURATION }} /p:Version=${{ steps.nbgv.outputs.NuGetPackageVersion }} --output .
+    - name: Pack VeloTime.Timing.Agents.PassingObserver
+      run: dotnet pack VeloTime.Timing.Agents.PassingObserver --configuration ${{ env.CONFIGURATION }} /p:Version=${{ steps.nbgv.outputs.NuGetPackageVersion }} --output .
+    - name: Push VeloTimer
+      run: dotnet nuget push VeloTimer.*.${{ steps.nbgv.outputs.NuGetPackageVersion }}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
+      env:
+        NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Push VeloTime
+      run: dotnet nuget push VeloTime.*.${{ steps.nbgv.outputs.NuGetPackageVersion }}.nupkg --source https://nuget.pkg.github.com/asbjorjo/index.json --api-key ${NUGET_TOKEN}
+      env:
+        NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # build-and-push-submitter:
   #   needs: build-packages
