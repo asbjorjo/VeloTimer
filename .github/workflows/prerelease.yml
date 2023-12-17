@@ -58,12 +58,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Log in to the Container registry
         uses: docker/login-action@v1
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Versioning
+        uses: dotnet/nbgv@master
+        id: nbgv
       #- name: Create nuget.config
       #  run: echo $NUGET_CONFIG > nuget.config
       #  env:
@@ -74,6 +79,8 @@ jobs:
         with:
           images: |
             ghcr.io/asbjorjo/velotime-timing-agents-eventsubmitter
+          labels: |
+            ${{ steps.nbgv.outputs.SemVer1 }}
       - name: Build and push Docker image
         uses: docker/build-push-action@v2
         with:
