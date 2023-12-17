@@ -48,40 +48,40 @@ jobs:
       env:
         NUGET_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # build-and-push-submitter:
-  #   needs: build-packages
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     contents: read
-  #     packages: write
+  build-and-push-submitter:
+    needs: build-packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v2
-  #     - name: Log in to the Container registry
-  #       uses: docker/login-action@v1
-  #       with:
-  #         registry: ghcr.io
-  #         username: ${{ github.actor }}
-  #         password: ${{ secrets.GITHUB_TOKEN }}
-  #     #- name: Create nuget.config
-  #     #  run: echo $NUGET_CONFIG > nuget.config
-  #     #  env:
-  #     #    NUGET_CONFIG: ${{ secrets.NUGET_CONFIG }}
-  #     - name: Extract metadata (tags, labels) for Docker
-  #       id: meta
-  #       uses: docker/metadata-action@v3
-  #       with:
-  #         images: |
-  #           ghcr.io/asbjorjo/velotime-timing-agents-eventsubmitter
-  #     - name: Build and push Docker image
-  #       uses: docker/build-push-action@v2
-  #       with:
-  #         context: .
-  #         file: VeloTime.Timing.Agents.EventSubmitter/Dockerfile
-  #         push: true
-  #         tags: ${{ steps.meta.outputs.tags }}
-  #         labels: ${{ steps.meta.outputs.labels }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Log in to the Container registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      #- name: Create nuget.config
+      #  run: echo $NUGET_CONFIG > nuget.config
+      #  env:
+      #    NUGET_CONFIG: ${{ secrets.NUGET_CONFIG }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: |
+            ghcr.io/asbjorjo/velotime-timing-agents-eventsubmitter
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: VeloTime.Timing.Agents.EventSubmitter/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
   # build-webapp:
   #   environment:
