@@ -76,20 +76,20 @@ jobs:
     - uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CI }}
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
-    - name: Install EF Tool
-      run: |
-          dotnet new tool-manifest
-          dotnet tool install dotnet-ef
-    - name: Update Identity Database
-      run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloIdentityDbContext --no-build
-    - name: Update VeloTimer Database
-      run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
-    - name: Azure Logout
-      run: az logout
+#    - name: Setup .NET Core
+#      uses: actions/setup-dotnet@v1
+#      with:
+#        dotnet-version: ${{ env.DOTNET_CORE_VERSION }}
+#    - name: Install EF Tool
+#      run: |
+#          dotnet new tool-manifest
+#          dotnet tool install dotnet-ef
+#    - name: Update Identity Database
+#      run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloIdentityDbContext --no-build
+#    - name: Update VeloTimer Database
+#      run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloTimerDbContext --no-build
+#    - name: Azure Logout
+#      run: az logout
   deploy-webapp:
     environment:
       name: staging
