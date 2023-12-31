@@ -397,7 +397,9 @@ namespace VeloTimerWeb.Client.Services
 
         public async Task ExtendRegistration(TransponderOwnershipWeb transponderOwnership, DateTimeOffset newEnd)
         {
-            using var response = await _client.PutAsJsonAsync($"rider/{transponderOwnership.Owner.UserId}/transponder/{transponderOwnership.Transponder.SystemId}/{TimeFormatter(transponderOwnership.OwnedFrom)}/{TimeFormatter(transponderOwnership.OwnedUntil)}", newEnd);
+            transponderOwnership.OwnedUntil = newEnd;
+
+            using var response = await _client.PutAsJsonAsync($"rider/{transponderOwnership.Owner.UserId}/transponder/{transponderOwnership.Transponder.SystemId}", transponderOwnership);
             response.EnsureSuccessStatusCode();
         }
     }

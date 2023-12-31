@@ -289,8 +289,8 @@ namespace VeloTimerWeb.Api.Controllers
         }
 
         [HttpPut]
-        [Route("{rider}/transponder/{label}/{from}/{until}")]
-        public async Task<ActionResult> ExtendTransponderRegistration(string rider, string label, DateTimeOffset from, DateTimeOffset until, DateTimeOffset newEnd)
+        [Route("{rider}/transponder/{label}")]
+        public async Task<ActionResult> ExtendTransponderRegistration(string rider, string label, TransponderOwnershipWeb transponderOwnership)
         {
             if (string.IsNullOrWhiteSpace(rider)) return BadRequest();
             if (string.IsNullOrWhiteSpace(label)) return BadRequest();
@@ -300,14 +300,14 @@ namespace VeloTimerWeb.Api.Controllers
                 var ownerships = await _context.Set<TransponderOwnership>()
                     .Where(x => x.Owner.UserId == rider)
                     .Where(x => x.Transponder.SystemId == label)
-                    .Where(x => x.OwnedFrom == from.UtcDateTime)
-                    .Where(x => x.OwnedUntil == until.UtcDateTime)
+                    .Where(x => x.OwnedFrom == transponderOwnership.OwnedFrom.UtcDateTime)
+                    .Where(x => x.OwnedUntil <= transponderOwnership.OwnedUntil.UtcDateTime)
                     .ToListAsync();
 
                 if (!ownerships.Any()) return NotFound();
 
                 var latest = ownerships.Last();
-                latest.OwnedUntil = newEnd.UtcDateTime;
+                latest.OwnedUntil = transponderOwnership.OwnedUntil.UtcDateTime;
                 await _context.SaveChangesAsync();
 
                 return Ok();
