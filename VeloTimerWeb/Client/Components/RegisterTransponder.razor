@@ -32,10 +32,13 @@
                 {
                     <MudTr>
                         <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
-                            <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add"
-                                OnClick="@(() => ExtendRegistration(@transpondername))">
-                                1 år
-                            </MudButton>
+                            @if (transpondername.OwnedFrom < DateTime.UtcNow && transpondername.OwnedUntil >= DateTime.UtcNow.AddMonths(-1))
+                            {
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add"
+                                           OnClick="@(() => ExtendRegistration(@transpondername))">
+                                    1 år
+                                </MudButton>
+                            }
                             <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
                                 OnClick="@(() => RemoveRegistration(@transpondername))">
                                 Slett
