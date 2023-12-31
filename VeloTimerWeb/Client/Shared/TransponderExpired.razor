@@ -27,7 +27,7 @@
 
         var transpondernames = await Http.GetFromJsonAsync<IEnumerable<TransponderOwnershipWeb>>($"rider/{userId}/transponders");
 
-        expired = transpondernames.Select(t => t.OwnedUntil > DateTime.UtcNow).Any();
+        expired = !transpondernames.Select(t => t.OwnedUntil > DateTime.UtcNow).Any();
 
         if (expired)
         {
