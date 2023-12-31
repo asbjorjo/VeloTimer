@@ -394,5 +394,11 @@ namespace VeloTimerWeb.Client.Services
 
             return await response.Content.ReadFromJsonAsync<AdminDashboardModel>();
         }
+
+        public async Task ExtendRegistration(TransponderOwnershipWeb transponderOwnership, DateTimeOffset newEnd)
+        {
+            using var response = await _client.PutAsJsonAsync($"rider/{transponderOwnership.Owner.UserId}/transponder/{transponderOwnership.Transponder.SystemId}/{TimeFormatter(transponderOwnership.OwnedFrom)}/{TimeFormatter(transponderOwnership.OwnedUntil)}", newEnd);
+            response.EnsureSuccessStatusCode();
+        }
     }
 }

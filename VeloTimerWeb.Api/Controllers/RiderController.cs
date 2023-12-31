@@ -288,6 +288,34 @@ namespace VeloTimerWeb.Api.Controllers
             return Ok(_mapper.Map<TransponderOwnershipWeb>(value));
         }
 
+        [HttpPut]
+        [Route("{rider}/transponder/{label}/{from}/{until}")]
+        public async Task<ActionResult> ExtendTransponderRegistration(string rider, string label, DateTimeOffset from, DateTimeOffset until, DateTimeOffset newEnd)
+        {
+            if (string.IsNullOrWhiteSpace(rider)) return BadRequest();
+            if (string.IsNullOrWhiteSpace(label)) return BadRequest();
+
+            if ((User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value == rider) || User.IsInRole("Admin"))
+            {
+                var ownerships = await _context.Set<TransponderOwnership>()
+                    .Where(x => x.Owner.UserId == rider)
+                    .Where(x => x.Transponder.SystemId == label)
+                    .Where(x => x.OwnedFrom == from.UtcDateTime)
+                    .Where(x => x.OwnedUntil == until.UtcDateTime)
+                    .ToListAsync();
+
+                if (!ownerships.Any()) return NotFound();
+
+                var latest = ownerships.Last();
+                latest.OwnedUntil = newEnd.UtcDateTime;
+                await _context.SaveChangesAsync();
+
+                return Ok();
+            }
+
+            return Unauthorized();
+        }
+
         [HttpDelete]
         [Route("{rider}/transponder/{label}/{from}/{until}")]
         public async Task<ActionResult> RemoveTransponderOwnership(string rider, string label, DateTimeOffset from, DateTimeOffset until)
