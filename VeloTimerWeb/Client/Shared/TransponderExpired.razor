@@ -1,0 +1,37 @@
+﻿@namespace VeloTimerWeb.Client.Shared
+@using VeloTimer.Shared.Hub
+@using VeloTimer.Shared.Util
+
+@inject IApiClient Api
+@inject ISnackbar SnackBar
+@inject HttpClient Http
+
+@if(expired)
+{
+    <MudPaper>
+        <MudLink Href="/rider/transponders">Ingen aktiv brikke!</MudLink>
+    </MudPaper>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+    private bool expired = false;
+
+    protected async override Task OnInitializedAsync()
+    {
+        var authState = await authenticationStateTask;
+        var user = authState.User;
+
+        var userId = user.FindFirst(c => c.Type == "sub")?.Value;
+
+        var transpondernames = await Http.GetFromJsonAsync<IEnumerable<TransponderOwnershipWeb>>($"rider/{userId}/transponders");
+
+        expired = transpondernames.Select(t => t.OwnedUntil > DateTime.UtcNow).Any();
+
+        if (expired)
+        {
+            SnackBar.Add("Ingen aktive brikke!", Severity.Error);
+        }
+    }
+}

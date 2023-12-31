@@ -15,11 +15,12 @@
         <MudSpacer />
         <AuthorizeView>
             <Authorized>
-                <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Link="/authentication/profile" />
+                <TransponderExpired />
+                <MudIconButton Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Href="/authentication/profile" />
                 <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="@BeginSignOut" />
             </Authorized>
             <NotAuthorized>
-                <MudIconButton Icon="@Icons.Material.Filled.Login" Color="Color.Inherit" Link="/authentication/login" />
+                <MudIconButton Icon="@Icons.Material.Filled.Login" Color="Color.Inherit" Href="/authentication/login" />
             </NotAuthorized>
         </AuthorizeView>
     </MudAppBar>
