@@ -119,6 +119,8 @@
 
         await Api.ExtendRegistration(transponderOwnership, transponderOwnership.OwnedUntil.AddYears(1));
 
+        SnackBar.Add($"Forlenget registrering for brikke {transponderOwnership.Transponder.Label}", MudBlazor.Severity.Success);
+
         await _table.ReloadServerData();
     }
 }
