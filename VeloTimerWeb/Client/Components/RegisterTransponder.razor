@@ -60,7 +60,7 @@
 @code {
     [CascadingParameter]
     private Task<AuthenticationState> authenticationStateTask { get; set; }
-    [CascadingParameter]
+    [CascadingParameter(Name = "ActiveTransponder")]
     private bool activeTransponder { get; set; }
     private IEnumerable<TransponderOwnershipWeb> transpondernames;
     private ServerValidator serverValidator;

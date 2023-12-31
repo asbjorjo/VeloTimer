@@ -16,12 +16,14 @@
 @code {
     [CascadingParameter]
     private Task<AuthenticationState> authenticationStateTask { get; set; }
-    [CascadingParameter]
+    [CascadingParameter(Name = "ActiveTransponder")]
     private bool activeTransponder { get; set; } 
     private string userId;
 
     protected override void OnParametersSet()
     {
+        base.OnParametersSet();
+
         if (!activeTransponder)
         {
             SnackBar.Add("Ingen aktiv brikke!", Severity.Error);
