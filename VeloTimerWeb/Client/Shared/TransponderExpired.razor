@@ -6,7 +6,7 @@
 @inject ISnackbar SnackBar
 @inject HttpClient Http
 
-@if(active)
+@if(!active)
 {
     <MudPaper>
         <MudLink Href="/rider/transponders">Ingen aktiv brikke!</MudLink>
@@ -33,9 +33,9 @@
     {
         var transpondernames = await Http.GetFromJsonAsync<IEnumerable<TransponderOwnershipWeb>>($"rider/{userId}/transponders");
 
-        active = transpondernames.Select(t => t.OwnedUntil > DateTime.UtcNow).Any();
+        active = transpondernames.Any() && transpondernames.Select(t => t.OwnedFrom <= DateTime.UtcNow && t.OwnedUntil > DateTime.UtcNow).Any();
 
-        if (active)
+        if (!active)
         {
             SnackBar.Add("Ingen aktive brikke!", Severity.Error);
         }
