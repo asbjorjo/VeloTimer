@@ -6,7 +6,7 @@
 @inject ISnackbar SnackBar
 @inject HttpClient Http
 
-@if(expired)
+@if(active)
 {
     <MudPaper>
         <MudLink Href="/rider/transponders">Ingen aktiv brikke!</MudLink>
@@ -16,20 +16,26 @@
 @code {
     [CascadingParameter]
     private Task<AuthenticationState> authenticationStateTask { get; set; }
-    private bool expired = false;
+    private bool active;
+    private string userId;
 
     protected async override Task OnInitializedAsync()
     {
         var authState = await authenticationStateTask;
         var user = authState.User;
 
-        var userId = user.FindFirst(c => c.Type == "sub")?.Value;
+        userId = user.FindFirst(c => c.Type == "sub")?.Value;
 
+        active = true;
+    }
+
+    protected async override Task OnParametersSetAsync()
+    {
         var transpondernames = await Http.GetFromJsonAsync<IEnumerable<TransponderOwnershipWeb>>($"rider/{userId}/transponders");
 
-        expired = !transpondernames.Select(t => t.OwnedUntil > DateTime.UtcNow).Any();
+        active = transpondernames.Select(t => t.OwnedUntil > DateTime.UtcNow).Any();
 
-        if (expired)
+        if (active)
         {
             SnackBar.Add("Ingen aktive brikke!", Severity.Error);
         }
