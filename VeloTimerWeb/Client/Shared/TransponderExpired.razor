@@ -16,7 +16,7 @@
 @code {
     [CascadingParameter]
     private Task<AuthenticationState> authenticationStateTask { get; set; }
-    private bool active;
+    private bool active = true;
     private string userId;
 
     protected async override Task OnInitializedAsync()
