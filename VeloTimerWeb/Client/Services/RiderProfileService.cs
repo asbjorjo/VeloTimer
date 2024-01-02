@@ -13,7 +13,7 @@ namespace Client.Services
     public class RiderProfileService : IRiderProfileService
     {
         private readonly HttpClient _httpClient;
-        private readonly ApiClient _apiClient;
+        private readonly IApiClient _apiClient;
         private readonly AuthenticationStateProvider _authenticationStateProvider;
 
         public RiderProfileService(HttpClient httpClient, ApiClient apiClient, AuthenticationStateProvider authenticationStateProvider)
