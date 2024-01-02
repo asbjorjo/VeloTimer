@@ -32,7 +32,7 @@
                 {
                     <MudTr>
                         <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
-                            @if (transpondername.OwnedFrom < DateTime.UtcNow && transpondername.OwnedUntil >= DateTime.UtcNow.AddMonths(-1))
+                            @if (transpondername.OwnedFrom < DateTime.UtcNow && transpondername.OwnedUntil.AddMonths(-1) <= DateTime.UtcNow)
                             {
                                 <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add"
                                            OnClick="@(() => ExtendRegistration(@transpondername))">
