@@ -16,7 +16,7 @@ namespace Client.Services
         private readonly IApiClient _apiClient;
         private readonly AuthenticationStateProvider _authenticationStateProvider;
 
-        public RiderProfileService(HttpClient httpClient, ApiClient apiClient, AuthenticationStateProvider authenticationStateProvider)
+        public RiderProfileService(HttpClient httpClient, IApiClient apiClient, AuthenticationStateProvider authenticationStateProvider)
         {
             _httpClient = httpClient;
             _apiClient = apiClient;
