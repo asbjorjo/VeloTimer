@@ -8,7 +8,6 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<CascadingValue Value="@activeTransponder" Name="ActiveTransponder">
 <MudLayout>
     <MudAppBar Elevation="1">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => ToggleDrawer())" />
@@ -32,11 +31,9 @@
         @Body
     </MudMainContent>
 </MudLayout>
-</CascadingValue>
 
 @code{
     bool _drawerOpen = false;
-    private bool activeTransponder = true;
 
     void ToggleDrawer()
     {

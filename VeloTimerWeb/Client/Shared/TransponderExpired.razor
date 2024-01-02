@@ -1,10 +1,12 @@
 ﻿@namespace VeloTimerWeb.Client.Shared
 @using VeloTimer.Shared.Hub
 @using VeloTimer.Shared.Util
+@using global::Client.Services
 
-@inject IApiClient Api
+@inject IRiderProfileService RiderProfileService
 @inject ISnackbar SnackBar
 @inject HttpClient Http
+@inject NavigationManager Navigation
 
 @if(!activeTransponder)
 {
@@ -13,20 +15,31 @@
     </MudPaper>
 }
 
-@code {
-    [CascadingParameter]
-    private Task<AuthenticationState> authenticationStateTask { get; set; }
-    [CascadingParameter(Name = "ActiveTransponder")]
-    private bool activeTransponder { get; set; } 
-    private string userId;
+@code{
+    private bool activeTransponder = true;
 
-    protected override void OnParametersSet()
+    private async Task UpdateActiveTransponder()
     {
-        base.OnParametersSet();
+        activeTransponder = await RiderProfileService.HasActiveTransponder();
+    }
 
-        if (!activeTransponder)
-        {
-            SnackBar.Add("Ingen aktiv brikke!", Severity.Error);
-        }
+    protected override void OnInitialized()
+    {
+    }
+
+    protected async override Task OnInitializedAsync()
+    {
+        await UpdateActiveTransponder();
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
+    private async void HandleLocationChanged(object sender, LocationChangedEventArgs e)
+    {
+        await UpdateActiveTransponder();
+        StateHasChanged();
+    }
+
+    public void Dispose() {
+        Navigation.LocationChanged -= HandleLocationChanged;
     }
 }
