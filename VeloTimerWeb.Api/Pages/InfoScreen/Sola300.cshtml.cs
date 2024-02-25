@@ -23,8 +23,8 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
         private readonly Dictionary<string, TimeParameters> periods = new Dictionary<string, TimeParameters>
         {
             { "sola300", new TimeParameters{
-                FromTime = new DateTimeOffset(new DateTime(year: 2022, month: 12, day: 24, 0, 0, 0)).UtcDateTime, 
-                ToTime = new DateTimeOffset(new DateTime(year: 2023, month: 1, day: 1, 0, 0, 0)).AddTicks(-1).UtcDateTime } }
+                FromTime = new DateTimeOffset(new DateTime(year: 2023, month: 12, day: 24, 0, 0, 0)).UtcDateTime, 
+                ToTime = new DateTimeOffset(new DateTime(year: 2024, month: 1, day: 1, 0, 0, 0)).AddTicks(-1).UtcDateTime } }
         };
         private readonly Dictionary<string, string> titles = new Dictionary<string, string>
         {

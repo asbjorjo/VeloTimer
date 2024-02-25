@@ -1,4 +1,5 @@
 ﻿using Client;
+using Client.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -37,6 +38,8 @@ namespace VeloTimerWeb.Client
 
             builder.Services.AddHttpClient<IApiClient, ApiClient>()
                 .AddHttpMessageHandler<VeloTimerAuthorizationMessageHandler>();
+
+            builder.Services.AddScoped<IRiderProfileService, RiderProfileService>();
 
             builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>()
                                                .CreateClient("VeloTimerWeb.ServerAPI"));

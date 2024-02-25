@@ -1,0 +1,45 @@
+﻿@namespace VeloTimerWeb.Client.Shared
+@using VeloTimer.Shared.Hub
+@using VeloTimer.Shared.Util
+@using global::Client.Services
+
+@inject IRiderProfileService RiderProfileService
+@inject ISnackbar SnackBar
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+@if(!activeTransponder)
+{
+    <MudPaper>
+        <MudLink Href="/rider/transponders">Ingen aktiv brikke!</MudLink>
+    </MudPaper>
+}
+
+@code{
+    private bool activeTransponder = true;
+
+    private async Task UpdateActiveTransponder()
+    {
+        activeTransponder = await RiderProfileService.HasActiveTransponder();
+    }
+
+    protected override void OnInitialized()
+    {
+    }
+
+    protected async override Task OnInitializedAsync()
+    {
+        await UpdateActiveTransponder();
+        Navigation.LocationChanged += HandleLocationChanged;
+    }
+
+    private async void HandleLocationChanged(object sender, LocationChangedEventArgs e)
+    {
+        await UpdateActiveTransponder();
+        StateHasChanged();
+    }
+
+    public void Dispose() {
+        Navigation.LocationChanged -= HandleLocationChanged;
+    }
+}
