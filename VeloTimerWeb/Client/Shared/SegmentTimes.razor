@@ -12,7 +12,6 @@
 }
 else
 {
-<MudSwipeArea OnSwipe="@HandleTableSwiped">
 <MudTable ServerData="@ReloadTimes" Loading="@_loading" LoadingProgressColor="Color.Info" Breakpoint="Breakpoint.None" T="SegmentTime" @ref="_table" OnRowClick="@ToggleIntermediate" Striped="true">
     <ToolBarContent>
         <MudSelect T="string" ValueChanged="@UpdateLabel" Value="@(_statisticsParameters.Label)">
@@ -37,7 +36,7 @@ else
     <HeaderContent>
         @if (!string.IsNullOrWhiteSpace(_rider))
         {
-            <MudTh><MudTableSortLabel SortLabel="passingtime" T="SegmentTime">Dato</MudTableSortLabel></MudTh>
+            <MudTh>Dato</MudTh>
         }
         else
         {
@@ -47,8 +46,8 @@ else
         {
             <MudTh Style="text-align:right">Split</MudTh>
         }
-        <MudTh Style="text-align:right"><MudTableSortLabel SortLabel="time" T="SegmentTime">@_label</MudTableSortLabel></MudTh>
-        <MudTh Style="text-align:right"><MudTableSortLabel SortLabel="speed" T="SegmentTime">Fart</MudTableSortLabel></MudTh>
+        <MudTh Style="text-align:right">@_label</MudTh>
+        <MudTh Style="text-align:right">Fart</MudTh>
     </HeaderContent>
     <LoadingContent>
         <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large"/>
@@ -70,7 +69,7 @@ else
         <MudTd DataLabel="Fart" Style="text-align:right">@Formatters.FormatSpeed(context.Speed)</MudTd>
     </RowTemplate>
     <PagerContent>
-        <MudTablePager />
+        <MudTablePager HidePageNumber="true" HidePagination="true" />
     </PagerContent>
     <ChildRowContent>
         @if (@context.ShowIntermediate)
@@ -94,7 +93,6 @@ else
         }
     </ChildRowContent>
 </MudTable>
-</MudSwipeArea>
 }
 
 @code {
@@ -188,19 +186,12 @@ else
     {
         if (_table != null) {
             await _table.ReloadServerData();
-            _table.NavigateTo(0);
         }
         await StatisticsParametersChanged.InvokeAsync(_statisticsParameters);
     }
 
     private async Task<TableData<SegmentTime>> ReloadTimes(TableState state)
     {
-        var pagination = new PaginationParameters
-        {
-            PageSize = state.PageSize,
-            PageNumber = state.Page + 1
-        };
-
         if (!string.IsNullOrEmpty(state.SortLabel))
         {
             if (state.SortDirection == SortDirection.Descending)
@@ -211,15 +202,12 @@ else
             }
         }
 
-        var timeData = await Api.GetTimes(_statisticsParameters, _timeParameters, pagination, Rider: _rider);
-
-        var times = timeData.Items;
-        var page = timeData.Pagination;
+        var times = await Api.GetTimes(_statisticsParameters, null, state.PageSize, Rider: _rider);
 
         _hasIntermediate = (times.Any() && times.First().Intermediates?.Count() > 1);
         _intermediates = _hasIntermediate ? times.First().Intermediates.Count() - 1 : 0;
 
-        return new TableData<SegmentTime> { TotalItems = page.TotalCount, Items = times };
+        return new TableData<SegmentTime> { Items = times };
     }
 
     private void HandleTableSwiped(SwipeDirection direction)

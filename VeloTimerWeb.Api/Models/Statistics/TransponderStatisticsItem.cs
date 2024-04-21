@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using VeloTimerWeb.Api.Models.Riders;
 using VeloTimerWeb.Api.Models.Timing;
 using VeloTimerWeb.Api.Models.TrackSetup;
 
@@ -13,6 +14,7 @@ namespace VeloTimerWeb.Api.Models.Statistics
         public List<TransponderStatisticsLayout> LayoutPassingList { get; private set; } = new();
 
         public Transponder Transponder { get; private set; }
+        public Rider Rider {  get; set; }
         public DateTime StartTime { get; private set; }
         public DateTime EndTime { get; private set; }
         public double Time { get; private set; }
@@ -36,8 +38,7 @@ namespace VeloTimerWeb.Api.Models.Statistics
             item.StartTime = passings.First().StartTime;
             item.EndTime = passings.Last().EndTime;
             item.Speed = passings.Average(x => x.Speed);
-
-
+            
             return item;
         }
     }

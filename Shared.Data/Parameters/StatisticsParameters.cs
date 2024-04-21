@@ -8,7 +8,7 @@ namespace VeloTimer.Shared.Data.Parameters
         private string track = string.Empty;
         private string layout = string.Empty;
 
-        public string OrderBy { get; set; } = "passingtime:desc";
+        public string OrderBy { get; set; } = "endtime:desc";
 
         public string Label
         {

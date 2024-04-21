@@ -22,5 +22,8 @@ namespace VeloTimerWeb.Api.Services
         Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, StatisticsItem statisticsItem, TimeParameters timeParameters, PaginationParameters pagingParameters, string orderby);
         Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, ICollection<TrackStatisticsItem> statisticsItems, TimeParameters timeParameters, PaginationParameters paginationParameters, string orderby);
         Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, TrackStatisticsItem statisticsItems, TimeParameters timeParameters, PaginationParameters paginationParameters, string orderby);
+        Task<IEnumerable<SegmentTime>> GetTimesForOwner(Rider rider, StatisticsItem statisticsItem, DateTimeOffset FromTime, string OrderBy, int Count = 50, bool IncludeIntermediates = true);
+        Task<IEnumerable<SegmentTime>> GetTimesForOwner(Rider rider, ICollection<TrackStatisticsItem> statisticsItems, DateTimeOffset FromTime, string OrderBy, int Count = 50, bool IncludeIntermediates = true);
+        Task<IEnumerable<SegmentTime>> GetTimesForOwner(Rider rider, TrackStatisticsItem statisticsItems, DateTimeOffset FromTime, string OrderBy, int Count = 50, bool IncludeIntermediates = true);
     }
 }

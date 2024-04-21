@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Data;
 using VeloTimer.Shared.Data.Models;
@@ -10,6 +11,7 @@ using VeloTimer.Shared.Data.Parameters;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Models.Riders;
 using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.Timing;
 using VeloTimerWeb.Api.Models.TrackSetup;
 
 namespace VeloTimerWeb.Api.Services
@@ -40,17 +42,14 @@ namespace VeloTimerWeb.Api.Services
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
-                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                 where
                     tsi.StatisticsItem == statisticsItem
-                    && tsi.StartTime >= fromtime
+                    && tsi.EndTime >= fromtime
                     && tsi.EndTime <= totime
                     && tsi.Time >= tsi.StatisticsItem.MinTime
                     && tsi.Time <= tsi.StatisticsItem.MaxTime
-                    && town.OwnedFrom <= tsi.StartTime
-                    && town.OwnedUntil >= tsi.EndTime
-                    && town.Owner.IsPublic
-                group tsi by new { town.Owner.Id, town.Owner.Name } into g
+                    && tsi.Rider.IsPublic
+                group tsi by new { tsi.Rider.Id, tsi.Rider.Name } into g
                 orderby g.Count() descending
                 select new SegmentDistance
                 {
@@ -91,17 +90,14 @@ namespace VeloTimerWeb.Api.Services
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
-                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                 where
                     counter.Contains(tsi.StatisticsItem)
-                    && tsi.StartTime >= fromtime
+                    && tsi.EndTime >= fromtime
                     && tsi.EndTime <= totime
                     && tsi.Time >= tsi.StatisticsItem.MinTime
                     && tsi.Time <= tsi.StatisticsItem.MaxTime
-                    && town.OwnedFrom <= tsi.StartTime
-                    && town.OwnedUntil >= tsi.EndTime
-                    && town.Owner.IsPublic
-                group tsi by new { town.Owner.Id, town.Owner.Name } into g
+                    && tsi.Rider.IsPublic
+                group tsi by new { tsi.Rider.Id, tsi.Rider.Name } into g
                 orderby g.Count() descending
                 select new SegmentDistance
                 {
@@ -110,7 +106,7 @@ namespace VeloTimerWeb.Api.Services
                     Distance = g.Count() * counter.First().Layout.Distance * counter.First().Laps / 1000
                 };
 
-            _logger.LogInformation(query.ToQueryString());
+            _logger.LogDebug(query.ToQueryString());
 
             counts = await query
                 .Take(Count)
@@ -130,17 +126,14 @@ namespace VeloTimerWeb.Api.Services
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
-                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                 where
                     StatisticsItems.Contains(tsi.StatisticsItem)
-                    && tsi.StartTime >= fromtime
+                    && tsi.EndTime >= fromtime
                     && tsi.EndTime <= totime
                     && tsi.Time >= tsi.StatisticsItem.MinTime
                     && tsi.Time <= tsi.StatisticsItem.MaxTime
-                    && town.OwnedFrom <= tsi.StartTime
-                    && town.OwnedUntil >= tsi.EndTime
-                    && town.Owner.IsPublic
-                group tsi.Time by new { town.Owner.Id, town.Owner.Name, Distance = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps } into ridertimes
+                    && tsi.Rider.IsPublic
+                group tsi.Time by new { tsi.Rider.Id, tsi.Rider.Name, Distance = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps } into ridertimes
                 orderby ridertimes.Min() ascending
                 select new SegmentTime
                 {
@@ -148,6 +141,8 @@ namespace VeloTimerWeb.Api.Services
                     Time = ridertimes.Min(),
                     Speed = ridertimes.Key.Distance / ridertimes.Min() * 3.6
                 };
+
+            _logger.LogDebug(query.ToQueryString());
 
             var list = await query
                 .Take(Count)
@@ -167,35 +162,22 @@ namespace VeloTimerWeb.Api.Services
                 return times;
 
             var query =
-                from tsi in _context.Set<TransponderStatisticsItem>()
-                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
+                from tsi in _context.Set<TrackStatisticsItem>()
                 where
-                    tsi.StatisticsItem.Layout.Track == Track
-                    && tsi.StatisticsItem.StatisticsItem.Label == Label
-                    && tsi.StartTime >= fromtime
-                    && tsi.EndTime <= totime
-                    && tsi.Time >= tsi.StatisticsItem.MinTime
-                    && tsi.Time <= tsi.StatisticsItem.MaxTime
-                    && town.OwnedFrom <= tsi.StartTime
-                    && town.OwnedUntil >= tsi.EndTime
-                    && town.Owner.IsPublic
-                group tsi.Time by new { town.Owner.Id, town.Owner.Name, Distance = tsi.StatisticsItem.Layout.Distance * tsi.StatisticsItem.Laps } into ridertimes
-                orderby ridertimes.Min() ascending
-                select new SegmentTime
-                {
-                    Rider = ridertimes.Key.Name,
-                    Time = ridertimes.Min(),
-                    Speed = ridertimes.Key.Distance / ridertimes.Min() * 3.6
-                };
+                    tsi.StatisticsItem.Label == Label
+                    && tsi.Layout.Track == Track
+                select tsi;
 
-            var list = await query
-                .Take(Count)
-                .AsNoTracking()
-                .ToListAsync();
+            var StatisticsItems = await query.AsNoTracking().ToListAsync();
+
+            _logger.LogDebug(query.ToQueryString());
+
+            var list = await GetFastest(StatisticsItems, FromTime, ToTime, Count);
 
             return list;
         }
 
+        [Obsolete("Use method with one date parameter", true)]
         public async Task<IEnumerable<SegmentTime>> GetRecent(TrackStatisticsItem StatisticsItem, DateTimeOffset FromTime, DateTimeOffset ToTime, int Count = 50)
         {
             var times = Enumerable.Empty<SegmentTime>();
@@ -235,6 +217,7 @@ namespace VeloTimerWeb.Api.Services
             return list;
         }
 
+        [Obsolete("Use method with one date parameter", true)]
         public async Task<PaginatedList<SegmentTime>> GetRecent(IEnumerable<TrackStatisticsItem> statisticsItems, TimeParameters time, PaginationParameters pagination, string orderby)
         {
             var fromtime = time.FromTime;
@@ -271,6 +254,85 @@ namespace VeloTimerWeb.Api.Services
                 .ToPaginatedListAsync(pagination.PageNumber, pagination.PageSize);
 
             return times;
+        }
+
+        public async Task<IEnumerable<SegmentTime>> GetRecent(IEnumerable<TrackStatisticsItem> statisticsItems, DateTimeOffset FromTime, string OrderBy, int Count = 50, bool IncludeIntermediates = true)
+        {
+            var times = Enumerable.Empty<SegmentTime>();
+
+             var passings = await GetPassings(statisticsItems, FromTime, OrderBy, Count);
+
+            if (IncludeIntermediates)
+            {
+                var inters = await GetIntermediates(passings);
+
+                times = passings.Select(x => new SegmentTime
+                {
+                    Rider = x.Rider.Name,
+                    PassingTime = x.EndTime,
+                    Time = x.Time,
+                    Speed = x.Speed * 3.6,
+                    Intermediates = inters[x.Id]
+                });
+            } 
+            else
+            {
+                times = passings.Select(x => new SegmentTime
+                {
+                    Rider = x.Rider.Name,
+                    PassingTime = x.EndTime,
+                    Time = x.Time,
+                    Speed = x.Speed * 3.6
+                });
+            }
+
+            return times;
+        }
+
+        private async Task<IEnumerable<TransponderStatisticsItem>> GetPassings(IEnumerable<TrackStatisticsItem> StatisticsItem, DateTimeOffset FromTime, string OrderBy, int Count)
+        {
+            var query =
+                from tsi in _context.Set<TransponderStatisticsItem>()
+                where
+                    StatisticsItem.Contains(tsi.StatisticsItem)
+                    && tsi.EndTime < FromTime
+                    && tsi.Time >= tsi.StatisticsItem.MinTime
+                    && tsi.Time <= tsi.StatisticsItem.MaxTime
+                    && tsi.Rider.IsPublic
+                select tsi;
+
+            query = query.ApplySort(OrderBy).Take(Count);
+            query = query.Include(x => x.Rider);
+            query = query.Include(x => x.Transponder);
+            query = query.Include(x => x.StatisticsItem).ThenInclude(x => x.Layout);
+
+            return await query
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        private async Task<Dictionary<long, IEnumerable<Intermediate>>> GetIntermediates(IEnumerable<TransponderStatisticsItem> Passings)
+        {
+            var Inters = new Dictionary<long,IEnumerable<Intermediate>>();
+
+            foreach (var passing in Passings)
+            {
+                var query =
+                    from inters in _context.Set<TrackSectorPassing>()
+                    join sector in _context.Set<TrackLayoutSector>() on inters.TrackSector equals sector.Sector
+                    where
+                    inters.Transponder == passing.Transponder
+                    && inters.StartTime >= passing.StartTime
+                    && inters.EndTime <= passing.EndTime
+                    && sector.Layout == passing.StatisticsItem.Layout
+                    select inters;
+                _logger.LogDebug(query.ToQueryString());
+                var result = await query.AsNoTracking().ToListAsync();
+
+                Inters.Add(passing.Id, result.Select(x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time }));
+            }
+
+            return Inters;
         }
 
         public async Task<Track> GetTrackBySlug(string slug)

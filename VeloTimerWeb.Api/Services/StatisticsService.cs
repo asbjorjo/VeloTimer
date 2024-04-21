@@ -32,17 +32,14 @@ namespace VeloTimerWeb.Api.Services
                 return times;
 
             var query = from tsi in _context.Set<TransponderStatisticsItem>()
-                        join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                         where
                             tsi.StatisticsItem.StatisticsItem == StatisticsItem
                             && tsi.StartTime >= fromtime
                             && tsi.EndTime <= totime
                             && tsi.Time >= tsi.StatisticsItem.MinTime
                             && tsi.Time <= tsi.StatisticsItem.MaxTime
-                            && town.OwnedFrom <= tsi.StartTime
-                            && town.OwnedUntil >= tsi.EndTime
-                            && town.Owner.IsPublic
-                        group tsi.Time by new { town.Owner.Id, town.Owner.Name, tsi.StatisticsItem.StatisticsItem.Distance } into ridertimes
+                            && tsi.Rider.IsPublic
+                        group tsi.Time by new { tsi.Rider.Id, tsi.Rider.Name, tsi.StatisticsItem.StatisticsItem.Distance } into ridertimes
                         orderby ridertimes.Min() ascending
                         select new SegmentTime
                         {
@@ -77,17 +74,14 @@ namespace VeloTimerWeb.Api.Services
 
             var query =
                 from tsi in _context.Set<TransponderStatisticsItem>()
-                join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                 where
                     tsi.StatisticsItem.StatisticsItem == StatisticsItem
                     && tsi.StartTime >= fromtime
                     && tsi.EndTime <= totime
                     && tsi.Time >= tsi.StatisticsItem.MinTime
                     && tsi.Time <= tsi.StatisticsItem.MaxTime
-                    && town.OwnedFrom <= tsi.StartTime
-                    && town.OwnedUntil >= tsi.EndTime
-                    && town.Owner.IsPublic
-                group tsi by new { town.Owner.Id, town.Owner.Name, Length = tsi.StatisticsItem.Layout.Distance } into g
+                    && tsi.Rider.IsPublic
+                group tsi by new { tsi.Rider.Id, tsi.Rider.Name, Length = tsi.StatisticsItem.Layout.Distance } into g
                 orderby g.Key.Length * g.Count() descending
                 select new
                 {

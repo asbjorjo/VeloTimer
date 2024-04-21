@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using VeloTimerWeb.Api.Data;
@@ -11,9 +12,10 @@ using VeloTimerWeb.Api.Data;
 namespace VeloTimerWeb.Api.Migrations.VeloTimer
 {
     [DbContext(typeof(VeloTimerDbContext))]
-    partial class VeloTimerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240225173556_StatisticsItemRider")]
+    partial class StatisticsItemRider
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

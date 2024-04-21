@@ -220,6 +220,40 @@ namespace VeloTimerWeb.Client.Services
             return times;
         }
 
+        public async Task<IEnumerable<SegmentTime>> GetTimes(StatisticsParameters statisticsParameters, DateTimeOffset? FromTime, int Count, string Rider, bool IncludeIntermediate)
+        {
+            var url = new StringBuilder();
+
+            if (Rider != null)
+            {
+                url.Append("rider/").Append(Rider);
+                url.Append("/times/").Append(statisticsParameters.ToPathString());
+                IncludeIntermediate = true;
+            }
+            else
+            {
+                url.Append("track/sola-arena/times/");
+                url.Append(statisticsParameters.Label);
+                IncludeIntermediate = false;
+            }
+
+            url.Append("?includeintermediate=").Append(IncludeIntermediate);
+            url.Append("&orderby=").Append(statisticsParameters.OrderBy);
+            url.Append("&count=").Append(Count);
+
+            if (FromTime.HasValue)
+            {
+                url.Append($"&FromTime={TimeFormatter(FromTime.Value)}");
+            }
+
+            using var response = await _client.GetAsync(url.ToString());
+            response.EnsureSuccessStatusCode();
+
+            var times = await response.Content.ReadFromJsonAsync<IEnumerable<SegmentTime>>();
+
+            return times;
+        }
+
         public async Task<IEnumerable<SegmentTime>> GetTimesForTransponder(string StatsItem, long TransponderId, DateTimeOffset? FromTime, DateTimeOffset? ToTime, int Count)
         {
             using var reponse = await _client.GetAsync($"transponders/times?StatsItem={StatsItem}&TransponderId{TransponderId}&FromTime={TimeFormatter(FromTime)}&ToTime={TimeFormatter(ToTime)}&Count={Count}");
