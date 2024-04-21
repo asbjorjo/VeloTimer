@@ -4,10 +4,12 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using VeloTimer.Shared.Hub;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
+using VeloTimerWeb.Api.Models.Riders;
 using VeloTimerWeb.Api.Models.Statistics;
 using VeloTimerWeb.Api.Models.Timing;
 using VeloTimerWeb.Api.Models.TrackSetup;
@@ -131,6 +133,16 @@ namespace VeloTimerWeb.Api.Services
 
                             if (transponderstats.Any())
                             {
+                                var owner = await _context.Set<TransponderOwnership>().Where(x => x.Transponder == passing.Transponder && x.OwnedFrom <= passing.Time && x.OwnedUntil >= passing.Time).Select(x => x.Owner).SingleOrDefaultAsync();
+
+                                if (owner != null)
+                                {
+                                    foreach (var transponder in transponderstats)
+                                    {
+                                        transponder.Rider = owner;
+                                    }
+                                }
+
                                 await _context.SaveChangesAsync();
                                 _logger.LogInformation("New transponderstats -- {Transponder} - {Count}", transponderstats.First().Transponder.Id, transponderstats.Count());
                             }

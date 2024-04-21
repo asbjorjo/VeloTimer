@@ -14,7 +14,7 @@ namespace VeloTimerWeb.Api.Models.Statistics
         public List<TransponderStatisticsLayout> LayoutPassingList { get; private set; } = new();
 
         public Transponder Transponder { get; private set; }
-        public Rider Rider {  get; private set; }
+        public Rider Rider {  get; set; }
         public DateTime StartTime { get; private set; }
         public DateTime EndTime { get; private set; }
         public double Time { get; private set; }
@@ -38,8 +38,7 @@ namespace VeloTimerWeb.Api.Models.Statistics
             item.StartTime = passings.First().StartTime;
             item.EndTime = passings.Last().EndTime;
             item.Speed = passings.Average(x => x.Speed);
-            item.Rider = transponder.Owners.Where(o => o.OwnedFrom < item.StartTime && o.OwnedUntil >= item.EndTime).Select(o => o.Owner).FirstOrDefault();
-
+            
             return item;
         }
     }
