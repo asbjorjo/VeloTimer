@@ -83,7 +83,7 @@ jobs:
     - name: Install EF Tool
       run: |
           dotnet new tool-manifest
-          dotnet tool install dotnet-ef
+          dotnet tool install dotnet-ef --version 6.0.4
     - name: Update Identity Database
       run: dotnet ef database update -p ${{ env.API_WORKING_DIRECTORY }} -s ${{ env.API_WORKING_DIRECTORY }} --configuration ${{ env.CONFIGURATION }} -c VeloIdentityDbContext --no-build
     - name: Update VeloTimer Database
