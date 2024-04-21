@@ -171,18 +171,20 @@ namespace VeloTimerWeb.Api.Controllers
         public async Task<IActionResult> GetTimes(
             string rider,
             string statsitem,
-            [FromQuery] TimeParameters timeParameters,
-            [FromQuery] PaginationParameters pagingParameters,
-            [FromQuery] string orderBy)
+            DateTimeOffset? FromTime,
+            int Count = 10,
+            string orderBy = "passingtime:desc",
+            bool IncludeIntermediate = true)
         {
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
             var StatsItem = await _context.Set<StatisticsItem>().SingleOrDefaultAsync(x => x.Slug == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
-            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters, orderBy);
+            var fromtime = DateTimeOffset.MaxValue;
+            if (FromTime.HasValue) fromtime = FromTime.Value;
 
-            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, fromtime, orderBy, Count, IncludeIntermediate);
 
             return Ok(times);
         }
@@ -193,9 +195,10 @@ namespace VeloTimerWeb.Api.Controllers
             string rider,
             string statsitem,
             string track,
-            [FromQuery] TimeParameters timeParameters,
-            [FromQuery] PaginationParameters pagingParameters,
-            [FromQuery] string orderBy)
+            DateTimeOffset? FromTime,
+            int Count = 10,
+            string orderBy = "passingtime:desc",
+            bool IncludeIntermediate = true)
         {
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
@@ -204,9 +207,10 @@ namespace VeloTimerWeb.Api.Controllers
             var StatsItems = await _context.Set<TrackStatisticsItem>().Where(x => x.StatisticsItem.Slug == statsitem).Where(x => x.Layout.Track == Track).ToListAsync();
             if (!StatsItems.Any()) { return NotFound($"StatsItem: {statsitem}"); }
 
-            var times = await _transponderService.GetTimesForOwner(Rider, StatsItems, timeParameters, pagingParameters, orderBy);
+            var fromtime = DateTimeOffset.MaxValue;
+            if (FromTime.HasValue) fromtime = FromTime.Value;
 
-            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItems, fromtime, orderBy, Count, IncludeIntermediate);
 
             return Ok(times);
         }
@@ -218,9 +222,10 @@ namespace VeloTimerWeb.Api.Controllers
             string statsitem,
             string track,
             string layout,
-            [FromQuery] TimeParameters timeParameters,
-            [FromQuery] PaginationParameters pagingParameters,
-            [FromQuery] string orderBy)
+            DateTimeOffset? FromTime,
+            int Count = 10,
+            string orderBy = "passingtime:desc",
+            bool IncludeIntermediate = true)
         {
             var Rider = await _context.Set<Rider>().SingleOrDefaultAsync(x => x.UserId == rider);
             if (Rider == null) { return NotFound($"Rider: {rider}"); }
@@ -229,9 +234,10 @@ namespace VeloTimerWeb.Api.Controllers
             var StatsItem = await _context.Set<TrackStatisticsItem>().SingleOrDefaultAsync(x => x.Layout == Layout && x.StatisticsItem.Slug == statsitem);
             if (StatsItem == null) { return NotFound($"StatsItem: {statsitem}"); }
 
-            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, timeParameters, pagingParameters, orderBy);
+            var fromtime = DateTimeOffset.MaxValue;
+            if (FromTime.HasValue) fromtime = FromTime.Value;
 
-            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
+            var times = await _transponderService.GetTimesForOwner(Rider, StatsItem, fromtime, orderBy, Count, IncludeIntermediate);
 
             return Ok(times);
         }

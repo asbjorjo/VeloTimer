@@ -13,7 +13,7 @@ namespace VeloTimerWeb.Api.Services
             services.AddScoped<ITrackService, TrackService>();
             services.AddScoped<ITransponderService, TransponderService>();
 
-            services.AddHostedService<CreatePassingHandler>();
+            //services.AddHostedService<CreatePassingHandler>();
 
             services.AddAutoMapper(typeof(VeloTimeProfile));
 

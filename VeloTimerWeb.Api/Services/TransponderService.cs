@@ -12,6 +12,7 @@ using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Models.Riders;
 using VeloTimerWeb.Api.Models.Statistics;
 using VeloTimerWeb.Api.Models.Timing;
+using VeloTimerWeb.Api.Models.TrackSetup;
 
 namespace VeloTimerWeb.Api.Services
 {
@@ -95,14 +96,11 @@ namespace VeloTimerWeb.Api.Services
             }
 
             var query = from tsi in _context.Set<TransponderStatisticsItem>()
-                        join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                         where
                             tsi.StatisticsItem.StatisticsItem == statisticsItem
                             && tsi.StartTime >= fromtime
                             && tsi.EndTime <= totime
-                            && town.Owner == rider
-                            && town.OwnedFrom <= tsi.StartTime
-                            && town.OwnedUntil >= tsi.EndTime
+                            && tsi.Rider == rider
                         orderby tsi.Time
                         select new SegmentTime
                         {
@@ -120,6 +118,8 @@ namespace VeloTimerWeb.Api.Services
 
         public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, StatisticsItem statisticsItem, TimeParameters timeParameters, PaginationParameters pagingParameters, string orderby)
         {
+            orderby = orderby.Replace("endtime", "passingtime");
+
             var fromtime = timeParameters.FromTime;
             var totime = timeParameters.ToTime;
 
@@ -129,14 +129,11 @@ namespace VeloTimerWeb.Api.Services
             }
 
             var query = from tsi in _context.Set<TransponderStatisticsItem>()
-                        join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                         where
                             tsi.StatisticsItem.StatisticsItem == statisticsItem
                             && tsi.StartTime >= fromtime
                             && tsi.EndTime <= totime
-                            && town.Owner == rider
-                            && town.OwnedFrom <= tsi.StartTime
-                            && town.OwnedUntil >= tsi.EndTime
+                            && tsi.Rider == rider
                         select new SegmentTime
                         {
                             PassingTime = tsi.EndTime,
@@ -154,21 +151,19 @@ namespace VeloTimerWeb.Api.Services
 
         public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, TrackStatisticsItem statisticsItems, TimeParameters timeParameters, PaginationParameters paginationParameters, string orderby)
         {
+            orderby = orderby.Replace("endtime", "passingtime");
+
             var fromtime = timeParameters.FromTime;
             var totime = timeParameters.ToTime;
 
             if (totime <= fromtime) return null;
 
             var query = from tsi in _context.Set<TransponderStatisticsItem>()
-                        join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                         where
                             tsi.StatisticsItem == statisticsItems
                             && tsi.StartTime >= fromtime
                             && tsi.EndTime <= totime
-                            && town.Owner == rider
-                            && town.OwnedFrom <= tsi.StartTime
-                            && town.OwnedUntil >= tsi.EndTime
-                        orderby tsi.EndTime descending
+                            && tsi.Rider == rider
                         select new SegmentTime
                         {
                             PassingTime = tsi.EndTime,
@@ -186,21 +181,19 @@ namespace VeloTimerWeb.Api.Services
 
         public async Task<PaginatedList<SegmentTime>> GetTimesForOwner(Rider rider, ICollection<TrackStatisticsItem> statisticsItems, TimeParameters timeParameters, PaginationParameters paginationParameters, string orderby)
         {
+            orderby = orderby.Replace("endtime", "passingtime");
+
             var fromtime = timeParameters.FromTime;
             var totime = timeParameters.ToTime;
 
             if (totime <= fromtime) return null;
 
             var query = from tsi in _context.Set<TransponderStatisticsItem>()
-                        join town in _context.Set<TransponderOwnership>() on tsi.Transponder equals town.Transponder
                         where
                             statisticsItems.Contains(tsi.StatisticsItem)
                             && tsi.StartTime >= fromtime
                             && tsi.EndTime <= totime
-                            && town.Owner == rider
-                            && town.OwnedFrom <= tsi.StartTime
-                            && town.OwnedUntil >= tsi.EndTime
-                        orderby tsi.EndTime descending
+                            && tsi.Rider == rider
                         select new SegmentTime
                         {
                             PassingTime = tsi.EndTime,
@@ -228,6 +221,102 @@ namespace VeloTimerWeb.Api.Services
             }
 
             return existing;
+        }
+
+        public async Task<IEnumerable<SegmentTime>> GetTimesForOwner(Rider rider, StatisticsItem statisticsItem, DateTimeOffset FromTime, string OrderBy, int Count = 50, bool IncludeIntermediates = true)
+        {
+            var statisticsItems = await _context.Set<TrackStatisticsItem>().Where(x => x.StatisticsItem == statisticsItem).ToListAsync();
+
+            return await GetTimesForOwner(rider, statisticsItem, FromTime, OrderBy, Count, IncludeIntermediates);
+        }
+
+        public async Task<IEnumerable<SegmentTime>> GetTimesForOwner(Rider rider, ICollection<TrackStatisticsItem> statisticsItems, DateTimeOffset FromTime, string OrderBy, int Count = 50, bool IncludeIntermediates = true)
+        {
+            var times = Enumerable.Empty<SegmentTime>();
+
+            var passings = await GetPassings(rider, statisticsItems, FromTime, OrderBy, Count);
+
+            if (IncludeIntermediates)
+            {
+                var inters = await GetIntermediates(passings);
+
+                times = passings.Select(x => new SegmentTime
+                {
+                    Rider = x.Rider.Name,
+                    PassingTime = x.EndTime,
+                    Time = x.Time,
+                    Speed = x.Speed * 3.6,
+                    Intermediates = inters[x.Id]
+                });
+            }
+            else
+            {
+                times = passings.Select(x => new SegmentTime
+                {
+                    Rider = x.Rider.Name,
+                    PassingTime = x.EndTime,
+                    Time = x.Time,
+                    Speed = x.Speed * 3.6
+                });
+            }
+
+            return times;
+        }
+
+        public async Task<IEnumerable<SegmentTime>> GetTimesForOwner(Rider rider, TrackStatisticsItem statisticsItem, DateTimeOffset FromTime, string OrderBy, int Count = 50, bool IncludeIntermediates = true)
+        {
+            var statisticsItems = new List<TrackStatisticsItem>
+            {
+                statisticsItem
+            };
+
+            return await GetTimesForOwner(rider, statisticsItems, FromTime, OrderBy, Count, IncludeIntermediates);
+        }
+
+        private async Task<IEnumerable<TransponderStatisticsItem>> GetPassings(Rider rider, IEnumerable<TrackStatisticsItem> StatisticsItem, DateTimeOffset FromTime, string OrderBy, int Count)
+        {
+            var query =
+                from tsi in _context.Set<TransponderStatisticsItem>()
+                where
+                    StatisticsItem.Contains(tsi.StatisticsItem)
+                    && tsi.EndTime < FromTime
+                    && tsi.Time >= tsi.StatisticsItem.MinTime
+                    && tsi.Time <= tsi.StatisticsItem.MaxTime
+                    && tsi.Rider == rider
+                select tsi;
+
+            query = query.ApplySort(OrderBy).Take(Count);
+            query = query.Include(x => x.Rider);
+            query = query.Include(x => x.Transponder);
+            query = query.Include(x => x.StatisticsItem).ThenInclude(x => x.Layout);
+
+            return await query
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        private async Task<Dictionary<long, IEnumerable<Intermediate>>> GetIntermediates(IEnumerable<TransponderStatisticsItem> Passings)
+        {
+            var Inters = new Dictionary<long, IEnumerable<Intermediate>>();
+
+            foreach (var passing in Passings)
+            {
+                var query =
+                    from inters in _context.Set<TrackSectorPassing>()
+                    join sector in _context.Set<TrackLayoutSector>() on inters.TrackSector equals sector.Sector
+                    where
+                    inters.Transponder == passing.Transponder
+                    && inters.StartTime >= passing.StartTime
+                    && inters.EndTime <= passing.EndTime
+                    && sector.Layout == passing.StatisticsItem.Layout
+                    select inters;
+                _logger.LogDebug(query.ToQueryString());
+                var result = await query.AsNoTracking().ToListAsync();
+
+                Inters.Add(passing.Id, result.Select(x => new Intermediate { Speed = x.Speed * 3.6, Time = x.Time }));
+            }
+
+            return Inters;
         }
     }
 }

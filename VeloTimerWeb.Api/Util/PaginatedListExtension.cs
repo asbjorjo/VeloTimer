@@ -4,7 +4,7 @@ using VeloTimer.Shared.Data;
 
 namespace Microsoft.EntityFrameworkCore
 {
-    public static class PaginatedListExtension
+    public static class TimeOffsetListExtension
     {
         public static async Task<PaginatedList<TSource>> ToPaginatedListAsync<TSource>(this IQueryable<TSource> source, int pageNumber, int pageSize)
         {

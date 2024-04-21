@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Npgsql.Replication.PgOutput.Messages;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +8,6 @@ using System.Threading.Tasks;
 using VeloTimer.Shared.Hub;
 using VeloTimerWeb.Api.Data;
 using VeloTimerWeb.Api.Hubs;
-using VeloTimerWeb.Api.Migrations.VeloTimer;
 using VeloTimerWeb.Api.Models.Statistics;
 using VeloTimerWeb.Api.Models.Timing;
 using VeloTimerWeb.Api.Models.TrackSetup;

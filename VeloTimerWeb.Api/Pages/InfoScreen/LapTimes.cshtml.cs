@@ -47,21 +47,15 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
 
             var statsitem = await _context.Set<TrackStatisticsItem>().Where(x => x.Layout.Track == track && x.Layout.Active && x.StatisticsItem.Label == Label).ToListAsync();
 
-            if (statsitem == null)
+            if (statsitem == null || statsitem.Count == 0)
             {
                 return NotFound($"StatisticsItem: {Label}");
             }
 
             ViewData["Title"] = $"{Label}";
 
-            var timeParameters = new TimeParameters();
-            timeParameters.FromTime = DateTime.Now.AddDays(-7);
-            timeParameters.ToTime = DateTime.MaxValue;
-
-            var paginationParameters = new PaginationParameters();
-            paginationParameters.PageSize = 35;
-
-            var seedtimes = await _service.GetRecent(statsitem, timeParameters, paginationParameters, "passingtime:desc");
+            
+            var seedtimes = await _service.GetRecent(statsitem, DateTime.UtcNow.AddDays(-58), "endtime:desc", 35);
             Times = new Queue<SegmentTime>(seedtimes);
 
             HasSplit = Times.FirstOrDefault()?.Intermediates.Count() == 2;

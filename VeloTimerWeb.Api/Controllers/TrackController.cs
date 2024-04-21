@@ -97,9 +97,10 @@ namespace VeloTimerWeb.Api.Controllers
         public async Task<IActionResult> Recent(
             string Track,
             string StatisticsItem,
-            [FromQuery] TimeParameters timeParameters,
-            [FromQuery] PaginationParameters pagingParameters,
-            [FromQuery] string orderBy)
+            DateTimeOffset? FromTime,
+            int Count = 10,
+            string orderBy = "passingtime:desc",
+            bool IncludeIntermediate = true)
         {
             var statsitems = await _statisticsService.GetTrackItemsBySlugs(Track, StatisticsItem);
 
@@ -108,9 +109,10 @@ namespace VeloTimerWeb.Api.Controllers
                 return NotFound($"StatisticsItem: {StatisticsItem}");
             }
 
-            var times = await _trackService.GetRecent(statsitems, timeParameters, pagingParameters, orderBy);
+            var fromtime = DateTimeOffset.MaxValue;
+            if (FromTime.HasValue) fromtime = FromTime.Value;
 
-            Response.Headers.Add("X-Pagination", JsonConvert.SerializeObject(times.Pagination));
+            var times = await _trackService.GetRecent(statsitems, fromtime, orderBy, Count, IncludeIntermediate);
 
             return Ok(times);
         }
