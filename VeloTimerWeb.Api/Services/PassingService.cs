@@ -178,6 +178,8 @@ namespace VeloTimerWeb.Api.Services
                 .OrderByDescending(x => x.Laps)
                 .ToListAsync();
 
+            _logger.LogInformation("Found statsitems {Items}", statsitems.Count());
+
             if (statsitems.Any())
             {
                 var layoutPassings = await _context.Set<TrackLayoutPassing>()
@@ -189,6 +191,8 @@ namespace VeloTimerWeb.Api.Services
                     .Take(statsitems.First().Laps)
                     .OrderBy(x => x.EndTime)
                     .ToListAsync();
+
+                _logger.LogInformation("Found layoutpassings {Passings}", layoutPassings.Count());
 
                 foreach (var item in statsitems)
                 {
@@ -213,10 +217,15 @@ namespace VeloTimerWeb.Api.Services
                         if (continuouslap)
                         {
                             var tsi = TransponderStatisticsItem.Create(item, layoutPassing.Transponder, laps);
-                            _context.Add(tsi);
+                            transponderstats.Append(tsi);
                         }
                     }
                 }
+            }
+
+            if (transponderstats.Any())
+            {
+                await _context.AddRangeAsync(transponderstats);
             }
 
             return transponderstats;
