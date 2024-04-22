@@ -131,6 +131,8 @@ namespace VeloTimerWeb.Api.Services
                                 transponderstats = transponderstats.Concat(tsi);
                             }
 
+                            _logger.LogInformation("Prepared transponderstats -- {Transponder} - {Count}", passing.TransponderId, transponderstats.Count());
+
                             if (transponderstats.Any())
                             {
                                 var owner = await _context.Set<TransponderOwnership>().Where(x => x.Transponder == passing.Transponder && x.OwnedFrom <= passing.Time && x.OwnedUntil >= passing.Time).Select(x => x.Owner).SingleOrDefaultAsync();
