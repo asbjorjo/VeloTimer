@@ -288,6 +288,13 @@ namespace VeloTimerWeb.Api.Controllers
                 Transponder = transponder
             };
 
+            var stats = await _context.Set<TransponderStatisticsItem>().Where(x => x.Transponder == transponder && x.StartTime <= ownfrom && x.EndTime >= ownuntil).ToListAsync();
+
+            foreach (var stat in stats)
+            {
+                stat.Rider = dbrider;
+            }
+
             await _context.AddAsync(value);
             await _context.SaveChangesAsync();
 
@@ -341,6 +348,7 @@ namespace VeloTimerWeb.Api.Controllers
                 if (!ownerships.Any()) return NotFound();
 
                 _context.RemoveRange(ownerships);
+                
                 await _context.SaveChangesAsync();
 
                 return Ok();

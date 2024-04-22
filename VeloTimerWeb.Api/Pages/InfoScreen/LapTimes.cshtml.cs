@@ -55,7 +55,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             ViewData["Title"] = $"{Label}";
 
             
-            var seedtimes = await _service.GetRecent(statsitem, DateTime.UtcNow.AddDays(-58), "endtime:desc", 35);
+            var seedtimes = await _service.GetRecent(statsitem, DateTimeOffset.MaxValue, "endtime:desc", 35);
             Times = new Queue<SegmentTime>(seedtimes);
 
             HasSplit = Times.FirstOrDefault()?.Intermediates.Count() == 2;
