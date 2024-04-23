@@ -217,7 +217,7 @@ namespace VeloTimerWeb.Api.Services
                         if (continuouslap)
                         {
                             var tsi = TransponderStatisticsItem.Create(item, layoutPassing.Transponder, laps);
-                            transponderstats.Append(tsi);
+                            transponderstats.Add(tsi);
                         }
                     }
                 }
