@@ -171,7 +171,7 @@ namespace VeloTimerWeb.Api.Services
 
         private async Task<IEnumerable<TransponderStatisticsItem>> RegisterStatistics(TrackLayoutPassing layoutPassing)
         {
-            var transponderstats = Enumerable.Empty<TransponderStatisticsItem>();
+            var transponderstats = new List<TransponderStatisticsItem>();
 
             var statsitems = await _context.Set<TrackStatisticsItem>()
                 .Where(x => x.Layout == layoutPassing.TrackLayout)
