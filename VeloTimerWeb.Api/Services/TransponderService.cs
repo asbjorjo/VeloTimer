@@ -309,6 +309,7 @@ namespace VeloTimerWeb.Api.Services
                     && inters.StartTime >= passing.StartTime
                     && inters.EndTime <= passing.EndTime
                     && sector.Layout == passing.StatisticsItem.Layout
+                    orderby inters.EndTime ascending
                     select inters;
                 _logger.LogDebug(query.ToQueryString());
                 var result = await query.AsNoTracking().ToListAsync();
