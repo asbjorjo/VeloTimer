@@ -13,7 +13,7 @@ namespace VeloTimerWeb.Client.Models
         [Required]
         public string Owner { get; set; }
         [Required]
-        public DateRange ValidPeriod { get; set; } = new DateRange(DateTime.Now.StartOfDay(), DateTime.Now.AddDays(365).EndOfDay());
+        public DateTime? OwnedFrom { get; set; } = DateTime.Now.StartOfDay();
 
         public static TransponderOwnershipWebForm CreateFromOwnership(TransponderOwnershipWeb transponderOwnership)
         {
@@ -27,9 +27,9 @@ namespace VeloTimerWeb.Client.Models
                 form.TransponderLabel = transponderOwnership.Transponder.Label;
             }
 
-            if (transponderOwnership.OwnedFrom != default && transponderOwnership.OwnedUntil != default)
+            if (transponderOwnership.OwnedFrom != default)
             {
-                form.ValidPeriod = new DateRange(transponderOwnership.OwnedFrom.DateTime, transponderOwnership.OwnedUntil.DateTime);
+                form.OwnedFrom = transponderOwnership.OwnedFrom.DateTime;
             }
 
             return form;

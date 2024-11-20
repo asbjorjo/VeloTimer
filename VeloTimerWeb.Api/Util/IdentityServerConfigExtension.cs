@@ -27,7 +27,6 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.AddAspNetIdentity<TUser>()
                 .AddOperationalStore<TContext>()
-                .ConfigureReplacedServices()
                 .AddIdentityResources()
                 .AddApiResources()
                 .AddClients();

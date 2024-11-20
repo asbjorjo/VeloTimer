@@ -2,6 +2,7 @@
 @layout MainLayout
 @inherits ComponentBase
 @using Microsoft.Extensions.Logging
+@using System.Threading
 @inject NavigationManager NavigationManager
 @inject IApiClient Api
 @inject HttpClient Http
@@ -20,7 +21,7 @@
             <RowTemplate Context="transpondername">
                 <MudTd>@transpondername.Transponder.Label</MudTd>
                 <MudTd>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</MudTd>
-                <MudTd>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</MudTd>
+                <MudTd>@transpondername.OwnedUntil?.LocalDateTime.ToShortDateString()</MudTd>
             </RowTemplate>
             <PagerContent>
                 <MudHidden Breakpoint="Breakpoint.None" Invert="true">
@@ -32,13 +33,6 @@
                 {
                     <MudTr>
                         <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
-                            @if (transpondername.OwnedFrom < DateTime.UtcNow && transpondername.OwnedUntil.AddMonths(-1) <= DateTime.UtcNow)
-                            {
-                                <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.Add"
-                                           OnClick="@(() => ExtendRegistration(@transpondername))">
-                                    1 år
-                                </MudButton>
-                            }
                             <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
                                 OnClick="@(() => RemoveRegistration(@transpondername))">
                                 Slett
@@ -85,13 +79,13 @@
         var dialog = DialogService.Show<TransponderDialog>("Registrer brikke", parameters);
         var result = await dialog.Result;
 
-        if (!result.Cancelled)
+        if (!result.Canceled)
         {
             await _table.ReloadServerData();
         }
     }
 
-    private async Task<TableData<TransponderOwnershipWeb>> LoadTransponderNames(TableState state)
+    private async Task<TableData<TransponderOwnershipWeb>> LoadTransponderNames(TableState state, CancellationToken token)
     {
         transpondernames = await Http.GetFromJsonAsync<IEnumerable<TransponderOwnershipWeb>>($"rider/{userId}/transponders");
 
@@ -111,18 +105,6 @@
         await Api.RemoveTransponderRegistration(transponderOwnership);
 
         SnackBar.Add($"Slettet registrering for brikke {transponderOwnership.Transponder.Label}", MudBlazor.Severity.Error);
-
-        await _table.ReloadServerData();
-    }
-
-    private async void ExtendRegistration(TransponderOwnershipWeb transponderOwnership)
-    {
-        var authState = await authenticationStateTask;
-        var user = authState.User;
-
-        await Api.ExtendRegistration(transponderOwnership, transponderOwnership.OwnedUntil.AddYears(1));
-
-        SnackBar.Add($"Forlenget registrering for brikke {transponderOwnership.Transponder.Label}", MudBlazor.Severity.Success);
 
         await _table.ReloadServerData();
     }

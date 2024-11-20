@@ -1,4 +1,5 @@
 ﻿@page "/admin/riders"
+@using System.Threading
 @attribute [Authorize(Roles = "Admin")]
 
 @layout MainLayout
@@ -30,7 +31,7 @@
 @code {
     private MudTable<RiderWeb> _table;
 
-    private async Task<TableData<RiderWeb>> LoadRiders(TableState state)
+    private async Task<TableData<RiderWeb>> LoadRiders(TableState state, CancellationToken token)
     {
         var pagination = new PaginationParameters
         {

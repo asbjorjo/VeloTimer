@@ -3,6 +3,7 @@
 @attribute [Authorize(Roles = "Admin")]
 
 @using Microsoft.AspNetCore.Authorization
+@using System.Threading
 @layout MainLayout
 @inject IApiClient Api
 @inject NavigationManager Navigation
@@ -22,7 +23,7 @@
                     <MudTd>@transpondername.Transponder.Label</MudTd>
                     <MudTd>@transpondername.Owner.LastName, @transpondername.Owner.FirstName</MudTd>
                     <MudTd>@transpondername.OwnedFrom.LocalDateTime.ToShortDateString()</MudTd>
-                    <MudTd>@transpondername.OwnedUntil.LocalDateTime.ToShortDateString()</MudTd>
+                    <MudTd>@transpondername.OwnedUntil?.LocalDateTime.ToShortDateString()</MudTd>
                 </RowTemplate>
                 <ChildRowContent Context="transpondername">
                     @if (@transpondername.ShowEdit)
@@ -105,7 +106,7 @@
         Navigation.NavigateTo($"admin/transponders/{_activeTab}");
     }
 
-    private async Task<TableData<TransponderWeb>> LoadTransponders(TableState state)
+    private async Task<TableData<TransponderWeb>> LoadTransponders(TableState state, CancellationToken token)
     {
         var pagination = new PaginationParameters
         {
@@ -118,7 +119,7 @@
         return new TableData<TransponderWeb> { TotalItems = transponderData.Pagination.TotalCount, Items = transponderData.Items };
     }
 
-    private async Task<TableData<TransponderOwnershipWeb>> LoadTransponderOwnerships(TableState state)
+    private async Task<TableData<TransponderOwnershipWeb>> LoadTransponderOwnerships(TableState state, CancellationToken token)
     {
         var pagination = new PaginationParameters
         {
@@ -138,7 +139,7 @@
 
     private async void RemoveRegistration(TransponderOwnershipWeb transponderOwnership)
     {
-        bool? confirmation = await _deleteConfirmation.Show();
+        bool? confirmation = await _deleteConfirmation.ShowAsync();
 
         if (confirmation.HasValue && confirmation.Value)
         {

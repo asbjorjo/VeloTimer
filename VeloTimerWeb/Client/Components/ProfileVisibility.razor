@@ -8,7 +8,7 @@
             <MudCardContent>
                 <MudForm>
                     <MudField Label="Synlighet">
-                        <MudCheckBox @bind-Checked="@profile.IsPublic" Label="Vis i statistikk"/>
+                        <MudCheckBox @bind-Value="@profile.IsPublic" Label="Vis i statistikk"/>
                         <MudPaper>
                         <MudText Typo="Typo.caption">
                             Når du velger å inkluderes i offentlig statistikk vil navn og tider vises i statistikker og skjermer på velodromen.<br />

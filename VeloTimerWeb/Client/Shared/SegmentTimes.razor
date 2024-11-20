@@ -1,4 +1,5 @@
 ﻿@namespace VeloTimerWeb.Client.Shared
+@using System.Threading
 @using VeloTimer.Shared.Hub
 @inherits ComponentBase
 @implements IDisposable
@@ -86,7 +87,7 @@ else
                 }
                 else
                 {
-                    <MudChart ChartType="ChartType.Bar" ChartSeries="@ChartIntermediates(@context.Intermediates)" ChartOptions="@(new ChartOptions{DisableLegend = true, YAxisTicks=2})" />
+                    <MudChart ChartType="ChartType.Bar" ChartSeries="@ChartIntermediates(@context.Intermediates)" ChartOptions="@(new ChartOptions{ShowLegend = false, YAxisTicks=2})" />
                 }
                 </MudTd>
             </MudTr>
@@ -190,7 +191,7 @@ else
         await StatisticsParametersChanged.InvokeAsync(_statisticsParameters);
     }
 
-    private async Task<TableData<SegmentTime>> ReloadTimes(TableState state)
+    private async Task<TableData<SegmentTime>> ReloadTimes(TableState state, CancellationToken token)
     {
         if (!string.IsNullOrEmpty(state.SortLabel))
         {

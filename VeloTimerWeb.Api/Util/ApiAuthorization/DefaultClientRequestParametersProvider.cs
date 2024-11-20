@@ -1,4 +1,5 @@
 ﻿using Duende.IdentityServer.Extensions;
+using IdentityModel.Client;
 using Microsoft.AspNetCore.ApiAuthorization.IdentityServer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
@@ -25,7 +26,7 @@ namespace VeloTimerWeb.Api.Util.ApiAuthorization
         public IDictionary<string, string> GetClientParameters(HttpContext context, string clientId)
         {
             var client = Options.Value.Clients[clientId];
-            var authority = context.GetIdentityServerIssuerUri();
+            //var authority = context.GetIdentityServerIssuerUri();
             var responseType = "";
             if (!client.Properties.TryGetValue(ApplicationProfilesPropertyNames.Profile, out var type))
             {
@@ -45,7 +46,7 @@ namespace VeloTimerWeb.Api.Util.ApiAuthorization
 
             return new Dictionary<string, string>
             {
-                ["authority"] = authority,
+                //["authority"] = authority,
                 ["client_id"] = client.ClientId,
                 ["redirect_uri"] = UrlFactory.GetAbsoluteUrl(context, client.RedirectUris.First()),
                 ["post_logout_redirect_uri"] = UrlFactory.GetAbsoluteUrl(context, client.PostLogoutRedirectUris.First()),

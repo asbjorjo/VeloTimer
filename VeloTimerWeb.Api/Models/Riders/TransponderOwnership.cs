@@ -10,6 +10,6 @@ namespace VeloTimerWeb.Api.Models.Riders
         public Transponder Transponder { get; set; }
         public Rider Owner { get; set; }
         public DateTime OwnedFrom { get; set; }
-        public DateTime OwnedUntil { get; set; }
+        public DateTime? OwnedUntil { get; set; }
     }
 }

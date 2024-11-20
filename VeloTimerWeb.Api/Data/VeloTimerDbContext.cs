@@ -306,9 +306,10 @@ namespace VeloTimerWeb.Api.Data
                         v => v,
                         v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
                 x.Property(p => p.OwnedUntil)
+                    .IsRequired(false)
                     .HasConversion(
                         v => v,
-                        v => new System.DateTime(v.Ticks, System.DateTimeKind.Utc));
+                        v => v.HasValue ? System.DateTime.SpecifyKind(v.Value, System.DateTimeKind.Utc) : v);
             });
 
             builder.Entity<TransponderType>(x =>
