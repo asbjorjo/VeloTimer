@@ -1,5 +1,6 @@
 ﻿@namespace VeloTimerWeb.Client.Components
 @using FluentValidation
+@using System.Text
 @inject HttpClient Http
 @inject ISnackbar SnackBar
 
@@ -18,6 +19,16 @@
                     <MudButton Color="Color.Primary" OnClick="@(() => _ownedFromPicker.CloseAsync())">Ok</MudButton>
                 </PickerActions>
             </MudDatePicker>
+            <MudSwitch @bind-Value="WithEnd" Color="Color.Success" UncheckedColor="Color.Error">Tidsbegrenset</MudSwitch>
+            @if (WithEnd)
+            {
+                <MudDatePicker Label="Eid til" @bind-Date="transponderName.OwnedUntil" @ref="@_ownedFromPicker" PickerVariant="PickerVariant.Dialog" DisplayMonths=1 Disabled="@(!WithEnd)">
+                    <PickerActions>
+                        <MudButton OnClick="@(() => _ownedFromPicker.CloseAsync(false))">Avbryt</MudButton>
+                        <MudButton Color="Color.Primary" OnClick="@(() => _ownedFromPicker.CloseAsync())">Ok</MudButton>
+                    </PickerActions>
+                </MudDatePicker>
+            }
             <MudHidden Breakpoint="Breakpoint.None" Invert="true">
                 <MudTextField @bind-Value="transponderName.Owner" ReadOnly="true" For="@(() => transponderName.Owner)"  Validation="@(_formValidator.ValidateValue)" Immediate="true"/>
             </MudHidden>
@@ -45,6 +56,7 @@
         Transformation = AllUpperCase
     };
 
+    public bool WithEnd { get; set; } = false;
     private MudDatePicker _ownedFromPicker;
     private MudForm _transponderForm;
     private TransponderOwnershipWebForm transponderName = new();
@@ -80,7 +92,17 @@
             OwnedUntil = null
         };
 
-        var result = await Http.PostAsJsonAsync($"rider/{transponderName.Owner}/transponders", registration);
+        if (WithEnd && transponderName.OwnedUntil.HasValue) {
+            registration.OwnedUntil = transponderName.OwnedUntil.Value.EndOfDay();
+        } 
+
+        StringBuilder url = new StringBuilder($"rider/{transponderName.Owner}/transponders");
+
+        if (TransponderOwnership.Id.HasValue) {
+            url.Append($"/{TransponderOwnership.Id}");
+        }
+
+        var result = await Http.PostAsJsonAsync(url.ToString(), registration);
         if (result.IsSuccessStatusCode)
         {
             SnackBar.Add($"Brikke {transponderName.TransponderLabel} registrert", MudBlazor.Severity.Success);
@@ -121,6 +143,12 @@
                     .WithMessage("Tegn 5-8 må være tall")
                 .MinimumLength(8).WithMessage("For få tegn i kode")
                 .Must((value) => TransponderIdConverter.CodeToId(value) > 0).WithMessage("{PropertyValue} er ikke en gyldig kode");
+
+            RuleFor(x => x.OwnedFrom)
+                .NotEmpty()
+                .WithMessage("Mangler dato")
+                .LessThan(x => x.OwnedUntil.HasValue ? x.OwnedUntil : DateTime.MaxValue)
+                .WithMessage("Startdato må være før sluttdato");
         }
 
         public Func<object, string, Task<IEnumerable<string>>> ValidateValue => async (model, propertyName) =>

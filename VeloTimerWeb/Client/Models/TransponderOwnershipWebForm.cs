@@ -14,6 +14,7 @@ namespace VeloTimerWeb.Client.Models
         public string Owner { get; set; }
         [Required]
         public DateTime? OwnedFrom { get; set; } = DateTime.Now.StartOfDay();
+        public DateTime? OwnedUntil { get; set; }
 
         public static TransponderOwnershipWebForm CreateFromOwnership(TransponderOwnershipWeb transponderOwnership)
         {
@@ -30,6 +31,11 @@ namespace VeloTimerWeb.Client.Models
             if (transponderOwnership.OwnedFrom != default)
             {
                 form.OwnedFrom = transponderOwnership.OwnedFrom.DateTime;
+            }
+
+            if (transponderOwnership.OwnedUntil.HasValue && transponderOwnership.OwnedUntil != default)
+            {
+                form.OwnedUntil = transponderOwnership.OwnedUntil.Value.DateTime;
             }
 
             return form;

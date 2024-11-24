@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -244,9 +245,10 @@ namespace VeloTimerWeb.Api.Controllers
 
         [HttpPost]
         [Route("{rider}/transponders")]
+        [Route("{rider}/transponders/{ownershipId}")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
-        public async Task<ActionResult<TransponderOwnershipWeb>> RegisterTransponder(string rider, TransponderOwnershipWeb ownerWeb)
+        public async Task<ActionResult<TransponderOwnershipWeb>> RegisterTransponder(string rider, TransponderOwnershipWeb ownerWeb, long? ownershipId)
         {
             _logger.LogInformation($"Transponder: {ownerWeb.Transponder.Label}"
                                    + $" - Name: {ownerWeb.Owner}"
@@ -258,7 +260,7 @@ namespace VeloTimerWeb.Api.Controllers
             var ownfrom = ownerWeb.OwnedFrom.ToUniversalTime();
             var ownuntil = ownerWeb.OwnedUntil?.ToUniversalTime();
 
-            TransponderOwnership value;
+            TransponderOwnership value = default;
             Rider dbrider = await _dbset.Where(r => r.UserId == rider).SingleAsync();
 
             if (transponder == null)
@@ -283,14 +285,16 @@ namespace VeloTimerWeb.Api.Controllers
                 return Conflict(new ValidationProblemDetails(ModelState));
             }
 
+            if (ownershipId.HasValue) {
+                value = await _context.Set<TransponderOwnership>()
+                    .Where(town => town.Owner == dbrider)
+                    .Where(town => town.Id ==  ownershipId)
+                    .SingleOrDefaultAsync();
+            }
+
             var selfowner = ownerships.Where(town => town.Owner == dbrider && !town.OwnedUntil.HasValue || town.OwnedUntil >= ownfrom);
 
-            if (selfowner.Any())
-            {
-                value = await selfowner.OrderByDescending(town => town.OwnedFrom).FirstAsync();
-                value.OwnedFrom = ownfrom.UtcDateTime;
-                value.OwnedUntil = ownuntil?.UtcDateTime;
-            } else
+            if (value == default && selfowner.IsNullOrEmpty())
             {
                 value = new TransponderOwnership
                 {
@@ -300,6 +304,12 @@ namespace VeloTimerWeb.Api.Controllers
                     Transponder = transponder
                 };
                 await _context.AddAsync(value);
+            }
+            else
+            {
+                value = await selfowner.OrderByDescending(town => town.OwnedFrom).FirstAsync();
+                value.OwnedFrom = ownfrom.UtcDateTime;
+                value.OwnedUntil = ownuntil?.UtcDateTime;
             }
 
             DateTimeOffset statsEnd = ownuntil ?? DateTimeOffset.MaxValue.ToUniversalTime();
@@ -317,24 +327,29 @@ namespace VeloTimerWeb.Api.Controllers
         }
 
         [HttpDelete]
-        [Route("{rider}/transponder/{label}/{from}/{until}")]
-        public async Task<ActionResult> RemoveTransponderOwnership(string rider, string label, DateTimeOffset from, DateTimeOffset until)
+        [Route("{rider}/transponder/{label}")]
+        [Route("{rider}/transponder/{label}/{Id:long}")]
+        public async Task<ActionResult> RemoveTransponderOwnership(string rider, string label, long? Id)
         {
             if (string.IsNullOrWhiteSpace(rider)) return BadRequest();
             if (string.IsNullOrWhiteSpace(label)) return BadRequest();
 
             if ((User.FindFirst(c => c.Type == ClaimTypes.NameIdentifier)?.Value == rider) || User.IsInRole("Admin"))
             {
-                var ownerships = await _context.Set<TransponderOwnership>()
+                IQueryable<TransponderOwnership> ownerships = _context.Set<TransponderOwnership>()
                     .Where(x => x.Owner.UserId == rider)
-                    .Where(x => x.Transponder.SystemId == label)
-                    .Where(x => x.OwnedFrom == from.UtcDateTime)
-                    .Where(x => x.OwnedUntil == until.UtcDateTime)
-                    .ToListAsync();
+                    .Where(x => x.Transponder.SystemId == label);
 
-                if (!ownerships.Any()) return NotFound();
+                if (Id.HasValue)
+                {
+                    ownerships = ownerships.Where(x => x.Id == Id);
+                }
 
-                _context.RemoveRange(ownerships);
+                var ownershipsCollection = await ownerships.ToListAsync();
+
+                if (!ownershipsCollection.Any()) return NotFound();
+
+                _context.RemoveRange(ownershipsCollection);
                 
                 await _context.SaveChangesAsync();
 

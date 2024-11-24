@@ -376,7 +376,15 @@ namespace VeloTimerWeb.Client.Services
 
         public async Task RemoveTransponderRegistration(TransponderOwnershipWeb transponderOwnership)
         {
-            using var response = await _client.DeleteAsync($"rider/{transponderOwnership.Owner.UserId}/transponder/{transponderOwnership.Transponder.SystemId}/{TimeFormatter(transponderOwnership.OwnedFrom)}/{TimeFormatter(transponderOwnership.OwnedUntil)}");
+            StringBuilder url = new StringBuilder();
+            url.Append($"rider/{transponderOwnership.Owner.UserId}/transponder/{transponderOwnership.Transponder.SystemId}");
+
+            if (transponderOwnership.Id.HasValue)
+            {
+                url.Append($"/{transponderOwnership.Id}");
+            }
+
+            using var response = await _client.DeleteAsync(url.ToString());
             response.EnsureSuccessStatusCode();
         }
 
@@ -427,14 +435,6 @@ namespace VeloTimerWeb.Client.Services
             response.EnsureSuccessStatusCode();
 
             return await response.Content.ReadFromJsonAsync<AdminDashboardModel>();
-        }
-
-        public async Task ExtendRegistration(TransponderOwnershipWeb transponderOwnership, DateTimeOffset newEnd)
-        {
-            transponderOwnership.OwnedUntil = newEnd;
-
-            using var response = await _client.PutAsJsonAsync($"rider/{transponderOwnership.Owner.UserId}/transponder/{transponderOwnership.Transponder.SystemId}", transponderOwnership);
-            response.EnsureSuccessStatusCode();
         }
     }
 }

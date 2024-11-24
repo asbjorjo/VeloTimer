@@ -4,6 +4,7 @@ namespace VeloTimer.Shared.Data.Models.Riders
 {
     public class TransponderOwnershipWeb
     {
+        public long? Id { get; set; }
         public DateTimeOffset OwnedFrom { get; set; }
         public DateTimeOffset? OwnedUntil { get; set; }
         public TransponderWeb Transponder { get; set; }

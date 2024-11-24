@@ -33,6 +33,10 @@
                 {
                     <MudTr>
                         <MudTd UserAttributes="@(new Dictionary<string, object>{{"colspan","3"}})">
+                            <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Edit"
+                                OnClick="@(() => EditRegistration(@transpondername))">
+                                Rediger
+                            </MudButton>
                             <MudButton Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
                                 OnClick="@(() => RemoveRegistration(@transpondername))">
                                 Slett
@@ -77,6 +81,25 @@
         var parameters = new DialogParameters { ["transponderownership"] = new TransponderOwnershipWeb { Owner = rider } };
 
         var dialog = DialogService.Show<TransponderDialog>("Registrer brikke", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await _table.ReloadServerData();
+        }
+    }
+
+    private async Task EditRegistration(TransponderOwnershipWeb transponderOwnership)
+    {
+        var parameters = new DialogParameters { ["transponderownership"] = new TransponderOwnershipWeb { 
+            Owner = rider,
+            OwnedFrom = transponderOwnership.OwnedFrom,
+            OwnedUntil = transponderOwnership.OwnedUntil,
+            Transponder = transponderOwnership.Transponder,
+            Id = transponderOwnership.Id
+        } };
+
+        var dialog = DialogService.Show<TransponderDialog>("Rediger registrering", parameters);
         var result = await dialog.Result;
 
         if (!result.Canceled)
