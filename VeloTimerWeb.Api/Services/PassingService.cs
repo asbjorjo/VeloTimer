@@ -135,7 +135,7 @@ namespace VeloTimerWeb.Api.Services
 
                             if (transponderstats.Any())
                             {
-                                var owner = await _context.Set<TransponderOwnership>().Where(x => x.Transponder == passing.Transponder && x.OwnedFrom <= passing.Time && x.OwnedUntil >= passing.Time).Select(x => x.Owner).SingleOrDefaultAsync();
+                                var owner = await _context.Set<TransponderOwnership>().Where(x => x.Transponder == passing.Transponder && x.OwnedFrom <= passing.Time && (x.OwnedUntil >= passing.Time || x.OwnedUntil == null)).Select(x => x.Owner).SingleOrDefaultAsync();
 
                                 _logger.LogInformation("Found owner -- {owner}", owner);
 
