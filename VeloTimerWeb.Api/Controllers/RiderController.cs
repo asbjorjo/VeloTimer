@@ -314,7 +314,7 @@ namespace VeloTimerWeb.Api.Controllers
 
             DateTimeOffset statsEnd = ownuntil ?? DateTimeOffset.MaxValue.ToUniversalTime();
 
-            var stats = await _context.Set<TransponderStatisticsItem>().Where(x => x.Transponder == transponder && x.StartTime <= ownfrom && x.EndTime >= statsEnd).ToListAsync();
+            var stats = await _context.Set<TransponderStatisticsItem>().Where(x => x.Transponder == transponder && x.StartTime <= ownfrom && x.EndTime <= statsEnd).ToListAsync();
 
             foreach (var stat in stats)
             {
