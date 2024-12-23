@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.EntityFrameworkCore;
+using NuGet.Protocol.Providers;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -10,7 +12,10 @@ using VeloTimer.Shared.Data.Models;
 using VeloTimer.Shared.Data.Parameters;
 using VeloTimer.Shared.Util;
 using VeloTimerWeb.Api.Data;
+using VeloTimerWeb.Api.Models.Riders;
 using VeloTimerWeb.Api.Models.Statistics;
+using VeloTimerWeb.Api.Models.Timing;
+using VeloTimerWeb.Api.Models.TrackSetup;
 using VeloTimerWeb.Api.Services;
 
 namespace VeloTimerWeb.Api.Pages.InfoScreen
@@ -23,8 +28,8 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
         private readonly Dictionary<string, TimeParameters> periods = new Dictionary<string, TimeParameters>
         {
             { "sola300", new TimeParameters{
-                FromTime = new DateTimeOffset(new DateTime(year: 2023, month: 12, day: 24, 0, 0, 0)).UtcDateTime, 
-                ToTime = new DateTimeOffset(new DateTime(year: 2024, month: 1, day: 1, 0, 0, 0)).AddTicks(-1).UtcDateTime } }
+                FromTime = new DateTimeOffset(new DateTime(year: 2024, month: 12, day: 24, 0, 0, 0)).UtcDateTime, 
+                ToTime = new DateTimeOffset(new DateTime(year: 2025, month: 1, day: 1, 0, 0, 0)).UtcDateTime } }
         };
         private readonly Dictionary<string, string> titles = new Dictionary<string, string>
         {
@@ -58,12 +63,24 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
             var fromdate = period.FromTime;
             var todate = period.ToTime;
 
-            var counter = await _context.Set<TrackStatisticsItem>().Where(x => x.Layout.Track == track && x.StatisticsItem.IsLapCounter).ToListAsync();
-            if (counter != null)
-            {
-                Distances = await _service.GetCount(counter, fromdate, todate, 24);
-            }
-            
+            var query = from p in _context.Set<Passing>()
+                        join to in _context.Set<TransponderOwnership>() on p.Transponder equals to.Transponder
+                        where 
+                            p.Time >= fromdate && p.Time < todate 
+                            && p.Loop.Track == track && p.Loop.Description == "Red"
+                            && p.Time >= to.OwnedFrom && to.OwnedUntil >= p.Time
+                            && to.Owner.IsPublic
+                        group p by to.Owner into g
+                        orderby g.Count() descending
+                        select new SegmentDistance
+                        {
+                            Rider = g.Key.Name,
+                            Count = g.Count(),
+                            Distance = g.Count()*250/1000,
+                        };
+
+            Distances = await query.Take(24).ToListAsync();
+
             return Page();
         }
     }
