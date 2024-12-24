@@ -68,7 +68,7 @@ namespace VeloTimerWeb.Api.Pages.InfoScreen
                         where 
                             p.Time >= fromdate && p.Time < todate 
                             && p.Loop.Track == track && p.Loop.Description == "Red"
-                            && p.Time >= to.OwnedFrom && to.OwnedUntil >= p.Time
+                            && p.Time >= to.OwnedFrom && (to.OwnedUntil == null || to.OwnedUntil >= p.Time)
                             && to.Owner.IsPublic
                         group p by to.Owner into g
                         orderby g.Count() descending
