@@ -7,8 +7,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Client\VeloTime.WebUI.Client.csproj" />
-		<ProjectReference Include="..\Shared\VeloTime.WebUI.Shared.csproj" />
+		<ProjectReference Include="..\WebUI.Client\VeloTime.WebUI.Client.csproj" />
+		<ProjectReference Include="..\WebUI.Shared\VeloTime.WebUI.Shared.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
