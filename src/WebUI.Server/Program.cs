@@ -1,91 +1,33 @@
-﻿using Microsoft.IdentityModel.Tokens;
-using NetEscapades.AspNetCore.SecurityHeaders.Infrastructure;
+﻿using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-var services = builder.Services;
-var configuration = builder.Configuration;
-var env = builder.Environment;
+Log.Information("Starting up VeloTime.WebUI.Server");
 
-services.AddSecurityHeaderPolicies()
-  .SetPolicySelector((PolicySelectorContext ctx) =>
-  {
-      return SecurityHeadersDefinitions.GetHeaderPolicyCollection(env.IsDevelopment(),
-        configuration["OpenIDConnectSettings:Authority"]!);
-  });
-
-services.AddAntiforgery(options =>
+try
 {
-    options.HeaderName = AntiforgeryDefaults.HeaderName;
-    options.Cookie.Name = AntiforgeryDefaults.CookieName;
-    options.Cookie.SameSite = SameSiteMode.Strict;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-});
+    var builder = WebApplication.CreateBuilder(args);
 
-services.AddHttpClient();
-services.AddOptions();
+    builder.Host.UseSerilog((context, loggerConfiguration) => loggerConfiguration
+        .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level}] {SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}")
+        .WriteTo.File("../_logs-WebUI_Server.txt")
+        .Enrich.FromLogContext()
+        .ReadFrom.Configuration(context.Configuration));
 
-services.AddAuthentication(options =>
-{
-    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
-})
-.AddCookie()
-.AddOpenIdConnect(options =>
-{
-    configuration.GetSection("OpenIDConnectSettings").Bind(options);
+    var app = builder
+        .ConfigureServices()
+        .ConfigurePipeline();
 
-    options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    options.ResponseType = OpenIdConnectResponseType.Code;
-
-    options.SaveTokens = true;
-    options.GetClaimsFromUserInfoEndpoint = true;
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        NameClaimType = "name",
-        RoleClaimType = "role"
-    };
-});
-
-services.AddControllersWithViews(options =>
-     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
-
-services.AddRazorPages().AddMvcOptions(options =>
-{
-    //var policy = new AuthorizationPolicyBuilder()
-    //    .RequireAuthenticatedUser()
-    //    .Build();
-    //options.Filters.Add(new AuthorizeFilter(policy));
-});
-
-var app = builder.Build();
-
-if (env.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();
-    app.UseWebAssemblyDebugging();
+    app.Run();
 }
-else
+catch (Exception ex) when (ex.GetType().Name is not "StopTheHostException" && ex.GetType().Name is not "HostAbortedException")
 {
-    app.UseExceptionHandler("/Error");
+    Log.Fatal(ex, "Unhandled exception");
 }
-
-app.UseSecurityHeaders();
-
-app.UseHttpsRedirection();
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
-
-app.UseRouting();
-
-app.UseNoUnauthorizedRedirect("/api");
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapRazorPages();
-app.MapControllers();
-app.MapNotFound("/api/{**segment}");
-app.MapFallbackToPage("/_Host");
-
-app.Run();
+finally
+{
+    Log.Information("Shut down complete");
+    Log.CloseAndFlush();
+}
