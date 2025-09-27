@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Serilog;
+using VeloTimer.PassingLoader.Services.Api;
+using VeloTimer.PassingLoader.Services.Messaging;
 
 namespace VeloTime.Agent;
 
@@ -17,6 +19,9 @@ public static class StartupExtensions
             .Enrich.FromLogContext()
             .ReadFrom.Configuration(configuration)
             );
+
+        services.ConfigureApiClient(configuration);
+        services.ConfigureMessaging(configuration);
 
         return builder;
     }
