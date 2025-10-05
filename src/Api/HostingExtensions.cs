@@ -1,5 +1,9 @@
 ﻿using OpenIddict.Validation.AspNetCore;
 using Serilog;
+using SlimMessageBus.Host;
+using SlimMessageBus.Host.AzureServiceBus;
+using SlimMessageBus.Host.Serialization.SystemTextJson;
+using VeloTime.Module.Timing;
 
 namespace VeloTime.Api;
 
@@ -73,7 +77,20 @@ internal static class StartupExtensions
                 });
         });
 
+        builder.AddModuleTiming();
+
         services.AddControllers();
+
+        services.AddSlimMessageBus(mbb =>
+        {
+            mbb.WithProviderServiceBus(options =>
+            {
+                options.ConnectionString = configuration.GetConnectionString("ServiceBus");
+                options.MaxConcurrentSessions = 10;
+                options.SessionIdleTimeout = TimeSpan.FromSeconds(5);
+            });
+            mbb.AddJsonSerializer();
+        });
 
         return builder.Build();
     }
