@@ -77,20 +77,20 @@ internal static class StartupExtensions
                 });
         });
 
-        builder.AddModuleTiming();
-
-        services.AddControllers();
-
         services.AddSlimMessageBus(mbb =>
         {
             mbb.WithProviderServiceBus(options =>
             {
-                options.ConnectionString = configuration.GetConnectionString("ServiceBus");
+                options.ConnectionString = configuration.GetConnectionString("MessageBus");
                 options.MaxConcurrentSessions = 10;
                 options.SessionIdleTimeout = TimeSpan.FromSeconds(5);
             });
             mbb.AddJsonSerializer();
         });
+
+        builder.AddModuleTiming();
+
+        services.AddControllers();
 
         return builder.Build();
     }
