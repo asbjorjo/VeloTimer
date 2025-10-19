@@ -21,7 +21,18 @@ public static class StartupExtensions
 
         services.AddSlimMessageBus(mbb =>
         {
-            mbb.Consume<PassingObserved>(x => x.Topic("velotime-agent-test").SubscriptionName("timing").WithConsumer<PassingObservedHandler>().Instances(1).EnableSession());
+            mbb.Consume<PassingObserved>(x => x
+                .Topic("velotime-agent-test")
+                .SubscriptionName("timing")
+                .WithConsumer<PassingObservedHandler>()
+                .Instances(1)
+                .EnableSession());
+            mbb.Produce<PassingSaved>(x => x
+                .DefaultTopic("velotime-timing")
+                .WithModifier((message, sbMessage) => 
+                { 
+                    sbMessage.SessionId = message.TransponderId.ToString(); 
+                }));
             mbb.AddServicesFromAssemblyContaining<PassingObservedHandler>();
         });
 
