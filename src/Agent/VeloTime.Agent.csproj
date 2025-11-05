@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\PassingLoader\PassingLoader.csproj" />
     <ProjectReference Include="..\..\Shared.Data\Shared.Data.csproj" />
+    <ProjectReference Include="..\Agent.Interface\VeloTime.Agent.Interface.csproj" />
     <ProjectReference Include="..\Module.Timing.Interface\VeloTime.Module.Timing.Interface.csproj" />
   </ItemGroup>
 

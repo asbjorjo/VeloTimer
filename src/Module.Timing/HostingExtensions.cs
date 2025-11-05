@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
-using VeloTime.Module.Timing.Handlers;
+using VeloTime.Agent.Interface.Messages;
 using VeloTime.Module.Timing.Interface.Messages;
 using VeloTime.Module.Timing.Storage;
 
@@ -28,7 +28,7 @@ public static class StartupExtensions
                 .Instances(1)
                 .EnableSession());
             mbb.Produce<PassingSaved>(x => x
-                .DefaultTopic("velotime-timing")
+                .DefaultTopic("velotime-timing-test")
                 .WithModifier((message, sbMessage) => 
                 { 
                     sbMessage.SessionId = message.TransponderId.ToString(); 

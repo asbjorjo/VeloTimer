@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus;
-using VeloTime.Module.Timing.Interface.Messages;
+using VeloTime.Agent.Interface.Messages;
 
 namespace VeloTime.Agent.Dummy
 {
@@ -9,7 +9,7 @@ namespace VeloTime.Agent.Dummy
     {
         private readonly ILogger<DummyWorker> logger;
         private readonly IMessageBus messagingService;
-
+       
         public DummyWorker(ILogger<DummyWorker> logger, IMessageBus messagingService)
         {
             this.logger = logger;
@@ -26,15 +26,14 @@ namespace VeloTime.Agent.Dummy
             {
                 for (int i = 0; i < random.Next(1, 6); i++)
                 {
-                    var passing = new VeloTime.Module.Timing.Interface.Messages.PassingObserved(
-                        DateTimeOffset.UtcNow,
-                        "DummyType",
-                        Guid.NewGuid().ToString(),
-                        Guid.NewGuid(),
-                        Guid.NewGuid().ToString(),
-                        false,
-                        false,
-                        false);
+                    PassingObserved passing = new(
+                        Time: DateTimeOffset.UtcNow,
+                        TransponderType: "DummyType",
+                        TransponderId:  Guid.NewGuid().ToString(),
+                        TimingPoint: Guid.NewGuid().ToString(),
+                        LowBattery: false,
+                        LowStrength: false,
+                        LowHits: false);
                     messages.Add(passing);
                 }
 

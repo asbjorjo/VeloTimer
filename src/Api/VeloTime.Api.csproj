@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Module.Statistics\VeloTime.Module.Statistics.csproj" />
     <ProjectReference Include="..\Module.Timing\VeloTime.Module.Timing.csproj" />
   </ItemGroup>
 

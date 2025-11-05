@@ -89,6 +89,7 @@ internal static class StartupExtensions
         });
 
         builder.AddModuleTiming();
+        //builder.AddModuleStatistics();
 
         services.AddControllers();
 

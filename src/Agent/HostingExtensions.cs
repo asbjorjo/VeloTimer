@@ -23,7 +23,7 @@ public static class StartupExtensions
             .ReadFrom.Configuration(configuration)
             );
 
-        services.ConfigureApiClient(configuration);
+        //services.ConfigureApiClient(configuration);
         services.ConfigureMessaging(configuration);
 
         return builder;
