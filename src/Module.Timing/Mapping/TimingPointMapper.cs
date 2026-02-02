@@ -5,9 +5,9 @@ namespace VeloTime.Module.Timing.Mapping;
 
 public static class TimingPointMapper
 {
-    public static TimingPointDto ToDto(this TimingPoint timingPoint)
+    public static TimingPointDTO ToDto(this TimingPoint timingPoint)
     {
-        return new TimingPointDto
+        return new TimingPointDTO
         {
             Id = timingPoint.Id,
             Description = timingPoint.Description,
@@ -15,7 +15,7 @@ public static class TimingPointMapper
         };
     }
 
-    public static TimingPoint ToModel(this TimingPointDto timingPointDto)
+    public static TimingPoint ToModel(this TimingPointDTO timingPointDto)
     {
         return new TimingPoint
         {

@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EFCore.NamingConventions" Version="9.0.0" />
+	<PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.0" />
+	<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9" />
+	<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.11">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.11" />
+	<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.10" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+	<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.14.0" />
+	<PackageReference Include="SlimMessageBus.Host" Version="3.3.4" />
+    <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" Version="3.3.4" />
+    <PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" Version="3.3.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Module.Common\VeloTime.Module.Common.csproj" />
+    <ProjectReference Include="..\Module.Facilities.Interface\VeloTime.Module.Facilities.Interface.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Migrations\" />
+  </ItemGroup>
+
+</Project>

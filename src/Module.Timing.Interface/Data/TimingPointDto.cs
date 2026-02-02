@@ -1,6 +1,6 @@
 ﻿namespace VeloTime.Module.Timing.Interface.Data;
 
-public class TimingPointDto
+public class TimingPointDTO
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public required string Description { get; set; }

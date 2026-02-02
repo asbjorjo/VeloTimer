@@ -27,141 +27,178 @@ namespace VeloTime.Module.Timing.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AgentId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("agent_id");
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("description");
 
                     b.Property<Guid>("Facility")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("facility");
 
-                    b.Property<Guid>("TimingSystemId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("TimingSystem")
+                        .HasColumnType("integer")
+                        .HasColumnName("timing_system");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_installation");
 
-                    b.HasIndex("TimingSystemId");
-
-                    b.ToTable("Installation", "timing");
+                    b.ToTable("installation", "timing");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Timing.Model.Passing", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<bool>("LowBattery")
-                        .HasColumnType("boolean");
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_battery");
 
                     b.Property<bool>("LowHits")
-                        .HasColumnType("boolean");
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_hits");
 
                     b.Property<bool>("LowStrength")
-                        .HasColumnType("boolean");
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_strength");
 
                     b.Property<DateTime>("Time")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("time");
 
                     b.Property<Guid>("TimingPointId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("timing_point_id");
 
                     b.Property<Guid>("TransponderId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("transponder_id");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_passing");
 
-                    b.HasIndex("TimingPointId");
+                    b.HasIndex("TimingPointId")
+                        .HasDatabaseName("ix_passing_timing_point_id");
 
-                    b.HasIndex("TransponderId");
+                    b.HasIndex("TransponderId", "Time", "TimingPointId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_passing_transponder_id_time_timing_point_id");
 
-                    b.ToTable("Passing", "timing");
+                    b.ToTable("passing", "timing");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.Sample", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("EndId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("end_id");
+
+                    b.Property<Guid>("StartId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("start_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_sample");
+
+                    b.HasIndex("EndId")
+                        .HasDatabaseName("ix_sample_end_id");
+
+                    b.HasIndex("StartId", "EndId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_sample_start_id_end_id");
+
+                    b.ToTable("sample", "timing");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Timing.Model.TimingPoint", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("description");
 
                     b.Property<Guid>("InstallationId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("installation_id");
 
                     b.Property<string>("SystemId")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("system_id");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("pk_timing_point");
 
-                    b.HasIndex("InstallationId");
+                    b.HasIndex("InstallationId", "SystemId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_timing_point_installation_id_system_id");
 
-                    b.ToTable("TimingPoint", "timing");
-                });
-
-            modelBuilder.Entity("VeloTime.Module.Timing.Model.TimingSystem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("TimingSystem", "timing");
+                    b.ToTable("timing_point", "timing");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Timing.Model.Transponder", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("label");
+
+                    b.Property<int>("System")
+                        .HasColumnType("integer")
+                        .HasColumnName("system");
 
                     b.Property<string>("SystemId")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("system_id");
 
-                    b.Property<Guid>("TypeId")
-                        .HasColumnType("uuid");
+                    b.HasKey("Id")
+                        .HasName("pk_transponder");
 
-                    b.HasKey("Id");
+                    b.HasIndex("System", "SystemId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_transponder_system_system_id");
 
-                    b.HasIndex("TypeId");
+                    b.ToTable("transponder", "timing");
 
-                    b.ToTable("Transponder", "timing");
+                    b.HasDiscriminator<int>("System");
+
+                    b.UseTphMappingStrategy();
                 });
 
-            modelBuilder.Entity("VeloTime.Module.Timing.Model.TransponderType", b =>
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.MylapsX2Transponder", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                    b.HasBaseType("VeloTime.Module.Timing.Model.Transponder");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.ToTable("transponder", "timing");
 
-                    b.HasKey("Id");
-
-                    b.ToTable("TransponderType", "timing");
-                });
-
-            modelBuilder.Entity("VeloTime.Module.Timing.Model.Installation", b =>
-                {
-                    b.HasOne("VeloTime.Module.Timing.Model.TimingSystem", "TimingSystem")
-                        .WithMany("Installations")
-                        .HasForeignKey("TimingSystemId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("TimingSystem");
+                    b.HasDiscriminator().HasValue(1);
                 });
 
             modelBuilder.Entity("VeloTime.Module.Timing.Model.Passing", b =>
@@ -169,18 +206,41 @@ namespace VeloTime.Module.Timing.Migrations
                     b.HasOne("VeloTime.Module.Timing.Model.TimingPoint", "TimingPoint")
                         .WithMany()
                         .HasForeignKey("TimingPointId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.ClientNoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_passing_timing_point_timing_point_id");
 
                     b.HasOne("VeloTime.Module.Timing.Model.Transponder", "Transponder")
                         .WithMany()
                         .HasForeignKey("TransponderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.ClientNoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_passing_transponder_transponder_id");
 
                     b.Navigation("TimingPoint");
 
                     b.Navigation("Transponder");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.Sample", b =>
+                {
+                    b.HasOne("VeloTime.Module.Timing.Model.Passing", "End")
+                        .WithMany()
+                        .HasForeignKey("EndId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_sample_passing_end_id");
+
+                    b.HasOne("VeloTime.Module.Timing.Model.Passing", "Start")
+                        .WithMany()
+                        .HasForeignKey("StartId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_sample_passing_start_id");
+
+                    b.Navigation("End");
+
+                    b.Navigation("Start");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Timing.Model.TimingPoint", b =>
@@ -189,30 +249,15 @@ namespace VeloTime.Module.Timing.Migrations
                         .WithMany("TimingPoints")
                         .HasForeignKey("InstallationId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("fk_timing_point_installation_installation_id");
 
                     b.Navigation("Installation");
-                });
-
-            modelBuilder.Entity("VeloTime.Module.Timing.Model.Transponder", b =>
-                {
-                    b.HasOne("VeloTime.Module.Timing.Model.TransponderType", "Type")
-                        .WithMany()
-                        .HasForeignKey("TypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Type");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Timing.Model.Installation", b =>
                 {
                     b.Navigation("TimingPoints");
-                });
-
-            modelBuilder.Entity("VeloTime.Module.Timing.Model.TimingSystem", b =>
-                {
-                    b.Navigation("Installations");
                 });
 #pragma warning restore 612, 618
         }

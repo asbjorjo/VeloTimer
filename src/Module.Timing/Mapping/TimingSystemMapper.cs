@@ -5,21 +5,16 @@ namespace VeloTime.Module.Timing.Mapping;
 
 public static class TimingSystemMapper
 {
-    public static TimingSystemDto ToDto(this TimingSystem timingSystem)
+    public static TimingSystemDTO ToDto(this TimingSystem timingSystem)
     {
-        return new TimingSystemDto
+        return new TimingSystemDTO
         {
-            Id = timingSystem.Id,
-            Name = timingSystem.Name,
+            Name = timingSystem.ToString(),
         };
     }
 
-    public static TimingSystem ToModel(this TimingSystemDto timingSystemDto)
+    public static TimingSystem ToModel(this TimingSystemDTO timingSystemDto)
     {
-        return new TimingSystem
-        {
-            Id = timingSystemDto.Id,
-            Name = timingSystemDto.Name,
-        };
+        return Enum.Parse<TimingSystem>(timingSystemDto.Name);
     }
 }

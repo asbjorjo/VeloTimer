@@ -1,10 +1,10 @@
 ﻿namespace VeloTime.Module.Timing.Interface.Data;
 
-public class InstallationDto
+public class InstallationDTO
 {
     public Guid Id { get; init; } = Guid.NewGuid();
-    public required Guid Facility { get; init; }
-    public List<TimingPointDto> TimingPoints { get; init; } = new();
-    public required TimingSystemDto TimingSystem { get; set; }
+    public string AgentId { get; set; } = string.Empty;
+    public List<TimingPointDTO> TimingPoints { get; init; } = new();
+    public required TimingSystemDTO TimingSystem { get; set; }
     public string Description { get; set; } = string.Empty;
 }
