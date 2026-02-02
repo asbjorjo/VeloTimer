@@ -1,0 +1,59 @@
+﻿@implements IDisposable
+
+@inject NavigationManager NavigationManager
+
+<MudNavMenu>
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+
+    <MudNavLink Href="statistcs/samples" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">Samples</MudNavLink>
+
+    <MudNavGroup Icon="@Icons.Material.Filled.AdminPanelSettings" Title="Admin">
+        <MudNavLink Href="admin/facilities" Match="NavLinkMatch.Prefix">Facilities</MudNavLink>
+        <MudNavLink Href="admin/timing/installations" Match="NavLinkMatch.Prefix">Timing Systems</MudNavLink>
+    </MudNavGroup>
+
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Href="Account/Manage" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">@context.User.Identity?.Name</MudNavLink>
+            <form action="Account/Logout" method="post">
+                <AntiforgeryToken />
+                <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                <button type="submit" class="mud-nav-link mud-ripple">
+                    <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Info" Class="mr-3"></MudIcon> Logout
+                </button>
+            </form>
+        </Authorized>
+        <NotAuthorized>
+            <MudNavLink Href="Account/Register" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">Register</MudNavLink>
+            <MudNavLink Href="Account/Login" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Password">Login</MudNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+    <MudNavGroup Icon="@Icons.Material.Filled.Info" Title="Om">
+        <MudNavLink Href="about/privacy">Personvern</MudNavLink>
+        <MudNavLink Href="about/terms">Brukervilkår</MudNavLink>
+        <MudNavLink Href="about/velotime">VeloTime</MudNavLink>
+    </MudNavGroup>
+</MudNavMenu>
+
+
+@code {
+    private string? currentUrl;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}
+

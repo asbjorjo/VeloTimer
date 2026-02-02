@@ -1,5 +1,8 @@
 ﻿using Microsoft.IdentityModel.Tokens;
+using MudBlazor.Services;
 using NetEscapades.AspNetCore.SecurityHeaders.Infrastructure;
+using VeloTime.Module.Statistics.Interface.Client;
+using VeloTime.WebUI.Client;
 
 namespace VeloTime.WebUI.Server;
 
@@ -28,6 +31,7 @@ internal static class HostingExtensions
         });
 
         services.AddHttpClient();
+        services.AddHttpClient<HttpStatisticsClient>();
         services.AddOptions();
 
         services.AddAuthentication(options =>
@@ -56,6 +60,12 @@ internal static class HostingExtensions
         services.AddControllersWithViews(options =>
              options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
 
+        services.AddMudServices();
+        services.AddRazorComponents()
+            .AddInteractiveServerComponents()
+            .AddInteractiveWebAssemblyComponents()
+            .AddAuthenticationStateSerialization();
+
         services.AddRazorPages().AddMvcOptions(options =>
         {
             //var policy = new AuthorizationPolicyBuilder()
@@ -82,7 +92,13 @@ internal static class HostingExtensions
 
         app.UseHttpsRedirection();
         app.UseBlazorFrameworkFiles();
-        app.UseStaticFiles();
+
+        app.MapStaticAssets();
+        //app.UseStaticFiles();
+        app.MapRazorComponents<App>()
+            .AddInteractiveServerRenderMode()
+            .AddInteractiveWebAssemblyRenderMode()
+            .AddAdditionalAssemblies(typeof(_Imports).Assembly);
 
         app.UseRouting();
 

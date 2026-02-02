@@ -1,4 +1,8 @@
-﻿var builder = WebAssemblyHostBuilder.CreateDefault(args);
+﻿using System.Net.Cache;
+using System.Net.Http;
+using VeloTime.Module.Statistics.Interface.Client;
+
+var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
 var services = builder.Services;
 
@@ -21,6 +25,8 @@ services.AddHttpClient(AuthDefaults.AuthorizedClientName, client =>
     client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
     client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 }).AddHttpMessageHandler<AuthorizedHandler>();
+
+services.AddHttpClient<HttpStatisticsClient>();
 
 services.AddTransient(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("default"));
 services.AddTransient<IAntiforgeryHttpClientFactory, AntiforgeryHttpClientFactory>();

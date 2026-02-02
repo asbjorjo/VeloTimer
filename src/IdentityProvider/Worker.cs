@@ -1,4 +1,5 @@
-﻿using OpenIddict.Abstractions;
+﻿using Microsoft.EntityFrameworkCore;
+using OpenIddict.Abstractions;
 using OpeniddictServer.Data;
 using System.Globalization;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -17,7 +18,8 @@ public class Worker : IHostedService
         using var scope = _serviceProvider.CreateScope();
 
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await context.Database.EnsureCreatedAsync(cancellationToken);
+        //await context.Database.EnsureCreatedAsync(cancellationToken);
+        await context.Database.MigrateAsync(cancellationToken);
 
         await RegisterApplicationsAsync(scope.ServiceProvider);
         await RegisterScopesAsync(scope.ServiceProvider);
@@ -26,9 +28,9 @@ public class Worker : IHostedService
         {
             var manager = provider.GetRequiredService<IOpenIddictApplicationManager>();
 
-            //var dd = await manager.FindByClientIdAsync("velotime-webui");
+            var dd = await manager.FindByClientIdAsync("velotime-webui");
 
-            //await manager.DeleteAsync(dd);
+            await manager.DeleteAsync(dd);
 
             // OIDC Code flow confidential client
             if (await manager.FindByClientIdAsync("velotime-webui") is null)
@@ -45,11 +47,13 @@ public class Worker : IHostedService
                     PostLogoutRedirectUris =
                     {
                         new Uri("https://localhost:5001/signout-callback-oidc"),
+                        new Uri("https://localhost:7144/signout-callback-oidc"),
                         new Uri("https://localhost:64265/signout-callback-oidc")
                     },
                     RedirectUris =
                     {
                         new Uri("https://localhost:5001/signin-oidc"),
+                        new Uri("https://localhost:7144/signin-oidc"),
                         new Uri("https://localhost:64265/signin-oidc"),
                     },
                     ClientSecret = "oidc-pkce-confidential_secret",

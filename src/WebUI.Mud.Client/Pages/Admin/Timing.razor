@@ -1,0 +1,61 @@
+﻿@page "/admin/timing/installations"
+@inject ITimingService TimingService
+
+<PageTitle>Timing System Management</PageTitle>
+
+<MudTable ServerData="LoadInstallations" T="InstallationView" OnRowClick="ToggleInstallation">
+    <HeaderContent>
+        <MudTh>Agent ID</MudTh>
+        <MudTh>Timing System</MudTh>
+        <MudTh>Description</MudTh>
+        <MudTh>Timing Points</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Agent ID">@context.AgentId</MudTd>
+        <MudTd DataLabel="Timing System">@context.TimingSystem</MudTd>
+        <MudTd DataLabel="Description">
+            <MudLink Href="@($"/admin/timing/installations/{context.Id}")">
+                @context.Description
+            </MudLink>
+        </MudTd>
+        <MudTd DataLabel="Timing Points">@context.TimingPoints.Count()</MudTd>
+    </RowTemplate>
+    <ChildRowContent>
+        @if (context.IsSelected)
+        {
+            <MudTr>
+                <MudTd ColSpan="3">
+                    <MudTable Items="@context.TimingPoints" Context="TimingPoint">
+                        <HeaderContent>
+                            <MudTh>System Id</MudTh>
+                            <MudTh>Description</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="System Id">@TimingPoint.SystemId</MudTd>
+                            <MudTd DataLabel="Description">@TimingPoint.Description</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudTd>
+            </MudTr>
+        }
+    </ChildRowContent>
+</MudTable>
+
+@code {
+    private async Task<TableData<InstallationView>> LoadInstallations(TableState state, CancellationToken cancellationToken)
+    {
+        var installations = await TimingService.GetInstallationsAsync(cancellationToken);
+        return new TableData<InstallationView>
+        {
+            Items = installations,
+            TotalItems = installations.Count()
+        };
+    }
+
+    private async Task ToggleInstallation(TableRowClickEventArgs<InstallationView> args)
+    {
+        var installation = args.Item;
+        if (installation == null) return;
+        installation!.IsSelected = !installation.IsSelected;
+    }
+}

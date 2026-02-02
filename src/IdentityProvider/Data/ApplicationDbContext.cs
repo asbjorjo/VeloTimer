@@ -15,6 +15,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        builder.HasDefaultSchema("identity");
+
         builder.Entity<FidoStoredCredential>().HasKey(m => m.Id);
 
         base.OnModelCreating(builder);

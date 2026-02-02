@@ -1,0 +1,69 @@
+﻿@page "/admin/facilities"
+@using VeloTime.WebUI.Mud.Client.Services
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@inject IFacilityService FacilityService
+
+<PageTitle>Facility Management</PageTitle>
+
+<MudTable ServerData="@LoadFacilities" T="FacilityView">
+    <HeaderContent>
+        <MudTh>Name</MudTh>
+        <MudTh>Layouts</MudTh>
+        <MudTh>Timing Systems</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Layouts"><MudLink Href="@($"/admin/facilities/{context.Id}/layouts")">@context.LayoutId.Count()</MudLink></MudTd>
+        <MudTd><MudButton OnClick="@(() => ToggleFacility(context))">@(context.IsSelected ? "Hide" : "Show")</MudButton></MudTd>
+    </RowTemplate>
+    <ChildRowContent>
+        @if (context.IsSelected)
+        {
+            <MudTr>
+                <MudTd ColSpan="3">
+                    <MudTable Items="@context.Installations" Context="Installation">
+                        <HeaderContent>
+                            <MudTh>Agent</MudTh>
+                            <MudTh>Timing System</MudTh>
+                            <MudTh>Description</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Agent">@Installation.AgentId</MudTd>
+                            <MudTd DataLabel="Timing System">@Installation.TimingSystem</MudTd>
+                            <MudTd DataLabel="Description">
+                                <MudLink Href="@($"/admin/timing/installations/{Installation.Id}")">
+                                @Installation.Description
+                                </MudLink>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudTd>
+            </MudTr>
+        }
+    </ChildRowContent>
+</MudTable>
+
+@code {
+    private IEnumerable<FacilityView> Facilities = new List<FacilityView>();
+
+    private async Task<TableData<FacilityView>> LoadFacilities(TableState state, CancellationToken token)
+    {
+        var facilities = await FacilityService.GetFacilitiesAsync(token);
+        
+        return new TableData<FacilityView>
+        {
+            Items = facilities.ToList(),
+            TotalItems = facilities.Count()
+        };
+    }
+
+    private async Task ToggleFacility(FacilityView facility)
+    {
+        facility.IsSelected = !facility.IsSelected;
+
+        if (facility.IsSelected && facility.Installations == null || !facility.Installations.Any())
+        {
+            facility.Installations = await FacilityService.GetInstallationsAsync(facility.Id);
+        }
+    }
+}

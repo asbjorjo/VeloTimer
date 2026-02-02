@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+	<PackageReference Include="EFCore.NamingConventions" Version="9.0.0" />
 	<PackageReference Include="Fido2" Version="3.0.1" />
 	<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="9.0.9" />
 	<PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="9.0.9" />

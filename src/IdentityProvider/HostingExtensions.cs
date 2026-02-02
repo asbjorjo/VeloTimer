@@ -32,6 +32,7 @@ internal static class HostingExtensions
             // Note: use the generic overload if you need
             // to replace the default OpenIddict entities.
             options.UseOpenIddict();
+            options.UseSnakeCaseNamingConvention();
         });
 
         services.AddDatabaseDeveloperPageExceptionFilter();

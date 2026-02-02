@@ -1,0 +1,11 @@
+services:
+  velotime.api:
+    image: ${DOCKER_REGISTRY-}velotimeapi
+    build:
+      context: .
+      dockerfile: src/Api/Dockerfile
+  velotime:
+    image: ${DOCKER_REGISTRY-}velotimewebuimud
+    build:
+      context: .
+      dockerfile: src/WebUI.Mud/Dockerfile

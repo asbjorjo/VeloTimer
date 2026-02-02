@@ -1,0 +1,43 @@
+﻿@page "/admin/timing/installations/{Id:guid}"
+@using System.Threading.Tasks
+@inject ITimingService TimingService
+
+<PageTitle>Timing System Management</PageTitle>
+
+@if (Installation is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+}
+else
+{
+    <MudPaper Class="pa-4">
+        <MudText Typo="Typo.h5">Installation Details</MudText>
+        <MudDivider Class="my-2" />
+        <MudText><strong>Description:</strong> @Installation.Description</MudText>
+        <MudText><strong>Timing System:</strong> @Installation.TimingSystem</MudText>
+        <MudText><strong>Agent:</strong> @Installation.AgentId</MudText>
+        <MudDivider Class="my-2"/>
+        <MudText Typo="Typo.h6">Timing Points</MudText>
+        <MudTable Items="@Installation.TimingPoints">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Description</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.SystemId</MudTd>
+                <MudTd>@context.Description</MudTd>
+            </RowTemplate>
+        </MudTable>
+   </MudPaper>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private InstallationView? Installation;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Installation = await TimingService.GetInstallationAsync(Id);
+    }
+}
