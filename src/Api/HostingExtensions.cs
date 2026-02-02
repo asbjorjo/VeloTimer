@@ -1,9 +1,19 @@
 ﻿using OpenIddict.Validation.AspNetCore;
+using OpenTelemetry;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using Npgsql;
 using Serilog;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
+using VeloTime.Bootstrap;
+using VeloTime.Module.Facilities;
+using VeloTime.Module.Statistics;
 using VeloTime.Module.Timing;
+using SlimMessageBus.Host.Interceptor;
+using VeloTime.Module.Common;
 
 namespace VeloTime.Api;
 
@@ -21,12 +31,31 @@ internal static class StartupExtensions
         var deploySwaggerUI = builder.Configuration.GetValue<bool>("DeploySwaggerUI");
         var isDev = _env.IsDevelopment();
 
-        builder.Services.AddAuthentication(options =>
+        services.AddOpenTelemetry()
+            .ConfigureResource(resource => resource.AddService(_env.ApplicationName))
+            .WithTracing(tracing => tracing
+                .AddHttpClientInstrumentation()
+                .AddNpgsql()
+                .AddSource("Azure.Messaging.ServiceBus")
+                .AddSource("VeloTime.*")
+            )
+            .WithMetrics(metrics => metrics
+                .AddHttpClientInstrumentation()
+            )
+            .UseOtlpExporter();
+
+        builder.Logging.AddOpenTelemetry(options =>
+        {
+            options.IncludeScopes = true;
+            options.IncludeFormattedMessage = true;
+        });
+
+        services.AddAuthentication(options =>
         {
             options.DefaultScheme = OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme;
         });
 
-        builder.Services.AddOpenIddict()
+        services.AddOpenIddict()
             .AddValidation(options =>
             {
                 // Note: the validation handler uses OpenID Connect discovery
@@ -50,7 +79,7 @@ internal static class StartupExtensions
                 options.UseAspNetCore();
             });
 
-        builder.Services.AddAuthorization(options =>
+        services.AddAuthorization(options =>
         {
             options.AddPolicy("veloTimeApiPolicy", policyUser =>
             {
@@ -61,7 +90,10 @@ internal static class StartupExtensions
 
         // Add services to the container.
         // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-        builder.Services.AddOpenApi();
+        services.AddOpenApi("v1", options =>
+        {
+            options.AddOperationTransformer<PaginationOperationTransformer>();
+        });
 
         services.AddCors(options =>
         {
@@ -77,6 +109,7 @@ internal static class StartupExtensions
                 });
         });
 
+        services.AddTransient(typeof(IConsumerInterceptor<>), typeof(ActivityInterceptor<>));
         services.AddSlimMessageBus(mbb =>
         {
             mbb.WithProviderServiceBus(options =>
@@ -88,30 +121,51 @@ internal static class StartupExtensions
             mbb.AddJsonSerializer();
         });
 
+        builder.AddModuleFacilities();
+        builder.AddModuleStatistics();
         builder.AddModuleTiming();
-        //builder.AddModuleStatistics();
+
+        if (isDev)
+        {
+            builder.AddBootstrap();
+        }
 
         services.AddControllers();
+
+        services.AddOutputCache();
 
         return builder.Build();
     }
 
     public static WebApplication ConfigurePipeline(this WebApplication app)
     {
-        app.UseSerilogRequestLogging();
+        //app.UseSerilogRequestLogging();
 
         if (_env!.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();
             app.MapOpenApi();
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/openapi/v1.json", "v1");
+            });
+        }
+        else
+        {
+            app.UseHttpsRedirection();
         }
 
         app.UseCors("AllowAllOrigins");
 
-        app.UseHttpsRedirection();
         app.UseAuthorization();
 
+        app.UseModuleTiming();
+        app.UseModuleFacilities();
+        app.UseModuleStatistics();
+
         app.MapControllers();
+
+        app.UseOutputCache();
 
         return app;
     }

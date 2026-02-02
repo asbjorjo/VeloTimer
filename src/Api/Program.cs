@@ -1,9 +1,9 @@
 using Serilog;
 using VeloTime.Api;
 
-Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .CreateBootstrapLogger();
+//Log.Logger = new LoggerConfiguration()
+//    .WriteTo.Console()
+//    .CreateBootstrapLogger();
 
 Log.Information("Starting up VeloTime.Api");
 
@@ -11,11 +11,18 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    builder.Host.UseSerilog((context, loggerConfiguration) => loggerConfiguration
-        .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level}] {SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}")
-        .WriteTo.File("../_logs-Api.txt")
-        .Enrich.FromLogContext()
-        .ReadFrom.Configuration(context.Configuration));
+    //builder.Host.UseSerilog((context, loggerConfiguration) => loggerConfiguration
+    //    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level}] {SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}")
+    //    .WriteTo.File("../_logs-Api.txt")
+    //    .WriteTo.OpenTelemetry(options =>
+    //        {
+    //            options.ResourceAttributes = new Dictionary<string, object>
+    //            {
+    //                ["service.name"] = builder.Environment.ApplicationName,
+    //            };
+    //        })
+    //    .Enrich.FromLogContext()
+    //    .ReadFrom.Configuration(context.Configuration));
 
     var app = builder
         .ConfigureServices()
