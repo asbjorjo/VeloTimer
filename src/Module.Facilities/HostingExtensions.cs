@@ -1,15 +1,11 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using OpenTelemetry.Resources;
-using SlimMessageBus.Host;
-using SlimMessageBus.Host.AzureServiceBus;
-using VeloTime.Module.Facilities.Client;
 using VeloTime.Module.Facilities.Endpoints;
-using VeloTime.Module.Facilities.Interface.Client;
 using VeloTime.Module.Facilities.Service;
 using VeloTime.Module.Facilities.Storage;
 
@@ -41,28 +37,23 @@ public static class StartupExtensions
 
         services.AddDbContext<FacilityDbContext>(options =>
         {
-            options.UseNpgsql(configuration.GetConnectionString("StatisticsDbConnection"));
+            options.UseNpgsql(configuration.GetConnectionString("FacilityDbConnection"));
             options.UseSnakeCaseNamingConvention();
         });
 
         services.AddTransient<FacilitiesService>();
-        services.AddTransient<IFacitiliesClient, FacilitiesClient>();
         services.AddSingleton<Metrics>();
+        builder.AddModuleCache();
 
         return builder;
     }
 
-    public static void UseModuleFacilities(this WebApplication app)
+    public static void UseModuleFacilities(this IEndpointRouteBuilder app)
     {
         var facilities = app.MapGroup("/api/facilities").WithTags(["Facilities"]);
 
         facilities.MapCourseLayoutEndpoints();
         facilities.MapCoursePointEndpoints();
         facilities.MapFacilityEndpoints();
-
-        if (app.Environment.IsDevelopment())
-        {
-            app.ApplyMigrations<FacilityDbContext>();
-        }
     }
 }

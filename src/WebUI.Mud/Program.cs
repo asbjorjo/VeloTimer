@@ -18,6 +18,8 @@ const string VELOTIME_OIDC_SCHEME = "VeloTimeOIDC";
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddServiceDefaults();
+
 //builder.Services.AddAuthentication(options =>
 //    {
 //        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;

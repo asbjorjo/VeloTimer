@@ -1,12 +1,9 @@
-﻿using Npgsql.Replication;
-
-namespace VeloTime.Module.Timing.Model
+﻿namespace VeloTime.Module.Timing.Model
 {
     public abstract class Transponder
     {
-        private string? _label;
         public Guid Id { get; init; }
-        public readonly TimingSystem System;
+        public virtual TimingSystem System { get; } = TimingSystem.Unknown;
         public string SystemId { get; init; }
         public string Label { get; set; }
     }
@@ -18,7 +15,7 @@ namespace VeloTime.Module.Timing.Model
 
         private static readonly char[] Characters = { 'C', 'F', 'G', 'H', 'K', 'L', 'N', 'P', 'R', 'S', 'T', 'V', 'W', 'X', 'Z' };
 
-        public new readonly TimingSystem System = TimingSystem.MyLaps_X2;
+        public override TimingSystem System { get; } = TimingSystem.MyLaps_X2;
 
         public MylapsX2Transponder(string SystemId)
         {

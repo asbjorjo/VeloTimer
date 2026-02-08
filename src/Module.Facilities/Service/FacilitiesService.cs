@@ -1,11 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Azure.Amqp.Framing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 using System.Diagnostics;
 using VeloTime.Module.Facilities.Model;
 using VeloTime.Module.Facilities.Storage;
 
 namespace VeloTime.Module.Facilities.Service;
 
-internal class FacilitiesService(FacilityDbContext storage)
+internal class FacilitiesService(FacilityDbContext storage, HybridCache cache)
 {
     internal async Task<CourseLayout> CreateCourseLayout(CourseLayout Layout)
     {
@@ -17,23 +19,28 @@ internal class FacilitiesService(FacilityDbContext storage)
         return Layout;
     }
 
-    internal async Task<double> DistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End)
+    internal async Task<IEnumerable<CourseSegment>> GetSegmentsBetweenCoursePoints(CoursePoint start, CoursePoint end, CancellationToken cancellationToken = default)
     {
-        using var activity = Instrumentation.Source.StartActivity("DistanceBetweenCoursePoints");
+        using var activity = Instrumentation.Source.StartActivity("GetSegmentsBetweenCoursePoints");
 
-        activity?.SetTag("StartCoursePointId", Start.Id);
-        activity?.SetTag("EndCoursePointId", End.Id);
+        return await cache.GetOrCreateAsync(
+            $"SegmentsBetweenCoursePoints_{start.Id}_{end.Id}",
+            async cancel => await storage.Set<CourseLayout>()
+                .Include(l => l.Segments)                
+                    .ThenInclude(s => s.Start)
+                .Include(l => l.Segments)
+                    .ThenInclude(s => s.End)
+                .Where(l => l.Segments.Select(s => s.Start).Contains(start) || l.Segments.Select(s => s.End).Contains(end))
+                .SelectMany(l => l.Segments)
+                .OrderBy(s => s.Order)
+                .ToListAsync(),
+            cancellationToken: cancellationToken);
+    }
 
-        double distance = 0;
-        var segments = await storage.Set<CourseLayout>()
-            .Include(l => l.Segments)
-                .ThenInclude(s => s.Start)
-            .Include(l => l.Segments)
-                .ThenInclude(s => s.End)
-            .Where(l => l.Segments.Select(s => s.Start.Id).Contains(Start.Id) || l.Segments.Select(s => s.End.Id).Contains(End.Id))
-            .SelectMany(l => l.Segments)
-            .OrderBy(s => s.Order)
-            .ToListAsync();
+    internal async Task<double> CalculateDistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
+    {
+        using var activity = Instrumentation.Source.StartActivity("CalculateDistanceBetweenCoursePoints");
+        var segments = await GetSegmentsBetweenCoursePoints(Start, End, cancellationToken);
 
         CourseSegment start = segments.Single(s => s.Start == Start);
         CourseSegment end = Start == End ? start : segments.Single(s => s.End == End);
@@ -43,26 +50,37 @@ internal class FacilitiesService(FacilityDbContext storage)
 
         if (Start == End)
         {
-            distance = segments.Sum(s => s.Length);
-            activity?.SetTag("Distance", distance);
-            return distance;
+            return segments.Sum(s => s.Length);
         }
 
 
         if (start.Order < end.Order)
         {
-            distance = segments.Where(s => s.Order >= start.Order && s.Order <= end.Order).Sum(s => s.Length);
+            return segments.Where(s => s.Order >= start.Order && s.Order <= end.Order).Sum(s => s.Length);
         }
         else
         {
-            distance = segments.Where(s => s.Order <= start.Order && s.Order >= end.Order).Sum(s => s.Length);
+            return segments.Where(s => s.Order <= start.Order && s.Order >= end.Order).Sum(s => s.Length);
         }
+    }
+
+    internal async Task<double> DistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
+    {
+        using var activity = Instrumentation.Source.StartActivity("DistanceBetweenCoursePoints");
+
+        activity?.SetTag("StartCoursePointId", Start.Id);
+        activity?.SetTag("EndCoursePointId", End.Id);
+
+        var distance = await cache.GetOrCreateAsync(
+            $"DistanceBetweenCoursePoints_{Start.Id}_{End.Id}",
+            async cancel => await CalculateDistanceBetweenCoursePoints(Start, End, cancel),
+            cancellationToken: cancellationToken);
 
         activity?.SetTag("Distance", distance);
 
         return distance;
     }
-    internal async Task<double> DistanceBetweenTimingPoints(Guid Start, Guid End)
+    internal async Task<double> DistanceBetweenTimingPoints(Guid Start, Guid End, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("DistanceBetweenTimingPoints");
 
@@ -71,12 +89,10 @@ internal class FacilitiesService(FacilityDbContext storage)
             activity?.SetTag("StartTimingPointId", Start);
             activity?.SetTag("EndTimingPointId", End);
 
-            CoursePoint StartPoint = await storage.Set<CoursePoint>()
-                .SingleAsync(p => p.TimingPoint == Start);
-            CoursePoint EndPoint = Start == End ? StartPoint : await storage.Set<CoursePoint>()
-                .SingleAsync(p => p.TimingPoint == End);
+            CoursePoint StartPoint = await FindCoursePointByTimingPointId(Start, cancellationToken);
+            CoursePoint EndPoint = await FindCoursePointByTimingPointId(End, cancellationToken);
 
-            return await DistanceBetweenCoursePoints(StartPoint, EndPoint);
+            return await DistanceBetweenCoursePoints(StartPoint, EndPoint, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -85,14 +101,17 @@ internal class FacilitiesService(FacilityDbContext storage)
         }
     }
 
-    internal async Task<CoursePoint> FindCoursePointByTimingPointId(Guid TimingPoint)
+    internal async Task<CoursePoint> FindCoursePointByTimingPointId(Guid TimingPoint, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("FindCoursePointByTimingPointId");
         activity?.SetTag("TimingPointId", TimingPoint);
         try
         {
-            var timingPoint = await storage.Set<CoursePoint>()
-                .SingleAsync(p => p.TimingPoint == TimingPoint);
+            var timingPoint = await cache.GetOrCreateAsync(
+                $"CoursePointByTimingPoint_{TimingPoint}",
+                async cancel => await storage.Set<CoursePoint>()
+                    .SingleAsync(p => p.TimingPoint == TimingPoint, cancellationToken: cancel),
+                cancellationToken: cancellationToken);
             activity?.SetTag("CoursePointId", timingPoint.Id);
             activity?.SetStatus(ActivityStatusCode.Ok);
             return timingPoint;

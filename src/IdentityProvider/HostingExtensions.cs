@@ -26,7 +26,7 @@ internal static class HostingExtensions
         services.AddDbContext<ApplicationDbContext>(options =>
         {
             // Configure the context to use Microsoft SQL Server.
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+            options.UseNpgsql(configuration.GetConnectionString("IdentityDbConnection"));
 
             // Register the entity sets needed by OpenIddict.
             // Note: use the generic overload if you need
@@ -145,11 +145,6 @@ internal static class HostingExtensions
                 // Register the ASP.NET Core host.
                 options.UseAspNetCore();
             });
-
-        // Register the worker responsible of seeding the database.
-        // Note: in a real world application, this step should be part of a setup script.
-        services.AddHostedService<Worker>();
-
 
         return builder.Build();
     }

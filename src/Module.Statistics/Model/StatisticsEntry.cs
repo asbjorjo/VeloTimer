@@ -6,9 +6,11 @@ public class StatisticsEntry
     public DateTime TimeStart { get; init; }
     public DateTime TimeEnd { get; init; }
     public required StatisticsItem StatisticsItem { get; init; }
+    public Guid StatisticsItemId { get; init; }
+    public required StatisticsItemConfig StatisticsItemConfig { get; init; }
+    public Guid StatisticsItemConfigId { get; init; }
     public Guid TransponderId { get; init; }
     public StatsProfile? StatsProfile { get; init; }
     public TimeSpan Duration { get; init; }
     public double Speed { get; init; }
-    public Guid StatisticsItemId { get; init; }
 }

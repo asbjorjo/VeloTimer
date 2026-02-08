@@ -22,7 +22,7 @@ internal static class CoursePointEndpoints
 
         var timingPoints = endpoints.MapGroup("timingpoint");
         timingPoints.MapGet("{id}", GetCoursePointByTimingPoint).CacheOutput();
-        timingPoints.MapGet("{start}/distance/{end}", DistanceBetweenTimingPoints).CacheOutput();
+        timingPoints.MapGet("{start:guid}/distance/{end:guid}", DistanceBetweenTimingPoints).CacheOutput();
     }
 
     static async Task<Results<Ok<CoursePointDTO>, NotFound>> GetCoursePointById(Guid id, FacilityDbContext storage) =>

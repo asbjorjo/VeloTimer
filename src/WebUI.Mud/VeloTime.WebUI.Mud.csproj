@@ -27,6 +27,7 @@
     <ProjectReference Include="..\Module.Facilities.Interface\VeloTime.Module.Facilities.Interface.csproj" />
     <ProjectReference Include="..\Module.Statistics.Interface\VeloTime.Module.Statistics.Interface.csproj" />
     <ProjectReference Include="..\Module.Timing.Interface\VeloTime.Module.Timing.Interface.csproj" />
+    <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
     <ProjectReference Include="..\WebUI.Mud.Client\VeloTime.WebUI.Mud.Client.csproj" />
   </ItemGroup>
 

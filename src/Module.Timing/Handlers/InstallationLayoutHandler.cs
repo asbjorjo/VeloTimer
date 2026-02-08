@@ -18,7 +18,9 @@ public class InstallationLayoutHandler(InstallationService installationService, 
         object? agentIdObj = Context.GetTransportMessage().ApplicationProperties.GetValueOrDefault("AgentId", string.Empty);
         string AgentId = agentIdObj?.ToString() ?? string.Empty;
 
-        Installation installation = await installationService.FindOrCreateInstallationForAgent(AgentId, cancellationToken: cancellationToken);
+        Installation installation =
+            await installationService.GetInstallationForAgent(AgentId, cancellationToken: cancellationToken) ??
+            await installationService.CreateInstallationForAgent(AgentId, cancellationToken: cancellationToken);
 
 
         IEnumerable<SystemConfigEvent> systems = message.Systems.Where(s => s.IsActive);
@@ -44,7 +46,9 @@ public class InstallationLayoutHandler(InstallationService installationService, 
 
         foreach (LoopConfigEvent loop in message.TimingLoops.Where(l => l.SystemId == system.SystemId))
         {
-            TimingPoint timingPoint = await installationService.FindOrCreateTimingPoint(AgentId, loop.LoopId, cancellationToken: cancellationToken);
+            TimingPoint timingPoint = 
+                await installationService.GetTimingPoint(installation, loop.LoopId, cancellationToken: cancellationToken) ??
+                await installationService.CreateTimingPoint(installation, loop.LoopId, cancellationToken: cancellationToken);
 
 
             if (string.IsNullOrWhiteSpace(timingPoint.Description))

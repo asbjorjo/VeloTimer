@@ -1,56 +1,38 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using SlimMessageBus;
-using System.Diagnostics;
-using VeloTime.Module.Facilities.Interface.Client;
 using VeloTime.Module.Statistics.Interface.Messages;
-using VeloTime.Module.Statistics.Model;
-using VeloTime.Module.Statistics.Storage;
+using VeloTime.Module.Statistics.Service;
 
 namespace VeloTime.Module.Statistics.Handlers;
 
-internal class SampleCompleteHandler(
-    StatisticsDbContext storage,
-    IFacitiliesClient facilities,
-    IMemoryCache cache,
-    IMessageBus messageBus,
+public class SampleCompleteHandler(
+    StatisticsService statistics,
     Metrics metrics,
+    IMessageBus messageBus,
     ILogger<SampleCompleteHandler> logger
     ) : IConsumer<SampleComplete>
 {
     public async Task OnHandle(SampleComplete message, CancellationToken cancellationToken)
     {
-        using var activity = Instrumentation.Source.StartActivity("Handle SampleComplete");
+        using var activity = Instrumentation.Source.StartActivity("OnHandle.SampleComplete");
+        activity?.SetTag("TransponderId", message.TransponderId);
 
-        var statsItems = await storage.Set<SimpleStatisticsItem>().Where(s => s.CoursePointEnd == message.CoursePointEnd).Include(s => s.StatisticsItem).ToListAsync(cancellationToken);
+        var entries = await statistics.ProcessCompletedAsync(message.TransponderId, message.TimeStart, message.TimeEnd, message.CoursePointStart, message.CoursePointEnd, cancellationToken);
+        activity?.SetTag("EntriesCreated", entries.Count());
+        logger.LogInformation("Processed SampleComplete for TransponderId: {TransponderId}, Entries Created: {EntryCount}",
+            message.TransponderId, entries.Count());
 
-        if (statsItems.Any())
-        {
-            foreach (var statsItem in statsItems)
-            {
-                var start = await storage.Set<Sample>()
-                    .Where(s => s.TransponderId == message.TransponderId && s.CoursePointStartId == message.CoursePointStart && s.TimeEnd < message.TimeStart)
-                    .OrderByDescending(s => s.TimeEnd)
-                    .FirstOrDefaultAsync(cancellationToken);
-                if (start != null)
-                {
-                    StatisticsEntry entry = new()
-                    {
-                        TransponderId = message.TransponderId,
-                        TimeStart = start.TimeStart,
-                        TimeEnd = message.TimeEnd,
-                        StatisticsItem = statsItem.StatisticsItem,
-                        Duration = message.TimeEnd - start.TimeStart,
-                        Speed = statsItem.StatisticsItem.Distance / (message.TimeEnd - start.TimeStart).TotalSeconds
-                    };
-                    await storage.AddAsync(entry, cancellationToken);
-                }
-            }
-            await storage.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Updated {Count} statistics items for completed sample from {Start} to {End} covering {Distance} meters", statsItems.Count, message.TimeStart, message.TimeEnd, message.Distance);
-        }
-
+        var entryMessages = entries.Select(e => new EntryCreated
+        (
+            TransponderId: e.TransponderId,
+            TimeStart: e.TimeStart,
+            TimeEnd: e.TimeEnd,
+            StatisticsItemId: e.StatisticsItemId,
+            ConfigItemId: e.StatisticsItemConfigId
+        ));
         metrics.SampleCompleted((DateTime.UtcNow - activity?.StartTimeUtc)?.TotalMilliseconds ?? 0);
+
+        activity?.AddEvent(new("EntriesPublished"));
+        await messageBus.Publish(entryMessages, headers: new Dictionary<string, object> { ["Single"] = true });
     }
 }

@@ -5,16 +5,8 @@ using VeloTime.Module.Facilities.Interface.Instrumentation;
 
 namespace VeloTime.Module.Facilities.Interface.Client;
 
-public class HttpFacilitiesClient : IFacitiliesClient
+public class HttpFacilitiesClient(HttpClient httpClient) : IFacitiliesClient
 {
-    private readonly HttpClient httpClient;
-
-    public HttpFacilitiesClient(HttpClient httpClient)
-    {
-        this.httpClient = httpClient;
-        httpClient.BaseAddress = new Uri("http://velotime.api:8080/api/facilities/");
-    }
-
     public Task CreateCourseLayout(CourseLayoutDTO Layout)
     {
         throw new NotImplementedException();

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus;
-using VeloTime.Agent.Interface.Messages;
+using VeloTime.Agent.Interface.Messages.Events;
 
 namespace VeloTime.Agent.Dummy
 {
@@ -20,13 +20,13 @@ namespace VeloTime.Agent.Dummy
         {
             var random = new Random();
             logger.LogInformation("Dummy Worker started");
-            var messages = new List<PassingObserved>();
+            var messages = new List<PassingEvent>();
 
             while (!cancellationToken.IsCancellationRequested)
             {
                 for (int i = 0; i < random.Next(1, 6); i++)
                 {
-                    PassingObserved passing = new(
+                    PassingEvent passing = new(
                         Time: DateTimeOffset.UtcNow,
                         TransponderType: "DummyType",
                         TransponderId:  Guid.NewGuid().ToString(),

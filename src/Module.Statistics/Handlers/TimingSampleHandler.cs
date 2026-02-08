@@ -11,20 +11,14 @@ using VeloTime.Module.Timing.Interface.Messages;
 
 namespace VeloTime.Module.Statistics.Handlers;
 
-internal class TimingSampleHandler(
+public class TimingSampleHandler(
     StatisticsDbContext storage,
     IFacitiliesClient facilities,
-    IMemoryCache cache,
     IMessageBus messageBus,
     Metrics metrics,
     ILogger<TimingSampleHandler> logger
     ) : IConsumer<TimingSampleComplete>
 {
-    private MemoryCacheEntryOptions cacheEntryOptions = new()
-    {
-        SlidingExpiration = TimeSpan.FromMinutes(5)
-    };
-
     public async Task OnHandle(TimingSampleComplete message, CancellationToken cancellationToken)
     {
         using var activity = Instrumentation.Source.StartActivity("Handle TimingSampleComplete");

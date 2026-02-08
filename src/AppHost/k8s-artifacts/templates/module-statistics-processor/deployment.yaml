@@ -1,0 +1,38 @@
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "module-statistics-processor-deployment"
+  labels:
+    app.kubernetes.io/name: "velotime-apphost"
+    app.kubernetes.io/component: "module-statistics-processor"
+    app.kubernetes.io/instance: "{{.Release.Name}}"
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "velotime-apphost"
+        app.kubernetes.io/component: "module-statistics-processor"
+        app.kubernetes.io/instance: "{{.Release.Name}}"
+    spec:
+      containers:
+        - image: "{{ .Values.parameters.module_statistics_processor.module_statistics_processor_image }}"
+          name: "module-statistics-processor"
+          envFrom:
+            - configMapRef:
+                name: "module-statistics-processor-config"
+            - secretRef:
+                name: "module-statistics-processor-secrets"
+          imagePullPolicy: "IfNotPresent"
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "velotime-apphost"
+      app.kubernetes.io/component: "module-statistics-processor"
+      app.kubernetes.io/instance: "{{.Release.Name}}"
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: "RollingUpdate"

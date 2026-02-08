@@ -16,7 +16,7 @@ public class StatisticsDbContext : DbContext
 
         modelBuilder.Entity<Sample>();
         modelBuilder.Entity<StatisticsItem>();
-        modelBuilder.Entity<SimpleStatisticsItem>(e =>
+        modelBuilder.Entity<SimpleStatisticsItemConfig>(e =>
         {
             e.HasOne(s => s.StatisticsItem)
                 .WithMany()
@@ -24,6 +24,14 @@ public class StatisticsDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientNoAction);
             e.HasIndex(s => new { s.StatisticsItemId, s.CoursePointStart, s.CoursePointEnd });
 
+        });
+        modelBuilder.Entity<MultiStatisticsItemConfig>(e =>
+        {
+            e.HasOne(m => m.StatisticsItem)
+                .WithMany()
+                .IsRequired()
+                .OnDelete(DeleteBehavior.ClientNoAction);
+            e.HasIndex(m => new { m.StatisticsItemId, m.ParentConfigId });
         });
         modelBuilder.Entity<StatisticsEntry>(e =>
         {

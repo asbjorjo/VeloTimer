@@ -68,34 +68,6 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.ToTable("sample", "statistics");
                 });
 
-            modelBuilder.Entity("VeloTime.Module.Statistics.Model.SimpleStatisticsItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("CoursePointEnd")
-                        .HasColumnType("uuid")
-                        .HasColumnName("course_point_end");
-
-                    b.Property<Guid>("CoursePointStart")
-                        .HasColumnType("uuid")
-                        .HasColumnName("course_point_start");
-
-                    b.Property<Guid>("StatisticsItemId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("statistics_item_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_simple_statistics_item");
-
-                    b.HasIndex("StatisticsItemId", "CoursePointStart", "CoursePointEnd")
-                        .HasDatabaseName("ix_simple_statistics_item_statistics_item_id_course_point_star");
-
-                    b.ToTable("simple_statistics_item", "statistics");
-                });
-
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -110,6 +82,10 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.Property<double>("Speed")
                         .HasColumnType("double precision")
                         .HasColumnName("speed");
+
+                    b.Property<Guid>("StatisticsItemConfigId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("statistics_item_config_id");
 
                     b.Property<Guid>("StatisticsItemId")
                         .HasColumnType("uuid")
@@ -133,6 +109,9 @@ namespace VeloTime.Module.Statistics.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_statistics_entry");
+
+                    b.HasIndex("StatisticsItemConfigId")
+                        .HasDatabaseName("ix_statistics_entry_statistics_item_config_id");
 
                     b.HasIndex("StatsProfileUserId")
                         .HasDatabaseName("ix_statistics_entry_stats_profile_user_id");
@@ -170,6 +149,33 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.ToTable("statistics_item", "statistics");
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsItemConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Discriminator")
+                        .IsRequired()
+                        .HasMaxLength(34)
+                        .HasColumnType("character varying(34)")
+                        .HasColumnName("discriminator");
+
+                    b.Property<Guid>("StatisticsItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("statistics_item_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_statistics_item_config");
+
+                    b.ToTable("statistics_item_config", "statistics");
+
+                    b.HasDiscriminator().HasValue("StatisticsItemConfig");
+
+                    b.UseTphMappingStrategy();
+                });
+
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatsProfile", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -192,20 +198,58 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.ToTable("stats_profile", "statistics");
                 });
 
-            modelBuilder.Entity("VeloTime.Module.Statistics.Model.SimpleStatisticsItem", b =>
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.MultiStatisticsItemConfig", b =>
                 {
-                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItem", "StatisticsItem")
-                        .WithMany()
-                        .HasForeignKey("StatisticsItemId")
-                        .OnDelete(DeleteBehavior.ClientNoAction)
-                        .IsRequired()
-                        .HasConstraintName("fk_simple_statistics_item_statistics_item_statistics_item_id");
+                    b.HasBaseType("VeloTime.Module.Statistics.Model.StatisticsItemConfig");
 
-                    b.Navigation("StatisticsItem");
+                    b.Property<Guid>("ParentConfigId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_config_id");
+
+                    b.Property<int>("Repetitions")
+                        .HasColumnType("integer")
+                        .HasColumnName("repetitions");
+
+                    b.HasIndex("ParentConfigId")
+                        .HasDatabaseName("ix_statistics_item_config_parent_config_id");
+
+                    b.HasIndex("StatisticsItemId", "ParentConfigId")
+                        .HasDatabaseName("ix_statistics_item_config_statistics_item_id_parent_config_id");
+
+                    b.ToTable("statistics_item_config", "statistics");
+
+                    b.HasDiscriminator().HasValue("MultiStatisticsItemConfig");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.SimpleStatisticsItemConfig", b =>
+                {
+                    b.HasBaseType("VeloTime.Module.Statistics.Model.StatisticsItemConfig");
+
+                    b.Property<Guid>("CoursePointEnd")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_point_end");
+
+                    b.Property<Guid>("CoursePointStart")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_point_start");
+
+                    b.HasIndex("StatisticsItemId", "CoursePointStart", "CoursePointEnd")
+                        .HasDatabaseName("ix_statistics_item_config_statistics_item_id_course_point_star");
+
+                    b.ToTable("statistics_item_config", "statistics");
+
+                    b.HasDiscriminator().HasValue("SimpleStatisticsItemConfig");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsEntry", b =>
                 {
+                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItemConfig", "StatisticsItemConfig")
+                        .WithMany()
+                        .HasForeignKey("StatisticsItemConfigId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_statistics_entry_statistics_item_config_statistics_item_con");
+
                     b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItem", "StatisticsItem")
                         .WithMany()
                         .HasForeignKey("StatisticsItemId")
@@ -221,7 +265,42 @@ namespace VeloTime.Module.Statistics.Migrations
 
                     b.Navigation("StatisticsItem");
 
+                    b.Navigation("StatisticsItemConfig");
+
                     b.Navigation("StatsProfile");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.MultiStatisticsItemConfig", b =>
+                {
+                    b.HasOne("VeloTime.Module.Statistics.Model.SimpleStatisticsItemConfig", "ParentConfig")
+                        .WithMany()
+                        .HasForeignKey("ParentConfigId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_statistics_item_config_statistics_item_config_parent_config");
+
+                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItem", "StatisticsItem")
+                        .WithMany()
+                        .HasForeignKey("StatisticsItemId")
+                        .OnDelete(DeleteBehavior.ClientNoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_statistics_item_config_statistics_item_statistics_item_id");
+
+                    b.Navigation("ParentConfig");
+
+                    b.Navigation("StatisticsItem");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.SimpleStatisticsItemConfig", b =>
+                {
+                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItem", "StatisticsItem")
+                        .WithMany()
+                        .HasForeignKey("StatisticsItemId")
+                        .OnDelete(DeleteBehavior.ClientNoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_statistics_item_config_statistics_item_statistics_item_id");
+
+                    b.Navigation("StatisticsItem");
                 });
 #pragma warning restore 612, 618
         }

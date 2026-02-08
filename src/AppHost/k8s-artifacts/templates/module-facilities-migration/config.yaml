@@ -1,0 +1,13 @@
+---
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+  name: "module-facilities-migration-config"
+  labels:
+    app.kubernetes.io/name: "velotime-apphost"
+    app.kubernetes.io/component: "module-facilities-migration"
+    app.kubernetes.io/instance: "{{.Release.Name}}"
+data:
+  OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "{{ .Values.config.module_facilities_migration.OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES }}"
+  OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "{{ .Values.config.module_facilities_migration.OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES }}"
+  OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "{{ .Values.config.module_facilities_migration.OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY }}"

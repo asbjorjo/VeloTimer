@@ -1,10 +1,8 @@
 ﻿using VeloTime.Module.Timing.Model;
 
-namespace VeloTime.Bootstrap;
-
 public static class TimingData
 {
-    public static Installation Installation = new Installation { AgentId = "x2-sola-dev" };
+    public static Installation Installation = new Installation { AgentId = "x2-sola-dev" , TimingSystem = TimingSystem.MyLaps_X2 };
     public static List<TimingPoint> timingPoints = new List<TimingPoint>
     {
         new TimingPoint{ Description = "Finish", SystemId = "0" },

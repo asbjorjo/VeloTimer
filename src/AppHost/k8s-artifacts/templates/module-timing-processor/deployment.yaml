@@ -1,0 +1,38 @@
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "module-timing-processor-deployment"
+  labels:
+    app.kubernetes.io/name: "velotime-apphost"
+    app.kubernetes.io/component: "module-timing-processor"
+    app.kubernetes.io/instance: "{{.Release.Name}}"
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "velotime-apphost"
+        app.kubernetes.io/component: "module-timing-processor"
+        app.kubernetes.io/instance: "{{.Release.Name}}"
+    spec:
+      containers:
+        - image: "{{ .Values.parameters.module_timing_processor.module_timing_processor_image }}"
+          name: "module-timing-processor"
+          envFrom:
+            - configMapRef:
+                name: "module-timing-processor-config"
+            - secretRef:
+                name: "module-timing-processor-secrets"
+          imagePullPolicy: "IfNotPresent"
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "velotime-apphost"
+      app.kubernetes.io/component: "module-timing-processor"
+      app.kubernetes.io/instance: "{{.Release.Name}}"
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: "RollingUpdate"

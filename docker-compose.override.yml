@@ -1,0 +1,77 @@
+services:
+  velotime:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://docker.hjem.ajjg.no:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      #- OTEL_EXPORTER_OTLP_HEADERS=signoz-ingestion-key=Upzg1rMxE0KKTZjNBewj2fA49OxQkfsyv0zeEwpgvfw=
+      #- OTEL_EXPORTER_OTLP_ENDPOINT=http://docker.hjem.ajjg.no:5080/api/default
+      #- OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      #- OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic YmxhcHBAYmxhcHAuYmxhOnZsekw5UVZsVDdBZXExRTg=,organization=default,stream-name=default
+      - ConnectionStrings__TimingDbConnection=Host=database;Database=velotime;Username=velotime;Password=velotimepassword;Port=5432
+      - ConnectionStrings__StatisticsDbConnection=Host=database;Database=velotime;Username=velotime;Password=velotimepassword;Port=5432
+    ports:
+      - "8070:8080"
+      - "8071:8081"
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+    depends_on:
+      - database
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  velotime.api:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://docker.hjem.ajjg.no:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      #- OTEL_EXPORTER_OTLP_HEADERS=signoz-ingestion-key=Upzg1rMxE0KKTZjNBewj2fA49OxQkfsyv0zeEwpgvfw=
+      #- OTEL_EXPORTER_OTLP_ENDPOINT=http://docker.hjem.ajjg.no:5080/api/default
+      #- OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      #- OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic YmxhcHBAYmxhcHAuYmxhOnZsekw5UVZsVDdBZXExRTg=,organization=default,stream-name=default
+      - ConnectionStrings__TimingDbConnection=Host=database;Database=velotime;Username=velotime;Password=velotimepassword;Port=5432
+      - ConnectionStrings__StatisticsDbConnection=Host=database;Database=velotime;Username=velotime;Password=velotimepassword;Port=5432
+    ports:
+      - "8080"
+      - "8081"
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/Microsoft/UserSecrets:/root/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+      - ${APPDATA}/ASP.NET/Https:/root/.aspnet/https:ro
+    depends_on:
+      - database
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  database:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: velotime
+      POSTGRES_PASSWORD: velotimepassword
+      POSTGRES_DB: velotime
+    volumes:
+      - velotime-db-data:/var/lib/postgresql
+  # dashboard:
+  #   image: mcr.microsoft.com/dotnet/aspire-dashboard:9.0
+  #   ports:
+  #     - "28888:18888"
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: blapp@blapp.bla
+      PGADMIN_DEFAULT_PASSWORD: blapp
+    ports:
+      - 7888:80
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - database
+volumes:
+  pgadmin_data:
+  velotime-db-data:
