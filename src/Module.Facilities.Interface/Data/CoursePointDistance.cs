@@ -3,5 +3,6 @@
 public record CoursePointDistance(
     Guid CoursePointStartId,
     Guid CoursePointEndId,
-    double Distance
+    double Distance,
+    Guid FacilityId
 );

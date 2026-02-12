@@ -11,6 +11,7 @@
 
 
   <ItemGroup>
+	<PackageReference Include="Aspire.Keycloak.Authentication" Version="13.1.0-preview.1.25616.3" />
 	<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="9.*" />
 	<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.*" />
     <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="9.*" />

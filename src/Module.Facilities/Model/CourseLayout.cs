@@ -4,12 +4,14 @@ public class CourseLayout
 {
     public Guid Id { get; init; }
     public Guid FacilityId { get; init; }
+    public Facility Facility { get; init; } = default!;
     public IList<CourseSegment> Segments { get; set; } = new List<CourseSegment>();
 }
 
 public class CourseSegment
 {
     public Guid Id { get; init; }
+    public CourseLayout CourseLayout { get; init; } = default!;
     public Guid CourseLayoutId { get; init; }
     public int Order { get; set; }
     public required CoursePoint Start { get; set; }

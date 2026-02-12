@@ -91,6 +91,18 @@ public class HttpFacilitiesClient(HttpClient httpClient) : IFacitiliesClient
         }
     }
 
+    public async Task<FacilityDTO> GetFacilityByCoursePointIdAsync(Guid coursePointId, CancellationToken token)
+    {
+        try
+        {
+            return await httpClient.GetFromJsonAsync<FacilityDTO>($"coursepoint/{coursePointId}/facility");
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new Exception("Error retrieving facility", ex);
+        }
+    }
+
     public async Task<ICollection<CourseLayoutDTO>> GetFacilityCourseLayoutsAsync(Guid facilityId, CancellationToken token)
     {
         try

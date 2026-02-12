@@ -101,7 +101,7 @@ public class AgentService(InstallationService installationService, HybridCache c
     {
         var installation = await installationService.GetInstallionForTimingPoint(passing.TimingPointId, cancellationToken);
 
-        return await cache.GetOrCreateAsync(
+        var value = await cache.GetOrCreateAsync(
             $"LastPassing_{passing.TransponderId}",
             async cancel => await storage
                     .Set<Passing>()
@@ -113,5 +113,9 @@ public class AgentService(InstallationService installationService, HybridCache c
                         && p.TimingPoint.InstallationId == installation.Id
                         && p.Time < passing.Time, cancellationToken: cancel),
             cancellationToken: cancellationToken);
+
+        if (value is null) await cache.RemoveAsync($"LastPassing_{passing.TransponderId}", cancellationToken);
+
+        return value;
     }
 }

@@ -35,11 +35,13 @@ public static class StartupExtensions
         //    mbb.AddServicesFromAssemblyContaining<PassingSavedHandler>();
         //});
 
-        services.AddDbContext<FacilityDbContext>(options =>
-        {
-            options.UseNpgsql(configuration.GetConnectionString("FacilityDbConnection"));
-            options.UseSnakeCaseNamingConvention();
-        });
+        //services.AddDbContext<FacilityDbContext>(options =>
+        //{
+        //    options.UseNpgsql(configuration.GetConnectionString("FacilityDbConnection"));
+        //    options.UseSnakeCaseNamingConvention();
+        //});
+
+        builder.AddModuleStorage<FacilityDbContext>(connectionName: "velotimedb");
 
         services.AddTransient<FacilitiesService>();
         services.AddSingleton<Metrics>();

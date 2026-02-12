@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authentication;
+
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
+using MudBlazor.Extensions;
 using MudBlazor.Services;
 using VeloTime.Module.Facilities.Interface.Client;
 using VeloTime.Module.Statistics.Interface.Client;
@@ -20,28 +22,48 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-//builder.Services.AddAuthentication(options =>
-//    {
-//        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-//        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
-//    })
-builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
-    .AddOpenIdConnect(VELOTIME_OIDC_SCHEME, options =>
+builder.Services.AddAuthentication(options =>
     {
-        builder.Configuration.GetSection("OpenIDConnectSettings").Bind(options);
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+    });
+//builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
+//    .AddOpenIdConnect(VELOTIME_OIDC_SCHEME, options =>
+//    {
+//        builder.Configuration.GetSection("OpenIDConnectSettings").Bind(options);
 
-        options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        options.ResponseType = OpenIdConnectResponseType.Code;
+//        options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+//        options.ResponseType = OpenIdConnectResponseType.Code;
 
-        options.SaveTokens = true;
-        options.GetClaimsFromUserInfoEndpoint = true;
-        options.TokenValidationParameters = new TokenValidationParameters
+//        options.SaveTokens = true;
+//        options.GetClaimsFromUserInfoEndpoint = true;
+//        options.TokenValidationParameters = new TokenValidationParameters
+//        {
+//            NameClaimType = "name",
+//            RoleClaimType = "role"
+//        };
+//        options.Scope.Add("veloTimeApi");
+//    })
+//    .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme);
+
+builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
+    .AddKeycloakOpenIdConnect(
+        serviceName: "keycloak",
+        realm: "velotime",
+        authenticationScheme: VELOTIME_OIDC_SCHEME,
+        options =>
         {
-            NameClaimType = "name",
-            RoleClaimType = "role"
-        };
-        options.Scope.Add("veloTimeApi");
-    })
+            options.ClientId = "WebUI";
+            options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            options.ResponseType = OpenIdConnectResponseType.Code;
+            options.Scope.Add("velotime:api");
+
+            options.SaveTokens = true;
+            if (builder.Environment.IsDevelopment())
+            {
+                options.RequireHttpsMetadata = false;
+            }
+        })
     .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme);
 
 builder.Services.ConfigureCookieOidc(CookieAuthenticationDefaults.AuthenticationScheme, VELOTIME_OIDC_SCHEME);
@@ -68,13 +90,13 @@ builder.Services.AddScoped<AccessTokenHandler>();
 builder.Services.AddHttpForwarder();
 
 builder.Services
-    .AddHttpClient<IFacitiliesClient, HttpFacilitiesClient>()
+    .AddFacilitiesClient()
     .AddHttpMessageHandler<AccessTokenHandler>();
 builder.Services
-    .AddHttpClient<IStatisticsClient, HttpStatisticsClient>()
+    .AddStatisticsClient()
     .AddHttpMessageHandler<AccessTokenHandler>();
 builder.Services
-    .AddHttpClient<ITimingClient, TimingHttpClient>()
+    .AddTimingClient()
     .AddHttpMessageHandler<AccessTokenHandler>();
 
 builder.Services.AddScoped<IFacilityService, FacilityService>();

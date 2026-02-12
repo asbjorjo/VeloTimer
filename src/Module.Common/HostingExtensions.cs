@@ -1,16 +1,18 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using StackExchange.Redis;
 using System.Text.Json;
+using VeloTime.Module.Common;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
 using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
 
 namespace Microsoft.Extensions.Hosting;
 
-public static class CacheExtensions
+public static class HostingExtensions
 {
     public static IHostApplicationBuilder AddModuleCache(this IHostApplicationBuilder builder)
     {
@@ -56,4 +58,8 @@ public static class CacheExtensions
 
         return builder;
     }
+
+    public static void AddModuleStorage<TContext>(this IHostApplicationBuilder builder, string connectionName) where TContext : BaseDbContext
+        => builder.AddNpgsqlDbContext<TContext>(connectionName: connectionName, configureDbContextOptions: options => { options.UseSnakeCaseNamingConvention(); });
 }
+

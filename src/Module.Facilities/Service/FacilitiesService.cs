@@ -1,5 +1,4 @@
-﻿using Microsoft.Azure.Amqp.Framing;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using System.Diagnostics;
 using VeloTime.Module.Facilities.Model;
@@ -17,6 +16,36 @@ internal class FacilitiesService(FacilityDbContext storage, HybridCache cache)
         activity?.SetTag("CourseLayoutId", Layout.Id);
         activity?.SetStatus(ActivityStatusCode.Ok);
         return Layout;
+    }
+
+    internal async Task<Facility?> FacilityByCoursePoint(Guid CoursePointId, CancellationToken cancellationToken = default)
+    {
+        using var activity = Instrumentation.Source.StartActivity("FacilityByCoursePoint");
+        activity?.SetTag("CoursePointId", CoursePointId);
+        var facility = await cache.GetOrCreateAsync(
+            $"FacilityByCoursePoint_{CoursePointId}",
+            async cancel => await storage.Set<CourseSegment>()
+                .Where(s => s.Start.Id == CoursePointId || s.End.Id == CoursePointId)
+                .Select(s => s.CourseLayout.Facility)
+                .Distinct()
+                .SingleOrDefaultAsync(cancellationToken: cancel),
+            cancellationToken: cancellationToken);
+        activity?.SetTag("FacilityId", facility?.Id);
+        activity?.SetStatus(ActivityStatusCode.Ok);
+        return facility;
+    }
+
+    internal async Task<CoursePoint?> GetCoursePointById(Guid CoursePointId, CancellationToken cancellationToken = default)
+    {
+        using var activity = Instrumentation.Source.StartActivity("GetCoursePointById");
+        activity?.SetTag("CoursePointId", CoursePointId);
+        var coursePoint = await cache.GetOrCreateAsync(
+            $"CoursePointById_{CoursePointId}",
+            async cancel => await storage.Set<CoursePoint>()
+                .SingleOrDefaultAsync(p => p.Id == CoursePointId, cancellationToken: cancel),
+            cancellationToken: cancellationToken);
+        activity?.SetStatus(ActivityStatusCode.Ok);
+        return coursePoint;
     }
 
     internal async Task<IEnumerable<CourseSegment>> GetSegmentsBetweenCoursePoints(CoursePoint start, CoursePoint end, CancellationToken cancellationToken = default)

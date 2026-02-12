@@ -1,10 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using VeloTime.Module.Common;
 using VeloTime.Module.Statistics.Model;
 
 namespace VeloTime.Module.Statistics.Storage;
 
-public class StatisticsDbContext : DbContext
+public class StatisticsDbContext : BaseDbContext
 {
     public StatisticsDbContext(DbContextOptions<StatisticsDbContext> options) : base(options)
     {

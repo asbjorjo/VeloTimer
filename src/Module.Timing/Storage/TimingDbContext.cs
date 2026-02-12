@@ -1,10 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using VeloTime.Module.Common;
 using VeloTime.Module.Timing.Model;
 
 namespace VeloTime.Module.Timing.Storage;
 
-public class TimingDbContext : DbContext
+public class TimingDbContext : BaseDbContext
 {
     public TimingDbContext(DbContextOptions<TimingDbContext> options) : base(options)
     {

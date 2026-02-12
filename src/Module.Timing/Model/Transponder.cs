@@ -1,5 +1,8 @@
-﻿namespace VeloTime.Module.Timing.Model
+﻿using System.Text.Json.Serialization;
+
+namespace VeloTime.Module.Timing.Model
 {
+    [JsonDerivedType(typeof(MylapsX2Transponder), typeDiscriminator: "MylapsX2")]
     public abstract class Transponder
     {
         public Guid Id { get; init; }

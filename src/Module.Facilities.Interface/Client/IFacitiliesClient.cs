@@ -10,6 +10,7 @@ public interface IFacitiliesClient
     Task<CoursePointDTO> GetCoursePointById(Guid coursePointId);
     Task<CoursePointDTO> GetCoursePointByTimingPointId(Guid timingPointId);
     Task<FacilityDTO> GetFacilityAsync(Guid facilityId);
+    Task<FacilityDTO> GetFacilityByCoursePointIdAsync(Guid courseLayoutId, CancellationToken token);
     Task<ICollection<FacilityDTO>> GetAllFacilitiesAsync(CancellationToken token);
     Task<ICollection<CourseLayoutDTO>> GetFacilityCourseLayoutsAsync(Guid facilityId, CancellationToken token);
     Task<CourseLayoutDTO> GetCourseLayoutAsync(Guid layoutId, CancellationToken cancellationToken);

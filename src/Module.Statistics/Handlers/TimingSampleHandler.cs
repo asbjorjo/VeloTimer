@@ -26,7 +26,7 @@ public class TimingSampleHandler(
         activity?.SetTag("TransponderId", message.TransponderId);
 
         CoursePointDistance distance = await facilities.DistanceBetweenTimingPoints(message.TimingPointStart, message.TimingPointEnd);
-
+        
         Sample sample = new()
         {
             TransponderId = message.TransponderId,
@@ -37,6 +37,7 @@ public class TimingSampleHandler(
             Distance = distance.Distance,
             Duration = message.TimeEnd - message.TimeStart,
             Speed = distance.Distance / (message.TimeEnd - message.TimeStart).TotalSeconds,
+            FacilityId = distance.FacilityId,
         };
 
         await storage.AddAsync(sample, cancellationToken);

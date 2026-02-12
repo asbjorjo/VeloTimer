@@ -7,11 +7,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.AddServiceDefaults();
 builder.Services.AddHostedService<MigrationWorker<StatisticsDbContext>>();
 
-builder.Services.AddDbContext<StatisticsDbContext>(options =>
-{
-    options.UseNpgsql(builder.Configuration.GetConnectionString("StatisticsDbConnection"));
-    options.UseSnakeCaseNamingConvention();
-});
+builder.AddModuleStorage<StatisticsDbContext>(connectionName: "velotimedb");
 
 var host = builder.Build();
 host.Run();

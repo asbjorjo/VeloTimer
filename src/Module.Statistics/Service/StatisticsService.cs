@@ -22,7 +22,10 @@ public class StatisticsService(
             foreach (var statsItem in statsItems)
             {
                 var start = await storage.Set<Sample>()
-                    .Where(s => s.TransponderId == transponderId && s.CoursePointStartId == startPoint && s.TimeEnd < startTime)
+                    .Where(s => 
+                        s.TransponderId == transponderId 
+                        && s.CoursePointStartId == startPoint 
+                        && s.TimeEnd < startTime)
                     .OrderByDescending(s => s.TimeEnd)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (start != null)
@@ -32,10 +35,11 @@ public class StatisticsService(
                         TransponderId = transponderId,
                         TimeStart = start.TimeStart,
                         TimeEnd = endTime,
-                        StatisticsItem = statsItem.StatisticsItem,
+                        StatisticsItemId = statsItem.StatisticsItem.Id,
                         Duration = endTime - start.TimeStart,
                         Speed = statsItem.StatisticsItem.Distance / (endTime - start.TimeStart).TotalSeconds,
-                        StatisticsItemConfig = statsItem
+                        StatisticsItemConfigId = statsItem.Id,
+                        FacilityId = start.FacilityId,
                     };
                     entries = entries.Append(entry);
                 }
@@ -71,10 +75,11 @@ public class StatisticsService(
                     TransponderId = transponderId,
                     TimeStart = relevantEntries.Last().TimeStart,
                     TimeEnd = relevantEntries.First().TimeEnd,
-                    StatisticsItem = multiItem.StatisticsItem,
+                    StatisticsItemId = multiItem.StatisticsItem.Id,
                     Duration = relevantEntries.First().TimeEnd - relevantEntries.Last().TimeStart,
                     Speed = multiItem.StatisticsItem.Distance / (relevantEntries.First().TimeEnd - relevantEntries.Last().TimeStart).TotalSeconds,
-                    StatisticsItemConfig = multiItem
+                    StatisticsItemConfigId = multiItem.Id,
+                    FacilityId = relevantEntries.First().FacilityId,
                 };
                 entries = entries.Append(entry);
             }

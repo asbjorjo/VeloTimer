@@ -1,10 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using VeloTime.Module.Common;
 using VeloTime.Module.Facilities.Model;
 
 namespace VeloTime.Module.Facilities.Storage;
 
-public class FacilityDbContext : DbContext
+public class FacilityDbContext : BaseDbContext
 {
     public FacilityDbContext(DbContextOptions<FacilityDbContext> options) : base(options)
     {

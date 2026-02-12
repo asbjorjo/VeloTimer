@@ -18,11 +18,26 @@ internal static class CoursePointEndpoints
         var coursePoints = endpoints.MapGroup("coursepoint");
         
         coursePoints.MapGet("{id}", GetCoursePointById).CacheOutput();
+        coursePoints.MapGet("{id}/facility", GetFacilityByCoursePointId).CacheOutput();
         coursePoints.MapGet("{start}/distance/{end}", DistanceBetweenCoursePoints).CacheOutput();
 
         var timingPoints = endpoints.MapGroup("timingpoint");
         timingPoints.MapGet("{id}", GetCoursePointByTimingPoint).CacheOutput();
         timingPoints.MapGet("{start:guid}/distance/{end:guid}", DistanceBetweenTimingPoints).CacheOutput();
+    }
+
+    static async Task<Results<Ok<FacilityDTO>, NotFound>> GetFacilityByCoursePointId(Guid id, FacilitiesService facilities)
+    {
+        var coursepoint = await facilities.GetCoursePointById(id);
+        if (coursepoint == null)
+        {
+            return TypedResults.NotFound();
+        }
+        var facility = await facilities.FacilityByCoursePoint(id);
+
+        return facility == null
+            ? TypedResults.NotFound()
+            : TypedResults.Ok(new FacilityDTO { Id = facility.Id, Name = facility.Name, Layouts = facility.Layouts.Select(l => l.Id).ToList() });
     }
 
     static async Task<Results<Ok<CoursePointDTO>, NotFound>> GetCoursePointById(Guid id, FacilityDbContext storage) =>
@@ -52,7 +67,8 @@ internal static class CoursePointEndpoints
         return TypedResults.Ok(new CoursePointDistance(
             startpoint.Id,
             endpoint.Id,
-            await facilities.DistanceBetweenCoursePoints(startpoint, endpoint)
+            await facilities.DistanceBetweenCoursePoints(startpoint, endpoint),
+            await facilities.FacilityByCoursePoint(startpoint.Id) is Facility facility ? facility.Id : Guid.Empty
             )
         );
     }

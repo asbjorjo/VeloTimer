@@ -4,10 +4,9 @@ namespace Microsoft.Extensions.DependencyInjection;
 
 public static class ServiceExtensions
 {
-    public static IServiceCollection AddFacilitiesClient(this IServiceCollection services)
+    public static IHttpClientBuilder AddFacilitiesClient(this IServiceCollection services)
     {
-        services.AddHttpClient<IFacitiliesClient, HttpFacilitiesClient>(
+        return services.AddHttpClient<IFacitiliesClient, HttpFacilitiesClient>(
             static client => client.BaseAddress = new("https+http://module-facilities-api/api/facilities/"));
-        return services;
     }
 }

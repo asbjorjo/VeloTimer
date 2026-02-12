@@ -7,11 +7,7 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.AddServiceDefaults();
 builder.Services.AddHostedService<MigrationWorker<FacilityDbContext>>();
 
-builder.Services.AddDbContext<FacilityDbContext>(options =>
-{
-    options.UseNpgsql(builder.Configuration.GetConnectionString("FacilityDbConnection"));
-    options.UseSnakeCaseNamingConvention();
-});
+builder.AddModuleStorage<FacilityDbContext>(connectionName: "velotimedb");
 
 var host = builder.Build();
 host.Run();

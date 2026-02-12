@@ -11,4 +11,5 @@ public class Sample
     public TimeSpan Duration { get; init; }
     public double Distance { get; init; }
     public double Speed { get; init; }
+    public Guid FacilityId { get; init; }
 }

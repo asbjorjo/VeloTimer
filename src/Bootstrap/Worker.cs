@@ -17,9 +17,13 @@ internal class Worker(IServiceProvider serviceProvider, IHostApplicationLifetime
         var statisticsContext = scope.ServiceProvider.GetRequiredService<StatisticsDbContext>();
         
         var installations = await timingContext.Set<Installation>().Where(i => i.AgentId == TimingData.Installation.AgentId).ToListAsync();
-        var installation = installations.FirstOrDefault();
+        Installation installation;
 
-        if (installation is null)
+        if (installations.Any())
+        {
+            installation = installations.First();
+        }
+        else
         {
             installation = TimingData.Installation;
             await timingContext.AddAsync(installation);
@@ -30,6 +34,12 @@ internal class Worker(IServiceProvider serviceProvider, IHostApplicationLifetime
         var sola = await timingContext.Set<Installation>()
             .Include(i => i.TimingPoints)
             .SingleAsync(i => i.AgentId == TimingData.Installation.AgentId);
+
+        if (!sola.TimingPoints.Any())
+        {
+            sola.TimingPoints.AddRange(TimingData.timingPoints);
+            await timingContext.SaveChangesAsync();
+        }
 
         foreach (var timingpoint in sola.TimingPoints)
         {

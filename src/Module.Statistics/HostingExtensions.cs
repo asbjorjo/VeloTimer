@@ -23,11 +23,13 @@ public static class StartupExtensions
             .WithTracing(tracing => tracing.AddSource("VeloTime.Module.Statistics"))
             .WithMetrics(metrics => metrics.AddMeter("VeloTime.Module.Statistics"));
 
-        services.AddDbContext<StatisticsDbContext>(options =>
-        {
-            options.UseNpgsql(configuration.GetConnectionString("StatisticsDbConnection"));
-            options.UseSnakeCaseNamingConvention();
-        });
+        //services.AddDbContext<StatisticsDbContext>(options =>
+        //{
+        //    options.UseNpgsql(configuration.GetConnectionString("StatisticsDbConnection"));
+        //    options.UseSnakeCaseNamingConvention();
+        //});
+
+        builder.AddModuleStorage<StatisticsDbContext>(connectionName: "velotimedb");
 
         services.AddTransient<StatisticsService>();
         services.AddSingleton<Metrics>();

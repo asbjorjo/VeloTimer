@@ -11,6 +11,14 @@ builder.Services.AddFacilitiesClient();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+builder.Services.AddOutputCache(options =>
+{
+    options.AddPolicy("Default", policy =>
+    {
+        policy.Expire(TimeSpan.FromSeconds(30));
+    });
+});
+
 builder.AddModuleFacilities();
 
 var app = builder.Build();
@@ -31,5 +39,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseModuleFacilities();
+
+app.UseOutputCache();
 
 app.Run();

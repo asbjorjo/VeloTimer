@@ -11,11 +11,6 @@ public class PassingObservedHandler(IAgentService agentService, IMessageBus mess
 {
     public required IConsumerContext Context { get; set; }
 
-    private MemoryCacheEntryOptions cacheEntryOptions = new()
-    {
-        SlidingExpiration = TimeSpan.FromMinutes(5)
-    };
-
     public async Task OnHandle(PassingEvent message, CancellationToken cancellationToken)
     {
         using var activity = Instrumentation.Source.StartActivity("Handle PassingEvent");

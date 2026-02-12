@@ -26,6 +26,10 @@ internal static class StartupExtensions
                 options.SessionIdleTimeout = TimeSpan.FromSeconds(5);
             });
             mbb.AddJsonSerializer();
+            mbb.WithHeaderModifier((headers, message) =>
+            {
+                headers["MessageName"] = message.GetType().Name;
+            });
             mbb.Consume<TimingSampleComplete>(x => x
                 .Topic("velotime-timing-test")
                 .SubscriptionName("statistics")
@@ -34,27 +38,29 @@ internal static class StartupExtensions
                 .EnableSession(s => {
                     //s.MaxConcurrentSessions(1);
                 }));
-            //mbb.Consume<EntryCreated>(x => x
-            //    .Topic("velotime-statistics-test")
-            //    .SubscriptionName("statistics")
-            //    .WithConsumer<EntryCreatedHandler>()
-            //    .WhenUndeclaredMessageTypeArrives(opts =>
-            //    {
-            //        opts.Fail = false;
-            //        opts.Log = true;
-            //    })
-            //    .Instances(1)
-            //    .EnableSession(s => { 
-            //        //s.MaxConcurrentSessions(1); 
-            //    }));
-            //mbb.Consume<SampleComplete>(x => x
-            //    .Topic("velotime-statistics-test")
-            //    .SubscriptionName("statistics")
-            //    .WithConsumer<SampleCompleteHandler>()
-            //    .Instances(1)
-            //    .EnableSession(s => {
-            //        //s.MaxConcurrentSessions(1); 
-            //    }));
+            mbb.Consume<EntryCreated>(x => x
+                .Topic("velotime-statistics-test")
+                .SubscriptionName("statistics")
+                .WithConsumer<EntryCreatedHandler>()
+                .WhenUndeclaredMessageTypeArrives(opts =>
+                {
+                    opts.Fail = false;
+                    opts.Log = true;
+                })
+                .Instances(1)
+                .EnableSession(s =>
+                {
+                    //s.MaxConcurrentSessions(1);
+                }));
+            mbb.Consume<SampleComplete>(x => x
+                .Topic("velotime-statistics-test")
+                .SubscriptionName("statistics")
+                .WithConsumer<SampleCompleteHandler>()
+                .Instances(1)
+                .EnableSession(s =>
+                {
+                    //s.MaxConcurrentSessions(1);
+                }));
             mbb.Produce<EntryCreated>(x => x
                 .DefaultTopic("velotime-statistics-test")
                 .WithModifier((message, sbMessage) =>
