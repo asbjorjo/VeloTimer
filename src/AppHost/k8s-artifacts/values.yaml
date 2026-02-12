@@ -1,12 +1,4 @@
 parameters:
-  module_facilities_migration:
-    module_facilities_migration_image: "module-facilities-migration:latest"
-  module_statistics_migration:
-    module_statistics_migration_image: "module-statistics-migration:latest"
-  module_timing_migration:
-    module_timing_migration_image: "module-timing-migration:latest"
-  bootstrap:
-    bootstrap_image: "bootstrap:latest"
   module_facilities_api:
     port_http: "8080"
     port_https: "8080"
@@ -19,48 +11,144 @@ parameters:
     port_http: "8080"
     port_https: "8080"
     module_timing_api_image: "module-timing-api:latest"
+  frontend:
+    port_http: "8080"
+    port_https: "8080"
+    frontend_image: "frontend:latest"
   module_statistics_processor:
     module_statistics_processor_image: "module-statistics-processor:latest"
   module_timing_processor:
     module_timing_processor_image: "module-timing-processor:latest"
-secrets: {}
-config:
-  module_facilities_migration:
-    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
-    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
-    OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
-  module_statistics_migration:
-    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
-    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
-    OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
-  module_timing_migration:
-    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
-    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
-    OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
   bootstrap:
-    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
-    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
-    OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+    bootstrap_image: "bootstrap:latest"
+  module_facilities_migration:
+    module_facilities_migration_image: "module-facilities-migration:latest"
+  module_statistics_migration:
+    module_statistics_migration_image: "module-statistics-migration:latest"
+  module_timing_migration:
+    module_timing_migration_image: "module-timing-migration:latest"
+secrets:
+  postgres:
+    POSTGRES_PASSWORD: ""
+  cache:
+    REDIS_PASSWORD: ""
+  keycloak:
+    KC_BOOTSTRAP_ADMIN_PASSWORD: ""
+config:
+  postgres:
+    POSTGRES_HOST_AUTH_METHOD: "scram-sha-256"
+    POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    POSTGRES_USER: "postgres"
+  keycloak:
+    KC_BOOTSTRAP_ADMIN_USERNAME: "admin"
+    KC_HEALTH_ENABLED: "true"
+    KC_FEATURES: "opentelemetry"
+    KC_DB: "postgres"
+    KC_DB_URL: "jdbc:postgresql://postgres-service:5432/keycloakdb"
+    KC_TRANSACTION_XA_ENABLED: "false"
+    KC_DB_USERNAME: "postgres"
   module_facilities_api:
     OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
     OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
     OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
     ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    CACHE_HOST: "cache-service"
+    CACHE_PORT: "6379"
+    VELOTIMEDB_HOST: "postgres-service"
+    VELOTIMEDB_PORT: "5432"
+    VELOTIMEDB_USERNAME: "postgres"
+    VELOTIMEDB_JDBCCONNECTIONSTRING: "jdbc:postgresql://postgres-service:5432/velotimedb"
+    VELOTIMEDB_DATABASENAME: "velotimedb"
   module_statistics_api:
     OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
     OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
     OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
     ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    CACHE_HOST: "cache-service"
+    CACHE_PORT: "6379"
+    VELOTIMEDB_HOST: "postgres-service"
+    VELOTIMEDB_PORT: "5432"
+    VELOTIMEDB_USERNAME: "postgres"
+    VELOTIMEDB_JDBCCONNECTIONSTRING: "jdbc:postgresql://postgres-service:5432/velotimedb"
+    VELOTIMEDB_DATABASENAME: "velotimedb"
   module_timing_api:
     OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
     OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
     OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
     ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    CACHE_HOST: "cache-service"
+    CACHE_PORT: "6379"
+    VELOTIMEDB_HOST: "postgres-service"
+    VELOTIMEDB_PORT: "5432"
+    VELOTIMEDB_USERNAME: "postgres"
+    VELOTIMEDB_JDBCCONNECTIONSTRING: "jdbc:postgresql://postgres-service:5432/velotimedb"
+    VELOTIMEDB_DATABASENAME: "velotimedb"
+  frontend:
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+    ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    CACHE_HOST: "cache-service"
+    CACHE_PORT: "6379"
+    KEYCLOAK_HTTP: "http://keycloak-service:8080"
+    services__keycloak__http__0: "http://keycloak-service:8080"
+    KEYCLOAK_MANAGEMENT: "http://keycloak-service:9000"
+    services__keycloak__management__0: "http://keycloak-service:9000"
   module_statistics_processor:
     OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
     OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
     OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+    CACHE_HOST: "cache-service"
+    CACHE_PORT: "6379"
+    VELOTIMEDB_HOST: "postgres-service"
+    VELOTIMEDB_PORT: "5432"
+    VELOTIMEDB_USERNAME: "postgres"
+    VELOTIMEDB_JDBCCONNECTIONSTRING: "jdbc:postgresql://postgres-service:5432/velotimedb"
+    VELOTIMEDB_DATABASENAME: "velotimedb"
   module_timing_processor:
     OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
     OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
     OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+    CACHE_HOST: "cache-service"
+    CACHE_PORT: "6379"
+    VELOTIMEDB_HOST: "postgres-service"
+    VELOTIMEDB_PORT: "5432"
+    VELOTIMEDB_USERNAME: "postgres"
+    VELOTIMEDB_JDBCCONNECTIONSTRING: "jdbc:postgresql://postgres-service:5432/velotimedb"
+    VELOTIMEDB_DATABASENAME: "velotimedb"
+  bootstrap:
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+    VELOTIMEDB_HOST: "postgres-service"
+    VELOTIMEDB_PORT: "5432"
+    VELOTIMEDB_USERNAME: "postgres"
+    VELOTIMEDB_JDBCCONNECTIONSTRING: "jdbc:postgresql://postgres-service:5432/velotimedb"
+    VELOTIMEDB_DATABASENAME: "velotimedb"
+  module_facilities_migration:
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+    VELOTIMEDB_HOST: "postgres-service"
+    VELOTIMEDB_PORT: "5432"
+    VELOTIMEDB_USERNAME: "postgres"
+    VELOTIMEDB_JDBCCONNECTIONSTRING: "jdbc:postgresql://postgres-service:5432/velotimedb"
+    VELOTIMEDB_DATABASENAME: "velotimedb"
+  module_statistics_migration:
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+    VELOTIMEDB_HOST: "postgres-service"
+    VELOTIMEDB_PORT: "5432"
+    VELOTIMEDB_USERNAME: "postgres"
+    VELOTIMEDB_JDBCCONNECTIONSTRING: "jdbc:postgresql://postgres-service:5432/velotimedb"
+    VELOTIMEDB_DATABASENAME: "velotimedb"
+  module_timing_migration:
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EXCEPTION_LOG_ATTRIBUTES: "true"
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_EMIT_EVENT_LOG_ATTRIBUTES: "true"
+    OTEL_DOTNET_EXPERIMENTAL_OTLP_RETRY: "in_memory"
+    VELOTIMEDB_HOST: "postgres-service"
+    VELOTIMEDB_PORT: "5432"
+    VELOTIMEDB_USERNAME: "postgres"
+    VELOTIMEDB_JDBCCONNECTIONSTRING: "jdbc:postgresql://postgres-service:5432/velotimedb"
+    VELOTIMEDB_DATABASENAME: "velotimedb"
