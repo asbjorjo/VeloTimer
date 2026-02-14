@@ -3,16 +3,8 @@ using VeloTime.Module.Timing.Interface.Data;
 
 namespace VeloTime.Module.Timing.Interface.Client;
 
-public class TimingHttpClient : ITimingClient
+public class TimingHttpClient(HttpClient httpClient) : ITimingClient
 {
-    private readonly HttpClient httpClient;
-
-    public TimingHttpClient(HttpClient httpClient)
-    {
-        this.httpClient = httpClient;
-        httpClient.BaseAddress = new Uri("http://velotime.api:8080/api/timing/");
-    }
-
     public async Task<ICollection<InstallationDTO>> GetAllInstallations(CancellationToken cancellationToken)
     {
         return await httpClient.GetFromJsonAsync<ICollection<InstallationDTO>>("installation", cancellationToken);

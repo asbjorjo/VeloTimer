@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>aspnet-VeloTime.WebUI.Mud-30af8936-e923-4ebe-91d6-ca4269c5aae6</UserSecretsId>
@@ -11,14 +11,14 @@
 
 
   <ItemGroup>
-	<PackageReference Include="Aspire.Keycloak.Authentication" Version="13.1.0-preview.1.25616.3" />
-	<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="9.*" />
-	<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="9.*" />
-    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="9.*" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.*" />
-	<PackageReference Include="Microsoft.Extensions.ServiceDiscovery.Yarp" Version="9.*" />
+	<PackageReference Include="Aspire.Keycloak.Authentication" Version="13.1.1-preview.1.26105.8" />
+	<PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.3" />
+	<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.3" />
+	<PackageReference Include="Microsoft.Extensions.ServiceDiscovery.Yarp" Version="10.3.0" />
     <PackageReference Include="Extensions.MudBlazor.StaticInput" Version="3.*" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
   </ItemGroup>

@@ -28,7 +28,8 @@ var cache = builder.AddRedis("cache")
 var keycloak = builder.AddKeycloak("keycloak", 8888)
     .WaitFor(keycloakdb)
     .WithOtlpExporter()
-    .WithPostgres(keycloakdb);
+    .WithPostgres(keycloakdb)
+    .WithRealmImport("../../config/keycloak/realms");
 
 //var identitymigrator = builder.AddProject<Projects.VeloTime_IdentityProvider_Migration>("identityprovider-migration")
 //    .WithReference(identitydb);

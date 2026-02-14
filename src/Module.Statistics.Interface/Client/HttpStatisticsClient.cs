@@ -4,16 +4,8 @@ using VeloTime.Module.Statistics.Interface.Data;
 
 namespace VeloTime.Module.Statistics.Interface.Client;
 
-public class HttpStatisticsClient : IStatisticsClient
+public class HttpStatisticsClient(HttpClient httpClient) : IStatisticsClient
 {
-    private readonly HttpClient _httpClient;
-
-    public HttpStatisticsClient(HttpClient httpClient)
-    {
-        _httpClient = httpClient;
-        _httpClient.BaseAddress = new Uri("http://velotime.api:8080/api/statistics/");
-    }
-
     public async Task<GetSamplesResponse> GetSamplesAsync(DateTime? cursor, bool isNextPage, int pageSize)
     {
         var url = $"sample";
@@ -25,7 +17,7 @@ public class HttpStatisticsClient : IStatisticsClient
         {
             query = query.Add("cursor", cursor.Value.ToString("o"));
         }
-        var response = await _httpClient.GetFromJsonAsync<GetSamplesResponse>(url);
+        var response = await httpClient.GetFromJsonAsync<GetSamplesResponse>(url);
         return response ?? new GetSamplesResponse(Enumerable.Empty<SampleDTO>(), null, null, true);
     }
 }

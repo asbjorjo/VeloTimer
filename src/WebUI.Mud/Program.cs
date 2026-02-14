@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authentication;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.IdentityModel.Tokens;
@@ -22,30 +24,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
-    });
-//builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
-//    .AddOpenIdConnect(VELOTIME_OIDC_SCHEME, options =>
-//    {
-//        builder.Configuration.GetSection("OpenIDConnectSettings").Bind(options);
-
-//        options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-//        options.ResponseType = OpenIdConnectResponseType.Code;
-
-//        options.SaveTokens = true;
-//        options.GetClaimsFromUserInfoEndpoint = true;
-//        options.TokenValidationParameters = new TokenValidationParameters
-//        {
-//            NameClaimType = "name",
-//            RoleClaimType = "role"
-//        };
-//        options.Scope.Add("veloTimeApi");
-//    })
-//    .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme);
-
 builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
     .AddKeycloakOpenIdConnect(
         serviceName: "keycloak",
@@ -53,7 +31,7 @@ builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
         authenticationScheme: VELOTIME_OIDC_SCHEME,
         options =>
         {
-            options.ClientId = "WebUI";
+            options.ClientId = "velotime.webui";
             options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
             options.ResponseType = OpenIdConnectResponseType.Code;
             options.Scope.Add("velotime:api");
@@ -66,11 +44,12 @@ builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
         })
     .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme);
 
+builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
+builder.Services.AddCascadingAuthenticationState();
+
 builder.Services.ConfigureCookieOidc(CookieAuthenticationDefaults.AuthenticationScheme, VELOTIME_OIDC_SCHEME);
 
 builder.Services.AddAuthorization();
-
-builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddMemoryCache();
 
@@ -80,7 +59,7 @@ builder.Services.AddMudServices();
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
-    .AddInteractiveWebAssemblyComponents()
+    //.AddInteractiveWebAssemblyComponents()
     .AddAuthenticationStateSerialization();
 
 builder.Services.AddHttpContextAccessor();
@@ -107,12 +86,6 @@ builder.Services.AddScoped<ITimingService, TimingService>();
 //builder.Services.AddScoped<IdentityRedirectManager>();
 //builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 
-
-//builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
-//    .AddEntityFrameworkStores<ApplicationDbContext>()
-//    .AddSignInManager()
-//    .AddDefaultTokenProviders();
-
 //builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
@@ -120,8 +93,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseWebAssemblyDebugging();
-    app.UseMigrationsEndPoint();
+    //app.UseWebAssemblyDebugging();
 }
 else
 {
@@ -138,56 +110,12 @@ app.MapStaticAssets();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
-    .AddInteractiveWebAssemblyRenderMode()
+    //.AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(VeloTime.WebUI.Mud.Client._Imports).Assembly);
 
 // Add additional endpoints required by the Identity /Account Razor components.
 //app.MapAdditionalIdentityEndpoints();
 
-//app.MapForwarder("/api/statistics/sample", "https://localhost:7289", transformBuilder =>
-//{
-//    transformBuilder.AddRequestTransform(async context =>
-//    {
-//        var accessToken = await context.HttpContext.GetTokenAsync("access_token");
-//        context.ProxyRequest.Headers.Authorization =
-//            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-//    });
-//}).RequireAuthorization();
-
 app.MapGroup("/authentication").MapLoginAndLogout();
-
-app.MapGet("/api/statistics/samples", ([FromServices] IStatisticsService statistics) =>
-{
-    return statistics.GetSamplesAsync(null, true, 20);
-});
-app.MapGet("/api/facilities", ([FromServices] IFacilityService facilities) =>
-{
-    return facilities.GetFacilitiesAsync();
-});
-
-app.MapGet("/api/facilities/{id}/installations", (Guid id, [FromServices] IFacilityService facilities) =>
-{
-    return facilities.GetInstallationsAsync(id);
-});
-
-app.MapGet("/api/facilities/{id}/layouts", (Guid id, [FromServices] IFacilityService facilities) =>
-{
-    return facilities.GetFacilityLayoutsAsync(id);
-});
-
-app.MapGet("/api/layouts/{id}", (Guid id, [FromServices] IFacilityService facilities) =>
-{
-    return facilities.GetCourseLayoutDetailAsync(id);
-});
-
-app.MapGet("/api/timing/installations", ([FromServices] ITimingService timing) =>
-{
-    return timing.GetInstallationsAsync();
-});
-
-app.MapGet("/api/timing/installations/{id:guid}", (Guid id ,[FromServices] ITimingService timing) =>
-{
-    return timing.GetInstallationAsync(id);
-});
 
 app.Run();

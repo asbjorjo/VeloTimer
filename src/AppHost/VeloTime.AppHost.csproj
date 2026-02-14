@@ -4,27 +4,25 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>103fca41-9f30-4779-8f62-678337e4f92c</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.1.0" />
-    <PackageReference Include="Aspire.Hosting.Keycloak" Version="13.1.0-preview.1.25616.3" />
-    <PackageReference Include="Aspire.Hosting.Kubernetes" Version="13.1.0-preview.1.25616.3" />
-    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.1.0" />
-    <PackageReference Include="Aspire.Hosting.Redis" Version="13.1.0" />
-    <PackageReference Include="Aspire.Hosting.Valkey" Version="13.1.0" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.1.1" />
+    <PackageReference Include="Aspire.Hosting.Keycloak" Version="13.1.1-preview.1.26105.8" />
+    <PackageReference Include="Aspire.Hosting.Kubernetes" Version="13.1.1-preview.1.26105.8" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.1.1" />
+    <PackageReference Include="Aspire.Hosting.Redis" Version="13.1.1" />
+    <PackageReference Include="Aspire.Hosting.Valkey" Version="13.1.1" />
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.Keycloak.Extensions" Version="13.1.2-beta.516" />
     <PackageReference Include="CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions" Version="13.1.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Bootstrap\VeloTime.Bootstrap.csproj" />
-    <ProjectReference Include="..\IdentityProvider.Migration\VeloTime.IdentityProvider.Migration.csproj" />
-    <ProjectReference Include="..\IdentityProvider\VeloTime.IdentityProvider.csproj" />
     <ProjectReference Include="..\Module.Facilities.Api\VeloTime.Module.Facilities.Api.csproj" />
     <ProjectReference Include="..\Module.Facilities.Migration\VeloTime.Module.Facilities.Migration.csproj" />
     <ProjectReference Include="..\Module.Facilities.Processor\VeloTime.Module.Facilities.Processor.csproj" />
