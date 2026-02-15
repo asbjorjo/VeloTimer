@@ -7,8 +7,8 @@
       },
       "dotnetRunMessages": true
     },
-    "Container (Dockerfile)": {
-      "commandName": "Docker"
+    "Container (.NET SDK)": {
+      "commandName": "SdkContainer"
     }
   },
   "$schema": "https://json.schemastore.org/launchsettings.json"

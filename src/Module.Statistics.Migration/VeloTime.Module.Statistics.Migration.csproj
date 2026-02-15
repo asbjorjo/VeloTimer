@@ -7,6 +7,10 @@
     <UserSecretsId>dotnet-Module.Statistics.Migration-b4403a61-c807-4518-a3c7-18ff6e48fd16</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>..\..</DockerfileContext>
+    <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/runtime:10.0</ContainerBaseImage>
+    <IsPublishable>True</IsPublishable>
+    <EnableSdkContainerSupport>True</EnableSdkContainerSupport>
   </PropertyGroup>
 
   <ItemGroup>

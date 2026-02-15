@@ -16,8 +16,8 @@
       "dotnetRunMessages": true,
       "applicationUrl": "https://localhost:7055;http://localhost:5279"
     },
-    "Container (Dockerfile)": {
-      "commandName": "Docker",
+    "Container (.NET SDK)": {
+      "commandName": "SdkContainer",
       "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
       "environmentVariables": {
         "ASPNETCORE_HTTPS_PORTS": "8081",

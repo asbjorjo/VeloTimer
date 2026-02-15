@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "Module.Timing.Processor": {
+    "VeloTime.Bootstrap": {
       "commandName": "Project"
     },
     "Container (.NET SDK)": {

@@ -7,6 +7,10 @@
     <UserSecretsId>dotnet-Module.Statistics.Processor-fe78a4ff-8c89-4ba6-a953-609c23e7b0c3</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>..\..</DockerfileContext>
+    <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/runtime:10.0</ContainerBaseImage>
+    <IsPublishable>True</IsPublishable>
+    <EnableSdkContainerSupport>True</EnableSdkContainerSupport>
   </PropertyGroup>
 
   <ItemGroup>

@@ -7,6 +7,10 @@
     <UserSecretsId>dotnet-Module.Facilities.Migration-77d79600-af85-4a24-9643-0c0ba1d956e0</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>..\..</DockerfileContext>
+    <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/runtime:10.0</ContainerBaseImage>
+    <IsPublishable>True</IsPublishable>
+    <EnableSdkContainerSupport>True</EnableSdkContainerSupport>
   </PropertyGroup>
 
   <ItemGroup>

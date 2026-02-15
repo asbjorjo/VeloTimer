@@ -7,6 +7,8 @@
     <UserSecretsId>aspnet-VeloTime.WebUI.Mud-30af8936-e923-4ebe-91d6-ca4269c5aae6</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>..\..</DockerfileContext>
+    <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
   </PropertyGroup>
 
 
@@ -30,6 +32,11 @@
     <ProjectReference Include="..\Module.Timing.Interface\VeloTime.Module.Timing.Interface.csproj" />
     <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
     <ProjectReference Include="..\WebUI.Mud.Client\VeloTime.WebUI.Mud.Client.csproj" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <ContainerPort Include="8081" />
   </ItemGroup>
 
 </Project>

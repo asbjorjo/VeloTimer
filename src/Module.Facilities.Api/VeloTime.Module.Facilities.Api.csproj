@@ -7,6 +7,8 @@
     <UserSecretsId>4af2b16d-15ed-4b66-9f82-4709f4b32600</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>..\..</DockerfileContext>
+    <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +21,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Module.Facilities\VeloTime.Module.Facilities.csproj" />
     <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ContainerPort Include="8081" />
   </ItemGroup>
 
 </Project>
