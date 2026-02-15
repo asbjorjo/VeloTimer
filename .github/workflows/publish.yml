@@ -1,0 +1,66 @@
+name: 'Publish'
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: Prerelease tag (optional)
+        required: false
+        type: string
+        default: ''
+      release-as:
+        required: true
+        type: choice
+        default: auto
+        description: If you want an automated or a manual version bump
+        options:
+          - auto
+          - major
+          - minor
+          - patch
+
+jobs:
+  publish-new-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
+
+      - name: Install Versionize
+        run: dotnet tool install --global Versionize
+
+      - name: Setup git
+        run: |
+          git config --local user.email "514378+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Version Bump
+        env:
+          PRERELEASE: ${{ github.event.inputs.prerelease }}
+          RELEASE_AS: ${{ github.event.inputs.release-as }}
+        run: >
+          versionize --exit-insignificant-commits 
+          ${{ env.PRERELEASE != '' && format('--pre-release {0}', env.PRERELEASE) || '' }}
+          ${{ env.RELEASE_AS != 'auto' && format('--release-as {0}', env.RELEASE_AS) || '' }}
+        
+      - name: Setup .NET 10.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build Package
+        run: dotnet pack --output nupkgs --include-source --configuration Release --include-symbols
+
+      - name: Push to Nuget
+        run: dotnet nuget push "nupkgs/*.nupkg" -s https://nuget.pkg.github.com/asbjorjo/index.json -k ${{secrets.GITHUB_TOKEN}}
+
+      - name: Push to GHCR
+        run: dotnet publish /t:PublishContainer -p ContainerRegistry=ghcr.io//${{ github.repository }}
+
+      - name: Push changes to GitHub
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+          tags: true

@@ -365,3 +365,4 @@ FodyWeavers.xsd
 /VeloTimerWeb.Api/tempkey.jwk
 /nuget.config
 _logs*.txt
+/src/AppHost/aspire-output

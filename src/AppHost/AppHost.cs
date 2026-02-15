@@ -1,41 +1,39 @@
+using Microsoft.Extensions.Hosting;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 var migrate = false;
 var seed = false;
+IResourceBuilder<ProjectResource>? bootstrap = null;
+IResourceBuilder<ProjectResource> facilitiesmigrator;
+IResourceBuilder<ProjectResource> statisticsmigrator;
+IResourceBuilder<ProjectResource> timingmigrator;
+IResourceBuilder<IResourceWithConnectionString> cache;
+IResourceBuilder<IResourceWithConnectionString> velotimedb;
+
 
 var k8s = builder.AddKubernetesEnvironment("k8s");
+
+var servicebusconnection = builder.AddConnectionString("MessageBus");
+
+var keycloak = builder.AddKeycloak("keycloak", 8888)
+    .WithOtlpExporter();
 
 var postgres = builder.AddPostgres("postgres")
     .WithDataVolume()
     .WithDbGate()
     .WithOtlpExporter();
 
-//var identitydb = builder.AddConnectionString("IdentityDbConnection");
-//var timingdb = builder.AddConnectionString("TimingDbConnection");
-//var facilitydb = builder.AddConnectionString("FacilityDbConnection");
-//var statisticsdb = builder.AddConnectionString("StatisticsDbConnection");
-
-var servicebusconnection = builder.AddConnectionString("MessageBus");
-
 var keycloakdb = postgres.AddDatabase("keycloakdb");
-//var identitydb = postgres.AddDatabase("identity");
-var velotimedb = postgres.AddDatabase("velotimedb");
+velotimedb = postgres.AddDatabase("velotimedb");
 
-var cache = builder.AddRedis("cache")
+cache = builder
+    .AddRedis("cache")
     .WithRedisInsight();
-//var cache = builder.AddValkey("cache");
+keycloak
+    .WithRealmImport("../../config/keycloak/realms")
+    .WithPostgres(keycloakdb);
 
-var keycloak = builder.AddKeycloak("keycloak", 8888)
-    .WaitFor(keycloakdb)
-    .WithOtlpExporter()
-    .WithPostgres(keycloakdb)
-    .WithRealmImport("../../config/keycloak/realms");
-
-//var identitymigrator = builder.AddProject<Projects.VeloTime_IdentityProvider_Migration>("identityprovider-migration")
-//    .WithReference(identitydb);
-//var identityprovider = builder.AddProject<Projects.VeloTime_IdentityProvider>("identity-provider")
-//    .WithReference(identitydb)
-//    .WaitForCompletion(identitymigrator);
 
 var facilityapi = builder.AddProject<Projects.VeloTime_Module_Facilities_Api>("module-facilities-api")
     .WithReplicas(2)
@@ -59,10 +57,6 @@ var frontend = builder.AddProject<Projects.VeloTime_WebUI_Mud>("frontend")
     .WithReference(statisticsapi)
     .WithReference(timingapi);
 
-//builder.AddProject<Projects.VeloTime_Module_Facilities_Processor>("module-facilities-processor")
-//    .WithReference(facilitydb)
-//    .WithReference(servicebusconnection)
-//    .WaitForCompletion(facilitiesmigrator);
 var statsproc = builder.AddProject<Projects.VeloTime_Module_Statistics_Processor>("module-statistics-processor")
     .WithReference(cache)
     .WithReference(velotimedb)
@@ -77,11 +71,6 @@ var timingproc = builder.AddProject<Projects.VeloTime_Module_Timing_Processor>("
     .WithReference(servicebusconnection)
     .WaitFor(velotimedb)
     .WithExplicitStart();
-
-IResourceBuilder<ProjectResource>? bootstrap = null;
-IResourceBuilder<ProjectResource> facilitiesmigrator;
-IResourceBuilder<ProjectResource> statisticsmigrator;
-IResourceBuilder<ProjectResource> timingmigrator;
 
 if (seed)
 {

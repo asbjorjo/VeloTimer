@@ -6,7 +6,7 @@ using VeloTime.Agent.Dummy;
 var builder = Host.CreateApplicationBuilder(args);
 
 // Configure core agent services
-builder.ConfigureServices();
+builder.ConfigureAgent();
 
 
 // Add services for specific system

@@ -27,13 +27,11 @@ namespace VeloTime.Agent.Dummy
                 for (int i = 0; i < random.Next(1, 6); i++)
                 {
                     PassingEvent passing = new(
-                        Time: DateTimeOffset.UtcNow,
+                        Time: DateTime.UtcNow,
                         TransponderType: "DummyType",
-                        TransponderId:  Guid.NewGuid().ToString(),
-                        TimingPoint: Guid.NewGuid().ToString(),
-                        LowBattery: false,
-                        LowStrength: false,
-                        LowHits: false);
+                        TransponderId: Guid.NewGuid().ToString(),
+                        LoopId: Guid.NewGuid().ToString()
+                    );
                     messages.Add(passing);
                 }
 
