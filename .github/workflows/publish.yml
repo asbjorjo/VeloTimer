@@ -37,6 +37,13 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build Package
         run: dotnet pack --output nupkgs --configuration Release
 
@@ -44,7 +51,7 @@ jobs:
         run: dotnet nuget push "nupkgs/*.nupkg" -s https://nuget.pkg.github.com/asbjorjo/index.json -k ${{secrets.GITHUB_TOKEN}}
 
       - name: Push to GHCR
-        run: dotnet publish /t:PublishContainer -p ContainerRegistry=ghcr.io/asbjorjo
+        run: dotnet publish --configuration Release /t:PublishContainer -p ContainerRegistry=ghcr.io -p ContainerRepository=${{ github.repository }}
 
       - name: Push changes to GitHub
         uses: ad-m/github-push-action@master
