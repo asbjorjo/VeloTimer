@@ -11,7 +11,7 @@
     <ContainerBaseImage>mcr.microsoft.com/dotnet/runtime:10.0</ContainerBaseImage>
     <IsPublishable>True</IsPublishable>
     <EnableSdkContainerSupport>True</EnableSdkContainerSupport>
-	<Version>3.0.0-alpha.5</Version>
+	<Version>3.0.0-alpha.6</Version>
 	<ContainerRepository>asbjorjo/velotimer/velotime-module-facilities-migration</ContainerRepository>
   </PropertyGroup>
 
