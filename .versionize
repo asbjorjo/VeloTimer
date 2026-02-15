@@ -1,0 +1,8 @@
+{
+	"projects": [
+		{
+			"name": "VeloTime.Module.Common",
+			"path": "./src/Module.Common"
+		}
+	]
+}
