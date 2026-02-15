@@ -51,7 +51,7 @@ jobs:
         run: dotnet nuget push "nupkgs/*.nupkg" -s https://nuget.pkg.github.com/asbjorjo/index.json -k ${{secrets.GITHUB_TOKEN}}
 
       - name: Push to GHCR
-        run: dotnet publish --configuration Release /t:PublishContainer -p ContainerRegistry=ghcr.io -p ContainerRepository=${{ github.repository }}
+        run: dotnet publish --configuration Release /t:PublishContainer -p ContainerRegistry=ghcr.io
 
       - name: Push changes to GitHub
         uses: ad-m/github-push-action@master
