@@ -9,7 +9,8 @@
     <DockerfileContext>..\..</DockerfileContext>
     <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
-	<Version>3.0.0-alpha.4</Version>
+	<Version>3.0.0-alpha.5</Version>
+	<ContainerRepository>asbjorjo/velotimer/velotime-webui</ContainerRepository>
   </PropertyGroup>
 
 

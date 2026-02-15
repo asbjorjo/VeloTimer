@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -8,7 +8,8 @@
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
     <UserSecretsId>6a7d9ea2-992c-4514-b47a-f23e9e0d9689</UserSecretsId>
     <DockerfileContext>..\..</DockerfileContext>
-	<Version>3.0.0-alpha.4</Version>
+	<Version>3.0.0-alpha.5</Version>
+	<ContainerRepository>asbjorjo/velotimer/velotime-module-timing-api</ContainerRepository>
   </PropertyGroup>
 
   <ItemGroup>

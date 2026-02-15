@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsAspireSharedProject>true</IsAspireSharedProject>
-	<Version>3.0.0-alpha.4</Version>
+	<Version>3.0.0-alpha.5</Version>
   </PropertyGroup>
 
   <ItemGroup>
