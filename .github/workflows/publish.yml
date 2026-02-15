@@ -8,16 +8,6 @@ on:
         required: false
         type: string
         default: ''
-      release-as:
-        required: true
-        type: choice
-        default: auto
-        description: If you want an automated or a manual version bump
-        options:
-          - auto
-          - major
-          - minor
-          - patch
 
 jobs:
   publish-new-version:
@@ -38,11 +28,9 @@ jobs:
       - name: Version Bump
         env:
           PRERELEASE: ${{ github.event.inputs.prerelease }}
-          RELEASE_AS: ${{ github.event.inputs.release-as }}
         run: >
           versionize --exit-insignificant-commits 
           ${{ env.PRERELEASE != '' && format('--pre-release {0}', env.PRERELEASE) || '' }}
-          ${{ env.RELEASE_AS != 'auto' && format('--release-as {0}', env.RELEASE_AS) || '' }}
         
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4

@@ -31,7 +31,7 @@ jobs:
         dotnet-version: '10.0.x'
 
     - name: Test
-      run: dotnet test --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov"
+      run: dotnet test --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
 
     - name: Upload Test Results
       uses: actions/upload-artifact@v4
