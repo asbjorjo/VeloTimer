@@ -11,7 +11,7 @@
     <ContainerBaseImage>mcr.microsoft.com/dotnet/runtime:10.0</ContainerBaseImage>
     <IsPublishable>True</IsPublishable>
     <EnableSdkContainerSupport>True</EnableSdkContainerSupport>
-	<Version>2.0.0</Version>
+	<Version>1.100.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
