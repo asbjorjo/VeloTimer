@@ -29,7 +29,7 @@ jobs:
         env:
           PRERELEASE: ${{ github.event.inputs.prerelease }}
         run: >
-          versionize --exit-insignificant-commits 
+          versionize
           ${{ env.PRERELEASE != '' && format('--pre-release {0}', env.PRERELEASE) || '' }}
         
       - name: Setup .NET 10.0
