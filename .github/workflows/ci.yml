@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches: [ master ]
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    paths:
+      - 'src/**'
+      - 'VeloTimer.sln'
+      - '.github/workflows/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: '0'
+
+    - name: Setup .NET 10.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Test
+      run: dotnet test --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
+
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: success() || failure()
+      with:
+        name: test-results
+        path: src/*.Test/TestResults/*.trx
+
+    - name: Coveralls
+      uses: coverallsapp/github-action@v2
