@@ -9,7 +9,7 @@
     <IsPublishable>True</IsPublishable>
     <EnableSdkContainerSupport>True</EnableSdkContainerSupport>
     <DockerfileContext>..\..</DockerfileContext>
-	<Version>3.0.0-alpha.8</Version>
+	<Version>3.0.0-alpha.9</Version>
 	<ContainerRepository>asbjorjo/velotime-bootstrap</ContainerRepository>
   </PropertyGroup>
 

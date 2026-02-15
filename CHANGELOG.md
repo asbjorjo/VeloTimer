@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.9"></a>
+## [3.0.0-alpha.9](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.9) (2026-02-15)
+
+### Bug Fixes
+
+* Switch all to aspnet base image ([cf9b6da](https://www.github.com/asbjorjo/VeloTimer/commit/cf9b6da3b7f573965c113327ea4babc9ed198f83))
+
 <a name="3.0.0-alpha.8"></a>
 ## [3.0.0-alpha.8](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.8) (2026-02-15)
 
