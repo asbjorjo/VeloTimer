@@ -26,8 +26,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
 
       - name: Version Bump
-        run: >
-          versionize ${{ github.event.inputs.prerelease != '' && format('--pre-release {0}', github.event.inputs.prerelease) || '' }}
+        run: versionize ${{ github.event.inputs.prerelease != '' && format('--pre-release {0}', github.event.inputs.prerelease) || '' }}
         
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
