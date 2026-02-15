@@ -7,13 +7,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>057bef7f-6982-4c89-8b09-f99a3373aa59</UserSecretsId>
-	<Version>3.0.0-alpha.6</Version>
+	<Version>3.0.0-alpha.8</Version>
 	<EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
 	<ContainerBaseImage>mcr.microsoft.com/dotnet/runtime:10.0</ContainerBaseImage>
 	<IsPublishable>True</IsPublishable>
 	<EnableSdkContainerSupport>True</EnableSdkContainerSupport>
 	<DockerfileContext>..\..</DockerfileContext>
-	<ContainerRepository>asbjorjo/velotimer/velotime-agent-dummy</ContainerRepository>
+	<ContainerRepository>asbjorjo/velotime-agent-dummy</ContainerRepository>
   </PropertyGroup>
 
   <ItemGroup>

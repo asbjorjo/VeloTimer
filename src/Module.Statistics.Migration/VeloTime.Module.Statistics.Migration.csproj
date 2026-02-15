@@ -11,8 +11,8 @@
     <ContainerBaseImage>mcr.microsoft.com/dotnet/runtime:10.0</ContainerBaseImage>
     <IsPublishable>True</IsPublishable>
     <EnableSdkContainerSupport>True</EnableSdkContainerSupport>
-	<Version>3.0.0-alpha.6</Version>
-	<ContainerRepository>asbjorjo/velotimer/velotime-module-statistics-migration</ContainerRepository>
+	<Version>3.0.0-alpha.8</Version>
+	<ContainerRepository>asbjorjo/velotime-module-statistics-migration</ContainerRepository>
   </PropertyGroup>
 
   <ItemGroup>
