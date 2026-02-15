@@ -29,8 +29,7 @@ jobs:
         env:
           PRERELEASE: ${{ github.event.inputs.prerelease }}
         run: >
-          versionize
-          ${{ env.PRERELEASE != '' && format('--pre-release {0}', env.PRERELEASE) || '' }}
+          versionize ${{ env.PRERELEASE != '' && format('--pre-release {0}', env.PRERELEASE) || '' }}
         
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
