@@ -2,13 +2,12 @@ using Microsoft.Extensions.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var migrate = false;
-var seed = false;
+var migrate = true;
+var seed = true;
 IResourceBuilder<ProjectResource>? bootstrap = null;
 IResourceBuilder<ProjectResource> facilitiesmigrator;
 IResourceBuilder<ProjectResource> statisticsmigrator;
 IResourceBuilder<ProjectResource> timingmigrator;
-IResourceBuilder<IResourceWithConnectionString> cache;
 IResourceBuilder<IResourceWithConnectionString> velotimedb;
 
 
@@ -21,19 +20,22 @@ var keycloak = builder.AddKeycloak("keycloak", 8888)
 
 var postgres = builder.AddPostgres("postgres")
     .WithDataVolume()
-    .WithDbGate()
     .WithOtlpExporter();
 
 var keycloakdb = postgres.AddDatabase("keycloakdb");
 velotimedb = postgres.AddDatabase("velotimedb");
 
-cache = builder
-    .AddRedis("cache")
-    .WithRedisInsight();
+var cache = builder
+    .AddRedis("cache");
 keycloak
-    .WithRealmImport("../../config/keycloak/realms")
     .WithPostgres(keycloakdb);
 
+if (builder.Environment.IsDevelopment())
+{
+    keycloak.WithRealmImport("../../config/keycloak/realms");
+    cache.WithRedisInsight();
+    postgres.WithDbGate();
+}
 
 var facilityapi = builder.AddProject<Projects.VeloTime_Module_Facilities_Api>("module-facilities-api")
     .WithReplicas(2)
