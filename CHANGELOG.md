@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.11"></a>
+## [3.0.0-alpha.11](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.11) (2026-02-16)
+
+### Bug Fixes
+
+* Update container base image to use alpine variant ([22d19cb](https://www.github.com/asbjorjo/VeloTimer/commit/22d19cbf98722e26e7cc567fcacf1fe08392856d))
+* Update container base image to use alpine variant ([e37d678](https://www.github.com/asbjorjo/VeloTimer/commit/e37d6784c709d55d8e31194eb72157ab42e1378b))
+
 <a name="3.0.0-alpha.10"></a>
 ## [3.0.0-alpha.10](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.10) (2026-02-16)
 
