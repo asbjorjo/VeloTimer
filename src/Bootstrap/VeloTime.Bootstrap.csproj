@@ -5,12 +5,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
-    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
     <IsPublishable>True</IsPublishable>
-    <EnableSdkContainerSupport>True</EnableSdkContainerSupport>
     <DockerfileContext>..\..</DockerfileContext>
 	<Version>3.0.0-alpha.9</Version>
-	<ContainerRepository>asbjorjo/velotime-bootstrap</ContainerRepository>
+	<InvariantGlobalization>true</InvariantGlobalization>
+	<EnableSdkContainerSupport>True</EnableSdkContainerSupport>
+    <ContainerRepository>asbjorjo/velotime-bootstrap</ContainerRepository>
+	<ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+    <ContainerFamily>alpine</ContainerFamily>
+	<ContainerImageTag>$(Version)</ContainerImageTag>
   </PropertyGroup>
 
   <ItemGroup>
