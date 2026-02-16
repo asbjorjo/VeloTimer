@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.10"></a>
+## [3.0.0-alpha.10](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.10) (2026-02-16)
+
+### Bug Fixes
+
+* Update project file for container configuration ([9589900](https://www.github.com/asbjorjo/VeloTimer/commit/9589900a276a9929d7736d6e6de2527cb9f270c6))
+
 <a name="3.0.0-alpha.9"></a>
 ## [3.0.0-alpha.9](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.9) (2026-02-15)
 
