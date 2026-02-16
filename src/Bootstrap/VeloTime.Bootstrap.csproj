@@ -11,9 +11,8 @@
 	<InvariantGlobalization>true</InvariantGlobalization>
 	<EnableSdkContainerSupport>True</EnableSdkContainerSupport>
     <ContainerRepository>asbjorjo/velotime-bootstrap</ContainerRepository>
-	<ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
-    <ContainerFamily>alpine</ContainerFamily>
-	<ContainerImageTag>$(Version)</ContainerImageTag>
+	<ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0-alpine</ContainerBaseImage>
+    <ContainerImageTag>$(Version)</ContainerImageTag>
   </PropertyGroup>
 
   <ItemGroup>
