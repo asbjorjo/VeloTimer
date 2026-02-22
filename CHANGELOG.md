@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.12"></a>
+## [3.0.0-alpha.12](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.12) (2026-02-22)
+
+### Bug Fixes
+
+* Move migration history to ef schema ([db3e856](https://www.github.com/asbjorjo/VeloTimer/commit/db3e856ba87f90c1d018e1639aad6911aca19141))
+* Tag all images with version ([b223691](https://www.github.com/asbjorjo/VeloTimer/commit/b22369105bd1fbb1d9f2e6bd23d70042326b1492))
+* Update project file for container settings and globalization ([ba2c5a4](https://www.github.com/asbjorjo/VeloTimer/commit/ba2c5a4569913873467a324062e2acef706a7b9a))
+
 <a name="3.0.0-alpha.11"></a>
 ## [3.0.0-alpha.11](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.11) (2026-02-16)
 
