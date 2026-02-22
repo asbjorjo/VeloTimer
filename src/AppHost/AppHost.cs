@@ -10,7 +10,6 @@ IResourceBuilder<ProjectResource> statisticsmigrator;
 IResourceBuilder<ProjectResource> timingmigrator;
 IResourceBuilder<IResourceWithConnectionString> velotimedb;
 
-
 var k8s = builder.AddKubernetesEnvironment("k8s");
 
 var servicebusconnection = builder.AddConnectionString("MessageBus");

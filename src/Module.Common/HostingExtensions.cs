@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Metrics;
@@ -60,6 +61,12 @@ public static class HostingExtensions
     }
 
     public static void AddModuleStorage<TContext>(this IHostApplicationBuilder builder, string connectionName) where TContext : BaseDbContext
-        => builder.AddNpgsqlDbContext<TContext>(connectionName: connectionName, configureDbContextOptions: options => { options.UseSnakeCaseNamingConvention(); });
+        => builder.Services.AddDbContext<TContext>(options =>
+        {
+            options.UseNpgsql(builder.Configuration.GetConnectionString(connectionName), pg_options =>
+            {
+                pg_options.MigrationsHistoryTable("__ef_migrations_history", "ef");
+            });
+        });
 }
 
