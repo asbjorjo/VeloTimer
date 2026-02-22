@@ -11,6 +11,7 @@
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
 	<Version>3.0.0-alpha.11</Version>
 	<ContainerRepository>asbjorjo/velotime-module-statistics-api</ContainerRepository>
+	<ContainerImageTag>$(Version)</ContainerImageTag>
   </PropertyGroup>
 
   <ItemGroup>

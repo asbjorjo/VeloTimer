@@ -8,6 +8,7 @@
     <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
 	<Version>3.0.0-alpha.11</Version>
 	<ContainerRepository>asbjorjo/velotime-webui-client</ContainerRepository>
+	<ContainerImageTag>$(Version)</ContainerImageTag>
   </PropertyGroup>
 
   <ItemGroup>

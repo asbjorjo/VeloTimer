@@ -10,6 +10,7 @@
     <DockerfileContext>..\..</DockerfileContext>
 	<Version>3.0.0-alpha.11</Version>
 	<ContainerRepository>asbjorjo/velotime-module-timing-api</ContainerRepository>
+	<ContainerImageTag>$(Version)</ContainerImageTag>
   </PropertyGroup>
 
   <ItemGroup>
