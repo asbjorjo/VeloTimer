@@ -9,7 +9,7 @@
     <DockerfileContext>..\..</DockerfileContext>
     <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
     <IsPublishable>True</IsPublishable>
-	<Version>3.0.0-alpha.16</Version>
+	<Version>3.0.0-alpha.17</Version>
 	<InvariantGlobalization>true</InvariantGlobalization>
 	<EnableSdkContainerSupport>True</EnableSdkContainerSupport>
 	<ContainerRepository>asbjorjo/velotime-module-facilities-migration</ContainerRepository>

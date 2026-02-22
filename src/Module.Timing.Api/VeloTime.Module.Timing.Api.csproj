@@ -8,7 +8,7 @@
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
     <UserSecretsId>6a7d9ea2-992c-4514-b47a-f23e9e0d9689</UserSecretsId>
     <DockerfileContext>..\..</DockerfileContext>
-	<Version>3.0.0-alpha.16</Version>
+	<Version>3.0.0-alpha.17</Version>
 	<ContainerRepository>asbjorjo/velotime-module-timing-api</ContainerRepository>
 	<ContainerImageTag>$(Version)</ContainerImageTag>
   </PropertyGroup>

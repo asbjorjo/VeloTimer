@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.17"></a>
+## [3.0.0-alpha.17](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.17) (2026-02-22)
+
+### Bug Fixes
+
+* Prefix service name with velotime ([82f87b9](https://www.github.com/asbjorjo/VeloTimer/commit/82f87b918ee44f8b82f96318c164affd7ceddbbd))
+
 <a name="3.0.0-alpha.16"></a>
 ## [3.0.0-alpha.16](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.16) (2026-02-22)
 
