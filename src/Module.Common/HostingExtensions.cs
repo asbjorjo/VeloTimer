@@ -63,6 +63,7 @@ public static class HostingExtensions
     public static void AddModuleStorage<TContext>(this IHostApplicationBuilder builder, string connectionName) where TContext : BaseDbContext
         => builder.Services.AddDbContext<TContext>(options =>
         {
+            options.UseSnakeCaseNamingConvention();
             options.UseNpgsql(builder.Configuration.GetConnectionString(connectionName), pg_options =>
             {
                 pg_options.MigrationsHistoryTable("__ef_migrations_history", "ef");
