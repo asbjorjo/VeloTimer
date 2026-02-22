@@ -11,7 +11,7 @@
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
     <IsPublishable>True</IsPublishable>
     <EnableSdkContainerSupport>True</EnableSdkContainerSupport>
-	<Version>3.0.0-alpha.15</Version>
+	<Version>3.0.0-alpha.16</Version>
 	<ContainerRepository>asbjorjo/velotime-module-facilities-processor</ContainerRepository>
 	<ContainerImageTag>$(Version)</ContainerImageTag>
   </PropertyGroup>
