@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
+    <IsPublishable>True</IsPublishable>
+    <DockerfileContext>..\..</DockerfileContext>
+	<Version>3.0.0-alpha.18</Version>
+	<InvariantGlobalization>true</InvariantGlobalization>
+	<EnableSdkContainerSupport>True</EnableSdkContainerSupport>
+    <ContainerRepository>asbjorjo/velotime-bootstrap</ContainerRepository>
+	<ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0-alpine</ContainerBaseImage>
+    <ContainerImageTag>$(Version)</ContainerImageTag>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Module.Facilities\VeloTime.Module.Facilities.csproj" />
+    <ProjectReference Include="..\Module.Statistics\VeloTime.Module.Statistics.csproj" />
+    <ProjectReference Include="..\Module.Timing\VeloTime.Module.Timing.csproj" />
+    <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
+  </ItemGroup>
+</Project>

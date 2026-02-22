@@ -29,7 +29,7 @@ jobs:
         env:
           PRERELEASE: ${{ github.event.inputs.prerelease }}
         run: >
-          versionize 
+          versionize --exit-insignificant-commits 
           ${{ env.PRERELEASE != '' && format('--pre-release {0}', env.PRERELEASE) || '' }}
         
       - name: Setup .NET 10.0
@@ -37,14 +37,21 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build Package
-        run: dotnet pack --output nupkgs --include-source --configuration Release --include-symbols
+        run: dotnet pack --output nupkgs --configuration Release
 
       - name: Push to Nuget
         run: dotnet nuget push "nupkgs/*.nupkg" -s https://nuget.pkg.github.com/asbjorjo/index.json -k ${{secrets.GITHUB_TOKEN}}
 
       - name: Push to GHCR
-        run: dotnet publish /t:PublishContainer -p ContainerRegistry=ghcr.io//${{ github.repository }}
+        run: dotnet publish --configuration Release /t:PublishContainer -p ContainerRegistry=ghcr.io
 
       - name: Push changes to GitHub
         uses: ad-m/github-push-action@master

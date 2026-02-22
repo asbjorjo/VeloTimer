@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Module.Timing.Processor": {
+      "commandName": "Project"
+    },
+    "Container (.NET SDK)": {
+      "commandName": "SdkContainer"
+    }
+  }
+}
