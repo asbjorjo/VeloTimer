@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
@@ -24,7 +23,8 @@ namespace Microsoft.Extensions.Hosting
 
             builder.AddDefaultHealthChecks();
 
-            builder.Services.AddServiceDiscovery();
+            builder.Services.AddDnsSrvServiceEndpointProvider();
+            builder.Services.AddServiceDiscoveryCore();
 
             builder.Services.ConfigureHttpClientDefaults(http =>
             {
