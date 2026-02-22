@@ -7,6 +7,6 @@ public static class ServiceExtensions
     public static IHttpClientBuilder AddTimingClient(this IServiceCollection services)
     {
         return services.AddHttpClient<ITimingClient, TimingHttpClient>(
-            static client => client.BaseAddress = new("https+http://module-timing-api/api/timing/"));
+            static client => client.BaseAddress = new("http://module-timing-api/api/timing/"));
     }
 }

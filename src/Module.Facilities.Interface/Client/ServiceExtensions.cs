@@ -7,6 +7,6 @@ public static class ServiceExtensions
     public static IHttpClientBuilder AddFacilitiesClient(this IServiceCollection services)
     {
         return services.AddHttpClient<IFacitiliesClient, HttpFacilitiesClient>(
-            static client => client.BaseAddress = new("https+http://velotime-module-facilities-api/api/facilities/"));
+            static client => client.BaseAddress = new("http://module-facilities-api/api/facilities/"));
     }
 }

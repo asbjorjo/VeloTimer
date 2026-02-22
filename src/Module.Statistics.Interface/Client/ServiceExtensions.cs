@@ -7,6 +7,6 @@ public static class ServiceExtensions
     public static IHttpClientBuilder AddStatisticsClient(this IServiceCollection services)
     {
         return services.AddHttpClient<IStatisticsClient, HttpStatisticsClient>(
-            static client => client.BaseAddress = new("https+http://module-statistics-api/api/statistics/"));
+            static client => client.BaseAddress = new("http://module-statistics-api/api/statistics/"));
     }
 }
