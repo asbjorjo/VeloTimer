@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.14"></a>
+## [3.0.0-alpha.14](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.14) (2026-02-22)
+
+### Bug Fixes
+
+* Use snake case at runtime ([a15c2d1](https://www.github.com/asbjorjo/VeloTimer/commit/a15c2d1413b1f2a2ff063de53d1b64622c7ef7c8))
+
 <a name="3.0.0-alpha.13"></a>
 ## [3.0.0-alpha.13](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.13) (2026-02-22)
 
