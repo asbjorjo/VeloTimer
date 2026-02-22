@@ -24,6 +24,8 @@ namespace Microsoft.Extensions.Hosting
             builder.AddDefaultHealthChecks();
 
             builder.Services.AddDnsSrvServiceEndpointProvider();
+            builder.Services.AddConfigurationServiceEndpointProvider();
+            builder.Services.AddPassThroughServiceEndpointProvider();
             builder.Services.AddServiceDiscoveryCore();
 
             builder.Services.ConfigureHttpClientDefaults(http =>
