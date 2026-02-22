@@ -26,7 +26,12 @@ public class FacilityDbContextFactory : IDesignTimeDbContextFactory<FacilityDbCo
     public FacilityDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<FacilityDbContext>();
-        optionsBuilder.UseNpgsql("Host=localhost;port=25432;Database=velotime;Username=velotime;Password=velotime");
+        optionsBuilder.UseNpgsql(
+            "Host=localhost;port=25432;Database=velotime;Username=velotime;Password=velotime",
+            options =>
+            {
+                options.MigrationsHistoryTable("__ef_migrations_history", "ef");
+            });
         optionsBuilder.UseSnakeCaseNamingConvention();
         return new FacilityDbContext(optionsBuilder.Options);
     }

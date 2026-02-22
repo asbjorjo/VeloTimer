@@ -60,7 +60,12 @@ public class StatisticsDbContextFactory : IDesignTimeDbContextFactory<Statistics
     public StatisticsDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<StatisticsDbContext>();
-        optionsBuilder.UseNpgsql("Host=localhost;port=25432;Database=velotime;Username=velotime;Password=velotime");
+        optionsBuilder.UseNpgsql(
+            "Host=localhost;port=25432;Database=velotime;Username=velotime;Password=velotime",
+            options =>
+            {
+                options.MigrationsHistoryTable("__ef_migrations_history", "ef");
+            });
         optionsBuilder.UseSnakeCaseNamingConvention();
         return new StatisticsDbContext(optionsBuilder.Options);
     }
