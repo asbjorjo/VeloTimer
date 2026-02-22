@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.15"></a>
+## [3.0.0-alpha.15](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.15) (2026-02-22)
+
+### Bug Fixes
+
+* Add DNS SRV service discovery ([1f86abe](https://www.github.com/asbjorjo/VeloTimer/commit/1f86abef685f5c8e68a4d7040d70ee0e7c56a822))
+
 <a name="3.0.0-alpha.14"></a>
 ## [3.0.0-alpha.14](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.14) (2026-02-22)
 
