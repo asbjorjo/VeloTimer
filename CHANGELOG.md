@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.20"></a>
+## [3.0.0-alpha.20](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.20) (2026-02-28)
+
+### Bug Fixes
+
+* Add logging to otlp ([c5dd92d](https://www.github.com/asbjorjo/VeloTimer/commit/c5dd92da5a67773cec861034ecc5452a78c7118d))
+
 <a name="3.0.0-alpha.19"></a>
 ## [3.0.0-alpha.19](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.19) (2026-02-28)
 
