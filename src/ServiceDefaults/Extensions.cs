@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry;
-using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -52,12 +51,10 @@ namespace Microsoft.Extensions.Hosting
 
         public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
         {
-            builder.Logging.ClearProviders();
             builder.Logging.AddOpenTelemetry(logging =>
             {
                 logging.IncludeFormattedMessage = true;
                 logging.IncludeScopes = true;
-                logging.AddOtlpExporter();
             });
 
             builder.Services.AddOpenTelemetry()
@@ -65,8 +62,7 @@ namespace Microsoft.Extensions.Hosting
                 {
                     metrics.AddAspNetCoreInstrumentation()
                         .AddHttpClientInstrumentation()
-                        .AddRuntimeInstrumentation()
-                        .AddOtlpExporter();
+                        .AddRuntimeInstrumentation();
                 })
                 .WithTracing(tracing =>
                 {
@@ -79,14 +75,10 @@ namespace Microsoft.Extensions.Hosting
                         )
                         // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                         //.AddGrpcClientInstrumentation()
-                        .AddHttpClientInstrumentation()
-                        .AddOtlpExporter();
-                })
-                .WithLogging(logging =>
-                {
+                        .AddHttpClientInstrumentation();
                 });
 
-            //builder.AddOpenTelemetryExporters();
+            builder.AddOpenTelemetryExporters();
 
             return builder;
         }
