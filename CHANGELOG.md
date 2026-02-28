@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.26"></a>
+## [3.0.0-alpha.26](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.26) (2026-02-28)
+
+### Bug Fixes
+
+* Add explicit filter for otel loggin ([81ab2c4](https://www.github.com/asbjorjo/VeloTimer/commit/81ab2c482732de1a2f6b398742da8eef68499b33))
+
 <a name="3.0.0-alpha.25"></a>
 ## [3.0.0-alpha.25](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.25) (2026-02-28)
 
