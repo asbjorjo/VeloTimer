@@ -7,7 +7,7 @@
     <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
     <IsPublishable>True</IsPublishable>
     <DockerfileContext>..\..</DockerfileContext>
-	<Version>3.0.0-alpha.24</Version>
+	<Version>3.0.0-alpha.25</Version>
 	<InvariantGlobalization>true</InvariantGlobalization>
 	<EnableSdkContainerSupport>True</EnableSdkContainerSupport>
     <ContainerRepository>asbjorjo/velotime-bootstrap</ContainerRepository>
