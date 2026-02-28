@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -56,6 +57,7 @@ namespace Microsoft.Extensions.Hosting
                 logging.IncludeFormattedMessage = true;
                 logging.IncludeScopes = true;
             });
+            builder.Logging.AddFilter<OpenTelemetryLoggerProvider>("*", LogLevel.Debug);
 
             builder.Services.AddOpenTelemetry()
                 .WithMetrics(metrics =>
