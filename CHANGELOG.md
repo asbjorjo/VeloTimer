@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.25"></a>
+## [3.0.0-alpha.25](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.25) (2026-02-28)
+
+### Bug Fixes
+
+* Do not call addopentelemetry to register meters and sources ([c1f82d0](https://www.github.com/asbjorjo/VeloTimer/commit/c1f82d0d168bb69e56a28e7bec2b3c5de379f57e))
+* Just go back to defaults ([8d61cb7](https://www.github.com/asbjorjo/VeloTimer/commit/8d61cb7c1a6ad9aca8d87e923c95f48fda7c5006))
+
 <a name="3.0.0-alpha.24"></a>
 ## [3.0.0-alpha.24](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.24) (2026-02-28)
 
