@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 using VeloTime.Module.Facilities.Endpoints;
 using VeloTime.Module.Facilities.Service;
 using VeloTime.Module.Facilities.Storage;
@@ -20,9 +22,14 @@ public static class StartupExtensions
 
         var env = builder.Environment;
 
-        services.AddOpenTelemetry()
-            .WithTracing(tracing => tracing.AddSource("VeloTime.Module.Facilities"))
-            .WithMetrics(metrics => metrics.AddMeter("VeloTime.Module.Facilities"));
+        services.ConfigureOpenTelemetryTracerProvider(tracer =>
+        {
+            tracer.AddSource("VeloTime.Module.Facilities");
+        });
+        services.ConfigureOpenTelemetryMeterProvider(metrics =>
+        {
+            metrics.AddMeter("VeloTime.Module.Facilities");
+        });
 
         //services.AddSlimMessageBus(mbb =>
         //{
