@@ -57,7 +57,6 @@ namespace Microsoft.Extensions.Hosting
                 logging.IncludeFormattedMessage = true;
                 logging.IncludeScopes = true;
             });
-            builder.Logging.AddFilter<OpenTelemetryLoggerProvider>("*", LogLevel.Debug);
 
             builder.Services.AddOpenTelemetry()
                 .WithMetrics(metrics =>
