@@ -76,6 +76,9 @@ namespace Microsoft.Extensions.Hosting
                         // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                         //.AddGrpcClientInstrumentation()
                         .AddHttpClientInstrumentation();
+                })
+                .WithLogging(logging =>
+                {
                 });
 
             builder.AddOpenTelemetryExporters();
