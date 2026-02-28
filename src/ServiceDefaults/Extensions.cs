@@ -52,6 +52,14 @@ namespace Microsoft.Extensions.Hosting
 
         public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
         {
+            builder.Logging.ClearProviders();
+            builder.Logging.AddOpenTelemetry(logging =>
+            {
+                logging.IncludeFormattedMessage = true;
+                logging.IncludeScopes = true;
+                logging.AddOtlpExporter();
+            });
+
             builder.Services.AddOpenTelemetry()
                 .WithMetrics(metrics =>
                 {
@@ -71,15 +79,12 @@ namespace Microsoft.Extensions.Hosting
                         // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                         //.AddGrpcClientInstrumentation()
                         .AddHttpClientInstrumentation();
+                })
+                .WithLogging(logging =>
+                {
                 });
 
             builder.AddOpenTelemetryExporters();
-
-            builder.Logging.AddOpenTelemetry(logging =>
-            {
-                logging.IncludeFormattedMessage = true;
-                logging.IncludeScopes = true;
-            });
 
             return builder;
         }
