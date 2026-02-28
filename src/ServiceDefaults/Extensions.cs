@@ -65,7 +65,8 @@ namespace Microsoft.Extensions.Hosting
                 {
                     metrics.AddAspNetCoreInstrumentation()
                         .AddHttpClientInstrumentation()
-                        .AddRuntimeInstrumentation();
+                        .AddRuntimeInstrumentation()
+                        .AddOtlpExporter();
                 })
                 .WithTracing(tracing =>
                 {
@@ -78,13 +79,14 @@ namespace Microsoft.Extensions.Hosting
                         )
                         // Uncomment the following line to enable gRPC instrumentation (requires the OpenTelemetry.Instrumentation.GrpcNetClient package)
                         //.AddGrpcClientInstrumentation()
-                        .AddHttpClientInstrumentation();
+                        .AddHttpClientInstrumentation()
+                        .AddOtlpExporter();
                 })
                 .WithLogging(logging =>
                 {
                 });
 
-            builder.AddOpenTelemetryExporters();
+            //builder.AddOpenTelemetryExporters();
 
             return builder;
         }
