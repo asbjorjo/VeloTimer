@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using OpenTelemetry.Trace;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Interceptor;
@@ -21,6 +22,11 @@ public static class StartupExtensions
         var configuration = builder.Configuration;
 
         var env = builder.Environment;
+
+        services.ConfigureOpenTelemetryTracerProvider(tracer =>
+        {
+            tracer.AddSource("Azure.Messaging.*");
+        });
 
         services.AddSlimMessageBus(mbb =>
         {

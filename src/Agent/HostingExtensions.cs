@@ -1,16 +1,9 @@
-﻿using Azure.Messaging.ServiceBus.Administration;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Npgsql;
-using OpenTelemetry;
-using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using Serilog;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Outbox;
@@ -37,40 +30,17 @@ public static class StartupExtensions
 
         _env = builder.Environment;
 
+        builder.AddServiceDefaults();
 
-        services.AddOpenTelemetry()
-            .ConfigureResource(resource => resource.AddService(_env.ApplicationName, "VeloTime.Agent", "2.0.0"))
-            .WithTracing(tracing => tracing
-                .AddHttpClientInstrumentation()
-                .AddNpgsql()
-                .AddSource("Azure.Messaging.ServiceBus")
-                .AddSource("Azure.Messaging.ServiceBus.*")
-                .AddSource("VeloTime.Agent")
-            )
-            .WithMetrics(metrics => metrics
-                .AddHttpClientInstrumentation()
-                .AddMeter("VeloTime.Agent")
-            )
-            .UseOtlpExporter();
-
-        builder.Logging.AddOpenTelemetry(options =>
+        services.ConfigureOpenTelemetryTracerProvider(tracer =>
         {
-            options.IncludeScopes = true;
-            options.IncludeFormattedMessage = true;
+            tracer.AddSource("Azure.Messaging.*");
+            tracer.AddSource("VeloTime.Agent");
         });
-
-        //services.AddSerilog(lc => lc
-        //    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level}] {SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}")
-        //    .WriteTo.OpenTelemetry(options =>
-        //    {
-        //        options.ResourceAttributes = new Dictionary<string, object>
-        //        {
-        //            ["service.name"] = _env.ApplicationName,
-        //        };
-        //    })
-        //    .Enrich.FromLogContext()
-        //    .ReadFrom.Configuration(configuration)
-        //    );
+        services.ConfigureOpenTelemetryMeterProvider(metrics =>
+        {
+            metrics.AddMeter("VeloTime.Agent");
+        });
 
         string agentId = configuration.GetValue("VELOTIME_AGENT", string.Empty);
 
@@ -174,7 +144,7 @@ public static class StartupExtensions
         services.AddDbContextFactory<AgentDbContext>(options =>
         {
             options.UseNpgsql(
-                configuration.GetConnectionString("AgentDbConnection"),
+                configuration.GetConnectionString("AgentDb"),
                 x => { x.MigrationsHistoryTable("__Migrations", "agent"); }
                 );
             options.UseSnakeCaseNamingConvention();
