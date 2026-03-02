@@ -24,10 +24,10 @@ namespace Microsoft.Extensions.Hosting
 
             builder.AddDefaultHealthChecks();
 
-            builder.Services.AddDnsSrvServiceEndpointProvider(options =>
-            {
-                options.QuerySuffix = "velotime-dev.svc.cluster.local";
-            });
+            //builder.Services.AddDnsSrvServiceEndpointProvider(options =>
+            //{
+            //    options.QuerySuffix = "velotime-dev.svc.cluster.local";
+            //});
             builder.Services.AddConfigurationServiceEndpointProvider();
             builder.Services.AddPassThroughServiceEndpointProvider();
             builder.Services.AddServiceDiscoveryCore();
