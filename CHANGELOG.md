@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.30"></a>
+## [3.0.0-alpha.30](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.30) (2026-03-03)
+
+### Bug Fixes
+
+* Add forwarded headers from gateway ([bca0b8c](https://www.github.com/asbjorjo/VeloTimer/commit/bca0b8c6e6a3a5efe0578eda76cc11312e139485))
+
 <a name="3.0.0-alpha.29"></a>
 ## [3.0.0-alpha.29](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.29) (2026-03-03)
 
