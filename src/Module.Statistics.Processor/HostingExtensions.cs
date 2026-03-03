@@ -1,9 +1,7 @@
 ﻿using OpenTelemetry.Trace;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
-using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
-using VeloTime.Module.Common;
 using VeloTime.Module.Statistics;
 using VeloTime.Module.Statistics.Handlers;
 using VeloTime.Module.Statistics.Interface.Messages;
@@ -81,8 +79,6 @@ internal static class StartupExtensions
                 }));
             mbb.AddServicesFromAssemblyContaining<TimingSampleHandler>();
         });
-
-        services.AddTransient(typeof(IConsumerInterceptor<>), typeof(ActivityInterceptor<>));
 
         services.AddFacilitiesClient();
 

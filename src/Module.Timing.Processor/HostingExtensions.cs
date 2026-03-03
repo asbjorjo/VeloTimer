@@ -5,10 +5,8 @@ using Microsoft.Extensions.Hosting;
 using OpenTelemetry.Trace;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
-using SlimMessageBus.Host.Interceptor;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
 using VeloTime.Agent.Interface.Messages.Events;
-using VeloTime.Module.Common;
 using VeloTime.Module.Timing;
 using VeloTime.Module.Timing.Handlers;
 using VeloTime.Module.Timing.Interface.Messages;
@@ -70,7 +68,6 @@ public static class StartupExtensions
             mbb.AddServicesFromAssemblyContaining<PassingObservedHandler>();
         });
 
-        services.AddTransient(typeof(IConsumerInterceptor<>), typeof(ActivityInterceptor<>));
         services.AddScoped<IAgentService, AgentService>();
 
         builder.AddModuleTiming();
