@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.31"></a>
+## [3.0.0-alpha.31](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.31) (2026-03-03)
+
+### Bug Fixes
+
+* Just force scheme to https ([d2b044b](https://www.github.com/asbjorjo/VeloTimer/commit/d2b044b2f1571d37b8bff0ae67588f09f5f6ab67))
+
 <a name="3.0.0-alpha.30"></a>
 ## [3.0.0-alpha.30](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.30) (2026-03-03)
 
