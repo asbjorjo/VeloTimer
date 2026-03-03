@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.29"></a>
+## [3.0.0-alpha.29](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.29) (2026-03-03)
+
+### Bug Fixes
+
+* Interceptor can go when instrumenting servicebus ([23e86d5](https://www.github.com/asbjorjo/VeloTimer/commit/23e86d5343cc234ce939d05aecbd0179c8d6e87f))
+
 <a name="3.0.0-alpha.28"></a>
 ## [3.0.0-alpha.28](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.28) (2026-03-02)
 
