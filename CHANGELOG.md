@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.28"></a>
+## [3.0.0-alpha.28](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.28) (2026-03-02)
+
+### Bug Fixes
+
+* Add azure messaging traces ([7ee0d16](https://www.github.com/asbjorjo/VeloTimer/commit/7ee0d1655ed96747cac6a8f7ae3e8512dd1f199c))
+* Conflict ([f953577](https://www.github.com/asbjorjo/VeloTimer/commit/f95357761015e9dde5f8d636eef6cff77e9bba1b))
+* Remove DNS SRV service discovery ([a5788ff](https://www.github.com/asbjorjo/VeloTimer/commit/a5788ff47003cd18324c48942e34eb40553192e9))
+
 <a name="3.0.0-alpha.27"></a>
 ## [3.0.0-alpha.27](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.27) (2026-02-28)
 
