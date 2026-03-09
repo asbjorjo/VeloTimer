@@ -7,16 +7,14 @@
 
     <MudNavLink Href="statistcs/samples" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">Samples</MudNavLink>
 
-    <MudNavGroup Icon="@Icons.Material.Filled.AdminPanelSettings" Title="Admin">
-        <MudNavLink Href="admin/facilities" Match="NavLinkMatch.Prefix">Facilities</MudNavLink>
-        <MudNavLink Href="admin/timing/installations" Match="NavLinkMatch.Prefix">Timing Systems</MudNavLink>
-    </MudNavGroup>
-
     <MudNavLink Href="auth" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Login">Auth</MudNavLink>
 
     <AuthorizeView>
         <Authorized>
-            <MudNavLink Href="Account/Manage" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">@context.User.Identity?.Name</MudNavLink>
+            <MudNavGroup Icon="@Icons.Material.Filled.AdminPanelSettings" Title="Admin">
+                <MudNavLink Href="admin/facilities" Match="NavLinkMatch.Prefix">Facilities</MudNavLink>
+                <MudNavLink Href="admin/timing/installations" Match="NavLinkMatch.Prefix">Timing Systems</MudNavLink>
+            </MudNavGroup>
             <form action="Account/Logout" method="post">
                 <AntiforgeryToken />
                 <input type="hidden" name="ReturnUrl" value="@currentUrl" />

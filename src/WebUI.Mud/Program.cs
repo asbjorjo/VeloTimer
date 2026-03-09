@@ -1,13 +1,8 @@
-using Microsoft.AspNetCore.Authentication;
-
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using Microsoft.IdentityModel.Tokens;
 using MudBlazor.Extensions;
 using MudBlazor.Services;
 using VeloTime.Module.Facilities.Interface.Client;
@@ -35,7 +30,7 @@ builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
             options.ClientId = "velotime.webui";
             options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
             options.ResponseType = OpenIdConnectResponseType.Code;
-            options.Scope.Add("velotime:api");
+            //options.Scope.Add("velotime:api");
 
             options.SaveTokens = true;
             if (builder.Environment.IsDevelopment())
@@ -89,12 +84,6 @@ builder.Services.AddScoped<IFacilityService, FacilityService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<ITimingService, TimingService>();
 
-//builder.Services.AddScoped<IdentityUserAccessor>();
-//builder.Services.AddScoped<IdentityRedirectManager>();
-//builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
-
-//builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
-
 var app = builder.Build();
 
 app.UseForwardedHeaders();
@@ -126,9 +115,6 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     //.AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(VeloTime.WebUI.Mud.Client._Imports).Assembly);
-
-// Add additional endpoints required by the Identity /Account Razor components.
-//app.MapAdditionalIdentityEndpoints();
 
 app.MapGroup("/authentication").MapLoginAndLogout();
 
