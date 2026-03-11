@@ -8,9 +8,9 @@
     <DockerfileContext>..\..</DockerfileContext>
     <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
-    <Version>3.0.0-alpha.32</Version>
-    <ContainerRepository>asbjorjo/velotime-webui</ContainerRepository>
-    <ContainerImageTag>$(Version)</ContainerImageTag>
+	<Version>3.0.0-alpha.33</Version>
+	<ContainerRepository>asbjorjo/velotime-webui</ContainerRepository>
+	<ContainerImageTag>$(Version)</ContainerImageTag>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Aspire.Keycloak.Authentication" Version="13.1.1-preview.1.26105.8" />
