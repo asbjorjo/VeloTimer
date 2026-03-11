@@ -8,6 +8,7 @@ using MudBlazor.Services;
 using VeloTime.Module.Facilities.Interface.Client;
 using VeloTime.Module.Statistics.Interface.Client;
 using VeloTime.Module.Timing.Interface.Client;
+using VeloTime.WebUI.Keycloak;
 using VeloTime.WebUI.Mud;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Components;
@@ -47,7 +48,8 @@ builder.Services.ConfigureCookieOidc(CookieAuthenticationDefaults.Authentication
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddMemoryCache();
+//builder.Services.AddMemoryCache();
+builder.AddModuleCache();
 
 // Add MudBlazor services
 builder.Services.AddMudServices();
@@ -71,6 +73,13 @@ builder.Services.AddScoped<AccessTokenHandler>();
 //builder.Services.AddHttpForwarder();
 
 builder.Services
+    .AddHttpClient<IKeycloakClient, KeycloakClient>((provider, client) =>
+    {
+        client.BaseAddress = new System.Uri("https+http://keycloak/realms/");
+    })
+    .AddHttpMessageHandler<AccessTokenHandler>();
+
+builder.Services
     .AddFacilitiesClient()
     .AddHttpMessageHandler<AccessTokenHandler>();
 builder.Services
@@ -80,6 +89,7 @@ builder.Services
     .AddTimingClient()
     .AddHttpMessageHandler<AccessTokenHandler>();
 
+builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IFacilityService, FacilityService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<ITimingService, TimingService>();
