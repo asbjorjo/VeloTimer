@@ -1,6 +1,4 @@
-﻿using System.Net.Http.Json;
-
-namespace VeloTime.WebUI.Mud.Client.Services;
+﻿namespace VeloTime.WebUI.Mud.Client.Services;
 
 public class TimingHttpService(HttpClient httpClient) : ITimingService
 {

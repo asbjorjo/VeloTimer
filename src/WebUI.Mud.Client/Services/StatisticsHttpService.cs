@@ -1,8 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using System.Net.Http.Json;
-using VeloTime.WebUI.Mud.Client.ViewModel;
-
-namespace VeloTime.WebUI.Mud.Client.Services;
+﻿namespace VeloTime.WebUI.Mud.Client.Services;
 
 public class StatisticsHttpService(HttpClient httpClient) : IStatisticsService
 {
