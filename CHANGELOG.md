@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.35"></a>
+## [3.0.0-alpha.35](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.35) (2026-03-12)
+
+### Features
+
+* User Duende library for token handling ([c1f070e](https://www.github.com/asbjorjo/VeloTimer/commit/c1f070e5e42ed2e221eca49698980ed77450ce34))
+
 <a name="3.0.0-alpha.34"></a>
 ## [3.0.0-alpha.34](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.34) (2026-03-11)
 
