@@ -1,3 +1,5 @@
+using Duende.AccessTokenManagement;
+using Duende.AccessTokenManagement.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
@@ -33,6 +35,9 @@ builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
             options.ResponseType = OpenIdConnectResponseType.Code;
             //options.Scope.Add("velotime:api");
 
+            options.Scope.Add("openid");
+            options.Scope.Add("profile");
+
             options.SaveTokens = true;
             if (builder.Environment.IsDevelopment())
             {
@@ -62,32 +67,43 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents()
+    .AddInteractiveServerComponents();
     //.AddInteractiveWebAssemblyComponents()
-    .AddAuthenticationStateSerialization();
+    //.AddAuthenticationStateSerialization();
 
 builder.Services.AddHttpContextAccessor();
 
-builder.Services.AddScoped<AccessTokenHandler>();
+//builder.Services.AddScoped<AccessTokenHandler>();
 
 //builder.Services.AddHttpForwarder();
+
+builder.Services
+    .AddOpenIdConnectAccessTokenManagement()
+    .AddBlazorServerAccessTokenManagement<ServerSideTokenStore>();
+
+builder.Services.AddTransient<CookieEvents>();
+builder.Services.AddTransient<OidcEvents>();
 
 builder.Services
     .AddHttpClient<IKeycloakClient, KeycloakClient>((provider, client) =>
     {
         client.BaseAddress = new System.Uri("https+http://keycloak/realms/");
     })
-    .AddHttpMessageHandler<AccessTokenHandler>();
+    .AddDefaultAccessTokenResiliency()
+    .AddUserAccessTokenHandler();
 
 builder.Services
     .AddFacilitiesClient()
-    .AddHttpMessageHandler<AccessTokenHandler>();
+    .AddDefaultAccessTokenResiliency()
+    .AddUserAccessTokenHandler();
 builder.Services
     .AddStatisticsClient()
-    .AddHttpMessageHandler<AccessTokenHandler>();
+    .AddDefaultAccessTokenResiliency()
+    .AddUserAccessTokenHandler();
 builder.Services
     .AddTimingClient()
-    .AddHttpMessageHandler<AccessTokenHandler>();
+    .AddDefaultAccessTokenResiliency()
+    .AddUserAccessTokenHandler();
 
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IFacilityService, FacilityService>();
