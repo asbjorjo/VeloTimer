@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.34"></a>
+## [3.0.0-alpha.34](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.34) (2026-03-11)
+
+### Features
+
+* Add client for keycloak account API ([9525e8f](https://www.github.com/asbjorjo/VeloTimer/commit/9525e8ff1b4214b67a6949537af290d297371b48))
+
+### Bug Fixes
+
+* Conflict ([98c3834](https://www.github.com/asbjorjo/VeloTimer/commit/98c383488aee3c230ac74352ffa73874729fe87c))
+* Mockup some UI things ([c21346c](https://www.github.com/asbjorjo/VeloTimer/commit/c21346ca14981c9ae2e11a81f7fc4892469e9857))
+
 <a name="3.0.0-alpha.33"></a>
 ## [3.0.0-alpha.33](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.33) (2026-03-09)
 
