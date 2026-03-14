@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.36"></a>
+## [3.0.0-alpha.36](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.36) (2026-03-14)
+
+### Features
+
+* Add authentication to modules ([89b9df6](https://www.github.com/asbjorjo/VeloTimer/commit/89b9df66b7d9f1bb5ab2a012e03a728ebea1cc7d))
+
 <a name="3.0.0-alpha.35"></a>
 ## [3.0.0-alpha.35](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.35) (2026-03-12)
 
