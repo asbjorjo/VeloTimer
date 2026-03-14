@@ -4,6 +4,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
+builder.AddModuleAuthentication();
+
 builder.Services.AddHttpForwarderWithServiceDiscovery();
 builder.Services.AddFacilitiesClient();
 

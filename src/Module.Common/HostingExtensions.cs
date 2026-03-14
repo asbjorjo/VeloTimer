@@ -1,10 +1,12 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using StackExchange.Redis;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using VeloTime.Module.Common;
 using ZiggyCreatures.Caching.Fusion;
@@ -15,6 +17,29 @@ namespace Microsoft.Extensions.Hosting;
 
 public static class HostingExtensions
 {
+
+    public static IHostApplicationBuilder AddModuleAuthentication(this IHostApplicationBuilder builder)
+    {
+        var services = builder.Services;
+        var configuration = builder.Configuration;
+
+        var env = builder.Environment;
+
+        services.AddAuthentication()
+            .AddKeycloakJwtBearer(
+                serviceName: "keycloak",
+                realm: "velotime",
+                options =>
+                {
+                    if (env.IsDevelopment())
+                    {
+                        options.RequireHttpsMetadata = false;
+                    }
+                });
+
+        return builder;
+    }
+        
     public static IHostApplicationBuilder AddModuleCache(this IHostApplicationBuilder builder)
     {
         var services = builder.Services;
@@ -60,6 +85,28 @@ public static class HostingExtensions
         return builder;
     }
 
+    public static IHostApplicationBuilder AddModuleIdentity(this IHostApplicationBuilder builder, string clientId)
+    {
+        var services = builder.Services;
+        var configuration = builder.Configuration;
+
+        var env = builder.Environment;
+
+        var clientSecret = Environment.GetEnvironmentVariable("CLIENT_SECRET");
+
+        services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+            .AddKeycloakOpenIdConnect(
+                serviceName: "keycloak",
+                realm: "velotime",
+                options =>
+                {
+                    options.ClientId = clientId;
+                    options.ClientSecret = clientSecret;
+                });
+
+        return builder;
+    }
+
     public static void AddModuleStorage<TContext>(this IHostApplicationBuilder builder, string connectionName) where TContext : BaseDbContext
         => builder.Services.AddDbContext<TContext>(options =>
         {
@@ -70,4 +117,3 @@ public static class HostingExtensions
             });
         });
 }
-
