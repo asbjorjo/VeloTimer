@@ -1,5 +1,6 @@
 using Duende.AccessTokenManagement;
 using Duende.AccessTokenManagement.OpenIdConnect;
+using Humanizer.Configuration;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
@@ -42,6 +43,10 @@ builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
             if (builder.Environment.IsDevelopment())
             {
                 options.RequireHttpsMetadata = false;
+            }
+            else
+            {
+                options.Authority = builder.Configuration.GetConnectionString("keycloak");
             }
         })
     .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme);

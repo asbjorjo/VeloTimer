@@ -34,6 +34,9 @@ public static class HostingExtensions
                     if (env.IsDevelopment())
                     {
                         options.RequireHttpsMetadata = false;
+                    } else
+                    {
+                        options.Authority = configuration.GetConnectionString("keycloak");
                     }
                 });
 
@@ -102,6 +105,15 @@ public static class HostingExtensions
                 {
                     options.ClientId = clientId;
                     options.ClientSecret = clientSecret;
+
+                    if (env.IsDevelopment())
+                    {
+                        options.RequireHttpsMetadata = false;
+                    }
+                    else
+                    {
+                        options.Authority = configuration.GetConnectionString("keycloak");
+                    }
                 });
 
         return builder;
