@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.37"></a>
+## [3.0.0-alpha.37](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.37) (2026-03-14)
+
+### Bug Fixes
+
+* Set authority explicitly outside development ([7e2acfc](https://www.github.com/asbjorjo/VeloTimer/commit/7e2acfc01a3714c2fd63f4867977a5aaa833f328))
+
 <a name="3.0.0-alpha.36"></a>
 ## [3.0.0-alpha.36](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.36) (2026-03-14)
 
