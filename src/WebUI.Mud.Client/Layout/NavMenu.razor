@@ -15,7 +15,7 @@
                 <MudNavLink Href="admin/facilities" Match="NavLinkMatch.Prefix">Facilities</MudNavLink>
                 <MudNavLink Href="admin/timing/installations" Match="NavLinkMatch.Prefix">Timing Systems</MudNavLink>
             </MudNavGroup>
-            <form action="Account/Logout" method="post">
+            <form action="authentication/logout" method="post">
                 <AntiforgeryToken />
                 <input type="hidden" name="ReturnUrl" value="@currentUrl" />
                 <button type="submit" class="mud-nav-link mud-ripple">
@@ -25,7 +25,7 @@
         </Authorized>
         <NotAuthorized>
             <MudNavLink Href="Account/Register" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">Register</MudNavLink>
-            <MudNavLink Href="Account/Login" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Password">Login</MudNavLink>
+            <MudNavLink Href="authentication/login" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Password">Login</MudNavLink>
         </NotAuthorized>
     </AuthorizeView>
     <MudNavGroup Icon="@Icons.Material.Filled.Info" Title="Om">
