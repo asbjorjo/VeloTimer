@@ -13,6 +13,8 @@ IResourceBuilder<IResourceWithConnectionString> velotimedb;
 var k8s = builder.AddKubernetesEnvironment("k8s");
 
 var servicebusconnection = builder.AddConnectionString("MessageBus");
+var statisticsprocsecret = builder.AddParameter("StatisticsProcessorSecret", secret: true);
+var timingprocsecret = builder.AddParameter("TimingProcessorSecret", secret: true);
 
 var keycloak = builder.AddKeycloak("keycloak", 8888)
     .WithOtlpExporter();
@@ -37,17 +39,19 @@ if (builder.Environment.IsDevelopment())
 }
 
 var facilityapi = builder.AddProject<Projects.VeloTime_Module_Facilities_Api>("module-facilities-api")
-    .WithReplicas(2)
     .WithReference(cache)
     .WithReference(velotimedb)
+    .WithReference(keycloak)
     .WaitFor(velotimedb);
 var statisticsapi = builder.AddProject<Projects.VeloTime_Module_Statistics_Api>("module-statistics-api")
     .WithReference(cache)
     .WithReference(velotimedb)
+    .WithReference(keycloak)
     .WaitFor(velotimedb);
 var timingapi = builder.AddProject<Projects.VeloTime_Module_Timing_Api>("module-timing-api")
     .WithReference(cache)
     .WithReference(velotimedb)
+    .WithReference(keycloak)
     .WaitFor(velotimedb);
 
 var frontend = builder.AddProject<Projects.VeloTime_WebUI_Mud>("frontend")
@@ -63,6 +67,8 @@ var statsproc = builder.AddProject<Projects.VeloTime_Module_Statistics_Processor
     .WithReference(velotimedb)
     .WithReference(servicebusconnection)
     .WithReference(facilityapi)
+    .WithReference(keycloak)
+    .WithEnvironment("CLIENT_SECRET", statisticsprocsecret)
     .WaitFor(velotimedb)
     .WaitFor(facilityapi)
     .WithExplicitStart();
@@ -70,6 +76,8 @@ var timingproc = builder.AddProject<Projects.VeloTime_Module_Timing_Processor>("
     .WithReference(cache)
     .WithReference(velotimedb)
     .WithReference(servicebusconnection)
+    .WithReference(keycloak)
+    .WithEnvironment("CLIENT_SECRET", timingprocsecret)
     .WaitFor(velotimedb)
     .WithExplicitStart();
 
