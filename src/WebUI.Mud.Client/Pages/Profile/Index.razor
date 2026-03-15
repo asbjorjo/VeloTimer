@@ -1,7 +1,20 @@
 ﻿@page "/profile"
+@attribute [Authorize]
+
+@inject IProfileService Profile
 
 <PageTitle>Profile</PageTitle>
 
-@code {
+@foreach (var linkedAccount in linkedAccounts)
+{
+    <Account account="@linkedAccount" />
+}
 
+@code {
+    IEnumerable<LinkedAccountView> linkedAccounts = Enumerable.Empty<LinkedAccountView>();
+
+    protected async override Task OnInitializedAsync()
+    {
+        linkedAccounts = await Profile.GetLinkedAccountsAsync();
+    }
 }

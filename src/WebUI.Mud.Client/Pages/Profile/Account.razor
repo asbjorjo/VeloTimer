@@ -1,0 +1,25 @@
+@inject NavigationManager Navigation;
+@inject IProfileService Profile
+
+<MudCard>
+    <MudText>@account.DisplayName</MudText>
+    @if (!account.IsConnected)
+    {
+        <MudLink Href="@link">Link</MudLink>
+    } else
+    {
+        <MudText>Should be unlink</MudText>
+    }
+</MudCard>
+
+@code {
+    [Parameter]
+    public required LinkedAccountView account { get; set; }
+
+    private string link = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        link = await Profile.GetLinkAccountAsync(Navigation.Uri, account.ProviderName);
+    }
+}
