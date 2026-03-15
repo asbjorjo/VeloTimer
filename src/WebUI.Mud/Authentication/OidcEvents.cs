@@ -3,6 +3,7 @@
 
 using Duende.AccessTokenManagement;
 using Duende.AccessTokenManagement.OpenIdConnect;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 
 namespace VeloTime.WebUI.Mud;
@@ -12,6 +13,20 @@ public class OidcEvents : OpenIdConnectEvents
     private readonly IUserTokenStore _store;
 
     public OidcEvents(IUserTokenStore store) => _store = store;
+
+    public override async Task RedirectToIdentityProvider(RedirectContext context)
+    {
+        var action = context.Properties.GetParameter<string>("kc_action");
+
+        if (action != null)
+        {
+            var token = await context.HttpContext.GetTokenAsync("access_token");
+            if (token != null) context.ProtocolMessage.AccessToken = token;
+            context.ProtocolMessage.SetParameter("kc_action", action);
+        }
+
+        await base.RedirectToIdentityProvider(context);
+    }
 
     public override async Task TokenValidated(TokenValidatedContext context)
     {
