@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.38"></a>
+## [3.0.0-alpha.38](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.38) (2026-03-15)
+
+### Bug Fixes
+
+* Align package versions ([10d9694](https://www.github.com/asbjorjo/VeloTimer/commit/10d969425c845f4eaf04501982123edb2876a367))
+* Remove unused import ([ed273af](https://www.github.com/asbjorjo/VeloTimer/commit/ed273aff6e4ee6cc3d8cda8797bb957805998b48))
+* Send token with API requests ([a832b05](https://www.github.com/asbjorjo/VeloTimer/commit/a832b0557c339cd8416c731d33932656b758d383))
+
 <a name="3.0.0-alpha.37"></a>
 ## [3.0.0-alpha.37](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.37) (2026-03-14)
 
