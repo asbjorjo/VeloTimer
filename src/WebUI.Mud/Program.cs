@@ -1,6 +1,5 @@
 using Duende.AccessTokenManagement;
 using Duende.AccessTokenManagement.OpenIdConnect;
-using Humanizer.Configuration;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
