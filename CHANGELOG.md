@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.41"></a>
+## [3.0.0-alpha.41](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.41) (2026-03-15)
+
+### Bug Fixes
+
+* Token endpoint ([510aa67](https://www.github.com/asbjorjo/VeloTimer/commit/510aa67bae7158e0b013e0037df88aa8e4460b7b))
+
 <a name="3.0.0-alpha.40"></a>
 ## [3.0.0-alpha.40](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.40) (2026-03-15)
 
