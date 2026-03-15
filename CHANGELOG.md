@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.42"></a>
+## [3.0.0-alpha.42](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.42) (2026-03-15)
+
+### Features
+
+* Try to add link for social providers on account ([8adda6a](https://www.github.com/asbjorjo/VeloTimer/commit/8adda6a79da004b5c3f239fecde049d411f8f80a))
+
 <a name="3.0.0-alpha.41"></a>
 ## [3.0.0-alpha.41](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.41) (2026-03-15)
 
