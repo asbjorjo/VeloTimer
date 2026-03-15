@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.43"></a>
+## [3.0.0-alpha.43](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.43) (2026-03-15)
+
+### Features
+
+* Allow unlinking providers ([ae38565](https://www.github.com/asbjorjo/VeloTimer/commit/ae38565f05a36240904b3e42b7aa557daff130da))
+* Pass kc_action for application initiated actions ([6374fc2](https://www.github.com/asbjorjo/VeloTimer/commit/6374fc275448f2ddff5e5f4d14c5314a8761a56e))
+
+### Bug Fixes
+
+* Correct URL for login/out ([e6ca92e](https://www.github.com/asbjorjo/VeloTimer/commit/e6ca92efb197962bb0456fdeb3beae8b74822b8e))
+
 <a name="3.0.0-alpha.42"></a>
 ## [3.0.0-alpha.42](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.42) (2026-03-15)
 
