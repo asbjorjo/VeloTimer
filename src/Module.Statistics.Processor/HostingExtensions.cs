@@ -1,4 +1,5 @@
-﻿using OpenTelemetry.Trace;
+﻿using Duende.AccessTokenManagement;
+using OpenTelemetry.Trace;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
@@ -80,7 +81,11 @@ internal static class StartupExtensions
             mbb.AddServicesFromAssemblyContaining<TimingSampleHandler>();
         });
 
-        services.AddFacilitiesClient();
+        builder.AddModuleIdentity("velotime.statistics.processor");
+
+        services.AddFacilitiesClient()
+            .AddDefaultAccessTokenResiliency()
+            .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("facilities.client"));
 
         builder.AddModuleStatistics();
 

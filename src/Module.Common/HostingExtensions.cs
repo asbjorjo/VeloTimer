@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+﻿using Duende.AccessTokenManagement;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -115,6 +116,8 @@ public static class HostingExtensions
                         options.Authority = configuration.GetConnectionString("keycloak");
                     }
                 });
+
+        services.AddClientCredentialsTokenManagement();
 
         return builder;
     }
