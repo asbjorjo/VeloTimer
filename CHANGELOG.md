@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.40"></a>
+## [3.0.0-alpha.40](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.40) (2026-03-15)
+
+### Bug Fixes
+
+* Use duende things, not keycloak ([6e4aef7](https://www.github.com/asbjorjo/VeloTimer/commit/6e4aef781533e0eba7c3fc4103671dcc12fc3075))
+
 <a name="3.0.0-alpha.39"></a>
 ## [3.0.0-alpha.39](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.39) (2026-03-15)
 
