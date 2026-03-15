@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.39"></a>
+## [3.0.0-alpha.39](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.39) (2026-03-15)
+
+### Bug Fixes
+
+* Add keycloak reference to services in apphost ([b5290e9](https://www.github.com/asbjorjo/VeloTimer/commit/b5290e94ad76153d6d77ce53820eca1557d92b96))
+
 <a name="3.0.0-alpha.38"></a>
 ## [3.0.0-alpha.38](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.38) (2026-03-15)
 
