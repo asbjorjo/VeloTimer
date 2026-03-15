@@ -85,7 +85,7 @@ internal static class StartupExtensions
 
         services.AddFacilitiesClient()
             .AddDefaultAccessTokenResiliency()
-            .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("facilities.client"));
+            .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("velotime.statistics.processor"));
 
         builder.AddModuleStatistics();
 

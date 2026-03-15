@@ -98,26 +98,35 @@ public static class HostingExtensions
 
         var clientSecret = Environment.GetEnvironmentVariable("CLIENT_SECRET");
 
-        services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-            .AddKeycloakOpenIdConnect(
-                serviceName: "keycloak",
-                realm: "velotime",
-                options =>
-                {
-                    options.ClientId = clientId;
-                    options.ClientSecret = clientSecret;
+        var authority = env.IsDevelopment() ? configuration.GetConnectionString("keycloak") : $"https+http://keycloak/realms/velotime";
 
-                    if (env.IsDevelopment())
-                    {
-                        options.RequireHttpsMetadata = false;
-                    }
-                    else
-                    {
-                        options.Authority = configuration.GetConnectionString("keycloak");
-                    }
-                });
+        //services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
+        //    .AddKeycloakOpenIdConnect(
+        //        serviceName: "keycloak",
+        //        realm: "velotime",
+        //        options =>
+        //        {
+        //            options.ClientId = clientId;
+        //            options.ClientSecret = clientSecret;
 
-        services.AddClientCredentialsTokenManagement();
+        //            if (env.IsDevelopment())
+        //            {
+        //                options.RequireHttpsMetadata = false;
+        //            }
+        //            else
+        //            {
+        //                options.Authority = configuration.GetConnectionString("keycloak");
+        //            }
+        //        });
+
+        services.AddClientCredentialsTokenManagement()
+            .AddClient(clientId, options =>
+            {
+                options.TokenEndpoint = new System.Uri($"{authority}/connect/token");
+
+                options.ClientId = ClientId.Parse(clientId);
+                options.ClientSecret = ClientSecret.Parse(clientSecret!);
+            });
 
         return builder;
     }
