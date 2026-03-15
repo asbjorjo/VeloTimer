@@ -122,7 +122,7 @@ public static class HostingExtensions
         services.AddClientCredentialsTokenManagement()
             .AddClient(clientId, options =>
             {
-                options.TokenEndpoint = new System.Uri($"{authority}/connect/token");
+                options.TokenEndpoint = new System.Uri($"{authority}/protocol/openid-connect/token");
 
                 options.ClientId = ClientId.Parse(clientId);
                 options.ClientSecret = ClientSecret.Parse(clientSecret!);
