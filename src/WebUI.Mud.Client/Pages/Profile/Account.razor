@@ -5,18 +5,23 @@
     <MudText>@account.DisplayName</MudText>
     @if (!account.IsConnected)
     {
-        <MudLink Href="@link">Link</MudLink>
+        <MudLink Href="@("/authentication/addprovider/" + account.ProviderName)">Link</MudLink>
     } else
     {
-        <MudText>Should be unlink</MudText>
+        <MudButton OnClick="UnLink">Unlink</MudButton>
     }
 </MudCard>
 
-@code {
+    @code {
     [Parameter]
     public required LinkedAccountView account { get; set; }
 
     private string link = string.Empty;
+
+    private async Task UnLink()
+    {
+        await Profile.DeleteLinkedAccountAsync(account.ProviderName);
+    }
 
     protected override async Task OnParametersSetAsync()
     {

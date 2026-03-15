@@ -14,6 +14,18 @@ internal static class LoginLogoutEndpointRouteBuilderExtensions
         group.MapGet("/login", (string? returnUrl) => TypedResults.Challenge(GetAuthProperties(returnUrl)))
             .AllowAnonymous();
 
+        group.MapGet("/changepass", (string? returnUrl) => {
+            var props = GetAuthProperties(returnUrl);
+            props.SetParameter("kc_action", "UPDATE_PASSWORD");
+            return TypedResults.Challenge(props);
+        });
+
+        group.MapGet("/addprovider/{provider}", (string? returnUrl, string provider) => {
+            var props = GetAuthProperties(returnUrl);
+            props.SetParameter("kc_action", $"idp_link:{provider}");
+            return TypedResults.Challenge(props);
+        });
+
         // Sign out of the Cookie and OIDC handlers. If you do not sign out with the OIDC handler,
         // the user will automatically be signed back in the next time they visit a page that requires authentication
         // without being able to choose another account.

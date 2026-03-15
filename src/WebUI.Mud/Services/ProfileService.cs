@@ -33,4 +33,9 @@ public class ProfileService(IKeycloakClient keycloak) : IProfileService
 
         return link.AccountLinkUri;
     }
+
+    public async Task DeleteLinkedAccountAsync(string Provider, CancellationToken cancellationToken = default)
+    {
+        await keycloak.DeleteLinkedProviderAsync(realm, Provider, cancellationToken);
+    }
 }

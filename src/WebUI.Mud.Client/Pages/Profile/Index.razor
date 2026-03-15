@@ -1,6 +1,8 @@
 ﻿@page "/profile"
+@using Microsoft.AspNetCore.Authentication
 @attribute [Authorize]
 
+@inject NavigationManager Navigation
 @inject IProfileService Profile
 
 <PageTitle>Profile</PageTitle>
@@ -10,8 +12,20 @@
     <Account account="@linkedAccount" />
 }
 
+<MudButton Href="/authentication/changepass">Change password</MudButton>
+
 @code {
     IEnumerable<LinkedAccountView> linkedAccounts = Enumerable.Empty<LinkedAccountView>();
+
+    private void ChangePassword()
+    {
+        // AuthenticationProperties properties = new()
+        // {
+        //     RedirectUri = Navigation.Uri
+        // };
+        // properties.SetParameter("kc_action", "UPDATE_PASSWORD");
+
+    }
 
     protected async override Task OnInitializedAsync()
     {
