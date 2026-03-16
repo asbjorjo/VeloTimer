@@ -48,7 +48,7 @@ public class ServerSideTokenStore(IFusionCache cache) : IUserTokenStore
         var sub = user.FindFirst("sub")?.Value ?? throw new InvalidOperationException("no sub claim");
         await cache.SetAsync(sub, token, options =>
         {
-            options.Duration = token.Expiration - DateTimeOffset.Now + TimeSpan.FromMinutes(5);
+            options.Duration = token.Expiration - DateTimeOffset.Now + TimeSpan.FromDays(7);
         }, token: ct);
     }
 
