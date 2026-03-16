@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.44"></a>
+## [3.0.0-alpha.44](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.44) (2026-03-16)
+
+### Features
+
+* Extend token expiration duration to 7 days ([22b47e4](https://www.github.com/asbjorjo/VeloTimer/commit/22b47e4c8617e0a344caac1e25a58c8abf558257))
+
 <a name="3.0.0-alpha.43"></a>
 ## [3.0.0-alpha.43](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.43) (2026-03-15)
 
