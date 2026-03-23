@@ -1,5 +1,4 @@
-﻿using VeloTime.Module.Facilities.Interface.Client;
-using VeloTime.Module.Timing.Interface.Client;
+﻿using VeloTime.Module.Timing.Interface.Client;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
 
