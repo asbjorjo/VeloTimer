@@ -12,6 +12,7 @@
 	<Version>3.0.0-alpha.43</Version>
 	<ContainerRepository>asbjorjo/velotime-module-statistics-api</ContainerRepository>
 	<ContainerImageTag>$(Version)</ContainerImageTag>
+	<OpenApiDocumentsDirectory>..\..\api</OpenApiDocumentsDirectory>
   </PropertyGroup>
 
   <ItemGroup>
