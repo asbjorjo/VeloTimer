@@ -1,4 +1,4 @@
-﻿<Project Sdk="Aspire.AppHost.Sdk/13.2.0">
+<Project Sdk="Aspire.AppHost.Sdk/13.2.0">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>103fca41-9f30-4779-8f62-678337e4f92c</UserSecretsId>
-	<Version>3.0.0-alpha.44</Version>
+	<Version>3.0.0-alpha.45</Version>
   </PropertyGroup>
 
   <ItemGroup>

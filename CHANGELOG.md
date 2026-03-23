@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.45"></a>
+## [3.0.0-alpha.45](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.45) (2026-03-23)
+
+### Features
+
+* Auto-generate API client ([abcd444](https://www.github.com/asbjorjo/VeloTimer/commit/abcd44443f08e573241b614e2ec1371a0c2c76e8))
+* Generate OpenAPI specs at build ([d9cf32f](https://www.github.com/asbjorjo/VeloTimer/commit/d9cf32ff293a0d444385f190384e7774361770d1))
+
+### Bug Fixes
+
+* Add generated API spec ([118e869](https://www.github.com/asbjorjo/VeloTimer/commit/118e8698fc3a671d6e1b2dc75c8f7f054a6e1a23))
+* Align versions ([bec037f](https://www.github.com/asbjorjo/VeloTimer/commit/bec037f08f61d36179f77aa3f343d2ea7a5f8271))
+
 <a name="3.0.0-alpha.44"></a>
 ## [3.0.0-alpha.44](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.44) (2026-03-16)
 
