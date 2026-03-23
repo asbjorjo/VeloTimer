@@ -14,9 +14,9 @@
     </PackageReference>
 	<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.5" />
     <PackageReference Include="MR.AspNetCore.Pagination" Version="3.1.0" />
-	<PackageReference Include="SlimMessageBus.Host" Version="3.3.6" />
-    <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" Version="3.3.6" />
-    <PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" Version="3.3.6" />
+	<PackageReference Include="SlimMessageBus.Host" Version="3.4.0" />
+    <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" Version="3.4.0" />
+    <PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" Version="3.4.0" />
   </ItemGroup>
 
   <ItemGroup>

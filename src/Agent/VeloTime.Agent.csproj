@@ -28,9 +28,9 @@
     <PackageReference Include="Serilog.Settings.Configuration" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
-    <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" Version="3.3.6" />
-    <PackageReference Include="SlimMessageBus.Host.Outbox.PostgreSql.DbContext" Version="3.3.6" />
-	<PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" Version="3.3.6" />
+    <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" Version="3.4.0" />
+    <PackageReference Include="SlimMessageBus.Host.Outbox.PostgreSql.DbContext" Version="3.4.0" />
+	<PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" Version="3.4.0" />
   </ItemGroup>
 
   <ItemGroup>

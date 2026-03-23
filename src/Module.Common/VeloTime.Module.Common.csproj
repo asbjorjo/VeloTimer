@@ -9,16 +9,16 @@
 
   <ItemGroup>
 	<PackageReference Include="Aspire.Keycloak.Authentication" Version="13.1.2-preview.1.26125.13" />
-	<PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.1.2" />
-	<PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" Version="13.1.2" />
-    <PackageReference Include="Duende.AccessTokenManagement" Version="4.1.2" />
+	<PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.2.0" />
+	<PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" Version="13.2.0" />
+    <PackageReference Include="Duende.AccessTokenManagement" Version="4.2.0" />
 	<PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
 	<PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.9" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.5" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.5" />
 	<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.5" />
 	<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-	<PackageReference Include="SlimMessageBus.Host" Version="3.3.6" />
+	<PackageReference Include="SlimMessageBus.Host" Version="3.4.0" />
 	<PackageReference Include="ZiggyCreatures.FusionCache" Version="2.6.0" />
 	<PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" Version="2.6.0" />
 	<PackageReference Include="ZiggyCreatures.FusionCache.OpenTelemetry" Version="2.6.0" />
