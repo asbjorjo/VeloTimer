@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.46"></a>
+## [3.0.0-alpha.46](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.46) (2026-03-25)
+
+### Features
+
+* Auto-generate all clients on build ([c889c91](https://www.github.com/asbjorjo/VeloTimer/commit/c889c91501b3687031ac7a9497f3aa9f02de11e6))
+
+### Bug Fixes
+
+* Add version to project ([fef4eab](https://www.github.com/asbjorjo/VeloTimer/commit/fef4eab2902c0337cc23f43d1bebfa0a1f086eef))
+* Wrong case in filename ([06cccf3](https://www.github.com/asbjorjo/VeloTimer/commit/06cccf33539b110350b3ab6697c3ca9315936ed6))
+
 <a name="3.0.0-alpha.45"></a>
 ## [3.0.0-alpha.45](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.45) (2026-03-23)
 
