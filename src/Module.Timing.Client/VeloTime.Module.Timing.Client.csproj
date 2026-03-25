@@ -17,6 +17,8 @@
   </ItemGroup>
   <ItemGroup>
 	<ProjectReference Include="..\Module.Timing.Api\VeloTime.Module.Timing.Api.csproj">
+	  <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
+	  <Private>false</Private>
 	  <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
 	</ProjectReference>
   </ItemGroup>
