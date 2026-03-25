@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.48"></a>
+## [3.0.0-alpha.48](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.48) (2026-03-25)
+
+### Bug Fixes
+
+* Do not include API assets in client ([9239a0f](https://www.github.com/asbjorjo/VeloTimer/commit/9239a0f27f2e67717af72c50beea09099222e142))
+
 <a name="3.0.0-alpha.47"></a>
 ## [3.0.0-alpha.47](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.47) (2026-03-25)
 
