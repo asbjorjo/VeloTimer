@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -16,15 +16,8 @@
 	</PackageReference>
   </ItemGroup>
   <ItemGroup>
-	<ProjectReference Include="..\Module.Timing.Api\VeloTime.Module.Timing.Api.csproj">
-	  <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
-	  <Private>false</Private>
-	  <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-	</ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-	<OpenApiReference Include="..\..\api\VeloTime.Module.Timing.Api.json" CodeGenerator="NSwagCSharp" Namespace="VeloTime.Module.Timing.Client" ClassName="TimingClient">
+	<OpenApiProjectReference Include="..\Module.Timing.Api\VeloTime.Module.Timing.Api.csproj" CodeGenerator="NSwagCSharp" Namespace="VeloTime.Module.Timing.Client" ClassName="TimingClient">
 	  <Options>/UseBaseUrl:false /GenerateClientInterfaces:true</Options>
-	</OpenApiReference>
+	</OpenApiProjectReference>
   </ItemGroup>
 </Project>

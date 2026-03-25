@@ -16,15 +16,8 @@
 	</PackageReference>
   </ItemGroup>
   <ItemGroup>
-	<ProjectReference Include="..\Module.Facilities.Api\VeloTime.Module.Facilities.Api.csproj">
-	  <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
-	  <Private>false</Private>
-	  <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-	</ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-	<OpenApiReference Include="..\..\api\VeloTime.Module.Facilities.Api.json" CodeGenerator="NSwagCSharp" Namespace="VeloTime.Module.Facilities.Client" ClassName="FacilitiesClient">
+	<OpenApiProjectReference Include="..\Module.Facilities.Api\VeloTime.Module.Facilities.Api.csproj" CodeGenerator="NSwagCSharp" Namespace="VeloTime.Module.Facilities.Client" ClassName="FacilitiesClient">
 	  <Options>/UseBaseUrl:false /GenerateClientInterfaces:true</Options>
-	</OpenApiReference>
+	</OpenApiProjectReference >
   </ItemGroup>
 </Project>

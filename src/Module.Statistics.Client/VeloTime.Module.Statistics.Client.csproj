@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -16,15 +16,8 @@
 	</PackageReference>
   </ItemGroup>
   <ItemGroup>
-	<ProjectReference Include="..\Module.Statistics.Api\VeloTime.Module.Statistics.Api.csproj">
-	  <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
-	  <Private>false</Private>
-	  <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-	</ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-	<OpenApiReference Include="..\..\api\VeloTime.Module.Statistics.Api.json" CodeGenerator="NSwagCSharp" Namespace="VeloTime.Module.Statistics.Client" ClassName="StatisticsClient">
+	<OpenApiProjectReference Include="..\Module.Statistics.Api\VeloTime.Module.Statistics.Api.csproj" CodeGenerator="NSwagCSharp" Namespace="VeloTime.Module.Statistics.Client" ClassName="StatisticsClient">
 	  <Options>/UseBaseUrl:false /GenerateClientInterfaces:true</Options>
-	</OpenApiReference>
+	</OpenApiProjectReference>
   </ItemGroup>
 </Project>
