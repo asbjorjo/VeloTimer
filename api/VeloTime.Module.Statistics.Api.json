@@ -1,0 +1,139 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "VeloTime.Module.Statistics.Api | v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/statistics/sample": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "parameters": [
+          {
+            "name": "Cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "IsNextPage",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetSamplesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GetSamplesResponse": {
+        "required": [
+          "samples",
+          "next",
+          "previous",
+          "isFirstPage"
+        ],
+        "type": "object",
+        "properties": {
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SampleDTO"
+            }
+          },
+          "next": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "previous": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isFirstPage": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SampleDTO": {
+        "required": [
+          "time",
+          "transponderId",
+          "coursePointStartId",
+          "coursePointEndId",
+          "distance",
+          "duration",
+          "speed"
+        ],
+        "type": "object",
+        "properties": {
+          "time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "transponderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "coursePointStartId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "coursePointEndId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "distance": {
+            "type": "number",
+            "format": "double"
+          },
+          "duration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": "string"
+          },
+          "speed": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Statistics"
+    }
+  ]
+}
