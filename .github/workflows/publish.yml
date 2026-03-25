@@ -44,6 +44,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build Solution
+        run: dotnet build --configuration Release
+
       - name: Build Package
         run: dotnet pack --output nupkgs --configuration Release
 
