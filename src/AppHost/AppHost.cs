@@ -29,6 +29,7 @@ velotimedb = postgres.AddDatabase("velotimedb");
 var cache = builder
     .AddRedis("cache");
 keycloak
+    .WithEnvironment("QUARKUS_HTTP_HTTP2", "false")
     .WithPostgres(keycloakdb);
 
 if (builder.Environment.IsDevelopment())
