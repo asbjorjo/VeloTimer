@@ -16,7 +16,7 @@
 	</PackageReference>
   </ItemGroup>
   <ItemGroup>
-	<ProjectReference Include="..\Module.Facilities.Api\Velotime.Module.Facilities.Api.csproj">
+	<ProjectReference Include="..\Module.Facilities.Api\VeloTime.Module.Facilities.Api.csproj">
 	  <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
 	</ProjectReference>
   </ItemGroup>
