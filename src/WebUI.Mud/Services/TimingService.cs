@@ -1,4 +1,4 @@
-﻿using VeloTime.Module.Timing.Interface.Client;
+﻿using VeloTime.Module.Timing.Client;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
 
@@ -8,7 +8,7 @@ public class TimingService(ITimingClient timing) : ITimingService
 {
     public async Task<InstallationView> GetInstallationAsync(Guid Id, CancellationToken cancellationToken = default)
     {
-        var installation = await timing.GetInstallationById(Id, cancellationToken);
+        var installation = await timing.InstallationGETAsync(Id, cancellationToken);
 
         return new InstallationView
         {
@@ -27,7 +27,7 @@ public class TimingService(ITimingClient timing) : ITimingService
 
     public async Task<IEnumerable<InstallationView>> GetInstallationsAsync(CancellationToken cancellationToken)
     {
-        var installations = await timing.GetAllInstallations(cancellationToken);
+        var installations = await timing.InstallationAllAsync(null, cancellationToken);
        
         return installations.Select(installation => new InstallationView
         {

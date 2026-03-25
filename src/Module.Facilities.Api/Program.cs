@@ -9,6 +9,11 @@ builder.AddModuleAuthentication();
 builder.Services.AddHttpForwarderWithServiceDiscovery();
 builder.Services.AddFacilitiesClient();
 
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.Strict;
+});
+
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();

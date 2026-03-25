@@ -10,6 +10,11 @@ builder.AddModuleAuthentication();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.Strict;
+});
+
 builder.AddModuleStatistics();
 
 var app = builder.Build();

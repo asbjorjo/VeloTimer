@@ -1,5 +1,5 @@
 ﻿using VeloTime.Module.Facilities.Client;
-using VeloTime.Module.Timing.Interface.Client;
+using VeloTime.Module.Timing.Client;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
 
@@ -9,7 +9,7 @@ namespace VeloTime.WebUI.Mud.Services
     {
         public async Task<CourseLayoutDetailView> GetCourseLayoutDetailAsync(Guid layoutId, CancellationToken cancellationToken = default)
         {
-            var layout = await facitilies.LayoutsAsync(layoutId, cancellationToken);
+            var layout = await facitilies.LayoutsAsync(layoutId, cancellationToken: cancellationToken);
 
             return new CourseLayoutDetailView
             {
@@ -37,7 +37,7 @@ namespace VeloTime.WebUI.Mud.Services
 
         public async Task<IEnumerable<FacilityView>> GetFacilitiesAsync(CancellationToken token)
         {
-            var f = await facitilies.FacilityAllAsync(token);
+            var f = await facitilies.FacilityAllAsync(cancellationToken: token);
 
             var facilities = f.Select(f => new FacilityView
             {
@@ -52,7 +52,7 @@ namespace VeloTime.WebUI.Mud.Services
         public async Task<IEnumerable<CourseLayoutView>> GetFacilityLayoutsAsync(Guid id, CancellationToken token)
         {
             var l = await facitilies.LayoutsAllAsync(id, token);
-
+            
             return l.Select(l => new CourseLayoutView
             {
                 Id = l.Id,
@@ -68,7 +68,7 @@ namespace VeloTime.WebUI.Mud.Services
 
         public async Task<IEnumerable<InstallationView>> GetInstallationsAsync(Guid id, CancellationToken cancellationToken)
         {
-            var i = await timing.GetInstallationsForFacility(id);
+            var i = await timing.InstallationAllAsync(id);
 
             return i.Select(i => new InstallationView
             {
