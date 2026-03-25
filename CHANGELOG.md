@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.49"></a>
+## [3.0.0-alpha.49](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.49) (2026-03-25)
+
+### Bug Fixes
+
+* Just use OpenAPI project reference.... ([b6e6189](https://www.github.com/asbjorjo/VeloTimer/commit/b6e6189bb82f7fb951fc716afcd8591c93cc31cf))
+
 <a name="3.0.0-alpha.48"></a>
 ## [3.0.0-alpha.48](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.48) (2026-03-25)
 
