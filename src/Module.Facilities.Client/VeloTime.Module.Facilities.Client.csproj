@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
-	<Version>3.0.0-alpha.48</Version>
+	<Version>3.0.0-alpha.49</Version>
   </PropertyGroup>
   <ItemGroup>
 	<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
@@ -18,6 +18,6 @@
   <ItemGroup>
 	<OpenApiProjectReference Include="..\Module.Facilities.Api\VeloTime.Module.Facilities.Api.csproj" CodeGenerator="NSwagCSharp" Namespace="VeloTime.Module.Facilities.Client" ClassName="FacilitiesClient">
 	  <Options>/UseBaseUrl:false /GenerateClientInterfaces:true</Options>
-	</OpenApiProjectReference >
+	</OpenApiProjectReference>
   </ItemGroup>
 </Project>
