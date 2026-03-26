@@ -21,7 +21,7 @@
 
   <ItemGroup>
 	<ProjectReference Include="..\Module.Common\VeloTime.Module.Common.csproj" />
-	<ProjectReference Include="..\Module.Facilities.Interface\VeloTime.Module.Facilities.Interface.csproj" />
+	<ProjectReference Include="..\Module.Facilities.Client\VeloTime.Module.Facilities.Client.csproj" />
     <ProjectReference Include="..\Module.Statistics.Interface\VeloTime.Module.Statistics.Interface.csproj" />
     <ProjectReference Include="..\Module.Timing.Interface\VeloTime.Module.Timing.Interface.csproj" />
   </ItemGroup>

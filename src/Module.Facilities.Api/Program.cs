@@ -7,7 +7,6 @@ builder.AddServiceDefaults();
 builder.AddModuleAuthentication();
 
 builder.Services.AddHttpForwarderWithServiceDiscovery();
-builder.Services.AddFacilitiesClient();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {

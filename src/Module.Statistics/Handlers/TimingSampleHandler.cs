@@ -2,8 +2,7 @@
 using Microsoft.Extensions.Logging;
 using SlimMessageBus;
 using System.Diagnostics;
-using VeloTime.Module.Facilities.Interface.Client;
-using VeloTime.Module.Facilities.Interface.Data;
+using VeloTime.Module.Facilities.Client;
 using VeloTime.Module.Statistics.Interface.Messages;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Storage;
@@ -13,7 +12,7 @@ namespace VeloTime.Module.Statistics.Handlers;
 
 public class TimingSampleHandler(
     StatisticsDbContext storage,
-    IFacitiliesClient facilities,
+    IFacilitiesClient facilities,
     IMessageBus messageBus,
     Metrics metrics,
     ILogger<TimingSampleHandler> logger
@@ -25,7 +24,7 @@ public class TimingSampleHandler(
 
         activity?.SetTag("TransponderId", message.TransponderId);
 
-        CoursePointDistance distance = await facilities.DistanceBetweenTimingPoints(message.TimingPointStart, message.TimingPointEnd);
+        CoursePointDistance distance = await facilities.Distance2Async(message.TimingPointStart, message.TimingPointEnd, cancellationToken: cancellationToken);
         
         Sample sample = new()
         {
