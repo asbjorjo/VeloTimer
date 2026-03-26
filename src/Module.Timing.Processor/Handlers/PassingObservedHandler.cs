@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Caching.Memory;
-using SlimMessageBus;
+﻿using SlimMessageBus;
 using System.Diagnostics;
 using VeloTime.Agent.Interface.Messages.Events;
 using VeloTime.Module.Timing.Interface.Messages;

@@ -30,12 +30,6 @@ public static class StartupExtensions
             metrics.AddMeter("VeloTime.Module.Statistics");
         });
 
-        //services.AddDbContext<StatisticsDbContext>(options =>
-        //{
-        //    options.UseNpgsql(configuration.GetConnectionString("StatisticsDbConnection"));
-        //    options.UseSnakeCaseNamingConvention();
-        //});
-
         builder.AddModuleStorage<StatisticsDbContext>(connectionName: "velotimedb");
 
         services.AddTransient<StatisticsService>();
