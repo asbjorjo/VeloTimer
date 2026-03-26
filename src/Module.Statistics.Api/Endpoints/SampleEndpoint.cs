@@ -8,7 +8,7 @@ using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Storage;
 
-namespace VeloTime.Module.Statistics.Endpoints;
+namespace VeloTime.Module.Statistics.Api.Endpoints;
 
 internal static class SampleEndpoint
 {

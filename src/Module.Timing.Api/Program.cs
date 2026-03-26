@@ -1,4 +1,5 @@
 using VeloTime.Module.Timing;
+using VeloTime.Module.Timing.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,7 @@ builder.AddModuleTiming();
 var app = builder.Build();
 
 app.MapDefaultEndpoints();
+app.MapTimingEndpoints();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

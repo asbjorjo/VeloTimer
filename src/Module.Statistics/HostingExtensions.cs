@@ -1,12 +1,8 @@
 ﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
-using VeloTime.Module.Statistics.Endpoints;
 using VeloTime.Module.Statistics.Service;
 using VeloTime.Module.Statistics.Storage;
 
@@ -44,8 +40,5 @@ public static class StartupExtensions
 
     public static void UseModuleStatistics(this WebApplication app)
     {
-        var statistics = app.MapGroup("/api/statistics").WithTags(["Statistics"]);
-
-        statistics.MapSampleEndpoints();
     }
 }

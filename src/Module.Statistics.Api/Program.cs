@@ -1,4 +1,5 @@
 using VeloTime.Module.Statistics;
+using VeloTime.Module.Statistics.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +21,7 @@ builder.AddModuleStatistics();
 var app = builder.Build();
 
 app.MapDefaultEndpoints();
+app.MapStatisticsEndpoints();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

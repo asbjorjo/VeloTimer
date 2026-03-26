@@ -6,9 +6,9 @@ using VeloTime.Module.Facilities.Storage;
 
 namespace VeloTime.Module.Facilities.Service;
 
-internal class FacilitiesService(FacilityDbContext storage, HybridCache cache)
+public class FacilitiesService(FacilityDbContext storage, HybridCache cache)
 {
-    internal async Task<CourseLayout> CreateCourseLayout(CourseLayout Layout)
+    public async Task<CourseLayout> CreateCourseLayout(CourseLayout Layout)
     {
         using var activity = Instrumentation.Source.StartActivity("CreateCourseLayout");
         storage.Set<CourseLayout>().Add(Layout);
@@ -18,7 +18,7 @@ internal class FacilitiesService(FacilityDbContext storage, HybridCache cache)
         return Layout;
     }
 
-    internal async Task<Facility?> FacilityByCoursePoint(Guid CoursePointId, CancellationToken cancellationToken = default)
+    public async Task<Facility?> FacilityByCoursePoint(Guid CoursePointId, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("FacilityByCoursePoint");
         activity?.SetTag("CoursePointId", CoursePointId);
@@ -35,7 +35,7 @@ internal class FacilitiesService(FacilityDbContext storage, HybridCache cache)
         return facility;
     }
 
-    internal async Task<CoursePoint?> GetCoursePointById(Guid CoursePointId, CancellationToken cancellationToken = default)
+    public async Task<CoursePoint?> GetCoursePointById(Guid CoursePointId, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("GetCoursePointById");
         activity?.SetTag("CoursePointId", CoursePointId);
@@ -48,7 +48,7 @@ internal class FacilitiesService(FacilityDbContext storage, HybridCache cache)
         return coursePoint;
     }
 
-    internal async Task<IEnumerable<CourseSegment>> GetSegmentsBetweenCoursePoints(CoursePoint start, CoursePoint end, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<CourseSegment>> GetSegmentsBetweenCoursePoints(CoursePoint start, CoursePoint end, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("GetSegmentsBetweenCoursePoints");
 
@@ -66,7 +66,7 @@ internal class FacilitiesService(FacilityDbContext storage, HybridCache cache)
             cancellationToken: cancellationToken);
     }
 
-    internal async Task<double> CalculateDistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
+    public async Task<double> CalculateDistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("CalculateDistanceBetweenCoursePoints");
         var segments = await GetSegmentsBetweenCoursePoints(Start, End, cancellationToken);
@@ -93,7 +93,7 @@ internal class FacilitiesService(FacilityDbContext storage, HybridCache cache)
         }
     }
 
-    internal async Task<double> DistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
+    public async Task<double> DistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("DistanceBetweenCoursePoints");
 
@@ -109,7 +109,7 @@ internal class FacilitiesService(FacilityDbContext storage, HybridCache cache)
 
         return distance;
     }
-    internal async Task<double> DistanceBetweenTimingPoints(Guid Start, Guid End, CancellationToken cancellationToken = default)
+    public async Task<double> DistanceBetweenTimingPoints(Guid Start, Guid End, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("DistanceBetweenTimingPoints");
 
@@ -130,7 +130,7 @@ internal class FacilitiesService(FacilityDbContext storage, HybridCache cache)
         }
     }
 
-    internal async Task<CoursePoint> FindCoursePointByTimingPointId(Guid TimingPoint, CancellationToken cancellationToken = default)
+    public async Task<CoursePoint> FindCoursePointByTimingPointId(Guid TimingPoint, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("FindCoursePointByTimingPointId");
         activity?.SetTag("TimingPointId", TimingPoint);

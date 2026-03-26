@@ -1,13 +1,10 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Routing;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using VeloTime.Module.Facilities.Interface.Data;
 using VeloTime.Module.Facilities.Model;
 using VeloTime.Module.Facilities.Storage;
 
-namespace VeloTime.Module.Facilities.Endpoints;
+namespace VeloTime.Module.Facilities.Api.Endpoints;
 
 internal static class FacilityEndpoints
 {

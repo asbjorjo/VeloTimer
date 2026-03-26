@@ -1,11 +1,8 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
+﻿using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
-using VeloTime.Module.Facilities.Endpoints;
 using VeloTime.Module.Facilities.Service;
 using VeloTime.Module.Facilities.Storage;
 
@@ -40,10 +37,5 @@ public static class StartupExtensions
 
     public static void UseModuleFacilities(this IEndpointRouteBuilder app)
     {
-        var facilities = app.MapGroup("/api/facilities").WithTags(["Facilities"]);
-
-        facilities.MapCourseLayoutEndpoints();
-        facilities.MapCoursePointEndpoints();
-        facilities.MapFacilityEndpoints();
     }
 }

@@ -1,13 +1,8 @@
-﻿using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Routing;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
-using VeloTime.Module.Timing.Endpoints;
 using VeloTime.Module.Timing.Service;
 using VeloTime.Module.Timing.Storage;
 
@@ -43,10 +38,5 @@ public static class StartupExtensions
 
     public static void UseModuleTiming(this IEndpointRouteBuilder app)
     {
-        var timing = app.MapGroup("/api/timing")
-            .WithTags(["Timing"]);
-
-        timing.MapInstallationEndpoints();
-        timing.MapSampleEndpoints();
     }
 }
