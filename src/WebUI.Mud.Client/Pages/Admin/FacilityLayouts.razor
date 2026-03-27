@@ -1,0 +1,64 @@
+﻿@page "/admin/facilities/{FacilityId:guid}/layouts"
+@using VeloTime.WebUI.Mud.Client.Services
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@inject IFacilityService FacilityService
+
+<PageTitle>Course Layout Management</PageTitle>
+
+<MudTable ServerData="@LoadLayouts" T="CourseLayoutView" OnRowClick="ToggleLayout">
+    <HeaderContent>
+        <MudTh>Segments</MudTh>
+        <MudTh>Length (m)</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Segments">@context.Segments.Count()</MudTd>
+        <MudTd DataLabel="Length">@context.Segments.Sum(s => s.Distance)</MudTd>
+        <MudTd><MudButton Variant="Variant.Outlined" Href="@($"/admin/facilities/{FacilityId}/layouts/{context.Id}")">Details</MudButton></MudTd>
+    </RowTemplate>
+    <ChildRowContent>
+        @if (context.IsSelected)
+        {
+            <MudTr>
+                <MudTd ColSpan="3">
+                    <MudTable Items="@context.Segments" Context="Segment">
+                        <HeaderContent>
+                            <MudTh>Order</MudTh>
+                            <MudTh>Name</MudTh>
+                            <MudTh>Distance</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="Orderr">@Segment.Order</MudTd>
+                            <MudTd DataLabel="Name">@Segment.Name</MudTd>
+                            <MudTd DataLabel="Distance">@Segment.Distance</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudTd>
+            </MudTr>
+        }
+    </ChildRowContent>
+</MudTable>
+
+@code {
+    [Parameter] public Guid FacilityId { get; set; }
+
+    private async Task<TableData<CourseLayoutView>> LoadLayouts(TableState state, CancellationToken token)
+    {
+        var layouts = await FacilityService.GetFacilityLayoutsAsync(FacilityId, token);
+
+        return new TableData<CourseLayoutView>
+        {
+            Items = layouts.ToList(),
+            TotalItems = layouts.Count()
+        };
+    }
+
+    private async Task ToggleLayout(TableRowClickEventArgs<CourseLayoutView> args)
+    {
+        var layout = args.Item;
+
+        if (layout == null) return;
+
+        layout!.IsSelected = !layout.IsSelected;
+    }
+}

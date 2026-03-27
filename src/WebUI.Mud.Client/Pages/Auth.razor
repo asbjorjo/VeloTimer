@@ -1,0 +1,33 @@
+﻿@page "/auth"
+
+@using Microsoft.AspNetCore.Authorization
+
+@inject IProfileService Profile
+
+@attribute [Authorize]
+
+<PageTitle>Auth</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">You are authenticated</MudText>
+
+<AuthorizeView>
+    <MudText Class="mb-4">Hello @context.User.Identity?.Name!</MudText>
+    <MudText>
+        @if (string.IsNullOrWhiteSpace(username))
+        {
+            <MudSkeleton />
+        } else
+        {
+            @username
+        }
+    </MudText>
+</AuthorizeView>
+
+@code {
+    private string username = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        username = await Profile.GetUsernameAsync();
+    }
+}

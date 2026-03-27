@@ -1,0 +1,47 @@
+﻿@page "/admin/facilities/{FacilityId:guid}/layouts/{LayoutId:guid}"
+@using VeloTime.WebUI.Mud.Client.Services
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@inject IFacilityService FacilityService
+
+<PageTitle>Course Layout Management</PageTitle>
+
+@if (Layout is null)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+}
+else
+{
+    <MudPaper Class="pa-4">
+        <MudText Typo="Typo.h5">Layout Details</MudText>
+        <MudDivider Class="my-2" />
+        <MudText><strong>Segments:</strong> @Layout.Segments.Count()</MudText>
+        <MudText><strong>Total Length (m):</strong> @Layout.Segments.Sum(s => s.Distance)</MudText>
+        <MudDivider Class="my-2"/>
+        <MudText Typo="Typo.h6">Segments</MudText>
+        <MudTable Items="@Layout.Segments" T="SegmentDetailView" Context="Segment">
+            <HeaderContent>
+                <MudTh>Order</MudTh>
+                <MudTh>Start</MudTh>
+                <MudTh>End</MudTh>
+                <MudTh>Distance (m)</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Order">@Segment.Order</MudTd>
+                <MudTd DataLabel="Start">@Segment.StartPoint.Name</MudTd>
+                <MudTd DataLabel="End">@Segment.EndPoint.Name</MudTd>
+                <MudTd DataLabel="Distance">@Segment.Distance</MudTd>
+            </RowTemplate>
+        </MudTable>
+   </MudPaper>
+}
+
+@code {
+    [Parameter] public Guid FacilityId { get; set; }
+    [Parameter] public Guid LayoutId { get; set; }
+    private CourseLayoutDetailView? Layout;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Layout = await FacilityService.GetCourseLayoutDetailAsync(LayoutId);
+    }
+}

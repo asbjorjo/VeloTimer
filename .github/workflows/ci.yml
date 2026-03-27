@@ -42,3 +42,4 @@ jobs:
 
     - name: Coveralls
       uses: coverallsapp/github-action@v2
+      continue-on-error: true

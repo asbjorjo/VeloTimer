@@ -1,0 +1,25 @@
+﻿@inherits ComponentBase
+
+<MudCard>
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText>
+                <MudSkeleton />
+            </MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudList T="string" ReadOnly="true">
+            <MudListItem Icon="@Icons.Material.Filled.OnlinePrediction" IconColor="Color.Error">
+                <MudText>
+                    <MudSkeleton />
+                </MudText>
+            </MudListItem>
+            <MudListItem Icon="@Icons.Material.Filled.People">
+                <MudText>
+                    <MudSkeleton />
+                </MudText>
+            </MudListItem>
+        </MudList>
+    </MudCardContent>
+</MudCard>

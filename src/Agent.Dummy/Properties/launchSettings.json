@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "VeloTime.Agent.Dummy": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    },
+    "Container (.NET SDK)": {
+      "commandName": "SdkContainer"
+    }
+  }
+}

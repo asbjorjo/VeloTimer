@@ -3,7 +3,7 @@ name: 'GitHub Release'
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ['Publish to Nuget']
+    workflows: ['Publish']
     types:
       - completed
 

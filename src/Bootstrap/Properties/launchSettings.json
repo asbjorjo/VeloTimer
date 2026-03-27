@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "VeloTime.Bootstrap": {
+      "commandName": "Project"
+    },
+    "Container (.NET SDK)": {
+      "commandName": "SdkContainer"
+    }
+  }
+}

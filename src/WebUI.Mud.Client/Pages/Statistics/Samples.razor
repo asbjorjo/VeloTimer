@@ -1,0 +1,63 @@
+﻿@page "/statistcs/samples"
+@using Microsoft.AspNetCore.Authorization
+@using VeloTime.WebUI.Mud.Client.Services
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@* @rendermode InteractiveWebAssembly *@
+@inject IStatisticsService Client
+
+@* @attribute [Authorize] *@
+
+<PageTitle>Samples</PageTitle>
+
+@if (samples is null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Transponder</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Distance</th>
+                <th>Duration</th>
+                <th>Speed</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var sample in samples)
+            {
+                <tr>
+                    <td>@sample.Time.ToString("u")</td>
+                    <td>@sample.TransponderLabel</td>
+                    <td>@sample.StartPoint</td>
+                    <td>@sample.EndPoint</td>
+                    <td>@sample.Distance</td>
+                    <td>@sample.Duration.TotalSeconds</td>
+                    <td>@sample.Speed</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+
+@code {
+    private IEnumerable<SampleView>? samples;
+
+    const int PageSize = 10;
+
+    [SupplyParameterFromQuery]
+    public DateTime? Cursor { get; set; }
+
+    [SupplyParameterFromQuery]
+    public bool? IsNextPage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        samples = await Client.GetSamplesAsync(Cursor, IsNextPage ?? false, PageSize);
+    }
+}

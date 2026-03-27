@@ -1,0 +1,21 @@
+﻿@page "/"
+@using VeloTime.WebUI.Mud.Client.Components
+
+<MudGrid Spacing="12">
+    <MudItem xs="3">
+        <MudText Typo="Typo.h5">Status</MudText>
+        <FacilityStatus />
+        <FacilityStatus />
+    </MudItem>
+    <MudItem xs="6">
+        <MudText Typo="Typo.h5">Tider</MudText>
+        <MudGrid>
+            <MudItem xs="12">
+                <PeriodLeaders />
+            </MudItem>
+            <MudItem xs="12">
+                <PeriodLeaders />
+            </MudItem>
+        </MudGrid>
+    </MudItem>
+</MudGrid>

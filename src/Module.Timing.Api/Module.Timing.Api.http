@@ -1,0 +1,6 @@
+@Module.Timing.Api_HostAddress = http://localhost:5063
+
+GET {{Module.Timing.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
