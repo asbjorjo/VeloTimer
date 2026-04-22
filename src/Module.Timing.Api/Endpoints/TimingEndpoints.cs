@@ -9,6 +9,5 @@ internal static class TimingEndpoints
 
         timing.MapInstallationEndpoints();
         timing.MapSampleEndpoints();
-
     }
 }

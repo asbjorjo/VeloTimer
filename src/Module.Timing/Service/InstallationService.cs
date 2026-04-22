@@ -12,6 +12,11 @@ public class InstallationService (TimingDbContext storage, HybridCache cache)
     private static readonly SemaphoreSlim timingPointSemaphore = new(1, 1);
     private static readonly SemaphoreSlim transponderSemaphore = new(1, 1);
 
+    public async Task<IEnumerable<Installation>> GetAllInstallations(CancellationToken cancellationToken = default)
+    {
+        return await storage.Set<Installation>().AsNoTracking().ToListAsync(cancellationToken: cancellationToken);
+    }
+
     public async Task<Installation> CreateInstallationForAgent(string agentId, TimingSystem timingSystem = TimingSystem.Unknown, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("FindOrCreateInstallationForAgent");

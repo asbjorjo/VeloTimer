@@ -9,6 +9,26 @@ namespace VeloTime.Module.Timing.Model
         public virtual TimingSystem System { get; } = TimingSystem.Unknown;
         public string SystemId { get; init; }
         public string Label { get; set; }
+        public ICollection<TransponderOwner> Owners { get; set; } = new List<TransponderOwner>();
+
+        public void AddOwner(Guid OwnerId, DateTime OwnedFrom, DateTime? OwnedTo = null)
+        {
+            if (OwnerId == Guid.Empty) throw new ArgumentException(nameof(OwnerId), "Cannot be empty.");
+            if (OwnedTo != null && OwnedTo <= OwnedFrom) throw new ArgumentException(nameof(OwnedTo), "Must be greater than OwnedFrom.");
+
+            var existing = Owners.Where(o => o.OwnedTo is null || o.OwnedTo > OwnedFrom);
+            if (OwnedTo.HasValue)
+            {
+                existing = existing.Where(o => o.OwnedFrom <= OwnedTo);
+            }
+         
+            if (existing.Any(o => o.OwnerId != OwnerId))
+            {
+                throw new InvalidOperationException($"Transponder {Label} already registered.");
+            }
+
+            Owners.Add(new TransponderOwner { TransponderId = Id, OwnerId = OwnerId, OwnedFrom = OwnedFrom, OwnedTo = OwnedTo });
+        }
     }
 
     public class MylapsX2Transponder : Transponder

@@ -59,6 +59,15 @@ public class TimingDbContext : BaseDbContext
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(s => new { s.StartId, s.EndId }).IsUnique();
         });
+        modelBuilder.Entity<TransponderOwner>(e =>
+        {
+            e.HasKey(t => new { t.TransponderId, t.OwnerId });
+            e.HasOne(t => t.Transponder)
+                .WithMany(t => t.Owners)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.Property(t => t.OwnedFrom)
+                .IsRequired();
+        });
 
         base.OnModelCreating(modelBuilder);
     }

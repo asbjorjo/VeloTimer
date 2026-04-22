@@ -15,4 +15,14 @@ public class TimingHttpService(HttpClient httpClient) : ITimingService
 
         return await httpClient.GetFromJsonAsync<InstallationView>(url, cancellationToken: cancellationToken);
     }
+
+    public Task<IEnumerable<AgentView>> GetAgentsAsync(CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<AgentView> GetAgentAsync(Guid Id, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
 }

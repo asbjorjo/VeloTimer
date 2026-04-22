@@ -12,7 +12,7 @@ internal static class InstallationEndpoints
 {
     internal static void MapInstallationEndpoints(this IEndpointRouteBuilder builder)
     {
-        var installations = builder.MapGroup("/installation");
+        var installations = builder.MapGroup("/installations");
 
         installations.MapGet("", ListInstallations);
         installations.MapGet("{id}", GetInstallationById);
@@ -69,7 +69,7 @@ internal static class InstallationEndpoints
         
         await storage.SaveChangesAsync();
         
-        return TypedResults.Created($"/api/timing/installation/{installationData.Id}", installation.ToDto());
+        return TypedResults.Created($"/api/timing/installations/{installationData.Id}", installation.ToDto());
     }
 
     static async Task<Results<Ok, NotFound>> UpdateInstallation(Guid id, InstallationDTO installationData, TimingDbContext storage)
