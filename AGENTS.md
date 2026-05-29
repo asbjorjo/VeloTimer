@@ -122,7 +122,7 @@ Each **domain service** (e.g., Timing, Facilities, Statistics) consists of:
 public static IHostApplicationBuilder AddModule{Domain}(this IHostApplicationBuilder builder)
 {
     var services = builder.Services;
-    
+
     services.ConfigureOpenTelemetryTracerProvider(tracer =>
         tracer.AddSource("VeloTime.Module.{Domain}"));
     services.ConfigureOpenTelemetryMeterProvider(metrics =>
@@ -198,3 +198,6 @@ await app.RunAsync();
 ```
 
 The `VELOTIME_AGENT` environment variable **must** be set — it is injected as the `AgentId` header on every outbound message so downstream processors can correlate events to a specific installation.
+
+## General Guidelines
+- Use generic `AGENTS.md` instructions instead of `.github/copilot-instructions.md` for this repository.
