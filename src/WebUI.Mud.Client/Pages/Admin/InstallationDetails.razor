@@ -1,0 +1,194 @@
+@page "/admin/installations/{InstallationId:guid}"
+@attribute [Authorize]
+@inject ITimingService TimingService
+@inject IFacilityService FacilityService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Installation Details</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Installation Details</MudText>
+
+@if (_isLoading)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Severity="Severity.Error">@_error</MudAlert>
+}
+else if (_selectedInstallation is not null)
+{
+    <MudPaper Class="pa-4" Elevation="1">
+        <MudStack Spacing="3">
+            <MudText Typo="Typo.h6">Installation Information</MudText>
+
+            <MudTextField T="string"
+                          Label="Agent ID"
+                          Value="@_selectedInstallation.AgentId"
+                          ReadOnly="true"
+                          Variant="Variant.Outlined" />
+
+            <MudSelect T="Guid"
+                       Label="Facility"
+                       @bind-Value="_selectedInstallation.FacilityId"
+                       Variant="Variant.Outlined"
+                       Required="true">
+                @foreach (var facility in _facilities)
+                {
+                    <MudSelectItem T="Guid" Value="@facility.Id">@facility.Name</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudSelect T="string"
+                       Label="Timing System"
+                       @bind-Value="_selectedInstallation.TimingSystem"
+                       Variant="Variant.Outlined"
+                       Required="true">
+                @foreach (var system in _timingSystems)
+                {
+                    <MudSelectItem T="string" Value="@system">@system</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudTextField T="string"
+                          Label="Description"
+                          @bind-Value="_selectedInstallation.Description"
+                          Variant="Variant.Outlined"
+                          Lines="3" />
+
+            <MudDivider />
+
+            <MudText Typo="Typo.h6">Timing Points (@_selectedInstallation.TimingPoints.Count())</MudText>
+
+            @if (_selectedInstallation.TimingPoints.Any())
+            {
+                <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                    <thead>
+                        <tr>
+                            <th>System ID</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var tp in _selectedInstallation.TimingPoints)
+                        {
+                            <tr>
+                                <td>@tp.SystemId</td>
+                                <td>@tp.Description</td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info">No timing points configured for this installation.</MudAlert>
+            }
+
+            <MudDivider />
+
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           OnClick="SaveAsync"
+                           Disabled="_isSaving">
+                    @if (_isSaving)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Saving...</MudText>
+                    }
+                    else
+                    {
+                        <text>Save</text>
+                    }
+                </MudButton>
+                <MudButton Variant="Variant.Text"
+                           OnClick="BackToList"
+                           Disabled="_isSaving">
+                    Cancel
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    [Parameter]
+    public Guid InstallationId { get; set; }
+
+    private InstallationView? _selectedInstallation;
+    private List<FacilityView> _facilities = [];
+    private readonly string[] _timingSystems = ["Unknown", "MyLaps_X2"];
+    private bool _isLoading = true;
+    private bool _isSaving = false;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            var facilitiesTask = FacilityService.GetFacilitiesAsync();
+            var installationTask = TimingService.GetInstallationAsync(InstallationId);
+
+            await Task.WhenAll(facilitiesTask, installationTask);
+
+            _facilities = (await facilitiesTask).ToList();
+            _selectedInstallation = await installationTask;
+
+            if (_selectedInstallation is null)
+            {
+                _error = "Installation not found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Failed to load installation details: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_selectedInstallation is null)
+        {
+            return;
+        }
+
+        if (_selectedInstallation.FacilityId == Guid.Empty)
+        {
+            Snackbar.Add("Please select a facility.", Severity.Error);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_selectedInstallation.TimingSystem))
+        {
+            Snackbar.Add("Please select a timing system.", Severity.Error);
+            return;
+        }
+
+        _isSaving = true;
+        try
+        {
+            await TimingService.UpdateInstallationAsync(_selectedInstallation);
+            Snackbar.Add("Installation saved successfully.", Severity.Success);
+            NavigationManager.NavigateTo("/admin/installations");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save installation: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void BackToList() => NavigationManager.NavigateTo("/admin/installations");
+}

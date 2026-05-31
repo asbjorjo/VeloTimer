@@ -53,6 +53,7 @@ internal static class InstallationEndpoints
         Installation installation = new()
         {
             Id = installationData.Id,
+            Facility = installationData.FacilityId,
             AgentId = installationData.AgentId,
             Description = installationData.Description,
             TimingSystem = installationData.TimingSystem.ToModel()
@@ -66,9 +67,9 @@ internal static class InstallationEndpoints
         }).ToList();
         installation.TimingPoints.AddRange(timingPoints);
         await storage.AddAsync(installation);
-        
+
         await storage.SaveChangesAsync();
-        
+
         return TypedResults.Created($"/api/timing/installations/{installationData.Id}", installation.ToDto());
     }
 
@@ -77,13 +78,14 @@ internal static class InstallationEndpoints
         var installation = await storage.Set<Installation>()
             .Include(i => i.TimingPoints)
             .FirstOrDefaultAsync(i => i.Id == id);
-        
+
         if (installation == null)
         {
             return TypedResults.NotFound();
         }
+        installation.Facility = installationData.FacilityId;
         installation.Description = installationData.Description;
- 
+
         await storage.SaveChangesAsync();
 
         return TypedResults.Ok();

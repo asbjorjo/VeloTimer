@@ -6,7 +6,7 @@ using VeloTime.Module.Timing.Service;
 
 namespace VeloTime.Module.Timing.Handlers;
 
-public class PassingObservedHandler(IAgentService agentService, IMessageBus messageBus) : IConsumer<PassingEvent>, IConsumerWithContext
+public class PassingObservedHandler(IAgentService agentService, InstallationService installationService, IMessageBus messageBus) : IConsumer<PassingEvent>, IConsumerWithContext
 {
     public required IConsumerContext Context { get; set; }
 
@@ -52,8 +52,13 @@ public class PassingObservedHandler(IAgentService agentService, IMessageBus mess
                 TimingPointEnd: sample.End.TimingPointId
                 ), cancellationToken: cancellationToken);
         }
-        
-        
+
+        var installation = await installationService.GetInstallationForAgent(AgentId, cancellationToken);
+        if (installation is not null)
+        {
+            await installationService.UpdateLastSeenAsync(installation, message.Time, cancellationToken);
+        }
+
         activity?.SetStatus(ActivityStatusCode.Ok);
     }
 }

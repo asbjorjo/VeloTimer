@@ -3,6 +3,8 @@
 public class InstallationView
 {
     public Guid Id { get; init; }
+    public Guid FacilityId { get; set; }
+    public string FacilityName { get; set; } = string.Empty;
     public string AgentId { get; set; } = string.Empty;
     public string TimingSystem { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;

@@ -3,23 +3,23 @@
 <MudCard>
     <MudCardHeader>
         <CardHeaderContent>
-            <MudText>
-                <MudSkeleton />
-            </MudText>
+            <MudText Typo="Typo.h6">@Status.FacilityName</MudText>
         </CardHeaderContent>
     </MudCardHeader>
     <MudCardContent>
         <MudList T="string" ReadOnly="true">
-            <MudListItem Icon="@Icons.Material.Filled.OnlinePrediction" IconColor="Color.Error">
-                <MudText>
-                    <MudSkeleton />
-                </MudText>
+            <MudListItem Icon="@Icons.Material.Filled.OnlinePrediction"
+                         IconColor="@(Status.IsOnline ? Color.Success : Color.Error)">
+                <MudText>@(Status.IsOnline ? "Online" : "Offline")</MudText>
             </MudListItem>
             <MudListItem Icon="@Icons.Material.Filled.People">
-                <MudText>
-                    <MudSkeleton />
-                </MudText>
+                <MudText>@Status.PeopleCount people</MudText>
             </MudListItem>
         </MudList>
     </MudCardContent>
 </MudCard>
+
+@code {
+    [Parameter, EditorRequired]
+    public FacilityStatusViewModel Status { get; set; } = default!;
+}

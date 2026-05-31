@@ -59,5 +59,6 @@ public class InstallationLayoutHandler(InstallationService installationService, 
         }
 
         await storage.SaveChangesAsync(cancellationToken: cancellationToken);
+        await installationService.UpdateLastSeenAsync(installation, DateTime.UtcNow, cancellationToken);
     }
 }

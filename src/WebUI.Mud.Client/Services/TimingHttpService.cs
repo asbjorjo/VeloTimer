@@ -6,23 +6,21 @@ public class TimingHttpService(HttpClient httpClient) : ITimingService
     {
         var url = $"/api/timing/installations";
 
-        return await httpClient.GetFromJsonAsync<IEnumerable<InstallationView>>(url) ?? Enumerable.Empty<InstallationView>(); ;
+        return await httpClient.GetFromJsonAsync<IEnumerable<InstallationView>>(url, cancellationToken) ?? Enumerable.Empty<InstallationView>();
     }
 
     public async Task<InstallationView> GetInstallationAsync(Guid Id, CancellationToken cancellationToken)
     {
         var url = $"/api/timing/installations/{Id}";
 
-        return await httpClient.GetFromJsonAsync<InstallationView>(url, cancellationToken: cancellationToken);
+        return await httpClient.GetFromJsonAsync<InstallationView>(url, cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException("Installation not found.");
     }
 
-    public Task<IEnumerable<AgentView>> GetAgentsAsync(CancellationToken cancellationToken = default)
+    public async Task UpdateInstallationAsync(InstallationView installation, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
-    }
-
-    public Task<AgentView> GetAgentAsync(Guid Id, CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
+        var url = $"/api/timing/installations/{installation.Id}";
+        var response = await httpClient.PutAsJsonAsync(url, installation, cancellationToken);
+        response.EnsureSuccessStatusCode();
     }
 }

@@ -4,8 +4,8 @@
 <MudGrid Spacing="12">
     <MudItem xs="3">
         <MudText Typo="Typo.h5">Status</MudText>
-        <FacilityStatus />
-        <FacilityStatus />
+        <FacilityStatus Status="@SolaStatus" />
+        <FacilityStatus Status="@AskerStatus" />
     </MudItem>
     <MudItem xs="6">
         <MudText Typo="Typo.h5">Tider</MudText>
@@ -19,3 +19,11 @@
         </MudGrid>
     </MudItem>
 </MudGrid>
+
+@code {
+    private static readonly FacilityStatusViewModel SolaStatus =
+        new("Sola", false, 0);
+
+    private static readonly FacilityStatusViewModel AskerStatus =
+        new("Asker", true, 18);
+}

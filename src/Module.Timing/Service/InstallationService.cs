@@ -188,4 +188,12 @@ public class InstallationService (TimingDbContext storage, HybridCache cache)
                 p.Transponder == transponder
                 && p.TimingPoint.Installation == installation, cancellationToken: cancellationToken);
     }
+
+    public async Task UpdateLastSeenAsync(Installation installation, DateTime timestamp, CancellationToken cancellationToken = default)
+    {
+        installation.LastSeen = timestamp;
+        storage.Entry(installation).State = EntityState.Modified;
+        await storage.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync($"installation_{installation.AgentId}", cancellationToken);
+    }
 }

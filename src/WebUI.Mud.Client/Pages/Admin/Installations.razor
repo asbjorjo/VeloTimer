@@ -1,0 +1,84 @@
+﻿@page "/admin/installations"
+@attribute [Authorize]
+@inject ITimingService TimingService
+
+<PageTitle>Installation Management</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Installations</MudText>
+
+@if (_isLoading)
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+}
+else if (!string.IsNullOrWhiteSpace(_error))
+{
+    <MudAlert Severity="Severity.Error">@_error</MudAlert>
+}
+else
+{
+    <MudTable T="InstallationView" Items="_installations" Dense="true" Hover="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Online</MudTh>
+            <MudTh>Facility</MudTh>
+            <MudTh>System Type</MudTh>
+            <MudTh>Last Seen</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>
+                <MudChip Color="Color.Success"
+                         Variant="Variant.Filled"
+                         Size="Size.Small"
+                         T="string">
+                    Online
+                </MudChip>
+            </MudTd>
+            <MudTd>@GetFacility(context)</MudTd>
+            <MudTd>@GetSystemType(context)</MudTd>
+            <MudTd>@FormatLastSeen(null)</MudTd>
+            <MudTd Class="d-flex justify-end">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           Size="Size.Small"
+                           Href="@($"admin/installations/{context.Id}")">
+                    Manage Installation
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<InstallationView> _installations = [];
+    private bool _isLoading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _installations = (await TimingService.GetInstallationsAsync()).ToList();
+        }
+        catch
+        {
+            _error = "Failed to load installations.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string GetFacility(InstallationView installation)
+        => string.IsNullOrWhiteSpace(installation.FacilityName)
+            ? "-"
+            : installation.FacilityName;
+
+    private static string GetSystemType(InstallationView installation)
+        => string.IsNullOrWhiteSpace(installation.TimingSystem)
+            ? "-"
+            : installation.TimingSystem;
+
+    private static string FormatLastSeen(DateTimeOffset? lastSeen)
+        => lastSeen is null || lastSeen == default ? "-" : lastSeen.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+}

@@ -6,5 +6,6 @@ public class Installation {
     public required string AgentId { get; set; }
     public TimingSystem TimingSystem { get; set; } = TimingSystem.Unknown;
     public string Description { get; set; } = string.Empty;
+    public DateTime? LastSeen { get; set; }
     public List<TimingPoint> TimingPoints { get; init; } = new List<TimingPoint>();
 }
