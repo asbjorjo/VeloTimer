@@ -11,6 +11,17 @@ public class TestTransponder : Transponder
 public class TransponderTest
 {
     [Fact]
+    public void BaseType()
+    {
+        long Id = 106187718;
+        string Code = "HT-24422";
+
+        Transponder transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = Id.ToString() };
+        Assert.Equal(Id.ToString(), transponder.SystemId);
+        Assert.Equal(Code, transponder.Label);
+    }
+
+    [Fact]
     public void Code()
     {
         string Code = "HT-24422";

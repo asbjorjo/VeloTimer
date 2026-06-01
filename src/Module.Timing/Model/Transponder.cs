@@ -42,24 +42,19 @@ namespace VeloTime.Module.Timing.Model
 
         public required override string SystemId
         { 
-            get; 
-            init
-            {
-                field = value;
-                if (string.IsNullOrEmpty(Label) && !string.IsNullOrEmpty(value))
-                {
-                    Label = IdToCode(value);
-                }
-            }
+            get;
+            init;
         }
         public override string Label
         {
-            get;
+            get => string.IsNullOrEmpty(field) ? IdToCode(SystemId) : field;
             set => field = string.IsNullOrEmpty(value) ? IdToCode(SystemId) : value;
-        }
+        } = string.Empty;
 
         public static string IdToCode(string Id)
         {
+            if (string.IsNullOrEmpty(Id)) return string.Empty;
+
             if (long.TryParse(Id, out var numericId))
             {
                 return IdToCode(numericId);
