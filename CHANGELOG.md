@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.54"></a>
+## [3.0.0-alpha.54](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.54) (2026-06-01)
+
+### Bug Fixes
+
+* Check value not null or empty ([d3b4946](https://www.github.com/asbjorjo/VeloTimer/commit/d3b49463ac4093166b10f097eba68fb6a364dd42))
+* Move conversions to Label field ([b76ea8b](https://www.github.com/asbjorjo/VeloTimer/commit/b76ea8b9c73a8a14d8ddefa6182e002cbe8d4704))
+
 <a name="3.0.0-alpha.53"></a>
 ## [3.0.0-alpha.53](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.53) (2026-06-01)
 
