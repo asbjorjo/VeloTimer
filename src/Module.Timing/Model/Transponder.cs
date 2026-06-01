@@ -46,7 +46,7 @@ namespace VeloTime.Module.Timing.Model
             init
             {
                 field = value;
-                if (string.IsNullOrEmpty(Label))
+                if (string.IsNullOrEmpty(Label) && !string.IsNullOrEmpty(value))
                 {
                     Label = IdToCode(value);
                 }
