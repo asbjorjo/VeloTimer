@@ -46,7 +46,10 @@ namespace VeloTime.Module.Timing.Model
             init
             {
                 field = value;
-                Label = IdToCode(value);
+                if (string.IsNullOrEmpty(Label))
+                {
+                    Label = IdToCode(value);
+                }
             }
         }
         public override string Label
@@ -63,7 +66,7 @@ namespace VeloTime.Module.Timing.Model
             }
             else
             {
-                throw new ArgumentException(nameof(Id), "Must be a number.");
+                throw new ArgumentException(nameof(Id), $"Must be a number - {Id}");
             }
         }
 
@@ -72,7 +75,7 @@ namespace VeloTime.Module.Timing.Model
             string code = string.Empty;
 
             if (Id <= 0 || Id <= idOffset)
-                throw new ArgumentOutOfRangeException(nameof(Id), $"Must be a positive number greather than {idOffset}.");
+                throw new ArgumentOutOfRangeException(nameof(Id), $"Must be a positive number greather than {idOffset} - {Id}");
 
             if (Id > idOffset)
             {
