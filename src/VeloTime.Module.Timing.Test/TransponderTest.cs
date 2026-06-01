@@ -59,7 +59,7 @@ public class TransponderTest
     [Fact]
     public void AddOwner()
     {
-        Transponder transponder = new TestTransponder { Id = Guid.NewGuid(), Owners = [
+        Transponder transponder = new TestTransponder { Id = Guid.NewGuid(), SystemId = string.Empty, Owners = [
             new()
         {
             OwnerId = new("CE23797E-7BA8-4E50-AB76-3402CE9FE9D9"),
@@ -90,6 +90,7 @@ public class TransponderTest
         Transponder transponder = new TestTransponder
         {
             Id = Guid.NewGuid(),
+            SystemId = string.Empty,
             Owners = [
             new()
         {
@@ -128,6 +129,7 @@ public class TransponderTest
         Transponder transponder = new TestTransponder
         {
             Id = Guid.NewGuid(),
+            SystemId = string.Empty,
             Owners = [
             new()
         {

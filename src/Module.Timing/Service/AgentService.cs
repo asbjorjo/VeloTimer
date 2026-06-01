@@ -22,7 +22,7 @@ public class AgentService(InstallationService installationService, HybridCache c
 
         var transponder =
             await installationService.GetTransponder(transponderId, installation.TimingSystem, cancellationToken: cancellationToken) ??
-            await installationService.RegisterTransponder(new MylapsX2Transponder(transponderId), cancellationToken: cancellationToken);
+            await installationService.RegisterTransponder(new MylapsX2Transponder() { SystemId = transponderId }, cancellationToken: cancellationToken);
 
         Passing? passing = await storage.Set<Passing>()
             .Include(p => p.TimingPoint)

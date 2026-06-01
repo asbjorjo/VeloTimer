@@ -7,8 +7,8 @@ namespace VeloTime.Module.Timing.Model
     {
         public Guid Id { get; init; }
         public virtual TimingSystem System { get; } = TimingSystem.Unknown;
-        public string SystemId { get; init; }
-        public string Label { get; set; }
+        public required virtual string SystemId { get; init; }
+        public virtual string Label { get; set; } = string.Empty;
         public ICollection<TransponderOwner> Owners { get; set; } = new List<TransponderOwner>();
 
         public void AddOwner(Guid OwnerId, DateTime OwnedFrom, DateTime? OwnedTo = null)
@@ -40,10 +40,19 @@ namespace VeloTime.Module.Timing.Model
 
         public override TimingSystem System { get; } = TimingSystem.MyLaps_X2;
 
-        public MylapsX2Transponder(string SystemId)
+        public required override string SystemId
+        { 
+            get; 
+            init
+            {
+                field = value;
+                Label = IdToCode(value);
+            }
+        }
+        public override string Label
         {
-            this.SystemId = SystemId;
-            Label = IdToCode(SystemId);
+            get;
+            set => field = string.IsNullOrEmpty(value) ? IdToCode(SystemId) : value;
         }
 
         public static string IdToCode(string Id)
