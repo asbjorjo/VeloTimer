@@ -42,7 +42,7 @@ public class TimingService(ITimingClient timing, IFacilitiesClient facilities) :
             FacilityName = facilitiesById.GetValueOrDefault(installation.FacilityId, string.Empty),
             AgentId = installation.AgentId,
             TimingSystem = installation.TimingSystem.Name,
-            LastSeen = installation.LastSeen,
+            LastSeen = installation.LastSeen?.UtcDateTime,
             Description = installation.Description,
             TimingPoints = installation.TimingPoints.Select(tp => new TimingPointView
             {
