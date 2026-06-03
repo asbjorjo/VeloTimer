@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.55"></a>
+## [3.0.0-alpha.55](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.55) (2026-06-03)
+
+### Bug Fixes
+
+* Expose installation last seen time in API ([fdbc09e](https://www.github.com/asbjorjo/VeloTimer/commit/fdbc09e22cb3db14f26e7927b543ee91f9853355))
+* Use ([986cfea](https://www.github.com/asbjorjo/VeloTimer/commit/986cfea9d41583db70452bdcfddba12840322fe2))
+
 <a name="3.0.0-alpha.54"></a>
 ## [3.0.0-alpha.54](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.54) (2026-06-01)
 

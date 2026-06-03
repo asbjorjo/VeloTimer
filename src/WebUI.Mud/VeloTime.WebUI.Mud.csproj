@@ -8,12 +8,12 @@
     <DockerfileContext>..\..</DockerfileContext>
     <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
-	<Version>3.0.0-alpha.54</Version>
+	<Version>3.0.0-alpha.55</Version>
 	<ContainerRepository>asbjorjo/velotime-webui</ContainerRepository>
 	<ContainerImageTag>$(Version)</ContainerImageTag>
   </PropertyGroup>
   <ItemGroup>
-	<PackageReference Include="Aspire.Keycloak.Authentication" Version="13.2.1-preview.1.26180.6" />
+	<PackageReference Include="Aspire.Keycloak.Authentication" Version="13.4.0-preview.1.26281.18" />
 	<PackageReference Include="Duende.AccessTokenManagement.OpenIdConnect" Version="4.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.8" />
