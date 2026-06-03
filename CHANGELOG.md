@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.56"></a>
+## [3.0.0-alpha.56](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.56) (2026-06-03)
+
+### Features
+
+* Show as offline if not seen last five minutes ([01323ab](https://www.github.com/asbjorjo/VeloTimer/commit/01323abc480a3ee13a4dc18028e3bcbda5437d17))
+* Update installation last seen on loop status ([fc24a8d](https://www.github.com/asbjorjo/VeloTimer/commit/fc24a8d0264da29e5bd09ca6dd429764f589d469))
+
 <a name="3.0.0-alpha.55"></a>
 ## [3.0.0-alpha.55](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.55) (2026-06-03)
 
