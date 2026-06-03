@@ -35,7 +35,7 @@ else
             </MudTd>
             <MudTd>@GetFacility(context)</MudTd>
             <MudTd>@GetSystemType(context)</MudTd>
-            <MudTd>@FormatLastSeen(null)</MudTd>
+            <MudTd>@FormatLastSeen(context)</MudTd>
             <MudTd Class="d-flex justify-end">
                 <MudButton Variant="Variant.Outlined"
                            Color="Color.Primary"
@@ -79,6 +79,6 @@ else
             ? "-"
             : installation.TimingSystem;
 
-    private static string FormatLastSeen(DateTimeOffset? lastSeen)
-        => lastSeen is null || lastSeen == default ? "-" : lastSeen.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+    private static string FormatLastSeen(InstallationView installation)
+        => installation.LastSeen is null || installation.LastSeen == default ? "-" : installation.LastSeen.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
 }

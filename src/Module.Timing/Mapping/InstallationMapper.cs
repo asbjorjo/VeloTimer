@@ -13,6 +13,7 @@ public static class InstallationMapper
             Id = installation.Id,
             FacilityId = installation.Facility,
             AgentId = installation.AgentId,
+            LastSeen = installation.LastSeen,
             TimingPoints = [.. installation.TimingPoints.Select(tp => tp.ToDto())],
             TimingSystem = installation.TimingSystem.ToDto(),
             Description = installation.Description
@@ -26,6 +27,7 @@ public static class InstallationMapper
             Id = installationDto.Id,
             Facility = installationDto.FacilityId,
             AgentId = installationDto.AgentId,
+            LastSeen = installationDto.LastSeen,
             TimingPoints = [.. installationDto.TimingPoints.Select(tp => tp.ToModel())],
             TimingSystem = installationDto.TimingSystem.ToModel(),
             Description = installationDto.Description
