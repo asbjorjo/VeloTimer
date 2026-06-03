@@ -10,7 +10,7 @@ public class AccessTokenHandler(IHttpContextAccessor httpContextAccessor) :
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
         if (httpContextAccessor.HttpContext is null)
-        { 
+        {
             throw new Exception("HttpContext not available");
         }
 
