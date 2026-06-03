@@ -13,16 +13,16 @@
 	<ContainerImageTag>$(Version)</ContainerImageTag>
   </PropertyGroup>
   <ItemGroup>
-	<PackageReference Include="Aspire.Keycloak.Authentication" Version="13.4.0-preview.1.26281.18" />
-	<PackageReference Include="Duende.AccessTokenManagement.OpenIdConnect" Version="4.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.8" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.8" />
-    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery.Yarp" Version="10.6.0" />
-    <PackageReference Include="Extensions.MudBlazor.StaticInput" Version="4.1.0" />
-    <PackageReference Include="Microsoft.Kiota.Bundle" Version="2.0.0" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="NSwag.ApiDescription.Client" Version="14.7.1">
+	<PackageReference Include="Aspire.Keycloak.Authentication" />
+	<PackageReference Include="Duende.AccessTokenManagement.OpenIdConnect" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery.Yarp" />
+    <PackageReference Include="Extensions.MudBlazor.StaticInput" />
+    <PackageReference Include="Microsoft.Kiota.Bundle" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="NSwag.ApiDescription.Client">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>

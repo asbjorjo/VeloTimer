@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -8,20 +8,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<PackageReference Include="Aspire.Keycloak.Authentication" Version="13.4.0-preview.1.26281.18" />
-	<PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.4.1" />
-	<PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" Version="13.4.1" />
-    <PackageReference Include="Duende.AccessTokenManagement" Version="4.2.0" />
-	<PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
-	<PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.10" />
-	<PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.8" />
-	<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.8" />
-	<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.8" />
-	<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-	<PackageReference Include="SlimMessageBus.Host" Version="3.4.0" />
-	<PackageReference Include="ZiggyCreatures.FusionCache" Version="2.6.0" />
-	<PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" Version="2.6.0" />
-	<PackageReference Include="ZiggyCreatures.FusionCache.OpenTelemetry" Version="2.6.0" />
-	<PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.6.0" />
+	<PackageReference Include="Aspire.Keycloak.Authentication" />
+	<PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+	<PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" />
+    <PackageReference Include="Duende.AccessTokenManagement" />
+	<PackageReference Include="EFCore.NamingConventions" />
+	<PackageReference Include="Microsoft.AspNetCore.Mvc.Core" />
+	<PackageReference Include="Microsoft.EntityFrameworkCore" />
+	<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+	<PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+	<PackageReference Include="Newtonsoft.Json" />
+	<PackageReference Include="SlimMessageBus.Host" />
+	<PackageReference Include="ZiggyCreatures.FusionCache" />
+	<PackageReference Include="ZiggyCreatures.FusionCache.Backplane.StackExchangeRedis" />
+	<PackageReference Include="ZiggyCreatures.FusionCache.OpenTelemetry" />
+	<PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" />
   </ItemGroup>
 </Project>

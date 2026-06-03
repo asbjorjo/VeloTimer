@@ -9,25 +9,25 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Identity" Version="1.21.0" />
-    <PackageReference Include="EFCore.NamingConventions" Version="10.0.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
+    <PackageReference Include="Azure.Identity" />
+    <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-	<PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.8" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
-	<PackageReference Include="Npgsql.OpenTelemetry" Version="10.0.3" />
-	<PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.15.3" />
-    <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
-    <PackageReference Include="Serilog.Extensions.Logging" Version="10.0.0" />
-    <PackageReference Include="Serilog.Settings.Configuration" Version="10.0.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
-    <PackageReference Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
-    <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" Version="3.4.0" />
-    <PackageReference Include="SlimMessageBus.Host.Outbox.PostgreSql.DbContext" Version="3.4.0" />
-	<PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" Version="3.4.0" />
+	<PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+	<PackageReference Include="Npgsql.OpenTelemetry" />
+	<PackageReference Include="OpenTelemetry.Exporter.Console" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Settings.Configuration" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Sinks.OpenTelemetry" />
+    <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" />
+    <PackageReference Include="SlimMessageBus.Host.Outbox.PostgreSql.DbContext" />
+	<PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" />
   </ItemGroup>
 
   <ItemGroup>

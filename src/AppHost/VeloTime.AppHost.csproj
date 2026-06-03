@@ -10,13 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.Keycloak" Version="13.4.0-preview.1.26281.18" />
-    <PackageReference Include="Aspire.Hosting.Kubernetes" Version="13.4.0-preview.1.26281.18" />
-    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.4.0" />
-    <PackageReference Include="Aspire.Hosting.Redis" Version="13.4.0" />
-    <PackageReference Include="Aspire.Hosting.Valkey" Version="13.4.0" />
-    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Keycloak.Extensions" Version="13.4.0-preview.1.260602-0230" />
-    <PackageReference Include="CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions" Version="13.4.0" />
+    <PackageReference Include="Aspire.Hosting.Keycloak" />
+    <PackageReference Include="Aspire.Hosting.Kubernetes" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
+    <PackageReference Include="Aspire.Hosting.Valkey" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Keycloak.Extensions" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions" />
   </ItemGroup>
 
   <ItemGroup>

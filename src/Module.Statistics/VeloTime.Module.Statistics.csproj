@@ -8,15 +8,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" >
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-	<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.8" />
-    <PackageReference Include="MR.AspNetCore.Pagination" Version="3.2.0" />
-	<PackageReference Include="SlimMessageBus.Host" Version="3.4.0" />
-    <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" Version="3.4.0" />
-    <PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" Version="3.4.0" />
+	<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="MR.AspNetCore.Pagination" />
+	<PackageReference Include="SlimMessageBus.Host" />
+    <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" />
+    <PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" />
   </ItemGroup>
 
   <ItemGroup>
