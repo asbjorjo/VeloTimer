@@ -26,11 +26,11 @@ else
         </HeaderContent>
         <RowTemplate>
             <MudTd>
-                <MudChip Color="Color.Success"
+                <MudChip Color="@(context.IsOnline ? Color.Success : Color.Error)"
                          Variant="Variant.Filled"
                          Size="Size.Small"
                          T="string">
-                    Online
+                    @(context.IsOnline ? "Online" : "Offline")
                 </MudChip>
             </MudTd>
             <MudTd>@GetFacility(context)</MudTd>

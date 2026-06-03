@@ -9,6 +9,7 @@ public class InstallationView
     public string TimingSystem { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public DateTime? LastSeen { get; set; }
+    public bool IsOnline { get => LastSeen.HasValue && (DateTime.UtcNow - LastSeen.Value) < TimeSpan.FromMinutes(5); }
     public IEnumerable<TimingPointView> TimingPoints { get; set; } = Array.Empty<TimingPointView>();
     public bool IsSelected { get; set; }
 
