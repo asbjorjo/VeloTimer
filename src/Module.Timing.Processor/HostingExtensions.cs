@@ -65,6 +65,10 @@ public static class StartupExtensions
                 .SubscriptionName("infrastructure")
                 .WithConsumer<InstallationLayoutHandler>()
                 .Instances(1));
+            mbb.Consume<LoopStatusEvent>(x => x
+                .Topic("velotime-agent-test")
+                .SubscriptionName("infrastructure")
+                .WithConsumer<LoopStatusEventHandler>());
             mbb.AddServicesFromAssemblyContaining<PassingObservedHandler>();
         });
 
