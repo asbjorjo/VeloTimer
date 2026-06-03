@@ -64,7 +64,6 @@
     <PackageVersion Include="Serilog.Settings.Configuration" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageVersion Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
-	<PackageVersion Include="SlimMessageBus.Host" Version="3.4.0" />
     <PackageVersion Include="SlimMessageBus.Host.AzureServiceBus" Version="3.4.0" />
     <PackageVersion Include="SlimMessageBus.Host.Outbox.PostgreSql.DbContext" Version="3.4.0" />
     <PackageVersion Include="SlimMessageBus.Host.Serialization.SystemTextJson" Version="3.4.0" />
