@@ -58,7 +58,6 @@ public class InstallationLayoutHandler(InstallationService installationService, 
             storage.Entry(timingPoint).State = EntityState.Modified;
         }
 
-        installation.LastSeen = DateTime.UtcNow;
         await storage.SaveChangesAsync(cancellationToken: cancellationToken);
     }
 }
