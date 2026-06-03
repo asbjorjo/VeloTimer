@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using OpenTelemetry.Metrics;
 using SlimMessageBus;
 using System.Diagnostics;
 using VeloTime.Agent.Logging;
@@ -25,7 +24,11 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
 
     public async Task SendEventAsync(LoopStatus status)
     {
+        using var activity = Instrumentation.Source.StartActivity("Send Loop Status");
+
         await messageBus.Publish(status.ToMessage());
+
+        activity?.SetStatus(ActivityStatusCode.Ok);
     }
 
     public async Task SendEventsAsync(IEnumerable<Passing> passing)
