@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.57"></a>
+## [3.0.0-alpha.57](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.57) (2026-06-03)
+
+### Features
+
+* Add trace for loop status ([3552b9e](https://www.github.com/asbjorjo/VeloTimer/commit/3552b9e3aa6b6d28ba69823e7cca29d09dae3340))
+
 <a name="3.0.0-alpha.56"></a>
 ## [3.0.0-alpha.56](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.56) (2026-06-03)
 
