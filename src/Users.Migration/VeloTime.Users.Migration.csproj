@@ -1,0 +1,52 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+	<Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>..\..</DockerfileContext>
+    <IsPublishable>True</IsPublishable>
+	<Version>3.0.0-alpha.59</Version>
+	<InvariantGlobalization>false</InvariantGlobalization>
+	<EnableSdkContainerSupport>True</EnableSdkContainerSupport>
+    <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
+	<ContainerRepository>asbjorjo/velotime-users-migration</ContainerRepository>
+	<ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0-alpine</ContainerBaseImage>
+    <ContainerImageTag>$(Version)</ContainerImageTag>
+  </PropertyGroup>
+
+  <ItemGroup>
+	<PackageReference Include="Duende.AccessTokenManagement" />
+	<PackageReference Include="Duende.IdentityServer.EntityFramework" VersionOverride="6.0.5" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+	<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+	<PackageReference Include="Microsoft.Kiota.Bundle" />
+	<PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
+	<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Slugify.Core" VersionOverride="4.0.1" />
+	<PackageReference Include="Newtonsoft.Json" />
+	<PackageReference Include="NSwag.ApiDescription.Client">
+	  <PrivateAssets>all</PrivateAssets>
+	  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	</PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Module.Common\VeloTime.Module.Common.csproj" />
+    <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+	<OpenApiReference Include="..\..\api\keycloak-admin.yaml" CodeGenerator="NSwagCSharp" Namespace="VeloTime.Users.Migration.Keycloak" ClassName="KeycloakClient">
+	  <Options>/UseBaseUrl:false /GenerateClientInterfaces:true</Options>
+	</OpenApiReference>
+  </ItemGroup>
+
+</Project>
