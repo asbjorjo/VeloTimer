@@ -96,8 +96,18 @@ public static class HostingExtensions
 
         var clientSecret = Environment.GetEnvironmentVariable("CLIENT_SECRET");
 
-        var authority = env.IsDevelopment() ? configuration.GetConnectionString("keycloak") : $"https+http://keycloak/realms/velotime";
+        var authority = configuration.GetConnectionString("keycloak");
 
+        if (authority == null && env.IsDevelopment())
+        {
+            authority = $"https+http://keycloak/realms/velotime";
+        }
+
+        if (authority == null && string.IsNullOrEmpty(clientSecret))
+        {
+            throw new InvalidOperationException("Authority and Client Secret must be provided either through configuration or environment variables.");
+        }
+    
         //services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
         //    .AddKeycloakOpenIdConnect(
         //        serviceName: "keycloak",
@@ -118,13 +128,13 @@ public static class HostingExtensions
         //        });
 
         services.AddClientCredentialsTokenManagement()
-            .AddClient(clientId, options =>
-            {
-                options.TokenEndpoint = new System.Uri($"{authority}/protocol/openid-connect/token");
+                .AddClient(clientId, options =>
+                {
+                    options.TokenEndpoint = new System.Uri($"{authority}/protocol/openid-connect/token");
 
-                options.ClientId = ClientId.Parse(clientId);
-                options.ClientSecret = ClientSecret.Parse(clientSecret!);
-            });
+                    options.ClientId = ClientId.Parse(clientId);
+                    options.ClientSecret = ClientSecret.Parse(clientSecret!);
+                });
 
         return builder;
     }
