@@ -16,6 +16,10 @@ var servicebusconnection = builder.AddConnectionString("MessageBus");
 var statisticsprocsecret = builder.AddParameter("StatisticsProcessorSecret", secret: true);
 var timingprocsecret = builder.AddParameter("TimingProcessorSecret", secret: true);
 
+var velotimerdb = builder.AddConnectionString("VeloTimerDb");
+var velotimeridentitydb = builder.AddConnectionString("VeloTimerIdentityDb");
+//var keycloakconnection = builder.AddConnectionString("keycloak", "https+http://keycloak/realms/velotime");
+
 var keycloak = builder.AddKeycloak("keycloak", 8888)
     .WithOtlpExporter();
 
@@ -38,6 +42,15 @@ if (builder.Environment.IsDevelopment())
     cache.WithRedisInsight();
     postgres.WithDbGate();
 }
+
+var users = builder.AddProject<Projects.VeloTime_Users_Migration>("users-migration")
+    .WithReference(velotimerdb)
+    .WithReference(velotimeridentitydb)
+    .WithReference(velotimedb)
+    .WithReference(keycloak)
+    .WithEnvironment("CLIENT_SECRET", usermigrationsecret)
+    .WaitFor(velotimedb)
+    .WaitFor(keycloak);
 
 var facilityapi = builder.AddProject<Projects.VeloTime_Module_Facilities_Api>("module-facilities-api")
     .WithReference(cache)

@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.2.0">
+<Project Sdk="Aspire.AppHost.Sdk/13.4.5">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -30,6 +30,7 @@
     <ProjectReference Include="..\Module.Timing.Api\VeloTime.Module.Timing.Api.csproj" />
     <ProjectReference Include="..\Module.Timing.Migration\VeloTime.Module.Timing.Migration.csproj" />
     <ProjectReference Include="..\Module.Timing.Processor\VeloTime.Module.Timing.Processor.csproj" />
+    <ProjectReference Include="..\Users.Migration\VeloTime.Users.Migration.csproj" />
     <ProjectReference Include="..\WebUI.Mud\VeloTime.WebUI.Mud.csproj" />
   </ItemGroup>
 
