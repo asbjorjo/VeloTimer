@@ -30,6 +30,7 @@ public static class StartupExtensions
 
         builder.AddModuleCache();
         services.AddScoped<InstallationService>();
+        services.AddScoped<TransponderService>();
         
         services.AddSingleton<Metrics>();
 

@@ -5,6 +5,7 @@ using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Storage;
 using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.Module.Timing.Mapping;
+using VeloTime.Module.Timing.Service;
 
 namespace VeloTime.Module.Timing.Api.Endpoints;
 
@@ -16,12 +17,49 @@ internal static class TransponderEndpoints
 
         installations.MapGet("", ListTransponders);
         installations.MapGet("{id}", GetTransponderById);
-        installations.MapPost("", CreateTransponder);
+        installations.MapPost("", RegisterTransponder);
+        installations.MapPost("{id}/owners", AddTransponderOwner);
     }
 
-    private static async Task CreateTransponder(HttpContext context)
+    private static async Task<Results<Ok<Guid>, UnprocessableEntity<List<string>>>> RegisterTransponder(
+        InstallationService installationService,
+        [FromQuery] string? SystemId,
+        [FromQuery] string? SystemLabel,
+        [FromQuery] string Type)
     {
-        throw new NotImplementedException();
+        List<string> errors = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(Type))
+        {
+            errors.Add("Type is required.");
+        }
+        if (string.IsNullOrWhiteSpace(SystemId) && string.IsNullOrWhiteSpace(SystemLabel))
+        {
+            errors.Add("Either SystemId or SystemLabel is required.");
+        }
+        if (!string.IsNullOrWhiteSpace(SystemId) && !string.IsNullOrWhiteSpace(SystemLabel))
+        {
+            errors.Add("Only one of SystemId or SystemLabel should be provided.");
+        }
+        if (errors.Count > 0)
+        {
+            return TypedResults.UnprocessableEntity(errors);
+        }
+
+        if (Type == "X2")
+        {
+            var id = string.IsNullOrWhiteSpace(SystemLabel) ? long.Parse(SystemId!) : MylapsX2Transponder.CodeToId(SystemLabel);
+            var result = await installationService.RegisterTransponder(new MylapsX2Transponder
+            {
+                SystemId = id.ToString(),
+            });
+
+            return TypedResults.Ok(result.Id);
+        } else
+        {
+            errors.Add($"Unsupported transponder type: {Type}");
+            return TypedResults.UnprocessableEntity(errors);
+        }
     }
 
     static async Task<Ok<IEnumerable<InstallationDTO>>> ListTransponders(TimingDbContext storage, [FromQuery] Guid? FacilityId)
@@ -49,5 +87,26 @@ internal static class TransponderEndpoints
         }
         InstallationDTO installationData = installation.ToDto();
         return TypedResults.Ok(installationData);
+    }
+
+    static async Task<Results<Ok, Conflict, NotFound>> AddTransponderOwner(TransponderService transponderService, Guid transponderId, TransponderOwnership ownership)
+    {
+        var transponder = await transponderService.GetTransponderById(transponderId);
+
+        if (transponder == null)
+        {
+            return TypedResults.NotFound();
+        }
+
+        try
+        {
+            transponder.AddOwner(ownership.OwnerId, ownership.OwnedFrom, ownership.OwnedTo);
+            await transponderService.Update(transponder);
+            return TypedResults.Ok();
+        }
+        catch (InvalidOperationException)
+        {
+            return TypedResults.Conflict();
+        }
     }
 }
