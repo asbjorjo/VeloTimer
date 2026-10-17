@@ -2,8 +2,8 @@ using Microsoft.Extensions.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var migrate = true;
-var seed = true;
+var migrate = false;
+var seed = false;
 IResourceBuilder<ProjectResource>? bootstrap = null;
 IResourceBuilder<ProjectResource> facilitiesmigrator;
 IResourceBuilder<ProjectResource> statisticsmigrator;
@@ -15,6 +15,7 @@ var k8s = builder.AddKubernetesEnvironment("k8s");
 var servicebusconnection = builder.AddConnectionString("MessageBus");
 var statisticsprocsecret = builder.AddParameter("StatisticsProcessorSecret", secret: true);
 var timingprocsecret = builder.AddParameter("TimingProcessorSecret", secret: true);
+var usermigrationsecret = builder.AddParameter("UserMigrationSecret", secret: true);
 
 var velotimerdb = builder.AddConnectionString("VeloTimerDb");
 var velotimeridentitydb = builder.AddConnectionString("VeloTimerIdentityDb");
@@ -24,7 +25,7 @@ var keycloak = builder.AddKeycloak("keycloak", 8888)
     .WithOtlpExporter();
 
 var postgres = builder.AddPostgres("postgres")
-    .WithDataVolume()
+    .WithDataVolume(name: "velotime_postgres_data")
     .WithOtlpExporter();
 
 var keycloakdb = postgres.AddDatabase("keycloakdb");
@@ -43,15 +44,6 @@ if (builder.Environment.IsDevelopment())
     postgres.WithDbGate();
 }
 
-var users = builder.AddProject<Projects.VeloTime_Users_Migration>("users-migration")
-    .WithReference(velotimerdb)
-    .WithReference(velotimeridentitydb)
-    .WithReference(velotimedb)
-    .WithReference(keycloak)
-    .WithEnvironment("CLIENT_SECRET", usermigrationsecret)
-    .WaitFor(velotimedb)
-    .WaitFor(keycloak);
-
 var facilityapi = builder.AddProject<Projects.VeloTime_Module_Facilities_Api>("module-facilities-api")
     .WithReference(cache)
     .WithReference(velotimedb)
@@ -67,6 +59,19 @@ var timingapi = builder.AddProject<Projects.VeloTime_Module_Timing_Api>("module-
     .WithReference(velotimedb)
     .WithReference(keycloak)
     .WaitFor(velotimedb);
+
+var users = builder.AddProject<Projects.VeloTime_Users_Migration>("users-migration")
+    .WithReference(velotimerdb)
+    .WithReference(velotimeridentitydb)
+    .WithReference(velotimedb)
+    .WithReference(keycloak)
+    .WithReference(statisticsapi)
+    .WithReference(timingapi)
+    .WithEnvironment("CLIENT_SECRET", usermigrationsecret)
+    .WaitFor(velotimedb)
+    .WaitFor(keycloak)
+    .WaitFor(statisticsapi)
+    .WaitFor(timingapi);
 
 var frontend = builder.AddProject<Projects.VeloTime_WebUI_Mud>("frontend")
     .WithExternalHttpEndpoints()
