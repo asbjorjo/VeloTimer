@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
+using VeloTime.Module.Statistics.Client;
+using VeloTime.Module.Timing.Client;
 using VeloTime.Users.Migration.Data;
 using VeloTime.Users.Migration.Keycloak;
 using VeloTime.Users.Migration.Models.Identity;
@@ -26,8 +28,13 @@ public class Worker(
             var identitydb = scope.ServiceProvider.GetRequiredService<VeloIdentityDbContext>();
             var userManager = scope.ServiceProvider.GetRequiredService<VeloTimeUserManager<User>>();
             var keycloak = scope.ServiceProvider.GetRequiredService<IKeycloakClient>();
+            var statistics = scope.ServiceProvider.GetRequiredService<IStatisticsClient>();
+            var timing = scope.ServiceProvider.GetRequiredService<ITimingClient>();
 
-            var riders = await velotimerdb.Set<Rider>().ToListAsync(stoppingToken);
+            var riders = await velotimerdb.Set<Rider>()
+                .Include(r => r.Transponders)
+                .ThenInclude(t => t.Transponder)
+                .ToListAsync(stoppingToken);
 
             foreach (var rider in riders)
             {
@@ -44,6 +51,7 @@ public class Worker(
                 var logins = await userManager.GetLoginsAsync(user);
 
                 UserRepresentation kcuser;
+
 
                 var kcusers = await keycloak.UsersAll3Async(username: user.UserName,
                                                         realm: "velotime",
@@ -99,10 +107,70 @@ public class Worker(
                 if (kcuser.Id == null)
                 {
                     await keycloak.UsersPOSTAsync(kcuser, "velotime", stoppingToken);
-
                 } else
                 {
                     await keycloak.UsersPUTAsync(kcuser, "velotime", kcuser.Id, stoppingToken);
+                }
+
+                kcusers = await keycloak.UsersAll3Async(username: user.UserName,
+                                                        realm: "velotime",
+                                                        cancellationToken: stoppingToken,
+                                                        briefRepresentation: false,
+                                                        createdAfter: "",
+                                                        createdBefore: "",
+                                                        email: "",
+                                                        emailVerified: null,
+                                                        enabled: null,
+                                                        exact: null,
+                                                        first: null,
+                                                        firstName: "",
+                                                        idpAlias: "",
+                                                        idpUserId: "",
+                                                        lastName: "",
+                                                        max: null,
+                                                        q: "",
+                                                        search: "");
+                kcuser = kcusers.First();
+                var userId = Guid.Parse(kcuser.Id);
+
+                try
+                {
+                    var response = await statistics.CreateStatsProfileAsync(new()
+                    {
+                        UserId = userId,
+                        IsPublic = rider.IsPublic,
+                        ProfileName = rider.Name
+                    }, stoppingToken);
+                }
+                catch (Module.Statistics.Client.ApiException e) when (e.StatusCode == 409)
+                {
+                    await statistics.UpdateStatsProfileAsync(userId, new()
+                    {
+                        IsPublic = rider.IsPublic,
+                        ProfileName = rider.Name
+                    }, stoppingToken);
+                }
+
+                foreach (var transponder in rider.Transponders)
+                {
+                    var transponderId = await timing.TranspondersPOSTAsync(transponder.Transponder.SystemId, "", "X2", cancellationToken: stoppingToken);
+
+                    DateTime ownedFrom = transponder.OwnedFrom.ToUniversalTime().Date;
+                    DateTime? ownedUntil = transponder.OwnedUntil is null ? null : transponder.OwnedUntil.Value.ToUniversalTime().Date;
+
+                    try
+                    {
+                        await timing.OwnersAsync(transponderId, new()
+                        {
+                            OwnerId = userId,
+                            OwnedFrom = ownedFrom,
+                            OwnedTo = ownedUntil
+                        }, cancellationToken: stoppingToken);
+                    }
+                    catch (Module.Timing.Client.ApiException e) when (e.StatusCode == 409)
+                    {
+                        throw;
+                    }
                 }
             }
         }

@@ -23,6 +23,14 @@ builder.Services
     .AddDefaultAccessTokenResiliency()
     .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("velotime.users.migration"));
 
+builder.Services.AddStatisticsClient()
+    .AddDefaultAccessTokenResiliency()
+    .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("velotime.users.migration"));
+
+builder.Services.AddTimingClient()
+    .AddDefaultAccessTokenResiliency()
+    .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("velotime.users.migration"));
+
 builder.Services.AddDbContext<VeloTimerDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("velotimerdb")));
 

@@ -40,6 +40,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Module.Common\VeloTime.Module.Common.csproj" />
+    <ProjectReference Include="..\Module.Statistics.Client\VeloTime.Module.Statistics.Client.csproj" />
+    <ProjectReference Include="..\Module.Timing.Client\VeloTime.Module.Timing.Client.csproj" />
     <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
   </ItemGroup>
 
