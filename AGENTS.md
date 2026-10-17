@@ -13,6 +13,13 @@ VeloTimer is a microservices architecture built with .NET 10 using Aspire for di
 - **Keycloak** for authentication (OIDC)
 - **OpenTelemetry** for observability
 
+## Working In The Repository
+
+- Use the checked-in CI commands as the build and test baseline: `dotnet test --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov` and `dotnet build --configuration Release`. See [CI](.github/workflows/ci.yml) and [publish workflow](.github/workflows/publish.yml).
+- Tests currently live in `src/VeloTime.Module.Timing.Test/` and use xUnit. Start with [TransponderTest.cs](src/VeloTime.Module.Timing.Test/TransponderTest.cs) when adding domain tests.
+- For concrete implementations, follow [TimingEndpoints.cs](src/Module.Timing.Api/Endpoints/TimingEndpoints.cs) for route grouping, [TransponderEndpoints.cs](src/Module.Timing.Api/Endpoints/TransponderEndpoints.cs) for typed results, [PassingObservedHandler.cs](src/Module.Timing.Processor/Handlers/PassingObservedHandler.cs) for message consumers, and [InstallationMapper.cs](src/Module.Timing/Mapping/InstallationMapper.cs) for entity-to-contract mapping.
+- Package versions are centrally managed in [Directory.Packages.props](Directory.Packages.props); avoid adding per-project versions unless a project has an established exception.
+
 ## Architecture
 
 ### Microservices Structure
@@ -172,7 +179,7 @@ static async Task<Ok<IEnumerable<InstallationDTO>>> ListAgents(
 
 ### Running Migrations
 
-Migrations auto-run on bootstrap via `Migrate()` extension in `ServiceDefaults` unless `--no-migrate` is passed.
+Migration workers apply pending migrations at startup through `MigrateAsync()`; see [MigrationWorker.cs](src/Module.Common/MigrationWorker.cs).
 
 ## Agent Infrastructure
 
