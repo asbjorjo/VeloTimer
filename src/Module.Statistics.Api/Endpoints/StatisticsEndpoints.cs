@@ -7,5 +7,6 @@ internal static class StatisticsEndpoints
         var statistics = routeBuilder.MapGroup("/api/statistics").WithTags(["Statistics"]);
 
         statistics.MapSampleEndpoints();
+        statistics.MapStatsProfileEndpoints();
     }
 }

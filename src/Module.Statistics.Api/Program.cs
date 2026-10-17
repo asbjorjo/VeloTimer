@@ -6,6 +6,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 builder.AddModuleAuthentication();
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("Statistics.Read", policy => policy.RequireAuthenticatedUser())
+    .AddPolicy("Statistics.Write", policy => policy.RequireClaim("scope", "Statistics.Write"));
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -20,6 +23,8 @@ builder.AddModuleStatistics();
 
 var app = builder.Build();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapStatisticsEndpoints();
 

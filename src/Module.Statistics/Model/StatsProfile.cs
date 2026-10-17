@@ -3,6 +3,6 @@
 public class StatsProfile
 {
     public Guid UserId { get; init; }
-    public required string ProfileName { get; init; }
-    public bool IsPublic { get; init; } = true;
+    public required string ProfileName { get; set; }
+    public bool IsPublic { get; set; } = true;
 }
