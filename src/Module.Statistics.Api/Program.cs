@@ -44,3 +44,5 @@ app.UseHttpsRedirection();
 app.UseModuleStatistics();
 
 app.Run();
+
+public partial class Program;

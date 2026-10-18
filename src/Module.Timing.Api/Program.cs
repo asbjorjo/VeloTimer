@@ -34,3 +34,5 @@ app.UseHttpsRedirection();
 app.UseModuleTiming();
 
 app.Run();
+
+public partial class Program;

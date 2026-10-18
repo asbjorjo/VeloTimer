@@ -21,4 +21,9 @@
     <ProjectReference Include="..\Module.Timing\VeloTime.Module.Timing.csproj" />
     <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>VeloTime.Platform.Test</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 </Project>

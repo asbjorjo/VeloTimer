@@ -51,3 +51,5 @@ app.UseModuleFacilities();
 app.UseOutputCache();
 
 app.Run();
+
+public partial class Program;
