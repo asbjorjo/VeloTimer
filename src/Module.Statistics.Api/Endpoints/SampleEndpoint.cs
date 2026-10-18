@@ -53,11 +53,16 @@ internal static class SampleEndpoint
             s.Speed * 3.6 // m/s to km/h
         )).AsNoTracking().ToListAsync();
 
-        bool isFirstPage = !samplesRequest.Cursor.HasValue 
-            || (samplesRequest.Cursor.HasValue && samplesDto.First().Time
-            == storage.Set<Sample>().OrderByDescending(s => s.TimeEnd).First().TimeEnd);
+        DateTime? firstSampleTime = samplesRequest.Cursor.HasValue
+            ? await storage.Set<Sample>()
+                .OrderByDescending(s => s.TimeEnd)
+                .Select(s => (DateTime?)s.TimeEnd)
+                .FirstOrDefaultAsync()
+            : null;
+        bool isFirstPage = !samplesRequest.Cursor.HasValue
+            || (samplesDto.Count > 0 && samplesDto[0].Time == firstSampleTime);
 
-        bool hasNaextPage = samplesDto.Count > samplesRequest.PageSize ||
+        bool hasNextPage = samplesDto.Count > samplesRequest.PageSize ||
             (samplesRequest.Cursor.HasValue && samplesRequest.IsNextPage == false);
 
         if (samplesDto.Count > samplesRequest.PageSize)
@@ -65,7 +70,7 @@ internal static class SampleEndpoint
             samplesDto.RemoveAt(samplesDto.Count - 1);
         }
 
-        DateTime? nextCursor = hasNaextPage ? samplesDto.Last().Time : null;
+        DateTime? nextCursor = hasNextPage && samplesDto.Count > 0 ? samplesDto[^1].Time : null;
         DateTime? previousCursor = samplesDto.Count > 0 && !isFirstPage ? samplesDto.First().Time : null;
 
         var response = new GetSamplesResponse

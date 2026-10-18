@@ -37,6 +37,7 @@ internal static class StatsProfileEndpoints
 
         profiles.MapPut("{userId}", UpdateStatsProfile)
             .WithName("UpdateStatsProfile")
+            .RequireAuthorization("Statistics.Write")
             .Produces<StatsProfileResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
@@ -44,6 +45,7 @@ internal static class StatsProfileEndpoints
 
         profiles.MapDelete("{userId}", DeleteStatsProfile)
             .WithName("DeleteStatsProfile")
+            .RequireAuthorization("Statistics.Write")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound);

@@ -71,13 +71,13 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache)
         using var activity = Instrumentation.Source.StartActivity("CalculateDistanceBetweenCoursePoints");
         var segments = await GetSegmentsBetweenCoursePoints(Start, End, cancellationToken);
 
-        CourseSegment start = segments.Single(s => s.Start == Start);
-        CourseSegment end = Start == End ? start : segments.Single(s => s.End == End);
+        CourseSegment start = segments.Single(s => s.Start.Id == Start.Id);
+        CourseSegment end = Start.Id == End.Id ? start : segments.Single(s => s.End.Id == End.Id);
 
         activity?.SetTag("StartSegmentId", start.Id);
         activity?.SetTag("EndSegmentId", end.Id);
 
-        if (Start == End)
+        if (Start.Id == End.Id)
         {
             return segments.Sum(s => s.Length);
         }

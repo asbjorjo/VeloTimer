@@ -43,10 +43,15 @@ internal static class CoursePointEndpoints
             ? TypedResults.Ok(coursePoint)
             : TypedResults.NotFound();
 
-    static async Task<Ok<double>> DistanceBetweenCoursePoints(Guid start, Guid end, FacilitiesService facilities, FacilityDbContext storage)
+    static async Task<Results<Ok<double>, NotFound>> DistanceBetweenCoursePoints(Guid start, Guid end, FacilitiesService facilities, FacilityDbContext storage)
     {
-        var startpoint = await storage.Set<CoursePoint>().SingleAsync(c => c.Id == start);
-        var endpoint = start == end ? startpoint : await storage.Set<CoursePoint>().SingleAsync(c => c.Id == end);
+        var startpoint = await storage.Set<CoursePoint>().SingleOrDefaultAsync(c => c.Id == start);
+        var endpoint = start == end ? startpoint : await storage.Set<CoursePoint>().SingleOrDefaultAsync(c => c.Id == end);
+        if (startpoint == null || endpoint == null)
+        {
+            return TypedResults.NotFound();
+        }
+
         return TypedResults.Ok(await facilities.DistanceBetweenCoursePoints(startpoint, endpoint));
     }
 
