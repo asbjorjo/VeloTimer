@@ -16,10 +16,13 @@ namespace VeloTime.Module.Timing.Model
             if (OwnerId == Guid.Empty) throw new ArgumentException(nameof(OwnerId), "Cannot be empty.");
             if (OwnedTo != null && OwnedTo <= OwnedFrom) throw new ArgumentException(nameof(OwnedTo), "Must be greater than OwnedFrom.");
 
-            var existing = Owners.Where(o => o.OwnedTo is null || o.OwnedTo > OwnedFrom);
-            if (OwnedTo.HasValue)
+            var ownedToUTC = OwnedTo?.ToUniversalTime();
+            var ownedFromUTC = OwnedFrom.ToUniversalTime();
+
+            var existing = Owners.Where(o => o.OwnedTo is null || o.OwnedTo > ownedFromUTC);
+            if (ownedToUTC.HasValue)
             {
-                existing = existing.Where(o => o.OwnedFrom <= OwnedTo);
+                existing = existing.Where(o => o.OwnedFrom <= ownedToUTC);
             }
          
             if (existing.Any(o => o.OwnerId != OwnerId))
@@ -27,7 +30,7 @@ namespace VeloTime.Module.Timing.Model
                 throw new InvalidOperationException($"Transponder {Label} already registered.");
             }
 
-            Owners.Add(new TransponderOwner { TransponderId = Id, OwnerId = OwnerId, OwnedFrom = OwnedFrom, OwnedTo = OwnedTo });
+            Owners.Add(new TransponderOwner { TransponderId = Id, OwnerId = OwnerId, OwnedFrom = ownedFromUTC, OwnedTo = ownedToUTC });
         }
     }
 
