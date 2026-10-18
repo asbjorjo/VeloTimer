@@ -14,7 +14,7 @@ public class TransponderService(TimingDbContext storage, HybridCache cache)
 
     public async Task<Transponder?> GetTransponderById(Guid transponderId, CancellationToken cancellationToken = default)
     {
-        return await storage.Set<Transponder>().Include(t => t.Owners).AsNoTracking().FirstOrDefaultAsync(t => t.Id == transponderId, cancellationToken: cancellationToken);
+        return await storage.Set<Transponder>().Include(t => t.Owners).FirstOrDefaultAsync(t => t.Id == transponderId, cancellationToken: cancellationToken);
     }
 
     public async Task Update(Transponder transponder)

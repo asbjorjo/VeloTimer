@@ -89,9 +89,9 @@ internal static class TransponderEndpoints
         return TypedResults.Ok(installationData);
     }
 
-    static async Task<Results<Ok, Conflict, NotFound>> AddTransponderOwner(TransponderService transponderService, Guid transponderId, TransponderOwnership ownership)
+    static async Task<Results<Ok, Conflict, NotFound>> AddTransponderOwner(TransponderService transponderService, Guid id, TransponderOwnership ownership)
     {
-        var transponder = await transponderService.GetTransponderById(transponderId);
+        var transponder = await transponderService.GetTransponderById(id);
 
         if (transponder == null)
         {

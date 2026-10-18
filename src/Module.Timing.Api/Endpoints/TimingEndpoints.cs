@@ -8,6 +8,7 @@ internal static class TimingEndpoints
             .WithTags(["Timing"]);
 
         timing.MapInstallationEndpoints();
+        timing.MapAgentEdnpoints();
         timing.MapSampleEndpoints();
         timing.MapTransponderEdnpoints();
     }

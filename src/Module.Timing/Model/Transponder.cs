@@ -40,11 +40,6 @@ namespace VeloTime.Module.Timing.Model
 
         public override TimingSystem System { get; } = TimingSystem.MyLaps_X2;
 
-        public required override string SystemId
-        { 
-            get;
-            init;
-        }
         public override string Label
         {
             get => string.IsNullOrEmpty(field) ? IdToCode(SystemId) : field;

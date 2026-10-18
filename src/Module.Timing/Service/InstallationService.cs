@@ -191,11 +191,19 @@ public class InstallationService (TimingDbContext storage, HybridCache cache)
 
     public async Task UpdateLastSeenAsync(Installation installation, DateTime timestamp, CancellationToken cancellationToken = default)
     {
-        if (installation.LastSeen >= timestamp)
+        var trackedInstallation = storage.Set<Installation>().Local
+            .FirstOrDefault(item => item.Id == installation.Id);
+        var installationToUpdate = trackedInstallation ?? installation;
+
+        if (installationToUpdate.LastSeen >= timestamp)
             return;
-        installation.LastSeen = timestamp;
-        storage.Entry(installation).State = EntityState.Modified;
+        installationToUpdate.LastSeen = timestamp;
+        if (trackedInstallation is null)
+        {
+            storage.Attach(installationToUpdate);
+            storage.Entry(installationToUpdate).Property(item => item.LastSeen).IsModified = true;
+        }
         await storage.SaveChangesAsync(cancellationToken);
-        await cache.RemoveAsync($"installation_{installation.AgentId}", cancellationToken);
+        await cache.RemoveAsync($"installation_{installationToUpdate.AgentId}", cancellationToken);
     }
 }

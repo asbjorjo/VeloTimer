@@ -114,7 +114,23 @@ public class AgentService(InstallationService installationService, HybridCache c
                         && p.Time < passing.Time, cancellationToken: cancel),
             cancellationToken: cancellationToken);
 
-        if (value is null) await cache.RemoveAsync($"LastPassing_{passing.TransponderId}", cancellationToken);
+        if (value is null)
+        {
+            await cache.RemoveAsync($"LastPassing_{passing.TransponderId}", cancellationToken);
+        }
+        else if (value.Time >= passing.Time)
+        {
+            await cache.RemoveAsync($"LastPassing_{passing.TransponderId}", cancellationToken);
+            value = await storage.Set<Passing>()
+                .Include(p => p.TimingPoint)
+                .AsNoTracking()
+                .OrderByDescending(p => p.Time)
+                .FirstOrDefaultAsync(p =>
+                    p.TransponderId == passing.TransponderId
+                    && p.TimingPoint.InstallationId == installation.Id
+                    && p.Time < passing.Time,
+                    cancellationToken);
+        }
 
         return value;
     }
