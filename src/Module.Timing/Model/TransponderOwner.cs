@@ -2,6 +2,7 @@
 
 public class TransponderOwner
 {
+    public Guid Id { get; init; }
     public Guid TransponderId { get; set; }
     public Guid OwnerId { get; set; }
 

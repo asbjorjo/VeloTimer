@@ -61,7 +61,7 @@ public class TimingDbContext : BaseDbContext
         });
         modelBuilder.Entity<TransponderOwner>(e =>
         {
-            e.HasKey(t => new { t.TransponderId, t.OwnerId });
+            e.HasKey(t => t.Id);
             e.HasOne(t => t.Transponder)
                 .WithMany(t => t.Owners)
                 .OnDelete(DeleteBehavior.Cascade);

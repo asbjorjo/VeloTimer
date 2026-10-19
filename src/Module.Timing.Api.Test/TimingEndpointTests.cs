@@ -79,9 +79,14 @@ public sealed class TimingEndpointTests(TimingApiFactory factory) : IClassFixtur
         var transponderId = await registration.Content.ReadFromJsonAsync<Guid>();
 
         var ownedFrom = DateTime.UtcNow.AddDays(-1);
-        var ownership = new TransponderOwnership(Guid.NewGuid(), ownedFrom, null);
+        var ownerId = Guid.NewGuid();
+        var ownership = new TransponderOwnership(ownerId, ownedFrom, ownedFrom.AddDays(2));
         var ownerResponse = await client.PostAsJsonAsync($"/api/timing/transponders/{transponderId}/owners", ownership);
         Assert.Equal(HttpStatusCode.OK, ownerResponse.StatusCode);
+
+        var subsequentOwnership = new TransponderOwnership(ownerId, ownedFrom.AddDays(3), null);
+        var subsequentOwnerResponse = await client.PostAsJsonAsync($"/api/timing/transponders/{transponderId}/owners", subsequentOwnership);
+        Assert.Equal(HttpStatusCode.OK, subsequentOwnerResponse.StatusCode);
 
         var overlappingOwnership = new TransponderOwnership(Guid.NewGuid(), ownedFrom.AddDays(1), null);
         var conflictResponse = await client.PostAsJsonAsync($"/api/timing/transponders/{transponderId}/owners", overlappingOwnership);
