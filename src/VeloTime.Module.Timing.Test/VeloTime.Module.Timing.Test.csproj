@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
 	<EnableSdkContainerSupport>False</EnableSdkContainerSupport>
 	<IsPackable>false</IsPackable>
+  <IsPublishable>false</IsPublishable>
 	<Version>3.0.0-alpha.59</Version>
   </PropertyGroup>
 
