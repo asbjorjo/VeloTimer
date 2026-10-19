@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.62"></a>
+## [3.0.0-alpha.62](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.62) (2026-10-19)
+
+### Features
+
+* Add basic devcontainer support ([ced957f](https://www.github.com/asbjorjo/VeloTimer/commit/ced957f50bdc888bb14690ef407eff7dd6a941bf))
+* **timing:** add transponder ownership surrogate key ([32a6e08](https://www.github.com/asbjorjo/VeloTimer/commit/32a6e080ed80c8dcd9f42eac51e26869ffc6c3a4))
+
+### Bug Fixes
+
+* Move user migration to non-alpine ([bf2f1ba](https://www.github.com/asbjorjo/VeloTimer/commit/bf2f1ba5cb2627ca2e26304265a47c36cdfe6a38))
+
 <a name="3.0.0-alpha.61"></a>
 ## [3.0.0-alpha.61](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.61) (2026-10-19)
 
