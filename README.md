@@ -86,6 +86,45 @@ An aside is to produce fun statistics for riders and track owners.
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- ROADMAP -->
+## WebUI Backend for Frontend
+
+`WebUI.Mud` hosts the browser API and owns backend service discovery, aggregation,
+Keycloak access, and token refresh. `WebUI.Mud.Client` uses the same service
+interfaces, with same-origin HTTP implementations in the browser. Interactive Auto
+uses the existing server implementations during prerendering/server execution and
+the HTTP implementations when WebAssembly runs. Access and refresh tokens are not
+serialized into browser authentication state.
+
+Public reads:
+
+* `GET /api/facilities`
+* `GET /api/facilities/{facilityId}/layouts`
+* `GET /api/layouts/{layoutId}`
+* `GET /api/statistics/samples?cursor=...&isNextPage=false&pageSize=10`
+
+Cookie-authenticated operations:
+
+* `GET /api/facilities/{facilityId}/installations`
+* `GET /api/timing/installations` and `GET /api/timing/installations/{id}`
+* `PUT /api/timing/installations/{id}` with an `InstallationView` JSON body
+* `GET /api/profile/username` and `GET /api/profile/accounts`
+* `POST /api/profile/accounts/{provider}/link` with a JSON string containing a local
+  or same-origin redirect URI
+* `DELETE /api/profile/accounts/{provider}`
+
+API authentication failures return HTTP 401/403 instead of HTML login redirects.
+Login, logout, password changes, and provider challenges remain full-page
+`/authentication/...` operations. Before a browser mutation, the HTTP handler
+fetches `GET /api/antiforgery`, then sends its JSON string token in `X-CSRF-TOKEN`.
+Mutations without a valid token are rejected. BFF responses are marked `no-store`.
+
+Run the application through the Aspire AppHost for service discovery and its
+Redis, Keycloak, and domain API dependencies. Focused boundary tests run with:
+
+```sh
+dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --filter FullyQualifiedName~WebUiBffTests
+```
+
 ## Roadmap
 
 - [] User authentication

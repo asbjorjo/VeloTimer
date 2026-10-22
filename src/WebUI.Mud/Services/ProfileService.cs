@@ -10,14 +10,14 @@ public class ProfileService(IKeycloakClient keycloak) : IProfileService
 
     public async Task<string> GetUsernameAsync(CancellationToken ct)
     {
-        var account = await keycloak.GetAccountAsync(false, realm);
+        var account = await keycloak.GetAccountAsync(false, realm, ct);
 
         return account.Username;
     }
 
     public async Task<IEnumerable<LinkedAccountView>> GetLinkedAccountsAsync(CancellationToken ct)
     {
-        var accounts = await keycloak.GetLinkedAccountsAsync(realm);
+        var accounts = await keycloak.GetLinkedAccountsAsync(realm, ct);
 
         return accounts.Select(a => new LinkedAccountView {
             IsConnected = a.Connected,

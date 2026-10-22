@@ -11,18 +11,18 @@ public class StatisticsService(
     IFacilitiesClient facitilies,
     IMemoryCache cache) : IStatisticsService
 {
-    public async Task<IEnumerable<SampleView>> GetSamplesAsync(DateTime? cursor, bool isNextPage, int pageSize)
+    public async Task<IEnumerable<SampleView>> GetSamplesAsync(DateTime? cursor, bool isNextPage, int pageSize, CancellationToken cancellationToken = default)
     {
         var samples = new List<SampleView>();
-        var rawsamples = await statistics.SampleAsync(cursor, isNextPage, pageSize);
+        var rawsamples = await statistics.SampleAsync(cursor, isNextPage, pageSize, cancellationToken);
         foreach (var sample in rawsamples.Samples)
         {
             samples.Add(new SampleView
             {
                 Time = sample.Time.DateTime,
                 TransponderLabel = sample.TransponderId.ToString(),
-                StartPoint = (await cache.GetOrCreateAsync(sample.CoursePointStartId, async (entry) => { return await facitilies.CoursepointAsync(sample.CoursePointStartId); })).Name,
-                EndPoint = (await cache.GetOrCreateAsync(sample.CoursePointEndId, async (entry) => { return await facitilies.CoursepointAsync(sample.CoursePointEndId); })).Name,
+                StartPoint = (await cache.GetOrCreateAsync(sample.CoursePointStartId, async (entry) => { return await facitilies.CoursepointAsync(sample.CoursePointStartId, cancellationToken); }))!.Name,
+                EndPoint = (await cache.GetOrCreateAsync(sample.CoursePointEndId, async (entry) => { return await facitilies.CoursepointAsync(sample.CoursePointEndId, cancellationToken); }))!.Name,
                 Distance = sample.Distance,
                 Duration = TimeSpan.Parse(sample.Duration),
                 Speed = sample.Speed

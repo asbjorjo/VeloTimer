@@ -11,6 +11,7 @@ using VeloTime.WebUI.Keycloak;
 using VeloTime.WebUI.Mud;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Components;
+using VeloTime.WebUI.Mud.Endpoints;
 using VeloTime.WebUI.Mud.Services;
 using Yarp.ReverseProxy.Transforms;
 
@@ -20,7 +21,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = VELOTIME_OIDC_SCHEME;
+    })
     .AddKeycloakOpenIdConnect(
         serviceName: "keycloak",
         realm: "velotime",
@@ -30,6 +35,7 @@ builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
             options.ClientId = "velotime.webui";
             options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
             options.ResponseType = OpenIdConnectResponseType.Code;
+            options.TokenValidationParameters.NameClaimType = "preferred_username";
             //options.Scope.Add("velotime:api");
 
             options.Scope.Add("openid");
@@ -53,6 +59,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.ConfigureCookieOidc(CookieAuthenticationDefaults.AuthenticationScheme, VELOTIME_OIDC_SCHEME);
 
 builder.Services.AddAuthorization();
+builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 
 //builder.Services.AddMemoryCache();
 builder.AddModuleCache();
@@ -68,9 +75,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-    //.AddInteractiveWebAssemblyComponents()
-    //.AddAuthenticationStateSerialization();
+    .AddInteractiveServerComponents()
+    .AddInteractiveWebAssemblyComponents()
+    .AddAuthenticationStateSerialization();
 
 builder.Services.AddHttpContextAccessor();
 
@@ -123,7 +130,7 @@ if (app.Environment.IsDevelopment())
         context.Request.Scheme = "https";
         return next(context);
     });
-    //app.UseWebAssemblyDebugging();
+    app.UseWebAssemblyDebugging();
 }
 else
 {
@@ -134,15 +141,18 @@ else
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
-    //.AddInteractiveWebAssemblyRenderMode()
+    .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(VeloTime.WebUI.Mud.Client._Imports).Assembly);
 
 app.MapGroup("/authentication").MapLoginAndLogout();
+app.MapBffEndpoints();
 
 app.Run();

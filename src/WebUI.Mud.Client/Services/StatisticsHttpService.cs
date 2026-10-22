@@ -1,20 +1,25 @@
-﻿namespace VeloTime.WebUI.Mud.Client.Services;
+﻿using System.Globalization;
+
+namespace VeloTime.WebUI.Mud.Client.Services;
 
 public class StatisticsHttpService(HttpClient httpClient) : IStatisticsService
 {
-    public async Task<IEnumerable<SampleView>> GetSamplesAsync(DateTime? cursor, bool isNextPage, int pageSize)
+    public async Task<IEnumerable<SampleView>> GetSamplesAsync(DateTime? cursor, bool isNextPage, int pageSize, CancellationToken cancellationToken = default)
     {
-        var url = $"/api/statistics/samples";
-
-        var query = QueryString.Create("pageSize", pageSize.ToString())
-            .Add("isNextpage", isNextPage.ToString());
+        var parameters = new Dictionary<string, string>
+        {
+            ["pageSize"] = pageSize.ToString(CultureInfo.InvariantCulture),
+            ["isNextPage"] = isNextPage ? "true" : "false"
+        };
 
         if (cursor.HasValue)
         {
-            query = query.Add("cursor", cursor.Value.ToString("o"));
+            parameters["cursor"] = cursor.Value.ToString("O", CultureInfo.InvariantCulture);
         }
 
-        var samples = await httpClient.GetFromJsonAsync<IEnumerable<SampleView>>(url) ?? Enumerable.Empty<SampleView>();
+        using var query = new FormUrlEncodedContent(parameters);
+        var url = "api/statistics/samples?" + await query.ReadAsStringAsync(cancellationToken);
+        var samples = await httpClient.GetFromJsonAsync<IEnumerable<SampleView>>(url, cancellationToken) ?? Enumerable.Empty<SampleView>();
 
         return samples;
     }
