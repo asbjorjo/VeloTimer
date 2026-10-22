@@ -14,7 +14,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" />
-	<PackageReference Include="Extensions.MudBlazor.StaticInput" />
+	  <PackageReference Include="Extensions.MudBlazor.StaticInput" />
     <PackageReference Include="MudBlazor" />
   </ItemGroup>
 

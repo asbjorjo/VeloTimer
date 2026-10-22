@@ -8,13 +8,13 @@
     <DockerfileContext>..\..</DockerfileContext>
     <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
-	<Version>3.0.0-alpha.62</Version>
-	<ContainerRepository>asbjorjo/velotime-webui</ContainerRepository>
-	<ContainerImageTag>$(Version)</ContainerImageTag>
+	  <Version>3.0.0-alpha.62</Version>
+	  <ContainerRepository>asbjorjo/velotime-webui</ContainerRepository>
+	  <ContainerImageTag>$(Version)</ContainerImageTag>
   </PropertyGroup>
   <ItemGroup>
-	<PackageReference Include="Aspire.Keycloak.Authentication" />
-	<PackageReference Include="Duende.AccessTokenManagement.OpenIdConnect" />
+	  <PackageReference Include="Aspire.Keycloak.Authentication" />
+	  <PackageReference Include="Duende.AccessTokenManagement.OpenIdConnect" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
     <PackageReference Include="Microsoft.Extensions.ServiceDiscovery.Yarp" />
@@ -30,9 +30,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Module.Common\VeloTime.Module.Common.csproj" />
     <ProjectReference Include="..\Module.Facilities.Client\VeloTime.Module.Facilities.Client.csproj" />
-	<ProjectReference Include="..\Module.Statistics.Client\VeloTime.Module.Statistics.Client.csproj" />
-	<ProjectReference Include="..\Module.Timing.Client\VeloTime.Module.Timing.Client.csproj" />
-	<ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
+	  <ProjectReference Include="..\Module.Statistics.Client\VeloTime.Module.Statistics.Client.csproj" />
+	  <ProjectReference Include="..\Module.Timing.Client\VeloTime.Module.Timing.Client.csproj" />
+	  <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
     <ProjectReference Include="..\WebUI.Mud.Client\VeloTime.WebUI.Mud.Client.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -44,8 +44,8 @@
     </AssemblyAttribute>
   </ItemGroup>
   <ItemGroup>
-	<OpenApiReference Include="..\..\api\keycloak.yaml" CodeGenerator="NSwagCSharp" Namespace="VeloTime.WebUI.Keycloak" ClassName="KeycloakClient">
-	  <Options>/UseBaseUrl:false /GenerateClientInterfaces:true</Options>
-	</OpenApiReference>
+    <OpenApiReference Include="..\..\api\keycloak.yaml" CodeGenerator="NSwagCSharp" Namespace="VeloTime.WebUI.Keycloak" ClassName="KeycloakClient">
+      <Options>/UseBaseUrl:false /GenerateClientInterfaces:true</Options>
+    </OpenApiReference>
   </ItemGroup>
 </Project>
