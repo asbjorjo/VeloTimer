@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.64"></a>
+## [3.0.0-alpha.64](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.64) (2026-10-23)
+
+### Features
+
+* **webui:** share data protection keys and auth state across replicas ([7f12cd5](https://www.github.com/asbjorjo/VeloTimer/commit/7f12cd591fcde12f17ac8f8112dace6de0c346f2))
+
 <a name="3.0.0-alpha.63"></a>
 ## [3.0.0-alpha.63](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.63) (2026-10-23)
 
