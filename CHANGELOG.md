@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+<a name="3.0.0-alpha.63"></a>
+## [3.0.0-alpha.63](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.63) (2026-10-23)
+
+### Features
+
+* **webui:** implement backend-for-frontend pattern ([b5f4226](https://www.github.com/asbjorjo/VeloTimer/commit/b5f42266689d69ff29a193a01585686b64cf5d89))
+
+### Bug Fixes
+
+* webui client should not be published by itself ([b17f6b3](https://www.github.com/asbjorjo/VeloTimer/commit/b17f6b352348589ffc1f913c0a62c79b6a42136e))
+
 <a name="3.0.0-alpha.62"></a>
 ## [3.0.0-alpha.62](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.62) (2026-10-19)
 

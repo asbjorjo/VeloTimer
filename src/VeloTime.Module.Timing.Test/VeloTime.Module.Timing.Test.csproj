@@ -7,7 +7,7 @@
 	<EnableSdkContainerSupport>False</EnableSdkContainerSupport>
 	<IsPackable>false</IsPackable>
   <IsPublishable>false</IsPublishable>
-	<Version>3.0.0-alpha.62</Version>
+	<Version>3.0.0-alpha.63</Version>
   </PropertyGroup>
 
   <ItemGroup>
