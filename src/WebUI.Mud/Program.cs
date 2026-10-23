@@ -3,10 +3,14 @@ using Duende.AccessTokenManagement.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.StackExchangeRedis;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using MudBlazor.Extensions;
 using MudBlazor.Services;
+using StackExchange.Redis;
 using VeloTime.WebUI.Keycloak;
 using VeloTime.WebUI.Mud;
 using VeloTime.WebUI.Mud.Client.Services;
@@ -63,6 +67,14 @@ builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 
 //builder.Services.AddMemoryCache();
 builder.AddModuleCache();
+
+builder.Services.AddDataProtection()
+    .SetApplicationName("VeloTime.WebUI");
+builder.Services.AddOptions<KeyManagementOptions>()
+    .Configure<IConnectionMultiplexer>((options, redis) =>
+        options.XmlRepository = new RedisXmlRepository(() => redis.GetDatabase(), "velotime:webui:dataprotection-keys"));
+
+builder.Services.AddSingleton<ITicketStore, DistributedTicketStore>();
 
 // Add MudBlazor services
 builder.Services.AddMudServices();

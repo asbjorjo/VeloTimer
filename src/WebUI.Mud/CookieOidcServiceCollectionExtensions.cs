@@ -16,9 +16,10 @@ internal static partial class CookieOidcServiceCollectionExtensions
         //    cookieOptions.Events.OnValidatePrincipal = context => refresher.ValidateOrRefreshCookieAsync(context, oidcScheme);
         //});
 
-        services.AddOptions<CookieAuthenticationOptions>(cookieScheme).Configure(cookieOptions =>
+        services.AddOptions<CookieAuthenticationOptions>(cookieScheme).Configure<ITicketStore>((cookieOptions, ticketStore) =>
         {
             cookieOptions.EventsType = typeof(CookieEvents);
+            cookieOptions.SessionStore = ticketStore;
         });
 
         services.AddOptions<OpenIdConnectOptions>(oidcScheme).Configure(oidcOptions =>
