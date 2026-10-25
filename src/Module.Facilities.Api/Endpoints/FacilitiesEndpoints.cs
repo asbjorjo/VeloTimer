@@ -9,5 +9,6 @@ internal static class FacilitiesEndpoints
         facilities.MapCourseLayoutEndpoints();
         facilities.MapCoursePointEndpoints();
         facilities.MapFacilityEndpoints();
+        facilities.MapFacilityAdministrationEndpoints();
     }
 }

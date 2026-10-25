@@ -29,7 +29,7 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache)
                 .Select(s => s.CourseLayout.Facility)
                 .Distinct()
                 .SingleOrDefaultAsync(cancellationToken: cancel),
-            cancellationToken: cancellationToken);
+            tags: ["Facilities.Relationships"], cancellationToken: cancellationToken);
         activity?.SetTag("FacilityId", facility?.Id);
         activity?.SetStatus(ActivityStatusCode.Ok);
         return facility;
@@ -43,7 +43,7 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache)
             $"CoursePointById_{CoursePointId}",
             async cancel => await storage.Set<CoursePoint>()
                 .SingleOrDefaultAsync(p => p.Id == CoursePointId, cancellationToken: cancel),
-            cancellationToken: cancellationToken);
+            tags: ["Facilities.Relationships"], cancellationToken: cancellationToken);
         activity?.SetStatus(ActivityStatusCode.Ok);
         return coursePoint;
     }
@@ -63,7 +63,7 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache)
                 .SelectMany(l => l.Segments)
                 .OrderBy(s => s.Order)
                 .ToListAsync(),
-            cancellationToken: cancellationToken);
+            tags: ["Facilities.Relationships"], cancellationToken: cancellationToken);
     }
 
     public async Task<double> CalculateDistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
@@ -103,7 +103,7 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache)
         var distance = await cache.GetOrCreateAsync(
             $"DistanceBetweenCoursePoints_{Start.Id}_{End.Id}",
             async cancel => await CalculateDistanceBetweenCoursePoints(Start, End, cancel),
-            cancellationToken: cancellationToken);
+            tags: ["Facilities.Relationships"], cancellationToken: cancellationToken);
 
         activity?.SetTag("Distance", distance);
 
@@ -140,7 +140,7 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache)
                 $"CoursePointByTimingPoint_{TimingPoint}",
                 async cancel => await storage.Set<CoursePoint>()
                     .SingleAsync(p => p.TimingPoint == TimingPoint, cancellationToken: cancel),
-                cancellationToken: cancellationToken);
+                tags: ["Facilities.Relationships"], cancellationToken: cancellationToken);
             activity?.SetTag("CoursePointId", timingPoint.Id);
             activity?.SetStatus(ActivityStatusCode.Ok);
             return timingPoint;
