@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
+﻿using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using VeloTime.WebUI.Mud;
@@ -26,6 +27,7 @@ internal static partial class CookieOidcServiceCollectionExtensions
         {
             oidcOptions.GetClaimsFromUserInfoEndpoint = true;
             oidcOptions.MapInboundClaims = false;
+            oidcOptions.ClaimActions.MapUniqueJsonKey("realm_access", "realm_access");
 
             // Request a refresh_token.
             oidcOptions.Scope.Add(OpenIdConnectScope.OfflineAccess);
