@@ -8,6 +8,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using VeloTime.Module.Common;
+using VeloTime.Module.Statistics.Interface.Data;
+using TimingContracts = VeloTime.Module.Timing.Interface.Data;
+using FacilitiesContracts = VeloTime.Module.Facilities.Interface.Data;
 using VeloTime.WebUI.Mud;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
@@ -18,6 +22,174 @@ namespace VeloTime.Platform.Test;
 public sealed class WebUiBffTests
 {
     private static readonly Guid ResourceId = Guid.Parse("fa886b15-035b-43fe-984a-04c8ce566122");
+
+    [Theory]
+    [InlineData("velotime-admin", true, true, true)]
+    [InlineData("facilities-admin", true, false, true)]
+    [InlineData("timing-admin", false, true, true)]
+    [InlineData("statistics-admin", false, false, false)]
+    [InlineData("user", false, false, false)]
+    public async Task InfrastructureAdministration_EnforcesWriteAndScopedLinkRoles(string role, bool facilities, bool timing, bool linking)
+    {
+        await using var app = await CreateAppAsync();
+        using var client = CreateClient(app);
+        await client.GetAsync($"signin?role={role}");
+        Assert.Equal(facilities ? HttpStatusCode.OK : HttpStatusCode.Forbidden,
+            (await client.PostAsJsonAsync("api/admin/facilities", new FacilitiesContracts.SaveFacilityRequest("Track"))).StatusCode);
+        Assert.Equal(timing ? HttpStatusCode.OK : HttpStatusCode.Forbidden,
+            (await client.PostAsJsonAsync("api/admin/timing/installations", new TimingContracts.SaveInstallationRequest(ResourceId, "agent", "Unknown", ""))).StatusCode);
+        Assert.Equal(linking ? HttpStatusCode.NoContent : HttpStatusCode.Forbidden,
+            (await client.PutAsJsonAsync($"api/admin/coursepoints/{ResourceId}/timing-link", new FacilitiesContracts.SetCoursePointTimingLinkRequest(null))).StatusCode);
+    }
+
+    [Fact]
+    public async Task InfrastructureHttpService_ForwardsEveryManagementOperation()
+    {
+        await using var app = await CreateAppAsync();
+        using var client = CreateClient(app);
+        await client.GetAsync("signin?role=velotime-admin");
+        var service = new InfrastructureAdministrationHttpService(client);
+        Assert.Empty(await service.GetFacilitiesAsync());
+        Assert.Empty(await service.GetLayoutsAsync(ResourceId));
+        Assert.Empty(await service.GetInstallationsAsync());
+        Assert.Equal(ResourceId, (await service.SaveFacilityAsync(null, new("Track"))).Id);
+        Assert.Equal("Renamed", (await service.SaveFacilityAsync(ResourceId, new("Renamed"))).Name);
+        var startId = Guid.NewGuid(); var endId = Guid.NewGuid();
+        var layout = new FacilitiesContracts.SaveCourseLayoutRequest([new(startId, "Start"), new(endId, "End")], [new(Guid.NewGuid(), startId, endId, 250)]);
+        Assert.Equal(ResourceId, (await service.SaveLayoutAsync(ResourceId, null, layout)).Id);
+        Assert.Equal(ResourceId, (await service.SaveLayoutAsync(ResourceId, ResourceId, layout)).FacilityId);
+        await service.SetTimingLinkAsync(startId, null);
+        await service.DeleteLayoutAsync(ResourceId, ResourceId);
+        await service.DeleteFacilityAsync(ResourceId);
+        var installation = new TimingContracts.SaveInstallationRequest(ResourceId, "agent", "MyLaps_X2", "Finish");
+        Assert.Equal("agent", (await service.SaveInstallationAsync(null, installation)).AgentId);
+        Assert.Equal("Finish", (await service.SaveInstallationAsync(ResourceId, installation)).Description);
+        Assert.Equal("loop", (await service.SaveTimingPointAsync(ResourceId, null, new("loop", "Finish"))).SystemId);
+        Assert.Equal(ResourceId, (await service.SaveTimingPointAsync(ResourceId, ResourceId, new("loop", "Finish"))).Id);
+        await service.DeleteTimingPointAsync(ResourceId, ResourceId);
+        await service.DeleteInstallationAsync(ResourceId);
+        var proxy = (PlatformServiceTests.TestProxy)(object)app.Services.GetRequiredService<IInfrastructureAdministrationService>();
+        Assert.Equal(16, proxy.Calls.Count);
+    }
+
+    [Fact]
+    public async Task InfrastructureMutations_RejectMissingAntiforgery()
+    {
+        await using var app = await CreateAppAsync();
+        using var client = CreateClient(app, antiforgery: false);
+        await client.GetAsync("signin?role=velotime-admin");
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("api/admin/facilities", new FacilitiesContracts.SaveFacilityRequest("Track"))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync($"api/admin/coursepoints/{ResourceId}/timing-link", new FacilitiesContracts.SetCoursePointTimingLinkRequest(null))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync($"api/admin/timing/installations/{ResourceId}/points", new TimingContracts.SaveTimingPointRequest("loop", "Finish"))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.DeleteAsync($"api/admin/facilities/{ResourceId}")).StatusCode);
+        Assert.Empty(((PlatformServiceTests.TestProxy)(object)app.Services.GetRequiredService<IInfrastructureAdministrationService>()).Calls);
+    }
+
+    [Fact]
+    public async Task InfrastructureDependencyFailures_PreserveSafeServiceUnavailableMessage()
+    {
+        var service = PlatformServiceTests.TestProxy.Create<IInfrastructureAdministrationService>((_, _) =>
+            throw new HttpRequestException("Dependencies could not be verified. No changes were saved.", null, HttpStatusCode.ServiceUnavailable));
+        await using var app = await CreateAppAsync(infrastructure: service);
+        using var client = CreateClient(app);
+        await client.GetAsync("signin?role=velotime-admin");
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() => new InfrastructureAdministrationHttpService(client).DeleteFacilityAsync(ResourceId));
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, exception.StatusCode);
+        Assert.Contains("No changes were saved", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("timing-admin", HttpStatusCode.OK)]
+    [InlineData("velotime-admin", HttpStatusCode.OK)]
+    [InlineData("statistics-admin", HttpStatusCode.Forbidden)]
+    [InlineData("facilities-admin", HttpStatusCode.Forbidden)]
+    [InlineData("user", HttpStatusCode.Forbidden)]
+    public async Task TransponderAdministration_EnforcesTimingRole(string role, HttpStatusCode status)
+    {
+        await using var app = await CreateAppAsync();
+        using var client = CreateClient(app);
+        await client.GetAsync($"signin?role={role}");
+        Assert.Equal(status, (await client.GetAsync("api/admin/timing/transponders")).StatusCode);
+    }
+
+    [Fact]
+    public async Task TransponderHttpService_RoutesSelfAndAdminMutationsSeparately()
+    {
+        await using var app = await CreateAppAsync();
+        using var client = CreateClient(app);
+        await client.GetAsync("signin?role=user");
+        var service = new TransponderManagementHttpService(client);
+        Assert.Empty(await service.GetTranspondersAsync(false));
+        await service.RegisterAsync("FF-87718", false);
+        await service.EndOwnershipAsync(ResourceId, false);
+        await service.DeleteOwnershipAsync(ResourceId, false);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync("api/admin/timing/ownerships",
+            new TimingContracts.SaveTransponderOwnershipRequest(ResourceId, ResourceId, DateTimeOffset.UtcNow, null))).StatusCode);
+        var proxy = (PlatformServiceTests.TestProxy)(object)app.Services.GetRequiredService<ITransponderManagementService>();
+        Assert.Equal(4, proxy.Calls.Count);
+        Assert.All(proxy.Calls, call => Assert.Equal(false, call.Arguments[call.Method.Name == nameof(ITransponderManagementService.GetTranspondersAsync) ? 0 : 1]));
+
+        await client.GetAsync("signin?role=timing-admin");
+        await service.GetTranspondersAsync(true);
+        await service.RegisterAsync("FF-87718", true);
+        await service.SaveOwnershipAsync(null, new(ResourceId, ResourceId, DateTimeOffset.UtcNow, null));
+        await service.SaveOwnershipAsync(ResourceId, new(ResourceId, ResourceId, DateTimeOffset.UtcNow.AddDays(-1), null));
+        await service.EndOwnershipAsync(ResourceId, true);
+        await service.DeleteOwnershipAsync(ResourceId, true);
+        Assert.Equal(10, proxy.Calls.Count);
+    }
+
+    [Theory]
+    [InlineData("statistics-admin", HttpStatusCode.OK)]
+    [InlineData("velotime-admin", HttpStatusCode.OK)]
+    [InlineData("timing-admin", HttpStatusCode.Forbidden)]
+    [InlineData("facilities-admin", HttpStatusCode.Forbidden)]
+    [InlineData("user", HttpStatusCode.Forbidden)]
+    public async Task StatisticsAdministration_EnforcesRoleInBff(string role, HttpStatusCode status)
+    {
+        await using var app = await CreateAppAsync();
+        using var client = CreateClient(app);
+        await client.GetAsync($"signin?role={role}");
+        Assert.Equal(status, (await client.GetAsync("api/admin/statistics/items")).StatusCode);
+        Assert.Equal(status, (await client.GetAsync("api/admin/statistics/configurations")).StatusCode);
+    }
+
+    [Fact]
+    public async Task StatisticsAdministration_RejectsMissingAntiforgeryAndPreservesConflicts()
+    {
+        var service = PlatformServiceTests.TestProxy.Create<IStatisticsAdministrationService>((_, _) =>
+            throw new HttpRequestException("This item is referenced by 2 configurations.", null, HttpStatusCode.Conflict));
+        await using var app = await CreateAppAsync(administration: service);
+        using var unprotected = CreateClient(app, antiforgery: false);
+        await unprotected.GetAsync("signin?role=statistics-admin");
+        Assert.Equal(HttpStatusCode.BadRequest, (await unprotected.DeleteAsync($"api/admin/statistics/items/{ResourceId}")).StatusCode);
+
+        using var client = CreateClient(app);
+        await client.GetAsync("signin?role=statistics-admin");
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() => new StatisticsAdministrationHttpService(client).DeleteItemAsync(ResourceId));
+        Assert.Equal(HttpStatusCode.Conflict, exception.StatusCode);
+        Assert.Contains("2 configurations", exception.Message);
+    }
+
+    [Fact]
+    public async Task StatisticsAdministrationHttpService_ForwardsMutationsAndContracts()
+    {
+        await using var app = await CreateAppAsync();
+        using var client = CreateClient(app);
+        await client.GetAsync("signin?role=statistics-admin");
+        var service = new StatisticsAdministrationHttpService(client);
+        Assert.Empty(await service.GetItemsAsync());
+        Assert.Empty(await service.GetConfigurationsAsync());
+        await service.SaveItemAsync(null, new("Lap", "", 250));
+        await service.SaveItemAsync(ResourceId, new("Lap", "Updated", 250));
+        var configuration = new SaveStatisticsConfigurationRequest(ResourceId, StatisticsConfigurationType.Simple, ResourceId, ResourceId, null, null);
+        await service.SaveConfigurationAsync(null, configuration);
+        await service.SaveConfigurationAsync(ResourceId, configuration);
+        await service.DeleteConfigurationAsync(ResourceId);
+        await service.DeleteItemAsync(ResourceId);
+        var proxy = (PlatformServiceTests.TestProxy)(object)app.Services.GetRequiredService<IStatisticsAdministrationService>();
+        Assert.Equal(8, proxy.Calls.Count);
+    }
 
     [Fact]
     public async Task StatisticsEndpoint_ForwardsPagination()
@@ -64,6 +236,12 @@ public sealed class WebUiBffTests
     [InlineData("profile/username")]
     [InlineData("profile/accounts")]
     [InlineData("antiforgery")]
+    [InlineData("admin/statistics/items")]
+    [InlineData("admin/statistics/configurations")]
+    [InlineData("transponders")]
+    [InlineData("admin/timing/transponders")]
+    [InlineData("admin/lookups/facilities")]
+    [InlineData("admin/lookups/installations")]
     public async Task ProtectedReads_Return401WithoutRedirect(string path)
     {
         await using var app = await CreateAppAsync();
@@ -77,11 +255,13 @@ public sealed class WebUiBffTests
     [InlineData("PUT", "timing/installations/fa886b15-035b-43fe-984a-04c8ce566122")]
     [InlineData("POST", "profile/accounts/google/link")]
     [InlineData("DELETE", "profile/accounts/google")]
+    [InlineData("DELETE", "ownerships/fa886b15-035b-43fe-984a-04c8ce566122")]
+    [InlineData("POST", "ownerships/fa886b15-035b-43fe-984a-04c8ce566122/end")]
     public async Task Mutations_RejectMissingAntiforgeryToken(string method, string path)
     {
         await using var app = await CreateAppAsync();
         using var client = CreateClient(app, antiforgery: false);
-        await client.GetAsync("signin");
+        await client.GetAsync("signin?role=timing-admin");
         using var request = new HttpRequestMessage(new HttpMethod(method), "api/" + path);
         request.Content = method == "PUT" ? JsonContent.Create(new InstallationView { Id = ResourceId })
             : method == "POST" ? JsonContent.Create("/profile") : null;
@@ -94,7 +274,7 @@ public sealed class WebUiBffTests
     {
         await using var app = await CreateAppAsync();
         using var client = CreateClient(app);
-        await client.GetAsync("signin");
+        await client.GetAsync("signin?role=timing-admin");
         var timing = new TimingHttpService(client);
         var profile = new ProfileHttpService(client);
         var facilities = new FacilityHttpService(client);
@@ -125,7 +305,7 @@ public sealed class WebUiBffTests
     {
         await using var app = await CreateAppAsync();
         using var client = CreateClient(app);
-        await client.GetAsync("signin");
+        await client.GetAsync("signin?role=timing-admin");
         using var response = await client.PutAsJsonAsync($"api/timing/installations/{ResourceId}", new InstallationView { Id = Guid.NewGuid() });
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var service = (PlatformServiceTests.TestProxy)(object)app.Services.GetRequiredService<ITimingService>();
@@ -200,7 +380,16 @@ public sealed class WebUiBffTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => client.DeleteAsync("https://outside.example/api/profile/accounts/google"));
     }
 
-    private static async Task<WebApplication> CreateAppAsync(IStatisticsService? statistics = null)
+    [Fact]
+    public async Task InstallationUpdate_RejectsOrdinaryUser()
+    {
+        await using var app = await CreateAppAsync();
+        using var client = CreateClient(app);
+        await client.GetAsync("signin?role=user");
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PutAsJsonAsync($"api/timing/installations/{ResourceId}", new InstallationView { Id = ResourceId })).StatusCode);
+    }
+
+    private static async Task<WebApplication> CreateAppAsync(IStatisticsService? statistics = null, IStatisticsAdministrationService? administration = null, IInfrastructureAdministrationService? infrastructure = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -208,9 +397,41 @@ public sealed class WebUiBffTests
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(options => options.EventsType = typeof(TestCookieEvents));
         builder.Services.AddTransient<TestCookieEvents>();
-        builder.Services.AddAuthorization();
+        builder.Services.AddAdministrationAuthorization();
         builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
         builder.Services.AddSingleton(statistics ?? PlatformServiceTests.TestProxy.Create<IStatisticsService>((_, _) => Array.Empty<SampleView>()));
+        builder.Services.AddSingleton(administration ?? PlatformServiceTests.TestProxy.Create<IStatisticsAdministrationService>((method, _) => method.Name switch
+        {
+            nameof(IStatisticsAdministrationService.GetItemsAsync) => (IReadOnlyList<StatisticsItemDTO>)Array.Empty<StatisticsItemDTO>(),
+            nameof(IStatisticsAdministrationService.GetConfigurationsAsync) => (IReadOnlyList<StatisticsConfigurationDTO>)Array.Empty<StatisticsConfigurationDTO>(),
+            _ => null
+        }));
+        builder.Services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, _) => method.Name switch
+        {
+            nameof(ITransponderManagementService.GetTranspondersAsync) => (IReadOnlyList<TimingContracts.TransponderDTO>)Array.Empty<TimingContracts.TransponderDTO>(),
+            _ => null
+        }));
+        builder.Services.AddSingleton(infrastructure ?? PlatformServiceTests.TestProxy.Create<IInfrastructureAdministrationService>((method, arguments) => method.Name switch
+        {
+            nameof(IInfrastructureAdministrationService.GetFacilitiesAsync) => (IReadOnlyList<FacilitiesContracts.FacilityDTO>)Array.Empty<FacilitiesContracts.FacilityDTO>(),
+            nameof(IInfrastructureAdministrationService.GetLayoutsAsync) => (IReadOnlyList<FacilitiesContracts.CourseLayoutDTO>)Array.Empty<FacilitiesContracts.CourseLayoutDTO>(),
+            nameof(IInfrastructureAdministrationService.GetInstallationsAsync) => (IReadOnlyList<TimingContracts.InstallationDTO>)Array.Empty<TimingContracts.InstallationDTO>(),
+            nameof(IInfrastructureAdministrationService.SaveFacilityAsync) => new FacilitiesContracts.FacilityDTO { Id = (Guid?)arguments[0] ?? ResourceId, Name = ((FacilitiesContracts.SaveFacilityRequest)arguments[1]!).Name },
+            nameof(IInfrastructureAdministrationService.SaveLayoutAsync) => new FacilitiesContracts.CourseLayoutDTO { Id = (Guid?)arguments[1] ?? ResourceId, FacilityId = (Guid)arguments[0]!, Segments = [] },
+            nameof(IInfrastructureAdministrationService.SaveInstallationAsync) => new TimingContracts.InstallationDTO
+            {
+                Id = (Guid?)arguments[0] ?? ResourceId, AgentId = ((TimingContracts.SaveInstallationRequest)arguments[1]!).AgentId,
+                FacilityId = ((TimingContracts.SaveInstallationRequest)arguments[1]!).FacilityId ?? Guid.Empty,
+                Description = ((TimingContracts.SaveInstallationRequest)arguments[1]!).Description,
+                TimingSystem = new TimingContracts.TimingSystemDTO { Name = ((TimingContracts.SaveInstallationRequest)arguments[1]!).TimingSystem }
+            },
+            nameof(IInfrastructureAdministrationService.SaveTimingPointAsync) => new TimingContracts.TimingPointDTO
+            {
+                Id = (Guid?)arguments[1] ?? ResourceId, SystemId = ((TimingContracts.SaveTimingPointRequest)arguments[2]!).SystemId,
+                Description = ((TimingContracts.SaveTimingPointRequest)arguments[2]!).Description
+            },
+            _ => null
+        }));
         builder.Services.AddSingleton(PlatformServiceTests.TestProxy.Create<IFacilityService>((method, _) => method.Name switch
         {
             nameof(IFacilityService.GetFacilitiesAsync) => Array.Empty<FacilityView>(),
@@ -241,6 +462,8 @@ public sealed class WebUiBffTests
         app.MapGet("/signin", async (HttpContext context) =>
         {
             var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "rider"), new Claim(ClaimTypes.Name, "rider")], "Cookies");
+            if (context.Request.Query.TryGetValue("role", out var role))
+                identity.AddClaim(new Claim("realm_access", System.Text.Json.JsonSerializer.Serialize(new { roles = new[] { role.ToString() } })));
             await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
             return Results.NoContent();
         });

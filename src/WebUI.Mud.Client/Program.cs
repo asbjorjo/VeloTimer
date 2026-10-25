@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
+using VeloTime.WebUI.Mud.Client;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
 builder.Services.AddMudServices();
 
-builder.Services.AddAuthorizationCore();
+builder.Services.AddAuthorizationCore(AdministrationPolicies.Configure);
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthenticationStateDeserialization();
 
@@ -20,6 +21,9 @@ builder.Services.AddScoped(_ =>
 builder.Services.AddScoped<IFacilityService, FacilityHttpService>();
 builder.Services.AddScoped<ITimingService, TimingHttpService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsHttpService>();
+builder.Services.AddScoped<IStatisticsAdministrationService, StatisticsAdministrationHttpService>();
+builder.Services.AddScoped<ITransponderManagementService, TransponderManagementHttpService>();
+builder.Services.AddScoped<IInfrastructureAdministrationService, InfrastructureAdministrationHttpService>();
 builder.Services.AddScoped<IProfileService, ProfileHttpService>();
 
 await builder.Build().RunAsync();

@@ -11,6 +11,7 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using MudBlazor.Extensions;
 using MudBlazor.Services;
 using StackExchange.Redis;
+using VeloTime.Module.Common;
 using VeloTime.WebUI.Keycloak;
 using VeloTime.WebUI.Mud;
 using VeloTime.WebUI.Mud.Client.Services;
@@ -40,7 +41,7 @@ builder.Services.AddAuthentication(options =>
             options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
             options.ResponseType = OpenIdConnectResponseType.Code;
             options.TokenValidationParameters.NameClaimType = "preferred_username";
-            //options.Scope.Add("velotime:api");
+            options.Scope.Add("velotime:all");
 
             options.Scope.Add("openid");
             options.Scope.Add("profile");
@@ -55,14 +56,15 @@ builder.Services.AddAuthentication(options =>
                 options.Authority = builder.Configuration.GetConnectionString("keycloak");
             }
         })
-    .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme);
+    .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+        options.AccessDeniedPath = "/access-denied");
 
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.ConfigureCookieOidc(CookieAuthenticationDefaults.AuthenticationScheme, VELOTIME_OIDC_SCHEME);
 
-builder.Services.AddAuthorization();
+builder.Services.AddAdministrationAuthorization();
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 
 //builder.Services.AddMemoryCache();
@@ -89,7 +91,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents()
-    .AddAuthenticationStateSerialization();
+    .AddAuthenticationStateSerialization(options => options.SerializeAllClaims = true);
 
 builder.Services.AddHttpContextAccessor();
 
@@ -128,6 +130,9 @@ builder.Services
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IFacilityService, FacilityService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
+builder.Services.AddScoped<IStatisticsAdministrationService, StatisticsAdministrationService>();
+builder.Services.AddScoped<ITransponderManagementService, TransponderManagementService>();
+builder.Services.AddScoped<IInfrastructureAdministrationService, InfrastructureAdministrationService>();
 builder.Services.AddScoped<ITimingService, TimingService>();
 
 var app = builder.Build();

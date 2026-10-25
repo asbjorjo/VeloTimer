@@ -40,12 +40,15 @@ internal static class BffEndpoints
                     Module.Timing.Client.ApiException upstream => upstream.StatusCode,
                     Module.Statistics.Client.ApiException upstream => upstream.StatusCode,
                     Keycloak.ApiException upstream => upstream.StatusCode,
+                    HttpRequestException { StatusCode: { } statusCode } => (int)statusCode,
                     _ => StatusCodes.Status502BadGateway
                 };
                 http.RequestServices.GetRequiredService<ILoggerFactory>()
                     .CreateLogger("WebUI.Bff").LogError("BFF request failed for {Path}: {ExceptionType}, status {Status}",
                         http.Request.Path, exception.GetType().Name, status);
-                return Results.Problem(statusCode: status is 400 or 401 or 403 or 404 ? status : 502);
+                return Results.Problem(
+                    detail: exception is HttpRequestException && status is 400 or 409 or 422 or 503 ? exception.Message : null,
+                    statusCode: status is 400 or 401 or 403 or 404 or 409 or 422 or 503 ? status : 502);
             }
         });
 
@@ -79,9 +82,12 @@ internal static class BffEndpoints
 
             await service.UpdateInstallationAsync(installation, cancellationToken);
             return Results.NoContent();
-        });
+        }).RequireAuthorization(VeloTime.Module.Common.AdministrationAuthorization.TimingPolicy);
 
         api.MapStatisticsEndpoints();
+        api.MapStatisticsAdministrationEndpoints();
+        api.MapTransponderManagementEndpoints();
+        api.MapInfrastructureAdministrationEndpoints();
 
         api.MapGet("/profile/username", async (IProfileService service, CancellationToken cancellationToken) =>
             TypedResults.Ok(await service.GetUsernameAsync(cancellationToken)));

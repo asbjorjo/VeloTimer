@@ -30,6 +30,9 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Module.Common\VeloTime.Module.Common.csproj" />
+    <ProjectReference Include="..\Module.Facilities.Interface\VeloTime.Module.Facilities.Interface.csproj" />
+    <ProjectReference Include="..\Module.Statistics.Interface\VeloTime.Module.Statistics.Interface.csproj" />
+    <ProjectReference Include="..\Module.Timing.Interface\VeloTime.Module.Timing.Interface.csproj" />
     <ProjectReference Include="..\Module.Facilities.Client\VeloTime.Module.Facilities.Client.csproj" />
 	  <ProjectReference Include="..\Module.Statistics.Client\VeloTime.Module.Statistics.Client.csproj" />
 	  <ProjectReference Include="..\Module.Timing.Client\VeloTime.Module.Timing.Client.csproj" />

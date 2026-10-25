@@ -1,0 +1,239 @@
+@using VeloTime.Module.Timing.Interface.Data
+@using VeloTime.WebUI.Mud.Client.Services
+@inject ITransponderManagementService Service
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+@implements IDisposable
+
+<NavigationLock ConfirmExternalNavigation="@(_editor is not null)" OnBeforeInternalNavigation="ConfirmNavigation" />
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+<MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">@(Administration ? "Transponders" : "My transponders")</MudText>
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error" ShowCloseIcon="true" CloseIconClicked="() => _error = null" Class="mb-4">@_error</MudAlert>
+}
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else if (_editor is not null)
+{
+    <MudText Typo="Typo.h6" Class="mb-4">@(_editor == "register" ? "Register transponder" : _editor == "transponder" ? "Edit transponder" : _ownershipId.HasValue ? "Edit ownership" : "Add ownership")</MudText>
+    <MudForm @ref="_form" @bind-IsValid="_valid">
+        <MudGrid>
+            @if (_editor == "register")
+            {
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_code" Label="MyLaps X2 transponder code" Required="true" Disabled="_busy" /></MudItem>
+            }
+            else if (_editor == "transponder")
+            {
+                <MudItem xs="12" md="6"><MudTextField Value="@_code" Label="System ID" ReadOnly="true" /></MudItem>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_label" Label="Label" Disabled="_busy" /></MudItem>
+            }
+            else
+            {
+                <MudItem xs="12" md="6">
+                    <MudSelect T="Guid?" @bind-Value="_transponderId" Label="Transponder" Required="true" Disabled="@(_busy || _ownershipId.HasValue)">
+                        @foreach (var transponder in _transponders) { <MudSelectItem T="Guid?" Value="@((Guid?)transponder.Id)">@transponder.Label</MudSelectItem> }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_owner" Label="Owner user ID" Required="true" Validation="@(new Func<string, string?>(ValidateOwner))" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_fromDate" Label="Owned from date (UTC)" Required="true" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" md="6"><MudTimePicker @bind-Time="_fromTime" Label="Owned from time (UTC)" Required="true" AmPm="false" Disabled="_busy" /></MudItem>
+                <MudItem xs="12"><MudCheckBox @bind-Value="_hasEnd" Label="Has end date" Disabled="_busy" /></MudItem>
+                @if (_hasEnd)
+                {
+                    <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_toDate" Label="Owned to date (UTC)" Required="true" Disabled="_busy" /></MudItem>
+                    <MudItem xs="12" md="6"><MudTimePicker @bind-Time="_toTime" Label="Owned to time (UTC)" Required="true" AmPm="false" Disabled="_busy" /></MudItem>
+                }
+            }
+        </MudGrid>
+        <MudStack Row="true" Spacing="3" Class="mt-6">
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="Save" Disabled="_busy">@(_editor == "register" ? "Register" : "Save")</MudButton>
+            <MudButton OnClick="Cancel" Disabled="_busy">Cancel</MudButton>
+        </MudStack>
+    </MudForm>
+}
+else
+{
+    <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudTextField @bind-Value="_search" Placeholder="Search transponders" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Margin="Margin.Dense" />
+        <MudCheckBox @bind-Value="_showHistory" Label="Include history" />
+        <MudButton OnClick="Register" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">Register transponder</MudButton>
+        @if (Administration)
+        {
+            <MudButton OnClick="AddOwnership" StartIcon="@Icons.Material.Filled.PersonAdd" Disabled="@(_transponders.Count == 0 || _busy)">Add ownership</MudButton>
+        }
+        <MudTooltip Text="Refresh"><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" Disabled="_busy" /></MudTooltip>
+    </MudStack>
+    <MudTable T="OwnershipRow" Items="Rows" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+        <HeaderContent>
+            <MudTh>Transponder</MudTh><MudTh>System</MudTh>
+            @if (Administration) { <MudTh>Owner</MudTh> }
+            <MudTh>From (UTC)</MudTh><MudTh>To (UTC)</MudTh><MudTh>Status</MudTh><MudTh />
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Transponder">@context.Transponder.Label</MudTd>
+            <MudTd DataLabel="System">@context.Transponder.System</MudTd>
+            @if (Administration) { <MudTd DataLabel="Owner" Style="overflow-wrap:anywhere">@context.Ownership?.OwnerId</MudTd> }
+            <MudTd DataLabel="From (UTC)">@Format(context.Ownership?.OwnedFrom)</MudTd>
+            <MudTd DataLabel="To (UTC)">@Format(context.Ownership?.OwnedTo)</MudTd>
+            <MudTd DataLabel="Status">@Status(context.Ownership)</MudTd>
+            <MudTd DataLabel="Actions">
+                @if (Administration)
+                {
+                    <MudTooltip Text="Edit transponder label"><MudIconButton Icon="@Icons.Material.Filled.Label" OnClick="() => EditTransponder(context.Transponder)" Disabled="_busy" /></MudTooltip>
+                    <MudTooltip Text="Delete unused transponder"><MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error" OnClick="() => DeleteTransponder(context.Transponder)" Disabled="_busy" /></MudTooltip>
+                }
+                @if (context.Ownership is { } ownership)
+                {
+                    @if (Administration)
+                    {
+                        <MudTooltip Text="Edit ownership"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditOwnership(context)" Disabled="_busy" /></MudTooltip>
+                    }
+                    @if (IsActive(ownership))
+                    {
+                        <MudTooltip Text="End ownership now"><MudIconButton Icon="@Icons.Material.Filled.EventBusy" OnClick="() => Remove(ownership.Id, true)" Disabled="_busy" /></MudTooltip>
+                    }
+                    <MudTooltip Text="Delete ownership"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => Remove(ownership.Id, false)" Disabled="_busy" /></MudTooltip>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>No transponders match this view.</MudText></NoRecordsContent>
+        <PagerContent><MudTablePager /></PagerContent>
+    </MudTable>
+}
+
+</MudContainer>
+
+@code {
+    [Parameter] public bool Administration { get; set; }
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<TransponderDTO> _transponders = [];
+    private MudForm? _form;
+    private bool _loading = true, _busy, _valid, _hasEnd, _showHistory = true;
+    private string? _editor, _error;
+    private string _code = "", _owner = "", _search = "", _label = "";
+    private Guid? _ownershipId, _transponderId;
+    private DateTime? _fromDate, _toDate;
+    private TimeSpan? _fromTime, _toTime;
+    private sealed record OwnershipRow(TransponderDTO Transponder, TransponderOwnershipDTO? Ownership);
+
+    private IEnumerable<OwnershipRow> Rows => _transponders
+        .Where(transponder => $"{transponder.Label} {transponder.SystemId} {string.Join(' ', transponder.Ownerships.Select(owner => owner.OwnerId))}".Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .SelectMany(transponder => transponder.Ownerships.Count == 0 ? [new OwnershipRow(transponder, null)] : transponder.Ownerships
+            .Where(owner => _showHistory || IsActive(owner)).Select(owner => new OwnershipRow(transponder, owner)));
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true;
+        _error = null;
+        try { _transponders = await Service.GetTranspondersAsync(Administration, _lifetime.Token); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception) { _error = "Transponders could not be loaded. Check your access and refresh."; }
+        finally { _loading = false; }
+    }
+
+    private void Register() { _editor = "register"; _code = ""; _error = null; }
+
+    private void EditTransponder(TransponderDTO transponder)
+    {
+        _editor = "transponder"; _transponderId = transponder.Id; _label = transponder.Label; _code = transponder.SystemId; _error = null;
+    }
+
+    private async Task DeleteTransponder(TransponderDTO transponder)
+    {
+        if (await Dialogs.ShowMessageBoxAsync("Delete transponder?", $"Permanently delete '{transponder.Label}'? Ownership periods, passings, and recorded results block deletion.", yesText: "Delete", cancelText: "Cancel") != true) return;
+        _busy = true; _error = null;
+        try { await Service.DeleteTransponderAsync(transponder.Id, _lifetime.Token); Snackbar.Add("Transponder deleted.", Severity.Success); await Load(); }
+        catch (HttpRequestException exception) { _error = exception.Message; }
+        catch (Exception) { _error = "The transponder could not be deleted. Please try again."; }
+        finally { _busy = false; }
+    }
+
+    private void AddOwnership()
+    {
+        _editor = "ownership";
+        _ownershipId = _transponderId = null;
+        _owner = "";
+        var now = DateTime.UtcNow;
+        _fromDate = now.Date;
+        _fromTime = now.TimeOfDay;
+        _toDate = now.Date.AddDays(1);
+        _toTime = now.TimeOfDay;
+        _hasEnd = false;
+        _error = null;
+    }
+
+    private void EditOwnership(OwnershipRow row)
+    {
+        AddOwnership();
+        var ownership = row.Ownership!;
+        _ownershipId = ownership.Id;
+        _transponderId = row.Transponder.Id;
+        _owner = ownership.OwnerId.ToString();
+        _fromDate = ownership.OwnedFrom.UtcDateTime.Date;
+        _fromTime = ownership.OwnedFrom.UtcDateTime.TimeOfDay;
+        _hasEnd = ownership.OwnedTo.HasValue;
+        _toDate = ownership.OwnedTo?.UtcDateTime.Date;
+        _toTime = ownership.OwnedTo?.UtcDateTime.TimeOfDay;
+    }
+
+    private async Task Save()
+    {
+        await _form!.Validate();
+        if (!_valid || _busy) return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            if (_editor == "register") await Service.RegisterAsync(_code, Administration, _lifetime.Token);
+            else if (_editor == "transponder") await Service.SaveTransponderAsync(_transponderId!.Value, _label, _lifetime.Token);
+            else
+            {
+                var start = Utc(_fromDate!.Value, _fromTime!.Value);
+                var end = _hasEnd ? Utc(_toDate!.Value, _toTime!.Value) : (DateTimeOffset?)null;
+                if (end.HasValue && end <= start) { _error = "Ownership end must be after its start."; return; }
+                await Service.SaveOwnershipAsync(_ownershipId, new(_transponderId!.Value, Guid.Parse(_owner), start, end), _lifetime.Token);
+            }
+            _editor = null;
+            Snackbar.Add("Saved.", Severity.Success);
+            await Load();
+        }
+        catch (HttpRequestException exception) { _error = exception.Message; }
+        catch (Exception) { _error = "The request could not be completed. Please try again."; }
+        finally { _busy = false; }
+    }
+
+    private async Task Remove(Guid id, bool end)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(end ? "End ownership?" : "Delete ownership?",
+            end ? "End this ownership period now and keep it in history?" : "Permanently delete this ownership period? The transponder and recorded results will not be deleted.",
+            yesText: end ? "End ownership" : "Delete ownership", cancelText: "Cancel");
+        if (confirmed != true || _busy) return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            if (end) await Service.EndOwnershipAsync(id, Administration, _lifetime.Token);
+            else await Service.DeleteOwnershipAsync(id, Administration, _lifetime.Token);
+            Snackbar.Add(end ? "Ownership ended." : "Ownership deleted.", Severity.Success);
+            await Load();
+        }
+        catch (HttpRequestException exception) { _error = exception.Message; }
+        catch (Exception) { _error = "The ownership could not be changed. Please try again."; }
+        finally { _busy = false; }
+    }
+
+    private static string? ValidateOwner(string value) => Guid.TryParse(value, out var id) && id != Guid.Empty ? null : "Enter a valid user ID.";
+    private static DateTimeOffset Utc(DateTime date, TimeSpan time) => new(DateTime.SpecifyKind(date.Date.Add(time), DateTimeKind.Utc));
+    private static bool IsActive(TransponderOwnershipDTO owner) => owner.OwnedFrom <= DateTimeOffset.UtcNow && (!owner.OwnedTo.HasValue || owner.OwnedTo > DateTimeOffset.UtcNow);
+    private static string Status(TransponderOwnershipDTO? owner) => owner is null ? "Unassigned" : IsActive(owner) ? "Active" : owner.OwnedFrom > DateTimeOffset.UtcNow ? "Scheduled" : "Ended";
+    private static string Format(DateTimeOffset? value) => value?.UtcDateTime.ToString("yyyy-MM-dd HH:mm") ?? "-";
+    private async Task<bool> ConfirmDiscard() => _editor is null || await Dialogs.ShowMessageBoxAsync("Discard changes?", "Unsaved changes will be lost.", yesText: "Discard", cancelText: "Keep editing") == true;
+    private async Task Cancel() { if (await ConfirmDiscard()) { _editor = null; _error = null; } }
+    private async Task ConfirmNavigation(LocationChangingContext context) { if (!await ConfirmDiscard()) context.PreventNavigation(); }
+    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+}
