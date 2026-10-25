@@ -17,6 +17,21 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="3.0.0-alpha.65"></a>
+## [3.0.0-alpha.65](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.65) (2026-10-25)
+
+### Features
+
+* **auth:** authorize administration with permission claims ([adc19bf](https://www.github.com/asbjorjo/VeloTimer/commit/adc19bf335acef8bfdbeff77ead63272afbda334))
+* **facilities:** manage facilities and course layouts ([d7974c7](https://www.github.com/asbjorjo/VeloTimer/commit/d7974c73764c87cdd45628be3527a2241d791086))
+* **statistics:** manage items and configurations ([1c3f509](https://www.github.com/asbjorjo/VeloTimer/commit/1c3f509b2322d1794db3fdc91e4731c41394f178))
+* **timing:** manage installations and transponder ownership ([f9f5d06](https://www.github.com/asbjorjo/VeloTimer/commit/f9f5d06ea71e80ea5ac814e82e4dca1bf587848f))
+* **webui:** replace administration pages with policy-driven workflows ([d0e7c39](https://www.github.com/asbjorjo/VeloTimer/commit/d0e7c39a5d87d7d1d80c8d6ac9999300367e4667))
+
+### Bug Fixes
+
+* **auth:** map Keycloak realm roles from UserInfo ([09c86cc](https://www.github.com/asbjorjo/VeloTimer/commit/09c86cce80d030c1fc9804c5f0393e30d36479fb))
+
 <a name="3.0.0-alpha.64"></a>
 ## [3.0.0-alpha.64](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.64) (2026-10-23)
 
