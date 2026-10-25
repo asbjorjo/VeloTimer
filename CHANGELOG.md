@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
 
+## Unreleased
+
+### Features
+
+* **webui:** replace administration pages with Facilities/course-layout, installation/timing-point, transponder ownership, and statistics definition management.
+* **authorization:** map identity claims to explicit permission claims and enforce named policies for modules, scoped coursepoint linking, and ownership isolation.
+* **timing:** allow signed-in users to register transponders and end or delete their own ownership periods; allow timing administrators to manage all ownerships.
+* **api:** add validated relationship editing, cross-module dependency checks, deletion safeguards, and cache invalidation.
+
+### Bug Fixes
+
+* **timing:** return transponders instead of installations from transponder queries and persist custom transponder labels.
+* **facilities:** return an empty layout list for an existing facility without layouts.
+* **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
+
 <a name="3.0.0-alpha.64"></a>
 ## [3.0.0-alpha.64](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.64) (2026-10-23)
 

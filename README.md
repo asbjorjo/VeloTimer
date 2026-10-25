@@ -125,6 +125,77 @@ Redis, Keycloak, and domain API dependencies. Focused boundary tests run with:
 dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --filter FullyQualifiedName~WebUiBffTests
 ```
 
+## Administration
+
+The administration screens replace the previous admin pages and share the existing
+Interactive Auto/BFF infrastructure. Navigation and direct URLs enforce module roles.
+
+* `/admin/facilities` manages facilities; each facility links to its course layouts.
+  The layout editor manages named coursepoints, ordered connected segments, lengths
+  in metres, reuse of points within a facility, and timing-point links.
+* `/admin/timing/installations` manages installations and their facility assignments.
+  Each installation includes timing-point management and a coursepoint selector.
+  The previous `/admin/installations` URLs remain aliases. Observed hardware identity
+  and recorded passings are protected from incompatible edits.
+* `/admin/statistics/items` and `/admin/statistics/configurations` manage statistics
+  items, Simple coursepoint configurations, and Multi repetition configurations.
+  Definitions with dependencies cannot be deleted. Recorded results prevent changes
+  to timing semantics; create a new definition instead. Descriptive edits are allowed.
+* `/transponders` lets a signed-in user register a MyLaps X2 code, list their own
+  ownership periods, end an active period, or permanently delete a selected period.
+* `/admin/timing/transponders` lets timing administrators register transponders, edit
+  their labels, delete unused transponders, and create, edit, end, or delete anyone's
+  ownership periods. Owner IDs are Keycloak subject UUIDs. Ownership editor timestamps
+  are UTC. Deleting a transponder is blocked by ownership, passings, or statistics.
+
+All relationship selections are validated again by the owning API. Facilities,
+layouts, installations, timing points, and statistics definitions cannot be deleted
+while dependent records remain. Cross-module dependency checks use authenticated
+HTTP, never another module's database. If a required service is unavailable, the
+operation fails closed. These preflight checks are not a distributed transaction;
+local transactions and database constraints protect local invariants.
+
+Coursepoints may be shared between layouts in the same facility. Timing links must
+remain within that facility, and a timing point can link to only one coursepoint.
+Layout geometry used by statistics definitions or recorded samples cannot be changed;
+create a new layout instead. Relationship cache entries are invalidated after edits.
+Layout or timing-point saves that succeed before a separate link operation fails
+report the partial save explicitly and retain the saved ID for retry.
+
+Keycloak realm roles are mapped at authentication into explicit `velotime_permission`
+claims. The `velotime-admin` permission grants all modules; `facilities-admin`,
+`timing-admin`, and `statistics-admin` grant their respective modules. Timing admins
+also receive the scoped coursepoint/timing-point linking permission, without broader
+Facilities write access. APIs, BFF routes, pages, and navigation all use named
+permission policies; they do not authorize with role checks. Ordinary accounts do not
+receive administrator permissions automatically.
+
+For a new realm, the checked-in import declares these roles and includes realm roles
+in the WebUI ID token. Existing Keycloak realms are not updated by editing the import:
+create the roles, add the WebUI realm-role mapper to ID/access tokens, assign the
+appropriate role to administrators, then sign out and sign in again. No admin API
+credentials are sent to the browser.
+
+The WebUI also requests the optional `velotime:all` client scope, which adds the
+`velotime.api` audience and the user subject required by the domain APIs. Associate this scope
+with the `velotime.webui` client when updating an existing realm. This audience scope
+does not grant administrator roles or bypass ownership checks. Sign out and back in
+after changing scope assignments so newly issued access tokens contain the audience.
+On realms without Keycloak's built-in `basic` scope, include the `oidc-sub-mapper`
+subject mapper from the import so access tokens also carry the user's `sub` claim.
+
+Ownership mutations use a PostgreSQL transaction advisory lock per transponder and
+the existing unique system/SystemId index. Self-service endpoints derive the owner
+from the authenticated subject; they do not accept an owner ID. Ending retains the
+ownership period; deleting removes only that period, not the transponder or results.
+
+The Timing and Facilities API test factories can target a **disposable test database
+only** using `VELOTIME_TEST_POSTGRES`. Their setup deletes and recreates that database;
+run these suites separately when sharing a test database. With this setting,
+competing-claim tests run concurrently against real PostgreSQL and link mutations
+exercise PostgreSQL transaction locks. The default SQLite test run checks the same
+ownership conflict sequentially.
+
 ## Roadmap
 
 - [] User authentication
