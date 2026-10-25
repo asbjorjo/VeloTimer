@@ -33,6 +33,7 @@ public static class HostingExtensions
             authority = $"https+http://keycloak/realms/velotime";
         }
 
+        services.AddAdministrationAuthorization();
         services.AddAuthentication()
             .AddKeycloakJwtBearer(
                 serviceName: "keycloak",

@@ -24,6 +24,22 @@
       {
         "name": "user",
         "description": "User role"
+      },
+      {
+        "name": "velotime-admin",
+        "description": "Administrator for all VeloTime modules"
+      },
+      {
+        "name": "facilities-admin",
+        "description": "Facilities administrator"
+      },
+      {
+        "name": "timing-admin",
+        "description": "Timing and transponder ownership administrator"
+      },
+      {
+        "name": "statistics-admin",
+        "description": "Statistics definitions administrator"
       }
     ]
   },
@@ -61,6 +77,20 @@
       "nodeReRegistrationTimeout": -1,
       "protocolMappers": [
         {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
           "name": "name",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-usermodel-property-mapper",
@@ -76,7 +106,7 @@
         }
       ],
       "defaultClientScopes": [ "web-origins", "acr", "profile", "roles", "email", "openid" ],
-      "optionalClientScopes": [ "offline_access", "sandbox:all" ],
+      "optionalClientScopes": [ "offline_access", "velotime:all" ],
       "redirectUris": [ "*" ],
       "webOrigins": [ "*" ]
     },
@@ -174,6 +204,16 @@
             "included.client.audience": "velotime.api",
             "id.token.claim": "false",
             "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "velotime-subject",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
           }
         }
       ]

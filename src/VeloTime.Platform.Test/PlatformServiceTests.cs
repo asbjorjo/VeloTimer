@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
@@ -15,7 +16,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authorization;
 using SlimMessageBus;
+using VeloTime.Module.Common;
+using VeloTime.Module.Common;
 using VeloTime.Module.Facilities.Client;
 using VeloTime.Module.Statistics.Client;
 using VeloTime.Module.Timing.Client;
@@ -28,6 +32,61 @@ namespace VeloTime.Platform.Test;
 
 public sealed class PlatformServiceTests
 {
+    [Theory]
+    [InlineData("velotime-admin", true, true, true, true, true, 6)]
+    [InlineData("facilities-admin", true, false, false, true, true, 3)]
+    [InlineData("timing-admin", false, true, false, true, true, 3)]
+    [InlineData("statistics-admin", false, false, true, false, true, 2)]
+    [InlineData("user", false, false, false, false, false, 0)]
+    public async Task AdministrationPolicies_UsePermissionClaimsOnly(string realmRole, bool facilities, bool timing, bool statistics, bool linking, bool references, int expectedPermissionCount)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAdministrationAuthorization();
+        using var provider = services.BuildServiceProvider();
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([
+            new Claim("realm_access", System.Text.Json.JsonSerializer.Serialize(new { roles = new[] { realmRole } }))
+        ], "test"));
+        var transformation = provider.GetRequiredService<IClaimsTransformation>();
+        await transformation.TransformAsync(principal);
+        await transformation.TransformAsync(principal);
+
+        Assert.Empty(principal.FindAll(ClaimTypes.Role));
+        Assert.Equal(expectedPermissionCount, principal.FindAll(AdministrationAuthorization.PermissionClaimType).Count());
+        var authorization = provider.GetRequiredService<IAuthorizationService>();
+        Assert.Equal(facilities, (await authorization.AuthorizeAsync(principal, AdministrationAuthorization.FacilitiesPolicy)).Succeeded);
+        Assert.Equal(timing, (await authorization.AuthorizeAsync(principal, AdministrationAuthorization.TimingPolicy)).Succeeded);
+        Assert.Equal(statistics, (await authorization.AuthorizeAsync(principal, AdministrationAuthorization.StatisticsPolicy)).Succeeded);
+        Assert.Equal(linking, (await authorization.AuthorizeAsync(principal, AdministrationAuthorization.TimingLinkPolicy)).Succeeded);
+        Assert.Equal(references, (await authorization.AuthorizeAsync(principal, AdministrationAuthorization.ReferencePolicy)).Succeeded);
+    }
+
+    [Theory]
+    [InlineData("invalid")]
+    [InlineData("null")]
+    [InlineData("{\"roles\":\"velotime-admin\"}")]
+    [InlineData("{\"roles\":[null,1,{}]}")]
+    public async Task PermissionClaims_IgnoreMalformedRealmAccess(string realmAccess)
+    {
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim("realm_access", realmAccess)], "test"));
+        await new RealmPermissionClaimsTransformation().TransformAsync(principal);
+        Assert.Empty(principal.FindAll(AdministrationAuthorization.PermissionClaimType));
+    }
+
+    [Fact]
+    public async Task PermissionPolicies_RejectUnauthenticatedIdentity()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAdministrationAuthorization();
+        using var provider = services.BuildServiceProvider();
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([
+            new Claim(AdministrationAuthorization.PermissionClaimType, AdministrationAuthorization.GlobalPermission)
+        ]));
+        Assert.False((await provider.GetRequiredService<IAuthorizationService>()
+            .AuthorizeAsync(principal, AdministrationAuthorization.TimingPolicy)).Succeeded);
+    }
+
     [Theory]
     [InlineData("InstallationDetails", "installation_details")]
     [InlineData("Version2Id", "version2_id")]
