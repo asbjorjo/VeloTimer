@@ -6,6 +6,8 @@ using VeloTime.Module.Timing.Storage;
 using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.Module.Timing.Mapping;
 using VeloTime.Module.Timing.Service;
+using VeloTime.Module.Common;
+using Microsoft.Extensions.Caching.Hybrid;
 
 namespace VeloTime.Module.Timing.Api.Endpoints;
 
@@ -13,12 +15,15 @@ internal static class TransponderEndpoints
 {
     internal static void MapTransponderEdnpoints(this IEndpointRouteBuilder builder)
     {
-        var installations = builder.MapGroup("/transponders");
+        var installations = builder.MapGroup("/transponders").RequireAuthorization(AdministrationAuthorization.TimingPolicy)
+            .AddEndpointFilter<AdministrationDependencyFilter>();
 
         installations.MapGet("", ListTransponders);
         installations.MapGet("{id}", GetTransponderById);
         installations.MapPost("", RegisterTransponder);
         installations.MapPost("{id}/owners", AddTransponderOwner);
+        installations.MapPut("{id:guid}", UpdateTransponder).WithName("UpdateTransponder");
+        installations.MapDelete("{id:guid}", DeleteTransponder).WithName("DeleteTransponder");
     }
 
     private static async Task<Results<Ok<Guid>, UnprocessableEntity<List<string>>>> RegisterTransponder(
@@ -48,7 +53,16 @@ internal static class TransponderEndpoints
 
         if (Type == "X2")
         {
-            var id = string.IsNullOrWhiteSpace(SystemLabel) ? long.Parse(SystemId!) : MylapsX2Transponder.CodeToId(SystemLabel);
+            long id;
+            try
+            {
+                id = string.IsNullOrWhiteSpace(SystemLabel) ? long.Parse(SystemId!) : MylapsX2Transponder.CodeToId(SystemLabel.Trim().ToUpperInvariant());
+                _ = MylapsX2Transponder.IdToCode(id);
+            }
+            catch (Exception exception) when (exception is ArgumentException or FormatException or OverflowException)
+            {
+                return TypedResults.UnprocessableEntity(new List<string> { "Invalid transponder code or system ID." });
+            }
             var result = await installationService.RegisterTransponder(new MylapsX2Transponder
             {
                 SystemId = id.ToString(),
@@ -62,51 +76,64 @@ internal static class TransponderEndpoints
         }
     }
 
-    static async Task<Ok<IEnumerable<InstallationDTO>>> ListTransponders(TimingDbContext storage, [FromQuery] Guid? FacilityId)
+    static async Task<Ok<IEnumerable<TransponderDTO>>> ListTransponders(TimingDbContext storage)
     {
-        var installations = storage.Set<Installation>().AsQueryable();
-        if (FacilityId != null && FacilityId != Guid.Empty)
-        {
-            installations = installations.Where(i => i.Facility == FacilityId);
-        }
-        IEnumerable<InstallationDTO> installationData = await installations
-            .Include(i => i.TimingPoints)
-            .Select(i => i.ToDto())
-            .ToListAsync();
-        return TypedResults.Ok(installationData);
+        var transponders = await storage.Set<Transponder>().AsNoTracking().Include(transponder => transponder.Owners).ToListAsync();
+        return TypedResults.Ok<IEnumerable<TransponderDTO>>(transponders.Select(transponder => TransponderOwnershipService.ToDto(transponder)).ToList());
     }
 
-    static async Task<Results<Ok<InstallationDTO>, NotFound>> GetTransponderById(Guid id, TimingDbContext storage)
+    static async Task<Results<Ok<TransponderDTO>, NotFound>> GetTransponderById(Guid id, TimingDbContext storage)
     {
-        var installation = await storage.Set<Installation>()
-            .Include(i => i.TimingPoints)
-            .FirstOrDefaultAsync(i => i.Id == id);
-        if (installation == null)
-        {
-            return TypedResults.NotFound();
-        }
-        InstallationDTO installationData = installation.ToDto();
-        return TypedResults.Ok(installationData);
-    }
-
-    static async Task<Results<Ok, Conflict, NotFound>> AddTransponderOwner(TransponderService transponderService, Guid id, TransponderOwnership ownership)
-    {
-        var transponder = await transponderService.GetTransponderById(id);
-
+        var transponder = await storage.Set<Transponder>().AsNoTracking()
+            .Include(transponder => transponder.Owners)
+            .FirstOrDefaultAsync(transponder => transponder.Id == id);
         if (transponder == null)
         {
             return TypedResults.NotFound();
         }
+        return TypedResults.Ok(TransponderOwnershipService.ToDto(transponder));
+    }
 
+    static async Task<Results<Ok, Conflict, NotFound, BadRequest>> AddTransponderOwner(TransponderOwnershipService service, Guid id, TransponderOwnership ownership)
+    {
         try
         {
-            transponder.AddOwner(ownership.OwnerId, ownership.OwnedFrom, ownership.OwnedTo);
-            await transponderService.Update(transponder);
+            await service.SaveAsync(null, new(id, ownership.OwnerId,
+                new DateTimeOffset(ownership.OwnedFrom.ToUniversalTime()), ownership.OwnedTo.HasValue ? new DateTimeOffset(ownership.OwnedTo.Value.ToUniversalTime()) : null), CancellationToken.None);
             return TypedResults.Ok();
         }
+        catch (KeyNotFoundException) { return TypedResults.NotFound(); }
+        catch (ArgumentException) { return TypedResults.BadRequest(); }
         catch (InvalidOperationException)
         {
             return TypedResults.Conflict();
         }
+    }
+
+    private static async Task<Results<Ok<TransponderDTO>, NotFound>> UpdateTransponder(Guid id, SaveTransponderRequest request,
+        TimingDbContext storage, HybridCache cache, CancellationToken cancellationToken)
+    {
+        var transponder = await storage.Set<Transponder>().Include(transponder => transponder.Owners).SingleOrDefaultAsync(transponder => transponder.Id == id, cancellationToken);
+        if (transponder is null) return TypedResults.NotFound();
+        transponder.Label = request.Label?.Trim() ?? "";
+        await storage.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync($"transponder_{transponder.System}_{transponder.SystemId}", cancellationToken);
+        return TypedResults.Ok(TransponderOwnershipService.ToDto(transponder));
+    }
+
+    private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteTransponder(Guid id,
+        TimingDbContext storage, IAdministrationReferences references, HybridCache cache, CancellationToken cancellationToken)
+    {
+        var transponder = await storage.Set<Transponder>().FindAsync([id], cancellationToken);
+        if (transponder is null) return TypedResults.NotFound();
+        var owners = await storage.Set<TransponderOwner>().CountAsync(owner => owner.TransponderId == id, cancellationToken);
+        var passings = await storage.Set<Passing>().CountAsync(passing => passing.TransponderId == id, cancellationToken);
+        if (owners > 0 || passings > 0) return TypedResults.Problem(detail: $"This transponder has {owners} ownership period(s) and {passings} recorded passing(s).", statusCode: 409);
+        var dependencies = await references.GetDependenciesAsync("statistics", "transponders", id, cancellationToken);
+        if (dependencies.Count > 0) return TypedResults.Problem(detail: dependencies.Description, statusCode: 409);
+        storage.Remove(transponder);
+        await storage.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync($"transponder_{transponder.System}_{transponder.SystemId}", cancellationToken);
+        return TypedResults.NoContent();
     }
 }

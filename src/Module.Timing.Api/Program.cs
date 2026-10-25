@@ -6,15 +6,20 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 builder.AddModuleAuthentication();
+VeloTime.Module.Common.AdministrationReferences.AddServices(builder.Services);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
 builder.AddModuleTiming();
+builder.Services.AddScoped<VeloTime.Module.Timing.Service.TransponderOwnershipService>();
+builder.Services.AddScoped<VeloTime.Module.Timing.Service.TimingAdministrationService>();
 
 var app = builder.Build();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapTimingEndpoints();
 

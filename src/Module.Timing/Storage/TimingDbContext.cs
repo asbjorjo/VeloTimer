@@ -35,6 +35,7 @@ public class TimingDbContext : BaseDbContext
 
         modelBuilder.Entity<Transponder>(e =>
         {
+            e.Property(transponder => transponder.Label).UsePropertyAccessMode(PropertyAccessMode.Property);
             e.HasDiscriminator(t => t.System)
                 .HasValue<MylapsX2Transponder>(TimingSystem.MyLaps_X2);
             e.HasIndex(t => new { t.System, t.SystemId }).IsUnique();

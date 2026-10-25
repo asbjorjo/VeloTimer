@@ -62,6 +62,10 @@ var timingapi = builder.AddProject<Projects.VeloTime_Module_Timing_Api>("module-
     .WithReference(keycloak)
     .WaitFor(velotimedb);
 
+statisticsapi.WithReference(facilityapi);
+facilityapi.WithReference(timingapi).WithReference(statisticsapi);
+timingapi.WithReference(facilityapi).WithReference(statisticsapi);
+
 var users = builder.AddProject<Projects.VeloTime_Users_Migration>("users-migration")
     .WithReference(velotimerdb)
     .WithReference(velotimeridentitydb)

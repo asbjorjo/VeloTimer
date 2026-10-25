@@ -11,5 +11,7 @@ internal static class TimingEndpoints
         timing.MapAgentEdnpoints();
         timing.MapSampleEndpoints();
         timing.MapTransponderEdnpoints();
+        timing.MapOwnershipEndpoints();
+        timing.MapTimingAdministrationEndpoints();
     }
 }
