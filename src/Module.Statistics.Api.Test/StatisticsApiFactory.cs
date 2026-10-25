@@ -4,9 +4,11 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using VeloTime.Module.Statistics.Storage;
+using VeloTime.Module.Statistics.Api.Endpoints;
 
 namespace VeloTime.Module.Statistics.Api.Test;
 
@@ -31,7 +33,10 @@ public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
             services.AddDbContext<StatisticsDbContext>(options => options.UseSqlite(connection));
 
             RemoveServices<HybridCache>(services);
+            RemoveServices<IDistributedCache>(services);
+            services.AddDistributedMemoryCache();
             services.AddHybridCache();
+            services.AddSingleton<ICoursePointReferences, TestCoursePointReferences>();
             services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = TestAuthenticationHandler.AuthenticationSchemeName;
@@ -57,6 +62,12 @@ public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
         {
             services.Remove(descriptor);
         }
+    }
+
+    private sealed class TestCoursePointReferences : ICoursePointReferences
+    {
+        public Task<Guid?> GetFacilityAsync(Guid pointId, CancellationToken cancellationToken) =>
+            Task.FromResult<Guid?>(pointId == Guid.Empty ? null : Guid.Parse("00000000-0000-0000-0000-000000000001"));
     }
 
     protected override void Dispose(bool disposing)

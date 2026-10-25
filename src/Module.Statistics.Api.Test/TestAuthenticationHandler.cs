@@ -30,6 +30,11 @@ public sealed class TestAuthenticationHandler(
             claims.Add(new Claim("scope", "Statistics.Write"));
         }
 
+        if (Request.Headers.TryGetValue("X-Test-Role", out var role))
+        {
+            claims.Add(new Claim("realm_access", System.Text.Json.JsonSerializer.Serialize(new { roles = new[] { role.ToString() } })));
+        }
+
         var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, AuthenticationSchemeName));
         var ticket = new AuthenticationTicket(principal, AuthenticationSchemeName);
         return Task.FromResult(AuthenticateResult.Success(ticket));

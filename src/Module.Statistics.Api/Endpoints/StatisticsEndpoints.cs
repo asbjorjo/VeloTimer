@@ -8,5 +8,7 @@ internal static class StatisticsEndpoints
 
         statistics.MapSampleEndpoints();
         statistics.MapStatsProfileEndpoints();
+        statistics.MapStatisticsDefinitionEndpoints();
+        statistics.MapStatisticsReferenceEndpoints();
     }
 }

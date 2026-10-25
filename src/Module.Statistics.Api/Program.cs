@@ -6,6 +6,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 builder.AddModuleAuthentication();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<ICoursePointReferences, CoursePointReferences>(client =>
+    client.BaseAddress = new Uri("https+http://module-facilities-api"));
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("Statistics.Read", policy => policy.RequireAuthenticatedUser())
     .AddPolicy("Statistics.Write", policy => policy.RequireClaim("scope", "Statistics.Write"));
