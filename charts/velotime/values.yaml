@@ -1,7 +1,7 @@
 global:
   image:
     repository: ghcr.io/asbjorjo/
-    tag: 3.0.0-alpha.27
+    tag: 3.0.0-alpha.68
   oidcAudience: ""
   imagePullSecrets:
     - name: ghcr
