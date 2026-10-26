@@ -1,7 +1,7 @@
 global:
   image:
     repository: ghcr.io/asbjorjo/
-    tag: 3.0.0-alpha.68
+    tag: 3.0.0-alpha.69
   imagePullSecrets:
     - name: ghcr
 velotime-users-migration:
