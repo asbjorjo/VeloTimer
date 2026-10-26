@@ -17,6 +17,14 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="3.0.0-alpha.67"></a>
+## [3.0.0-alpha.67](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.67) (2026-10-26)
+
+### Features
+
+* Application helm chart ([6429009](https://www.github.com/asbjorjo/VeloTimer/commit/64290095d3386be6298e6c992abc87cde079d150))
+* **auth:** configure OIDC audience using application base URL ([963c459](https://www.github.com/asbjorjo/VeloTimer/commit/963c459e3b776b4d6fc8b25d4b978db182f001e1))
+
 <a name="3.0.0-alpha.66"></a>
 ## [3.0.0-alpha.66](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.66) (2026-10-26)
 
