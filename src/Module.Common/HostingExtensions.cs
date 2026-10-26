@@ -36,9 +36,13 @@ public static class HostingExtensions
             && string.IsNullOrEmpty(audienceUri.Query)
             && string.IsNullOrEmpty(audienceUri.Fragment);
 
-        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-            .Validate(_ => validAudience, "OIDC_AUDIENCE must be explicitly configured as an absolute HTTP(S) application base URL without credentials, query, or fragment.")
-            .ValidateOnStart();
+        var bearerOptions = services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .Validate(_ => validAudience, "OIDC_AUDIENCE must be explicitly configured as an absolute HTTP(S) application base URL without credentials, query, or fragment.");
+
+        if (System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name != "GetDocument.Insider")
+        {
+            bearerOptions.ValidateOnStart();
+        }
 
         var authority = configuration.GetConnectionString("keycloak");
 
