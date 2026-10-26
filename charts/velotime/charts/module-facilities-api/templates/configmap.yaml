@@ -9,4 +9,7 @@ data:
   VELOTIMEDB_HOST: "{{ .Values.database.host }}"
   VELOTIMEDB_PORT: "{{ .Values.database.port }}"
   VELOTIMEDB_USERNAME: "{{ .Values.database.user }}"
+  {{- with .Values.oidcAudience | default .Values.global.oidcAudience }}
+  OIDC_AUDIENCE: {{ . | quote }}
+  {{- end }}
 {{- end }}

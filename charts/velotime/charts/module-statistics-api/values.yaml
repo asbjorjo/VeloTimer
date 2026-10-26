@@ -1,5 +1,6 @@
 module: statistics
 existingSecret: ""
+oidcAudience: ""
 configMap:
   enabled: true
 cache:
