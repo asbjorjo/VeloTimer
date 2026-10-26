@@ -1,0 +1,55 @@
+{{- define "velotime.deployment" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "velotime.fullname" . }}
+  labels:
+    {{- include "velotime.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "velotime.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "velotime.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      dnsConfig:
+        searches:
+          - "{{ .Release.Namespace }}.svc.cluster.local"
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.global.image.repository }}velotime-{{ .Chart.Name }}:{{ .Values.global.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- with .Values.ports }}
+        ports:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        envFrom:
+          {{- with .Values.configMap }}
+          {{- if .enabled }}
+          - configMapRef:
+              name: {{ include "velotime.fullname" $ }}
+          {{- end }}
+          {{- end }}
+          - secretRef:
+              name: {{ .Values.existingSecret | default (include "velotime.fullname" .) }}
+        resources:
+          requests:
+            memory: 256Mi
+          limits:
+            memory: 1Gi
+{{ include "velotime.migration" . | indent 6 -}}
+{{- end -}}

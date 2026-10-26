@@ -1,0 +1,33 @@
+existingSecret: ""
+configMap:
+  enabled: true
+keycloak:
+  host: ""
+cache:
+image:
+  tag: 3.0.0.alpha.18
+  pullPolicy: Always
+ports:
+- name: http
+  containerPort: 8080
+  protocol: TCP
+httpRoute:
+  enabled: true
+  parentRefs:
+  - name: velotime-gw
+    namespace: dev-infra
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+migration:
+  enabled: false
+service:
+  type: ClusterIP
+  port: 80
+global:
+  image:
+    repository: ""  
+podAnnotations:
+  instrumentation.opentelemetry.io/inject-dotnet: 'true'

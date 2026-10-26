@@ -1,0 +1,43 @@
+module: timing
+existingSecret: ""
+configMap:
+  enabled: true
+cache:
+  host: cache-service
+  port: 1234
+  password: ""
+database:
+  host: postgres-service
+  port: 5432
+  user: velotime
+  password: ""
+secrets:
+  MessageBus: ""
+image:
+  tag: 3.0.0.alpha.11
+  pullPolicy: Always
+ports:
+- name: http
+  containerPort: 8080
+  protocol: TCP
+httpRoute:
+  enabled: true
+  parentRefs:
+  - name: gateway
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/timing
+service:
+  type: ClusterIP
+  port: 80
+migration:
+  enabled: true
+  image:
+    pullPolicy: IfNotPresent
+global:
+  image:
+    repository: ""  
+podAnnotations:
+  instrumentation.opentelemetry.io/inject-dotnet: 'true'

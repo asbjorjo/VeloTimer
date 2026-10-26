@@ -1,0 +1,11 @@
+apiVersion: v2
+name: velotime-migration
+description: Velotime data migration jobs
+type: application
+version: 0.1.0
+appVersion: "3.0.0-alpha.61"
+
+dependencies:
+  - name: velotime-users-migration
+    version: 0.1.0
+    repository: "file://charts/velotime-users-migration"
