@@ -89,6 +89,9 @@ internal static class BffEndpoints
         api.MapTransponderManagementEndpoints();
         api.MapInfrastructureAdministrationEndpoints();
 
+        api.MapGet("/debug/auth/token", async (IAuthDebugService service, CancellationToken cancellationToken) =>
+            await service.GetAccessTokenInfoAsync(cancellationToken) is { } info ? Results.Ok(info) : Results.NotFound());
+
         api.MapGet("/profile/username", async (IProfileService service, CancellationToken cancellationToken) =>
             TypedResults.Ok(await service.GetUsernameAsync(cancellationToken)));
         api.MapGet("/profile/accounts", async (IProfileService service, CancellationToken cancellationToken) =>

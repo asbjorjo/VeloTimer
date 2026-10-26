@@ -25,5 +25,6 @@ builder.Services.AddScoped<IStatisticsAdministrationService, StatisticsAdministr
 builder.Services.AddScoped<ITransponderManagementService, TransponderManagementHttpService>();
 builder.Services.AddScoped<IInfrastructureAdministrationService, InfrastructureAdministrationHttpService>();
 builder.Services.AddScoped<IProfileService, ProfileHttpService>();
+builder.Services.AddScoped<IAuthDebugService, AuthDebugHttpService>();
 
 await builder.Build().RunAsync();

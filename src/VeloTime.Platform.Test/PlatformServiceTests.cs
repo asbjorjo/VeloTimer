@@ -32,6 +32,103 @@ namespace VeloTime.Platform.Test;
 
 public sealed class PlatformServiceTests
 {
+    [Fact]
+    public async Task WebUiUserInfo_PropagatesRealmPermissionsToAuthenticationTicket()
+    {
+        const string scheme = "VeloTimeOIDC";
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAuthentication().AddOpenIdConnect(scheme, options =>
+        {
+            options.ClientId = "velotime.webui";
+            options.Authority = "https://keycloak.example/realms/velotime";
+        });
+        services.AddAdministrationAuthorization();
+        var configuration = typeof(VeloTime.WebUI.Mud.OidcEvents).Assembly.GetType(
+            "Microsoft.Extensions.DependencyInjection.CookieOidcServiceCollectionExtensions")!;
+        configuration.GetMethod("ConfigureCookieOidc")!.Invoke(null,
+            [services, CookieAuthenticationDefaults.AuthenticationScheme, scheme]);
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectOptions>>().Get(scheme);
+        using var userInfo = System.Text.Json.JsonDocument.Parse("""{"realm_access":{"roles":["timing-admin"]}}""");
+        var identity = new ClaimsIdentity("oidc");
+        foreach (var action in options.ClaimActions)
+        {
+            action.Run(userInfo.RootElement, identity, options.ClaimsIssuer ?? options.Authority!);
+        }
+
+        var principal = await provider.GetRequiredService<IClaimsTransformation>()
+            .TransformAsync(new ClaimsPrincipal(identity));
+        var ticket = new AuthenticationTicket(principal, CookieAuthenticationDefaults.AuthenticationScheme);
+        var restored = TicketSerializer.Default.Deserialize(TicketSerializer.Default.Serialize(ticket))!;
+
+        Assert.True(options.GetClaimsFromUserInfoEndpoint);
+        Assert.True(AdministrationAuthorization.HasPermission(restored.Principal, AdministrationAuthorization.TimingPermission));
+        Assert.False(AdministrationAuthorization.HasPermission(restored.Principal, AdministrationAuthorization.FacilitiesPermission));
+
+        var clientServices = new ServiceCollection();
+        clientServices.AddLogging();
+        clientServices.AddAuthorizationCore(VeloTime.WebUI.Mud.Client.AdministrationPolicies.Configure);
+        using var clientProvider = clientServices.BuildServiceProvider();
+        var authorization = clientProvider.GetRequiredService<IAuthorizationService>();
+        Assert.True((await authorization.AuthorizeAsync(restored.Principal, VeloTime.WebUI.Mud.Client.AdministrationPolicies.Timing)).Succeeded);
+        Assert.False((await authorization.AuthorizeAsync(restored.Principal, VeloTime.WebUI.Mud.Client.AdministrationPolicies.Facilities)).Succeeded);
+    }
+
+    [Theory]
+    [InlineData("velotime-admin", 6, System.Net.HttpStatusCode.OK)]
+    [InlineData("timing-admin", 3, System.Net.HttpStatusCode.OK)]
+    [InlineData("facilities-admin", 3, System.Net.HttpStatusCode.Forbidden)]
+    [InlineData("statistics-admin", 2, System.Net.HttpStatusCode.Forbidden)]
+    [InlineData("user", 0, System.Net.HttpStatusCode.Forbidden)]
+    public async Task ApiBearerAuthentication_PropagatesTokenRealmPermissions(string role, int permissionCount, System.Net.HttpStatusCode timingStatus)
+    {
+        const string issuer = "https://keycloak.example/realms/velotime";
+        var key = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64));
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
+        builder.WebHost.UseTestServer();
+        builder.Configuration["ConnectionStrings:keycloak"] = issuer;
+        builder.AddModuleAuthentication();
+        builder.Services.Configure<Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerOptions>(
+            Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme, options =>
+            {
+                options.Configuration = new Microsoft.IdentityModel.Protocols.OpenIdConnect.OpenIdConnectConfiguration { Issuer = issuer };
+                options.Configuration.SigningKeys.Add(key);
+            });
+        await using var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.MapGet("/permissions", (ClaimsPrincipal user) => user.FindAll(AdministrationAuthorization.PermissionClaimType)
+            .Select(claim => claim.Value).ToArray()).RequireAuthorization();
+        app.MapGet("/timing", () => "allowed").RequireAuthorization(AdministrationAuthorization.TimingPolicy);
+        await app.StartAsync();
+        using var client = app.GetTestClient();
+        var descriptor = new Microsoft.IdentityModel.Tokens.SecurityTokenDescriptor
+        {
+            Issuer = issuer,
+            Audience = "velotime.api",
+            Expires = DateTime.UtcNow.AddMinutes(5),
+            SigningCredentials = new Microsoft.IdentityModel.Tokens.SigningCredentials(key, Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256),
+            Claims = new Dictionary<string, object>
+            {
+                ["sub"] = "test-user",
+                ["realm_access"] = System.Text.Json.JsonSerializer.SerializeToElement(new { roles = new[] { role } })
+            }
+        };
+        var tokenHandler = new Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler();
+        client.DefaultRequestHeaders.Authorization = new("Bearer", tokenHandler.CreateToken(descriptor));
+
+        var response = await client.GetAsync("/permissions");
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        var permissions = System.Text.Json.JsonSerializer.Deserialize<string[]>(await response.Content.ReadAsStringAsync())!;
+        Assert.Equal(permissionCount, permissions.Length);
+        Assert.Equal(timingStatus, (await client.GetAsync("/timing")).StatusCode);
+
+        descriptor.Audience = "untrusted-api";
+        client.DefaultRequestHeaders.Authorization = new("Bearer", tokenHandler.CreateToken(descriptor));
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, (await client.GetAsync("/permissions")).StatusCode);
+    }
+
     [Theory]
     [InlineData("velotime-admin", true, true, true, true, true, 6)]
     [InlineData("facilities-admin", true, false, false, true, true, 3)]

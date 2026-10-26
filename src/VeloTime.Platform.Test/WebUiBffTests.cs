@@ -389,7 +389,58 @@ public sealed class WebUiBffTests
         Assert.Equal(HttpStatusCode.Forbidden, (await client.PutAsJsonAsync($"api/timing/installations/{ResourceId}", new InstallationView { Id = ResourceId })).StatusCode);
     }
 
-    private static async Task<WebApplication> CreateAppAsync(IStatisticsService? statistics = null, IStatisticsAdministrationService? administration = null, IInfrastructureAdministrationService? infrastructure = null)
+    [Fact]
+    public async Task AuthDebug_RequiresAuthentication()
+    {
+        await using var app = await CreateAppAsync(authDebug: PlatformServiceTests.TestProxy.Create<IAuthDebugService>((_, _) => new AuthDebugView()));
+        using var client = CreateClient(app);
+        using var response = await client.GetAsync("api/debug/auth/token");
+        Assert.NotEqual(HttpStatusCode.OK, response.StatusCode);
+        var service = (PlatformServiceTests.TestProxy)(object)app.Services.GetRequiredService<IAuthDebugService>();
+        Assert.Empty(service.Calls);
+    }
+
+    [Fact]
+    public async Task AuthDebug_ReturnsNotFoundWhenUnavailable()
+    {
+        await using var app = await CreateAppAsync();
+        using var client = CreateClient(app);
+        await client.GetAsync("signin");
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("api/debug/auth/token")).StatusCode);
+        Assert.Null(await new AuthDebugHttpService(client).GetAccessTokenInfoAsync());
+    }
+
+    [Fact]
+    public async Task AuthDebug_ReturnsTokenDetails()
+    {
+        var view = new AuthDebugView { HasAccessToken = true, Audiences = ["velotime.api"], RealmRoles = ["timing-admin"] };
+        await using var app = await CreateAppAsync(authDebug: PlatformServiceTests.TestProxy.Create<IAuthDebugService>((_, _) => view));
+        using var client = CreateClient(app);
+        await client.GetAsync("signin");
+        var result = await new AuthDebugHttpService(client).GetAccessTokenInfoAsync();
+        Assert.NotNull(result);
+        Assert.Equal(["velotime.api"], result.Audiences);
+        Assert.Equal(["timing-admin"], result.RealmRoles);
+    }
+
+    [Fact]
+    public void AuthDebugService_DescribesAccessTokenClaims()
+    {
+        var token = new Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler().CreateToken("""
+            {"iss":"https://keycloak/realms/velotime","aud":["velotime.api","account"],"azp":"velotime.webui",
+             "scope":"openid velotime:all","exp":1893456000,"realm_access":{"roles":["velotime-admin","offline_access"]}}
+            """);
+        var view = VeloTime.WebUI.Mud.Services.AuthDebugService.Describe(token);
+        Assert.True(view.HasAccessToken);
+        Assert.Equal(["velotime.api", "account"], view.Audiences);
+        Assert.Equal(["velotime-admin", "offline_access"], view.RealmRoles);
+        Assert.Equal("https://keycloak/realms/velotime", view.Issuer);
+        Assert.Equal("velotime.webui", view.AuthorizedParty);
+        Assert.Equal("openid velotime:all", view.Scope);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1893456000), view.ExpiresAt);
+    }
+
+    private static async Task<WebApplication> CreateAppAsync(IStatisticsService? statistics = null, IStatisticsAdministrationService? administration = null, IInfrastructureAdministrationService? infrastructure = null, IAuthDebugService? authDebug = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -455,6 +506,7 @@ public sealed class WebUiBffTests
             nameof(IProfileService.DeleteLinkedAccountAsync) => null,
             _ => throw new NotSupportedException(method.Name)
         }));
+        builder.Services.AddSingleton(authDebug ?? PlatformServiceTests.TestProxy.Create<IAuthDebugService>((_, _) => null));
         var app = builder.Build();
         app.UseAuthentication();
         app.UseAuthorization();
