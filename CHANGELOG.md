@@ -17,6 +17,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="3.0.0-alpha.66"></a>
+## [3.0.0-alpha.66](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.66) (2026-10-26)
+
+### Features
+
+* **webui:** add development-only auth debug page ([d6b03be](https://www.github.com/asbjorjo/VeloTimer/commit/d6b03be488bc8b9c18dc536ef087589157788554))
+
 <a name="3.0.0-alpha.65"></a>
 ## [3.0.0-alpha.65](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.65) (2026-10-25)
 
