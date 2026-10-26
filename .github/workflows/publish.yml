@@ -39,25 +39,6 @@ jobs:
           dotnet tool run versionize -- --exit-insignificant-commits
           ${{ env.PRERELEASE != '' && format('--pre-release {0}', env.PRERELEASE) || '' }}
 
-      - name: Update chart versions
-        if: github.event.inputs.prerelease != ''
-        run: |
-          set -e
-          APP_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/AppHost/VeloTime.AppHost.csproj | head -n 1)
-          if [[ -z "$APP_VERSION" ]]; then
-            echo "::error ::Unable to read <Version> from VeloTime.AppHost.csproj"
-            exit 1
-          fi
-          export APP_VERSION
-          for chart in velotime velotime-bootstrap velotime-migration; do
-            yq -i '.global.image.tag = strenv(APP_VERSION)' "charts/$chart/values.yaml"
-            yq -i '.appVersion = strenv(APP_VERSION)' "charts/$chart/Chart.yaml"
-            git add "charts/$chart/values.yaml" "charts/$chart/Chart.yaml"
-          done
-          if ! git diff --cached --quiet; then
-            git commit -m "chore(charts): set image tag to ${APP_VERSION}"
-          fi
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v4
         with:
@@ -76,6 +57,25 @@ jobs:
 
       - name: Push to GHCR
         run: dotnet publish --configuration Release /t:PublishContainer -p ContainerRegistry=ghcr.io
+
+      - name: Update chart versions
+        if: github.event.inputs.prerelease != ''
+        run: |
+          set -e
+          APP_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/AppHost/VeloTime.AppHost.csproj | head -n 1)
+          if [[ -z "$APP_VERSION" ]]; then
+            echo "::error ::Unable to read <Version> from VeloTime.AppHost.csproj"
+            exit 1
+          fi
+          export APP_VERSION
+          for chart in velotime velotime-bootstrap velotime-migration; do
+            yq -i '.global.image.tag = strenv(APP_VERSION)' "charts/$chart/values.yaml"
+            yq -i '.appVersion = strenv(APP_VERSION)' "charts/$chart/Chart.yaml"
+            git add "charts/$chart/values.yaml" "charts/$chart/Chart.yaml"
+          done
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(charts): set image tag to ${APP_VERSION}"
+          fi
 
       - name: Push changes to GitHub
         uses: ad-m/github-push-action@master
