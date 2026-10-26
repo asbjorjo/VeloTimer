@@ -1,15 +1,6 @@
-{{- if .Values.configMap.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-{{ .Chart.Name }}
 data:
-  CACHE_HOST: "{{ .Values.cache.host }}"
-  CACHE_PORT: "{{ .Values.cache.port }}"
-  VELOTIMEDB_HOST: "{{ .Values.database.host }}"
-  VELOTIMEDB_PORT: "{{ .Values.database.port }}"
-  VELOTIMEDB_USERNAME: "{{ .Values.database.user }}"
-  {{- with .Values.oidcAudience | default .Values.global.oidcAudience }}
-  OIDC_AUDIENCE: {{ . | quote }}
-  {{- end }}
-{{- end }}
+  OIDC_AUDIENCE: {{ .Values.oidcAudience | default .Values.global.oidcAudience | quote }}
