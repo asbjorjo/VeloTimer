@@ -1,6 +1,4 @@
 existingSecret: ""
-configMap:
-  enabled: true
 keycloak:
   host: ""
 cache:

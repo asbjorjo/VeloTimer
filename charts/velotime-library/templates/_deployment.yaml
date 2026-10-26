@@ -38,12 +38,9 @@ spec:
           {{- toYaml . | nindent 8 }}
         {{- end }}
         envFrom:
-          {{- with .Values.configMap }}
-          {{- if .enabled }}
           - configMapRef:
-              name: {{ include "velotime.fullname" $ }}
-          {{- end }}
-          {{- end }}
+              name: {{ include "velotime.fullname" . }}
+              optional: true
           - secretRef:
               name: {{ .Values.existingSecret | default (include "velotime.fullname" .) }}
         resources:

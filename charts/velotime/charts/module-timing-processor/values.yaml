@@ -1,8 +1,6 @@
 module: timing
 existingSecret: ""
 replicaCount: 1
-configMap:
-  enabled: true
 cache:
   host: cache-service
   port: 1234

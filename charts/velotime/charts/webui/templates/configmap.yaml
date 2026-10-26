@@ -1,4 +1,3 @@
-{{- if .Values.configMap.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,4 +8,3 @@ data:
   services__module-facilities-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "facilities")}}
   services__module-statistics-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "statistics")}}
   services__module-timing-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "timing")}}
-{{- end }}
