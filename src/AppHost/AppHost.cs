@@ -2,6 +2,30 @@ using Microsoft.Extensions.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
+if (builder.ExecutionContext.IsRunMode)
+{
+    var audience = builder.Configuration["OIDC_AUDIENCE"];
+    if (audience is null && builder.Environment.IsDevelopment())
+    {
+        audience = "https://development.veloti.me";
+        builder.Configuration["OIDC_AUDIENCE"] = audience;
+    }
+
+    if (string.IsNullOrWhiteSpace(audience)
+        || audience != audience.Trim()
+        || !Uri.TryCreate(audience, UriKind.Absolute, out var audienceUri)
+        || (audienceUri.Scheme != Uri.UriSchemeHttps && audienceUri.Scheme != Uri.UriSchemeHttp)
+        || !string.IsNullOrEmpty(audienceUri.UserInfo)
+        || !string.IsNullOrEmpty(audienceUri.Query)
+        || !string.IsNullOrEmpty(audienceUri.Fragment))
+    {
+        throw new InvalidOperationException("OIDC_AUDIENCE must be configured as an absolute HTTP(S) application base URL without credentials, query, or fragment.");
+    }
+}
+
+var oidcAudience = builder.AddParameterFromConfiguration("oidc-audience", "OIDC_AUDIENCE")
+    .WithDescription("Public application base URL used as the access-token audience.");
+
 var migrate = false;
 var seed = false;
 IResourceBuilder<ProjectResource>? bootstrap = null;
@@ -22,6 +46,7 @@ var velotimeridentitydb = builder.AddConnectionString("VeloTimerIdentityDb");
 //var keycloakconnection = builder.AddConnectionString("keycloak", "https+http://keycloak/realms/velotime");
 
 var keycloak = builder.AddKeycloak("keycloak", 8888)
+    .WithEnvironment("OIDC_AUDIENCE", oidcAudience)
     .WithOtlpExporter();
 
 var postgres = builder.AddPostgres("postgres")
@@ -47,16 +72,19 @@ if (builder.Environment.IsDevelopment())
 }
 
 var facilityapi = builder.AddProject<Projects.VeloTime_Module_Facilities_Api>("module-facilities-api")
+    .WithEnvironment("OIDC_AUDIENCE", oidcAudience)
     .WithReference(cache)
     .WithReference(velotimedb)
     .WithReference(keycloak)
     .WaitFor(velotimedb);
 var statisticsapi = builder.AddProject<Projects.VeloTime_Module_Statistics_Api>("module-statistics-api")
+    .WithEnvironment("OIDC_AUDIENCE", oidcAudience)
     .WithReference(cache)
     .WithReference(velotimedb)
     .WithReference(keycloak)
     .WaitFor(velotimedb);
 var timingapi = builder.AddProject<Projects.VeloTime_Module_Timing_Api>("module-timing-api")
+    .WithEnvironment("OIDC_AUDIENCE", oidcAudience)
     .WithReference(cache)
     .WithReference(velotimedb)
     .WithReference(keycloak)

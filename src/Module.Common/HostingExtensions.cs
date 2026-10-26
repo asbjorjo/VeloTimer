@@ -1,5 +1,6 @@
 ﻿using Duende.AccessTokenManagement;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +27,19 @@ public static class HostingExtensions
 
         var env = builder.Environment;
 
+        var audience = configuration["OIDC_AUDIENCE"];
+        var validAudience = !string.IsNullOrWhiteSpace(audience)
+            && audience == audience.Trim()
+            && Uri.TryCreate(audience, UriKind.Absolute, out var audienceUri)
+            && (audienceUri.Scheme == Uri.UriSchemeHttps || audienceUri.Scheme == Uri.UriSchemeHttp)
+            && string.IsNullOrEmpty(audienceUri.UserInfo)
+            && string.IsNullOrEmpty(audienceUri.Query)
+            && string.IsNullOrEmpty(audienceUri.Fragment);
+
+        services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .Validate(_ => validAudience, "OIDC_AUDIENCE must be explicitly configured as an absolute HTTP(S) application base URL without credentials, query, or fragment.")
+            .ValidateOnStart();
+
         var authority = configuration.GetConnectionString("keycloak");
 
         if (authority == null && env.IsDevelopment())
@@ -47,7 +61,8 @@ public static class HostingExtensions
                     {
                         options.Authority = authority;
                     }
-                    options.TokenValidationParameters.ValidAudience = "velotime.api";
+                    options.TokenValidationParameters.ValidAudience = audience;
+                    options.TokenValidationParameters.IgnoreTrailingSlashWhenValidatingAudience = false;
                     options.TokenValidationParameters.ValidIssuer = authority;
                });
 

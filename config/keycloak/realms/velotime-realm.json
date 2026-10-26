@@ -201,7 +201,7 @@
           "protocolMapper": "oidc-audience-mapper",
           "consentRequired": false,
           "config": {
-            "included.client.audience": "velotime.api",
+            "included.custom.audience": "${OIDC_AUDIENCE}",
             "id.token.claim": "false",
             "access.token.claim": "true"
           }

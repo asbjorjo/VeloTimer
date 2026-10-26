@@ -12,6 +12,8 @@ on:
 jobs:
   publish-new-version:
     runs-on: ubuntu-latest
+    env:
+      OIDC_AUDIENCE: https://build.invalid
     steps:
       - uses: actions/checkout@v4
         with:

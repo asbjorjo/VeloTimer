@@ -76,18 +76,21 @@ public sealed class PlatformServiceTests
     }
 
     [Theory]
-    [InlineData("velotime-admin", 6, System.Net.HttpStatusCode.OK)]
-    [InlineData("timing-admin", 3, System.Net.HttpStatusCode.OK)]
-    [InlineData("facilities-admin", 3, System.Net.HttpStatusCode.Forbidden)]
-    [InlineData("statistics-admin", 2, System.Net.HttpStatusCode.Forbidden)]
-    [InlineData("user", 0, System.Net.HttpStatusCode.Forbidden)]
-    public async Task ApiBearerAuthentication_PropagatesTokenRealmPermissions(string role, int permissionCount, System.Net.HttpStatusCode timingStatus)
+    [InlineData("velotime-admin", 6, System.Net.HttpStatusCode.OK, "Development", "https://development.veloti.me")]
+    [InlineData("timing-admin", 3, System.Net.HttpStatusCode.OK, "Development", "https://development.veloti.me")]
+    [InlineData("facilities-admin", 3, System.Net.HttpStatusCode.Forbidden, "Development", "https://development.veloti.me")]
+    [InlineData("statistics-admin", 2, System.Net.HttpStatusCode.Forbidden, "Development", "https://development.veloti.me")]
+    [InlineData("user", 0, System.Net.HttpStatusCode.Forbidden, "Development", "https://development.veloti.me")]
+    [InlineData("timing-admin", 3, System.Net.HttpStatusCode.OK, "Production", "https://veloti.me")]
+    [InlineData("timing-admin", 3, System.Net.HttpStatusCode.OK, "Staging", "https://preview.example")]
+    public async Task ApiBearerAuthentication_PropagatesTokenRealmPermissions(string role, int permissionCount, System.Net.HttpStatusCode timingStatus, string environment, string audience)
     {
         const string issuer = "https://keycloak.example/realms/velotime";
         var key = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Security.Cryptography.RandomNumberGenerator.GetBytes(64));
-        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = environment });
         builder.WebHost.UseTestServer();
         builder.Configuration["ConnectionStrings:keycloak"] = issuer;
+        builder.Configuration["OIDC_AUDIENCE"] = audience;
         builder.AddModuleAuthentication();
         builder.Services.Configure<Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerOptions>(
             Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme, options =>
@@ -106,7 +109,7 @@ public sealed class PlatformServiceTests
         var descriptor = new Microsoft.IdentityModel.Tokens.SecurityTokenDescriptor
         {
             Issuer = issuer,
-            Audience = "velotime.api",
+            Audience = audience,
             Expires = DateTime.UtcNow.AddMinutes(5),
             SigningCredentials = new Microsoft.IdentityModel.Tokens.SigningCredentials(key, Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256),
             Claims = new Dictionary<string, object>
@@ -124,9 +127,35 @@ public sealed class PlatformServiceTests
         Assert.Equal(permissionCount, permissions.Length);
         Assert.Equal(timingStatus, (await client.GetAsync("/timing")).StatusCode);
 
-        descriptor.Audience = "untrusted-api";
-        client.DefaultRequestHeaders.Authorization = new("Bearer", tokenHandler.CreateToken(descriptor));
-        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, (await client.GetAsync("/permissions")).StatusCode);
+        foreach (var invalidAudience in new[] { "untrusted-api", "velotime.api", "https://another-environment.example", audience + "/", null })
+        {
+            descriptor.Audience = invalidAudience;
+            client.DefaultRequestHeaders.Authorization = new("Bearer", tokenHandler.CreateToken(descriptor));
+            Assert.Equal(System.Net.HttpStatusCode.Unauthorized, (await client.GetAsync("/permissions")).StatusCode);
+        }
+    }
+
+    [Theory]
+    [InlineData("Development")]
+    [InlineData("Production")]
+    [InlineData("Staging")]
+    public async Task ApiBearerAuthentication_RequiresExplicitValidAudience(string environment)
+    {
+        foreach (var audience in new[] { null, "", " ", "velotime.api", "ftp://example.com", "https://user:password@example.com", "https://example.com?query=value", "https://example.com#fragment", " https://example.com " })
+        {
+            var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+            {
+                EnvironmentName = environment,
+                DisableDefaults = true
+            });
+            builder.Configuration["OIDC_AUDIENCE"] = audience;
+            builder.Configuration["ConnectionStrings:keycloak"] = "https://keycloak.example/realms/velotime";
+            builder.AddModuleAuthentication();
+            using var host = builder.Build();
+
+            var exception = await Assert.ThrowsAsync<OptionsValidationException>(() => host.StartAsync());
+            Assert.Contains("OIDC_AUDIENCE", exception.Message);
+        }
     }
 
     [Theory]

@@ -413,13 +413,13 @@ public sealed class WebUiBffTests
     [Fact]
     public async Task AuthDebug_ReturnsTokenDetails()
     {
-        var view = new AuthDebugView { HasAccessToken = true, Audiences = ["velotime.api"], RealmRoles = ["timing-admin"] };
+        var view = new AuthDebugView { HasAccessToken = true, Audiences = ["https://development.veloti.me"], RealmRoles = ["timing-admin"] };
         await using var app = await CreateAppAsync(authDebug: PlatformServiceTests.TestProxy.Create<IAuthDebugService>((_, _) => view));
         using var client = CreateClient(app);
         await client.GetAsync("signin");
         var result = await new AuthDebugHttpService(client).GetAccessTokenInfoAsync();
         Assert.NotNull(result);
-        Assert.Equal(["velotime.api"], result.Audiences);
+        Assert.Equal(["https://development.veloti.me"], result.Audiences);
         Assert.Equal(["timing-admin"], result.RealmRoles);
     }
 
@@ -427,12 +427,12 @@ public sealed class WebUiBffTests
     public void AuthDebugService_DescribesAccessTokenClaims()
     {
         var token = new Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler().CreateToken("""
-            {"iss":"https://keycloak/realms/velotime","aud":["velotime.api","account"],"azp":"velotime.webui",
+            {"iss":"https://keycloak/realms/velotime","aud":["https://development.veloti.me","account"],"azp":"velotime.webui",
              "scope":"openid velotime:all","exp":1893456000,"realm_access":{"roles":["velotime-admin","offline_access"]}}
             """);
         var view = VeloTime.WebUI.Mud.Services.AuthDebugService.Describe(token);
         Assert.True(view.HasAccessToken);
-        Assert.Equal(["velotime.api", "account"], view.Audiences);
+        Assert.Equal(["https://development.veloti.me", "account"], view.Audiences);
         Assert.Equal(["velotime-admin", "offline_access"], view.RealmRoles);
         Assert.Equal("https://keycloak/realms/velotime", view.Issuer);
         Assert.Equal("velotime.webui", view.AuthorizedParty);

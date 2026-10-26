@@ -177,12 +177,55 @@ appropriate role to administrators, then sign out and sign in again. No admin AP
 credentials are sent to the browser.
 
 The WebUI also requests the optional `velotime:all` client scope, which adds the
-`velotime.api` audience and the user subject required by the domain APIs. Associate this scope
+application URL audience and the user subject required by the domain APIs. Associate this scope
 with the `velotime.webui` client when updating an existing realm. This audience scope
 does not grant administrator roles or bypass ownership checks. Sign out and back in
 after changing scope assignments so newly issued access tokens contain the audience.
 On realms without Keycloak's built-in `basic` scope, include the `oidc-sub-mapper`
 subject mapper from the import so access tokens also carry the user's `sub` claim.
+
+### Access-Token Audience Configuration
+
+Set `OIDC_AUDIENCE` to the public application base URL in all three domain APIs and
+Keycloak, for example `https://development.veloti.me` for development or
+`https://veloti.me` for production. Direct API startup fails if this setting is
+missing, blank, or not an absolute HTTP(S) URL without credentials, query, or
+fragment. The audience is matched exactly, including any trailing slash; it is
+not inferred from the API listener, request host, or Keycloak issuer.
+
+Only local Aspire runs in the Development environment supply
+`https://development.veloti.me` when `OIDC_AUDIENCE` is absent. AppHost passes the
+same value to Keycloak and all three APIs. An explicitly configured value takes
+precedence; a blank or invalid value is rejected. To override it locally:
+
+```bash
+OIDC_AUDIENCE=https://preview.example dotnet run --project src/AppHost
+```
+
+There is no production default, API-level default, or published AppHost parameter
+default. Published deployments must supply the required `oidc-audience` parameter.
+For direct API deployments, explicitly set `OIDC_AUDIENCE` on each API process.
+Keycloak realm imports substitute `${OIDC_AUDIENCE}` into the audience mapper, so
+standalone Keycloak imports must also receive this environment variable.
+
+Existing realms are not updated by editing the import or restarting Keycloak.
+In the `velotime:all` client scope, edit the `velotime-audience` mapper: clear
+**Included Client Audience** and set **Included Custom Audience** to the same URL
+configured in the APIs. Keep access-token inclusion enabled and ID-token inclusion
+disabled. Update equivalent service-account mappers/scope assignments if applicable.
+Coordinate this change with the API deployment: `velotime.api` is no longer accepted.
+Sign out and back in, and obtain fresh service-account tokens after the change.
+WebUI client IDs, ID-token validation, and administrator permissions are unchanged.
+
+Build-time OpenAPI generation starts the API hosts and therefore also requires an
+explicit audience. CI and package/container build jobs configure `https://build.invalid`
+only for this tooling; this value is not an application default or container runtime
+setting. For local solution builds/tests without another configured value:
+
+```bash
+OIDC_AUDIENCE=https://build.invalid dotnet build --configuration Release
+OIDC_AUDIENCE=https://build.invalid dotnet test --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
+```
 
 Ownership mutations use a PostgreSQL transaction advisory lock per transponder and
 the existing unique system/SystemId index. Self-service endpoints derive the owner
