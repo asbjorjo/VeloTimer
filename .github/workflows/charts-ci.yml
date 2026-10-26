@@ -1,0 +1,61 @@
+name: Charts CI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'charts/**'
+  pull_request:
+    branches: [ master ]
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    paths:
+      - 'charts/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Add chart repositories
+        run: helm repo add valkey https://valkey.io/valkey-helm/
+
+      - name: Update dependencies
+        run: |
+          set -e
+          for chart in charts/velotime/charts/*/ charts/velotime-migration/charts/*/; do
+            helm dependency update "$chart"
+          done
+          for chart in velotime-library velotime-bootstrap velotime-migration velotime; do
+            helm dependency update "charts/$chart"
+          done
+
+      - name: Lint
+        run: |
+          set -e
+          for chart in velotime-library velotime-bootstrap velotime-migration velotime; do
+            helm lint "charts/$chart"
+          done
+
+      - name: Template
+        run: |
+          set -e
+          for chart in velotime-bootstrap velotime-migration velotime; do
+            helm template "$chart" "charts/$chart" > /dev/null
+          done
+
+      - name: Package
+        run: |
+          set -e
+          for chart in velotime-library velotime-bootstrap velotime-migration velotime; do
+            helm package "charts/$chart" --destination .cr-release
+          done
