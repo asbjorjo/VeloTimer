@@ -5,13 +5,6 @@ global:
   imagePullSecrets:
     - name: ghcr
 existingSecret: ""
-configMap:
-  enabled: true
-database:
-  host: postgres-service
-  port: 5432
-  user: velotime
-  password: ""
 migrations:
   - facilities
   - statistics
