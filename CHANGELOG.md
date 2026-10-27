@@ -17,6 +17,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="3.0.0-alpha.71"></a>
+## [3.0.0-alpha.71](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.71) (2026-10-27)
+
+### Features
+
+* Stop requesting velotime scope ([49bb46b](https://www.github.com/asbjorjo/VeloTimer/commit/49bb46b629b4ffa897bf755e3d54ec413be67b2b))
+
 <a name="3.0.0-alpha.70"></a>
 ## [3.0.0-alpha.70](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.70) (2026-10-27)
 
