@@ -41,7 +41,6 @@ builder.Services.AddAuthentication(options =>
             options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
             options.ResponseType = OpenIdConnectResponseType.Code;
             options.TokenValidationParameters.NameClaimType = "preferred_username";
-            options.Scope.Add("velotime:all");
 
             options.Scope.Add("openid");
             options.Scope.Add("profile");
