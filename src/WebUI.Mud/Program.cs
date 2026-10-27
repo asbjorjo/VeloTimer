@@ -44,6 +44,7 @@ builder.Services.AddAuthentication(options =>
 
             options.Scope.Add("openid");
             options.Scope.Add("profile");
+            options.Scope.Add("velotime");
 
             options.SaveTokens = true;
             if (builder.Environment.IsDevelopment())

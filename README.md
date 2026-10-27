@@ -176,19 +176,19 @@ create the roles, add the WebUI realm-role mapper to ID/access tokens, assign th
 appropriate role to administrators, then sign out and sign in again. No admin API
 credentials are sent to the browser.
 
-The WebUI also requests the optional `velotime:all` client scope, which adds the
-application URL audience and the user subject required by the domain APIs. Associate this scope
-with the `velotime.webui` client when updating an existing realm. This audience scope
-does not grant administrator roles or bypass ownership checks. Sign out and back in
-after changing scope assignments so newly issued access tokens contain the audience.
-On realms without Keycloak's built-in `basic` scope, include the `oidc-sub-mapper`
-subject mapper from the import so access tokens also carry the user's `sub` claim.
+The `velotime-web` client scope is a default scope in the checked-in realm import. It
+adds the application URL audience and user subject required by the domain APIs, as
+well as the realm-role claims used by the WebUI. The scope does not grant
+administrator roles or bypass ownership checks. Existing realms need the scope
+assigned to clients and users must sign out and back in after scope assignments
+change so newly issued tokens contain the claims.
 
 ### Access-Token Audience Configuration
 
-Set `OIDC_AUDIENCE` to the public application base URL in all three domain APIs and
-Keycloak, for example `https://development.veloti.me` for development or
-`https://veloti.me` for production. Direct API startup fails if this setting is
+Set `OIDC_AUDIENCE` to the public application base URL in all three domain APIs,
+for example `https://development.veloti.me` for development or
+`https://veloti.me` for production. Set the `velotime-audience` mapper's Included
+Custom Audience in the `velotime-web` client scope to the same URL. Direct API startup fails if this setting is
 missing, blank, or not an absolute HTTP(S) URL without credentials, query, or
 fragment. The audience is matched exactly, including any trailing slash; it is
 not inferred from the API listener, request host, or Keycloak issuer.
@@ -205,15 +205,20 @@ OIDC_AUDIENCE=https://preview.example dotnet run --project src/AppHost
 There is no production default, API-level default, or published AppHost parameter
 default. Published deployments must supply the required `oidc-audience` parameter.
 For direct API deployments, explicitly set `OIDC_AUDIENCE` on each API process.
-Keycloak realm imports substitute `${OIDC_AUDIENCE}` into the audience mapper, so
-standalone Keycloak imports must also receive this environment variable.
+The checked-in realm import uses the development URL; update its audience mapper
+when configuring a different environment.
+
+The local Aspire realm import uses the `StatisticsProcessorSecret`,
+`TimingProcessorSecret`, and `UserMigrationSecret` AppHost parameters for both
+Keycloak's service-account clients and the matching worker processes. Configure
+these secret parameters to the same values when running AppHost.
 
 Existing realms are not updated by editing the import or restarting Keycloak.
-In the `velotime:all` client scope, edit the `velotime-audience` mapper: clear
-**Included Client Audience** and set **Included Custom Audience** to the same URL
-configured in the APIs. Keep access-token inclusion enabled and ID-token inclusion
-disabled. Update equivalent service-account mappers/scope assignments if applicable.
-Coordinate this change with the API deployment: `velotime.api` is no longer accepted.
+In the `velotime-web` client scope, edit the `velotime-audience` mapper: set
+**Included Custom Audience** to the same URL configured in the APIs. Keep
+access-token inclusion enabled and ID-token inclusion disabled. Update equivalent
+service-account mappers/scope assignments if applicable. Coordinate this change
+with the API deployment: `velotime.api` is no longer accepted.
 Sign out and back in, and obtain fresh service-account tokens after the change.
 WebUI client IDs, ID-token validation, and administrator permissions are unchanged.
 

@@ -26,8 +26,8 @@ if (builder.ExecutionContext.IsRunMode)
 var oidcAudience = builder.AddParameterFromConfiguration("oidc-audience", "OIDC_AUDIENCE")
     .WithDescription("Public application base URL used as the access-token audience.");
 
-var migrate = false;
-var seed = false;
+var migrate = true;
+var seed = true;
 IResourceBuilder<ProjectResource>? bootstrap = null;
 IResourceBuilder<ProjectResource> facilitiesmigrator;
 IResourceBuilder<ProjectResource> statisticsmigrator;
@@ -45,8 +45,14 @@ var velotimerdb = builder.AddConnectionString("VeloTimerDb");
 var velotimeridentitydb = builder.AddConnectionString("VeloTimerIdentityDb");
 //var keycloakconnection = builder.AddConnectionString("keycloak", "https+http://keycloak/realms/velotime");
 
-var keycloak = builder.AddKeycloak("keycloak", 8888)
+var keycloakadminuser = builder.AddParameter("KeycloakAdminUser");
+var keycloakadminpassword = builder.AddParameter("KeycloakAdminPassword", secret: true);
+
+var keycloak = builder.AddKeycloak("keycloak", 8888, keycloakadminuser, keycloakadminpassword)
     .WithEnvironment("OIDC_AUDIENCE", oidcAudience)
+    .WithEnvironment("STATISTICS_PROCESSOR_SECRET", statisticsprocsecret)
+    .WithEnvironment("TIMING_PROCESSOR_SECRET", timingprocsecret)
+    .WithEnvironment("USER_MIGRATION_SECRET", usermigrationsecret)
     .WithOtlpExporter();
 
 var postgres = builder.AddPostgres("postgres")
