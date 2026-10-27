@@ -16,6 +16,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OpenTelemetry;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 using Microsoft.AspNetCore.Authorization;
 using SlimMessageBus;
 using VeloTime.Module.Common;
@@ -255,6 +260,119 @@ public sealed class PlatformServiceTests
         Assert.Equal(System.Net.HttpStatusCode.OK, (await client.GetAsync("/health")).StatusCode);
         Assert.Equal(System.Net.HttpStatusCode.OK, (await client.GetAsync("/alive")).StatusCode);
         await app.StopAsync();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task OpenTelemetry_StartsWithSignalSpecificExporters(bool registerExportersFirst)
+    {
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
+        builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://localhost:4317";
+        builder.Logging.AddFilter(_ => false);
+        builder.Services.ConfigureAll<OtlpExporterOptions>(options => options.TimeoutMilliseconds = 10);
+
+        if (!registerExportersFirst)
+        {
+            builder.ConfigureOpenTelemetry();
+        }
+
+        builder.Services.AddOpenTelemetry()
+            .WithTracing(tracing => tracing.AddOtlpExporter())
+            .WithMetrics(metrics => metrics.AddOtlpExporter());
+        builder.Logging.AddOpenTelemetry(logging => logging.AddOtlpExporter());
+
+        if (registerExportersFirst)
+        {
+            builder.ConfigureOpenTelemetry();
+        }
+
+        using var host = builder.Build();
+        await host.StartAsync();
+
+        Assert.NotNull(host.Services.GetRequiredService<TracerProvider>());
+        Assert.NotNull(host.Services.GetRequiredService<MeterProvider>());
+        Assert.NotNull(host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("OpenTelemetryTest"));
+        var loggingOptions = host.Services.GetRequiredService<IOptions<OpenTelemetryLoggerOptions>>().Value;
+        Assert.True(loggingOptions.IncludeFormattedMessage);
+        Assert.True(loggingOptions.IncludeScopes);
+
+        await host.StopAsync();
+    }
+
+    [Fact]
+    public async Task OpenTelemetry_ExportsAllSignalsWithoutAutoInstrumentation()
+    {
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
+        builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://localhost:4318";
+        builder.ConfigureOpenTelemetry();
+        using var handler = new TelemetryHttpHandler();
+        builder.Services.ConfigureAll<OtlpExporterOptions>(options =>
+        {
+            options.Protocol = OtlpExportProtocol.HttpProtobuf;
+            options.HttpClientFactory = () => new HttpClient(handler, disposeHandler: false);
+        });
+        builder.Services.AddOpenTelemetry()
+            .WithTracing(tracing => tracing.AddSource("OpenTelemetryTest"))
+            .WithMetrics(metrics => metrics.AddMeter("OpenTelemetryTest"));
+        using (var host = builder.Build())
+        {
+            await host.StartAsync();
+
+            using var source = new ActivitySource("OpenTelemetryTest");
+            using (var activity = source.StartActivity("test"))
+            {
+                Assert.NotNull(activity);
+            }
+            using var meter = new System.Diagnostics.Metrics.Meter("OpenTelemetryTest");
+            meter.CreateCounter<int>("test.counter").Add(1);
+            host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("OpenTelemetryTest").LogInformation("Telemetry test");
+
+            Assert.True(host.Services.GetRequiredService<TracerProvider>().ForceFlush());
+            Assert.True(host.Services.GetRequiredService<MeterProvider>().ForceFlush());
+            await host.StopAsync();
+        }
+
+        Assert.Contains("/v1/traces", handler.Paths);
+        Assert.Contains("/v1/metrics", handler.Paths);
+        Assert.Contains("/v1/logs", handler.Paths);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task OpenTelemetry_DoesNotAddExportersWithoutEndpoint(string? endpoint)
+    {
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
+        builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] = endpoint;
+        builder.Logging.AddFilter(_ => false);
+        builder.ConfigureOpenTelemetry();
+        builder.Services.AddOpenTelemetry().UseOtlpExporter();
+        builder.Services.ConfigureAll<OtlpExporterOptions>(options => options.TimeoutMilliseconds = 10);
+        using var host = builder.Build();
+
+        await host.StartAsync();
+        Assert.NotNull(host.Services.GetRequiredService<TracerProvider>());
+        Assert.NotNull(host.Services.GetRequiredService<MeterProvider>());
+        await host.StopAsync();
+    }
+
+    private sealed class TelemetryHttpHandler : HttpMessageHandler
+    {
+        public System.Collections.Concurrent.ConcurrentBag<string> Paths { get; } = [];
+
+        protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Paths.Add(request.RequestUri!.AbsolutePath);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent([])
+            };
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(Send(request, cancellationToken));
     }
 
     [Fact]
