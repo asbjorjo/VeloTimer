@@ -17,6 +17,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="3.0.0-alpha.70"></a>
+## [3.0.0-alpha.70](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.70) (2026-10-27)
+
+### Bug Fixes
+
+* **telemetry:** avoid OTLP exporter conflicts with auto instrumentation ([80b68cb](https://www.github.com/asbjorjo/VeloTimer/commit/80b68cb0c3d8316b7160ab91214e78aa9d598e1a))
+
 <a name="3.0.0-alpha.69"></a>
 ## [3.0.0-alpha.69](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.69) (2026-10-26)
 
