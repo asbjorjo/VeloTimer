@@ -23,6 +23,9 @@
   "maxDeltaTimeSeconds": 43200,
   "failureFactor": 30,
   "accessTokenLifespan": 300,
+  "defaultRoles": [
+    "velotime-user"
+  ],
   "roles": {
     "realm": [
       {
@@ -74,6 +77,7 @@
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
+      "fullScopeAllowed": true,
       "redirectUris": ["*"],
       "webOrigins": ["*"]
     },
@@ -147,6 +151,48 @@
             "id.token.claim": "false",
             "access.token.claim": "true"
           }
+        },
+        {
+          "name": "client roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "",
+            "access.token.claim": "true",
+            "claim.name": "resource_access.${client_id}.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience resolve",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-resolve-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "access.token.claim": "true"
+          }
         }
       ]
     }
@@ -200,6 +246,27 @@
           "value": "password123",
           "temporary": false
         }
+      ],
+      "realmRoles": [
+        "default-roles-velotime"
+      ]
+    },
+    {
+      "username": "testadm",
+      "enabled": true,
+      "firstName": "Test",
+      "lastName": "Admin",
+      "email": "testadm@velotime.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "asdf1234",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-velotime",
+        "velotime-admin"
       ]
     },
     {
