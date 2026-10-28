@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Storage;
@@ -8,20 +11,63 @@ namespace VeloTime.Module.Timing.Service;
 
 public sealed class TransponderOwnershipService(TimingDbContext storage)
 {
+    /// <summary>Registers a transponder and reconciles the selected owner's coverage under a transaction lock.</summary>
+    /// <param name="request">The requested period and, when needed, the confirmed ownership snapshot.</param>
+    /// <param name="ownerId">The authenticated subject or administrator-selected owner.</param>
+    /// <param name="cancellationToken">Cancels the operation.</param>
+    /// <returns>A saved outcome, or the unchanged ownership proposal requiring confirmation.</returns>
+    public async Task<RegisterTransponderResult> RegisterAsync(RegisterTransponderRequest request, Guid ownerId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Code)) throw new ArgumentException("Transponder code is required.");
+        if (ownerId == Guid.Empty) throw new ArgumentException("A valid owner is required.");
+        if (request.OwnedFrom == default) throw new ArgumentException("Registration start is required.");
+        var start = request.OwnedFrom.UtcDateTime;
+        var end = request.OwnedTo?.UtcDateTime;
+        if (end.HasValue && end <= start) throw new ArgumentException("Ownership end must be after its start.");
+        var systemId = SystemId(request.Code);
+        await using var transaction = await LockAsync(systemId, cancellationToken);
+        var transponder = await FindOrCreateAsync(systemId, cancellationToken);
+        Validate(transponder, null, ownerId, start, end);
+
+        var affected = transponder.Owners.Where(owner => owner.OwnerId == ownerId &&
+            (!owner.OwnedTo.HasValue || owner.OwnedTo > start) && (!end.HasValue || owner.OwnedFrom < end))
+            .OrderBy(owner => owner.OwnedFrom).ThenBy(owner => owner.Id).ToList();
+        if (affected.Count == 1 && affected[0].OwnedFrom == start && affected[0].OwnedTo == end)
+            return new(false, null, []);
+        var snapshot = transponder.Owners.OrderBy(owner => owner.Id).Select(ToDto).ToList();
+        var token = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+        {
+            systemId, ownerId, start, end, snapshot
+        }))));
+        var shortens = affected.Any(owner => owner.OwnedFrom < start ||
+            end.HasValue && (!owner.OwnedTo.HasValue || owner.OwnedTo > end));
+        if ((shortens && request.ConfirmationToken != token) ||
+            (request.ConfirmationToken is not null && request.ConfirmationToken != token))
+            return new(true, token, affected.Select(ToDto).ToList());
+
+        if (storage.Entry(transponder).State == EntityState.Detached) storage.Add(transponder);
+        var ownership = affected.FirstOrDefault();
+        if (ownership is null)
+        {
+            ownership = new TransponderOwner { Id = Guid.NewGuid(), TransponderId = transponder.Id, OwnerId = ownerId };
+            transponder.Owners.Add(ownership);
+            storage.Add(ownership);
+        }
+        foreach (var duplicate in affected.Skip(1)) storage.Remove(duplicate);
+        ownership.OwnedFrom = start;
+        ownership.OwnedTo = end;
+        await storage.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return new(false, null, []);
+    }
+
     public async Task<TransponderDTO> ClaimAsync(string code, Guid ownerId, CancellationToken cancellationToken)
     {
         if (ownerId == Guid.Empty) throw new ArgumentException("A valid owner is required.");
-        var numericId = MylapsX2Transponder.CodeToId(code.Trim().ToUpperInvariant());
-        _ = MylapsX2Transponder.IdToCode(numericId);
-        var systemId = numericId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var systemId = SystemId(code);
         await using var transaction = await LockAsync(systemId, cancellationToken);
-        var transponder = await storage.Set<Transponder>().Include(transponder => transponder.Owners)
-            .SingleOrDefaultAsync(transponder => transponder.System == TimingSystem.MyLaps_X2 && transponder.SystemId == systemId, cancellationToken);
-        if (transponder is null)
-        {
-            transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = systemId };
-            storage.Add(transponder);
-        }
+        var transponder = await FindOrCreateAsync(systemId, cancellationToken);
+        if (storage.Entry(transponder).State == EntityState.Detached) storage.Add(transponder);
 
         var now = DateTime.UtcNow;
         if (!transponder.Owners.Any(owner => owner.OwnerId == ownerId && owner.OwnedFrom <= now && (owner.OwnedTo is null || owner.OwnedTo > now)))
@@ -81,6 +127,18 @@ public sealed class TransponderOwnershipService(TimingDbContext storage)
         await storage.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
+
+    private static string SystemId(string code)
+    {
+        var numericId = MylapsX2Transponder.CodeToId(code.Trim().ToUpperInvariant());
+        _ = MylapsX2Transponder.IdToCode(numericId);
+        return numericId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private async Task<Transponder> FindOrCreateAsync(string systemId, CancellationToken cancellationToken) =>
+        await storage.Set<Transponder>().Include(transponder => transponder.Owners)
+            .SingleOrDefaultAsync(transponder => transponder.System == TimingSystem.MyLaps_X2 && transponder.SystemId == systemId, cancellationToken)
+        ?? new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = systemId };
 
     private async Task<IDbContextTransaction> LockAsync(string systemId, CancellationToken cancellationToken)
     {

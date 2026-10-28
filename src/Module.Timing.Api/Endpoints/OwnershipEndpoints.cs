@@ -15,9 +15,11 @@ internal static class OwnershipEndpoints
         var personal = endpoints.MapGroup("/my").RequireAuthorization();
         personal.MapGet("/transponders", ListPersonal).WithName("ListMyTransponders").Produces<List<TransponderDTO>>();
         personal.MapPost("/transponders", Claim).WithName("ClaimMyTransponder").Produces<TransponderDTO>();
+        personal.MapPost("/transponders/register", RegisterPersonal).WithName("RegisterMyTransponder").Produces<RegisterTransponderResult>();
         personal.MapPost("/ownerships/{id:guid}/end", EndPersonal).WithName("EndMyTransponderOwnership");
         personal.MapDelete("/ownerships/{id:guid}", DeletePersonal).WithName("DeleteMyTransponderOwnership");
         var admin = endpoints.MapGroup("/admin/ownerships").RequireAuthorization(AdministrationAuthorization.TimingPolicy);
+        admin.MapPost("/register", RegisterAdministration).WithName("RegisterTransponderOwnership").Produces<RegisterTransponderResult>();
         admin.MapGet("", ListAll).WithName("ListTransponderOwnerships").Produces<List<TransponderOwnershipDTO>>();
         admin.MapPost("", async (SaveTransponderOwnershipRequest request, TransponderOwnershipService service, CancellationToken cancellationToken) =>
             await Execute(async () => { await service.SaveAsync(null, request, cancellationToken); return Results.NoContent(); })).WithName("CreateTransponderOwnership");
@@ -45,6 +47,22 @@ internal static class OwnershipEndpoints
         if (Subject(user) is not { } ownerId) return Results.Forbid();
         if (string.IsNullOrWhiteSpace(request.Code)) return Results.Problem(detail: "Transponder code is required.", statusCode: 400);
         return await Execute(async () => Results.Ok(await service.ClaimAsync(request.Code, ownerId, cancellationToken)));
+    }
+
+    private static async Task<IResult> RegisterPersonal(RegisterTransponderRequest request, ClaimsPrincipal user,
+        TransponderOwnershipService service, CancellationToken cancellationToken)
+    {
+        if (Subject(user) is not { } ownerId) return Results.Forbid();
+        if (request.OwnerId.HasValue) return Results.Problem(detail: "Self-service registration cannot specify an owner.", statusCode: 400);
+        return await Execute(async () => Results.Ok(await service.RegisterAsync(request, ownerId, cancellationToken)));
+    }
+
+    private static async Task<IResult> RegisterAdministration(RegisterTransponderRequest request,
+        TransponderOwnershipService service, CancellationToken cancellationToken)
+    {
+        if (request.OwnerId is not { } ownerId || ownerId == Guid.Empty)
+            return Results.Problem(detail: "A valid owner is required.", statusCode: 400);
+        return await Execute(async () => Results.Ok(await service.RegisterAsync(request, ownerId, cancellationToken)));
     }
 
     private static async Task<IResult> EndPersonal(Guid id, ClaimsPrincipal user, TransponderOwnershipService service, CancellationToken cancellationToken) =>

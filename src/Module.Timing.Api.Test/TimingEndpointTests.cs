@@ -7,7 +7,7 @@ using VeloTime.Module.Timing.Interface.Data;
 
 namespace VeloTime.Module.Timing.Api.Test;
 
-public sealed class TimingEndpointTests(TimingApiFactory factory) : IClassFixture<TimingApiFactory>, IAsyncLifetime
+public sealed partial class TimingEndpointTests(TimingApiFactory factory) : IClassFixture<TimingApiFactory>, IAsyncLifetime
 {
     public Task InitializeAsync() => factory.InitializeDatabaseAsync();
 
