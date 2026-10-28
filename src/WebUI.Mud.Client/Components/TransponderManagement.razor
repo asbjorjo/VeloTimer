@@ -1,8 +1,10 @@
 @using VeloTime.Module.Timing.Interface.Data
 @using VeloTime.WebUI.Mud.Client.Services
+@using VeloTime.WebUI.Mud.Client.ViewModel
 @using Microsoft.JSInterop
 @using System.Globalization
 @inject ITransponderManagementService Service
+@inject ITransponderOwnerService Owners
 @inject IJSRuntime JS
 @inject IDialogService Dialogs
 @inject ISnackbar Snackbar
@@ -29,7 +31,11 @@ else if (_editor is not null)
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_code" Label="MyLaps X2 transponder code" Required="true" Disabled="_busy" /></MudItem>
                 @if (Administration)
                 {
-                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_owner" Label="Owner user ID" Required="true" Validation="@(new Func<string, string?>(ValidateOwner))" Disabled="_busy" /></MudItem>
+                    <MudItem xs="12" md="6"><TransponderOwnerPicker @bind-Value="_owner" Disabled="_busy" /></MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12" md="6"><MudTextField Value="@_ownProfile?.DisplayName" Label="Owner" ReadOnly="true" /></MudItem>
                 }
                 <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_registrationFrom" Label="Registration start date" Required="true" Disabled="_busy" /></MudItem>
                 <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_registrationTo" Label="Registration end date (optional)" Clearable="true" MinDate="_registrationFrom" Disabled="_busy" /></MudItem>
@@ -47,7 +53,7 @@ else if (_editor is not null)
                         @foreach (var transponder in _transponders) { <MudSelectItem T="Guid?" Value="@((Guid?)transponder.Id)">@transponder.Label</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" md="6"><MudTextField @bind-Value="_owner" Label="Owner user ID" Required="true" Validation="@(new Func<string, string?>(ValidateOwner))" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" md="6"><TransponderOwnerPicker @bind-Value="_owner" Disabled="_busy" /></MudItem>
                 <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_fromDate" Label="Owned from date (UTC)" Required="true" Disabled="_busy" /></MudItem>
                 <MudItem xs="12" md="6"><MudTimePicker @bind-Time="_fromTime" Label="Owned from time (UTC)" Required="true" AmPm="false" Disabled="_busy" /></MudItem>
                 <MudItem xs="12"><MudCheckBox @bind-Value="_hasEnd" Label="Has end date" Disabled="_busy" /></MudItem>
@@ -69,23 +75,32 @@ else
     <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-4">
         <MudTextField @bind-Value="_search" Placeholder="Search transponders" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Margin="Margin.Dense" />
         <MudCheckBox @bind-Value="_showHistory" Label="Include history" />
-        <MudButton OnClick="Register" Disabled="_busy" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">Register transponder</MudButton>
+        <MudButton OnClick="Register" Disabled="@(_busy || !_namesLoaded)" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">Register transponder</MudButton>
         @if (Administration)
         {
-            <MudButton OnClick="AddOwnership" StartIcon="@Icons.Material.Filled.PersonAdd" Disabled="@(_transponders.Count == 0 || _busy)">Add ownership</MudButton>
+            <MudButton OnClick="AddOwnership" StartIcon="@Icons.Material.Filled.PersonAdd" Disabled="@(_transponders.Count == 0 || _busy || !_namesLoaded)">Add ownership</MudButton>
         }
         <MudTooltip Text="Refresh"><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" Disabled="_busy" /></MudTooltip>
     </MudStack>
     <MudTable T="OwnershipRow" Items="Rows" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
         <HeaderContent>
             <MudTh>Transponder</MudTh><MudTh>System</MudTh>
-            @if (Administration) { <MudTh>Owner</MudTh> }
+            <MudTh>Owner</MudTh>
             <MudTh>From (UTC)</MudTh><MudTh>To (UTC)</MudTh><MudTh>Status</MudTh><MudTh />
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Transponder">@context.Transponder.Label</MudTd>
             <MudTd DataLabel="System">@context.Transponder.System</MudTd>
-            @if (Administration) { <MudTd DataLabel="Owner" Style="overflow-wrap:anywhere">@context.Ownership?.OwnerId</MudTd> }
+            <MudTd DataLabel="Owner">
+                @if (Administration && context.Ownership is { } namedOwnership)
+                {
+                    <MudTooltip Text="@($"User ID: {namedOwnership.OwnerId}")"><MudText>@OwnerName(namedOwnership.OwnerId)</MudText></MudTooltip>
+                }
+                else if (context.Ownership is not null)
+                {
+                    @(_ownProfile?.DisplayName ?? "Owner names unavailable")
+                }
+            </MudTd>
             <MudTd DataLabel="From (UTC)">@Format(context.Ownership?.OwnedFrom)</MudTd>
             <MudTd DataLabel="To (UTC)">@Format(context.Ownership?.OwnedTo)</MudTd>
             <MudTd DataLabel="Status">@Status(context.Ownership)</MudTd>
@@ -99,7 +114,7 @@ else
                 {
                     @if (Administration)
                     {
-                        <MudTooltip Text="Edit ownership"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditOwnership(context)" Disabled="_busy" /></MudTooltip>
+                        <MudTooltip Text="Edit ownership"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditOwnership(context)" Disabled="@(_busy || !_namesLoaded)" /></MudTooltip>
                     }
                     @if (IsActive(ownership))
                     {
@@ -123,7 +138,11 @@ else
     private MudForm? _form;
     private bool _loading = true, _busy, _valid, _hasEnd, _showHistory = true;
     private string? _editor, _error;
-    private string _code = "", _owner = "", _search = "", _label = "";
+    private string _code = "", _search = "", _label = "";
+    private TransponderOwnerView? _owner;
+    private OwnTransponderProfile? _ownProfile;
+    private readonly Dictionary<Guid, TransponderOwnerView> _owners = [];
+    private bool _namesLoaded;
     private Guid? _ownershipId, _transponderId;
     private DateTime? _fromDate, _toDate;
     private DateTime? _registrationFrom, _registrationTo;
@@ -131,7 +150,7 @@ else
     private sealed record OwnershipRow(TransponderDTO Transponder, TransponderOwnershipDTO? Ownership);
 
     private IEnumerable<OwnershipRow> Rows => _transponders
-        .Where(transponder => $"{transponder.Label} {transponder.SystemId} {string.Join(' ', transponder.Ownerships.Select(owner => owner.OwnerId))}".Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .Where(transponder => $"{transponder.Label} {transponder.SystemId} {string.Join(' ', transponder.Ownerships.Select(owner => Administration ? OwnerName(owner.OwnerId) : _ownProfile?.DisplayName))}".Contains(_search, StringComparison.OrdinalIgnoreCase))
         .SelectMany(transponder => transponder.Ownerships.Count == 0 ? [new OwnershipRow(transponder, null)] : transponder.Ownerships
             .Where(owner => _showHistory || IsActive(owner)).Select(owner => new OwnershipRow(transponder, owner)));
 
@@ -140,9 +159,24 @@ else
     private async Task Load()
     {
         _loading = true;
+        _namesLoaded = false;
         _error = null;
-        try { _transponders = await Service.GetTranspondersAsync(Administration, _lifetime.Token); }
+        _owners.Clear();
+        _ownProfile = null;
+        try
+        {
+            _transponders = await Service.GetTranspondersAsync(Administration, _lifetime.Token);
+            if (Administration)
+            {
+                var ids = _transponders.SelectMany(transponder => transponder.Ownerships).Select(owner => owner.OwnerId).Distinct();
+                foreach (var batch in ids.Chunk(100))
+                    foreach (var owner in await Owners.ResolveAsync(batch, _lifetime.Token)) _owners[owner.UserId] = owner;
+            }
+            else _ownProfile = await Owners.GetOwnProfileAsync(_lifetime.Token);
+            _namesLoaded = true;
+        }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (HttpRequestException exception) { _error = $"{exception.Message} Use Refresh to retry."; }
         catch (Exception) { _error = "Transponders could not be loaded. Check your access and refresh."; }
         finally { _loading = false; }
     }
@@ -156,7 +190,8 @@ else
             await using var dates = await JS.InvokeAsync<IJSObjectReference>("import", "./registrationDates.js");
             _registrationFrom = DateTime.ParseExact(await dates.InvokeAsync<string>("today"), "yyyy-MM-dd", CultureInfo.InvariantCulture);
             _registrationTo = null;
-            _owner = _code = "";
+            _owner = null;
+            _code = "";
             _editor = "register";
         }
         catch (JSException) { _error = "Your local registration date could not be determined. Please try again."; }
@@ -182,7 +217,7 @@ else
     {
         _editor = "ownership";
         _ownershipId = _transponderId = null;
-        _owner = "";
+        _owner = null;
         var now = DateTime.UtcNow;
         _fromDate = now.Date;
         _fromTime = now.TimeOfDay;
@@ -198,7 +233,7 @@ else
         var ownership = row.Ownership!;
         _ownershipId = ownership.Id;
         _transponderId = row.Transponder.Id;
-        _owner = ownership.OwnerId.ToString();
+        _owner = _owners[ownership.OwnerId];
         _fromDate = ownership.OwnedFrom.UtcDateTime.Date;
         _fromTime = ownership.OwnedFrom.UtcDateTime.TimeOfDay;
         _hasEnd = ownership.OwnedTo.HasValue;
@@ -210,6 +245,11 @@ else
     {
         await _form!.ValidateAsync();
         if (!_valid || _busy) return;
+        if (Administration && _editor != "transponder" && _owner is null)
+        {
+            _error = "Select an owner from the search results.";
+            return;
+        }
         _busy = true;
         _error = null;
         try
@@ -222,7 +262,7 @@ else
                     _registrationFrom!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                     _registrationTo?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
                 var request = new RegisterTransponderRequest(_code, period.OwnedFrom, period.OwnedTo,
-                    Administration ? Guid.Parse(_owner) : null);
+                    Administration ? _owner!.UserId : null);
                 var result = await Service.RegisterOwnershipAsync(request, Administration, _lifetime.Token);
                 while (result.RequiresConfirmation)
                 {
@@ -245,7 +285,7 @@ else
                 var start = Utc(_fromDate!.Value, _fromTime!.Value);
                 var end = _hasEnd ? Utc(_toDate!.Value, _toTime!.Value) : (DateTimeOffset?)null;
                 if (end.HasValue && end <= start) { _error = "Ownership end must be after its start."; return; }
-                await Service.SaveOwnershipAsync(_ownershipId, new(_transponderId!.Value, Guid.Parse(_owner), start, end), _lifetime.Token);
+                await Service.SaveOwnershipAsync(_ownershipId, new(_transponderId!.Value, _owner!.UserId, start, end), _lifetime.Token);
             }
             _editor = null;
             Snackbar.Add("Saved.", Severity.Success);
@@ -277,7 +317,7 @@ else
         finally { _busy = false; }
     }
 
-    private static string? ValidateOwner(string value) => Guid.TryParse(value, out var id) && id != Guid.Empty ? null : "Enter a valid user ID.";
+    private string OwnerName(Guid id) => _owners.TryGetValue(id, out var owner) ? owner.DisplayName : "Owner names unavailable";
     private sealed record RegistrationPeriod(DateTimeOffset OwnedFrom, DateTimeOffset? OwnedTo);
     private static DateTimeOffset Utc(DateTime date, TimeSpan time) => new(DateTime.SpecifyKind(date.Date.Add(time), DateTimeKind.Utc));
     private static bool IsActive(TransponderOwnershipDTO owner) => owner.OwnedFrom <= DateTimeOffset.UtcNow && (!owner.OwnedTo.HasValue || owner.OwnedTo > DateTimeOffset.UtcNow);

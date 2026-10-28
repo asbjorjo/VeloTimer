@@ -146,11 +146,17 @@ Interactive Auto/BFF infrastructure. Navigation and direct URLs enforce module r
   Registration has an editable start date (today by default) and an optional end
   date. These are browser-local calendar days: the entire end day is included,
   including across daylight-saving changes. A blank end means no expiry.
+  The read-only owner label uses the signed-in user's Statistics profile name,
+  including their own private profile. Keycloak names are never returned by the
+  personal owner-name endpoint.
 * `/admin/timing/transponders` lets timing administrators register transponders, edit
   their labels, delete unused transponders, and create, edit, end, or delete anyone's
-  ownership periods. Owner IDs are Keycloak subject UUIDs. Ownership editor timestamps
+  ownership periods. Owners are selected by Statistics profile name or Keycloak
+  first/last name rather than by entering a UUID. Administrator labels show both
+  names, including private Statistics profiles; UUIDs are secondary disambiguation
+  details only. Ownership editor timestamps
   are UTC. Registration uses the same local calendar dates as personal registration
-  and requires an Owner user ID. Deleting a transponder is blocked by ownership,
+  and requires selecting an owner. Deleting a transponder is blocked by ownership,
   passings, or statistics.
 
 Registering an already-owned transponder updates overlapping periods for that owner
@@ -160,6 +166,15 @@ dates; cancelling keeps the existing ownership unchanged. If ownership changes w
 the confirmation is open, it must be reviewed again. Separate periods are retained as
 history. Personal registration always assigns the authenticated user; only timing
 administrators can select another owner.
+
+Owner search starts after two characters and returns up to 20 results per page,
+with **Load more owners** for additional matches. Select an actual search result;
+typed text alone does not choose an owner. `No statistics profile` means a user
+has not created a Statistics profile and does not block registration.
+`User unavailable` marks a historical owner whose Keycloak account was deleted;
+the ownership is retained and can be edited without reassigning it. Dependency
+outages and insufficient permissions produce an explicit retryable error instead
+of being displayed as missing profiles or users.
 
 All relationship selections are validated again by the owning API. Facilities,
 layouts, installations, timing points, and statistics definitions cannot be deleted
@@ -188,6 +203,21 @@ in the WebUI ID token. Existing Keycloak realms are not updated by editing the i
 create the roles, add the WebUI realm-role mapper to ID/access tokens, assign the
 appropriate role to administrators, then sign out and sign in again. No admin API
 credentials are sent to the browser.
+
+Transponder owner search additionally uses the signed-in administrator's delegated
+access token against the Keycloak Admin API; no service-account secret is needed.
+The development realm makes `timing-admin` and `velotime-admin` composite roles
+with the **realm-management** client roles `query-users` and `view-users` only.
+For existing/production realms, add those same read-only composite roles. Do not
+grant `manage-users` or broader realm administration for this feature.
+Ensure the WebUI token scope includes those client roles in
+`resource_access.realm-management.roles` and resolves the `realm-management`
+audience (the checked-in realm uses the client-role and audience-resolve mappers
+and full scope on `velotime.webui`). If client scope is restricted in production,
+explicitly include these read-only roles. Sign out and sign in after changing
+role/scope assignments. Name lookup failures with 403 indicate that these
+permissions or token scope need checking; the application does not silently
+fall back to raw UUIDs.
 
 The `velotime-web` client scope is a default scope in the checked-in realm import. It
 adds the application URL audience and user subject required by the domain APIs, as
