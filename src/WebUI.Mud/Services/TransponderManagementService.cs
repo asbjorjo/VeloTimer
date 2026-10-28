@@ -24,6 +24,22 @@ public sealed class TransponderManagementService(ITimingClient client) : ITransp
         return true;
     });
 
+    /// <inheritdoc />
+    public Task<Contracts.RegisterTransponderResult> RegisterOwnershipAsync(Contracts.RegisterTransponderRequest request, bool administration,
+        CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        var body = new RegisterTransponderRequest
+        {
+            Code = request.Code, OwnedFrom = request.OwnedFrom, OwnedTo = request.OwnedTo,
+            OwnerId = request.OwnerId, ConfirmationToken = request.ConfirmationToken
+        };
+        var result = administration
+            ? await client.RegisterTransponderOwnershipAsync(body, cancellationToken)
+            : await client.RegisterMyTransponderAsync(body, cancellationToken);
+        return new Contracts.RegisterTransponderResult(result.RequiresConfirmation, result.ConfirmationToken,
+            result.ExistingOwnerships.Select(owner => new Contracts.TransponderOwnershipDTO(owner.Id, owner.TransponderId, owner.OwnerId, owner.OwnedFrom, owner.OwnedTo)).ToList());
+    });
+
     public Task SaveOwnershipAsync(Guid? id, Contracts.SaveTransponderOwnershipRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
     {
         var body = new SaveTransponderOwnershipRequest { TransponderId = request.TransponderId, OwnerId = request.OwnerId, OwnedFrom = request.OwnedFrom, OwnedTo = request.OwnedTo };

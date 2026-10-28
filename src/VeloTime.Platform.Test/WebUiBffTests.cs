@@ -140,6 +140,108 @@ public sealed class WebUiBffTests
     }
 
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task TransponderRegistration_ForwardsDatesOwnerAndConfirmation(bool administration, bool confirmation)
+    {
+        var start = new DateTimeOffset(2026, 3, 28, 23, 0, 0, TimeSpan.Zero);
+        var request = new TimingContracts.RegisterTransponderRequest("FF-87718", start, start.AddHours(23),
+            administration ? ResourceId : null, confirmation ? "confirmed-snapshot" : null);
+        var expected = new TimingContracts.RegisterTransponderResult(confirmation, confirmation ? "current-snapshot" : null,
+            confirmation ? [new(ResourceId, ResourceId, ResourceId, start.AddDays(-1), null)] : []);
+        var backend = PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, arguments) =>
+        {
+            Assert.Equal(nameof(ITransponderManagementService.RegisterOwnershipAsync), method.Name);
+            Assert.Equal(request, Assert.IsType<TimingContracts.RegisterTransponderRequest>(arguments[0]));
+            Assert.Equal(administration, arguments[1]);
+            return expected;
+        });
+        await using var app = await CreateAppAsync(transponders: backend);
+        using var client = CreateClient(app);
+        await client.GetAsync(administration ? "signin?role=timing-admin" : "signin?role=user");
+
+        var result = await new TransponderManagementHttpService(client).RegisterOwnershipAsync(request, administration);
+
+        Assert.Equal(expected.RequiresConfirmation, result.RequiresConfirmation);
+        Assert.Equal(expected.ConfirmationToken, result.ConfirmationToken);
+        Assert.Equal(expected.ExistingOwnerships, result.ExistingOwnerships);
+        Assert.Single(((PlatformServiceTests.TestProxy)(object)backend).Calls);
+    }
+
+    [Theory]
+    [InlineData("api/transponders/register", "user", false, HttpStatusCode.BadRequest)]
+    [InlineData("api/admin/timing/transponders/register", "timing-admin", false, HttpStatusCode.BadRequest)]
+    [InlineData("api/admin/timing/transponders/register", "user", true, HttpStatusCode.Forbidden)]
+    public async Task TransponderRegistration_ProtectsAntiforgeryAndAdminRoute(string path, string role, bool antiforgery, HttpStatusCode status)
+    {
+        await using var app = await CreateAppAsync();
+        using var client = CreateClient(app, antiforgery);
+        await client.GetAsync($"signin?role={role}");
+
+        var response = await client.PostAsJsonAsync(path, new TimingContracts.RegisterTransponderRequest("FF-87718", DateTimeOffset.UtcNow, null));
+
+        Assert.Equal(status, response.StatusCode);
+        Assert.Empty(((PlatformServiceTests.TestProxy)(object)app.Services.GetRequiredService<ITransponderManagementService>()).Calls);
+    }
+
+    [Fact]
+    public async Task TransponderRegistration_PreservesConflictDetails()
+    {
+        var backend = PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((_, _) =>
+            throw new HttpRequestException("The ownership period conflicts with an existing ownership.", null, HttpStatusCode.Conflict));
+        await using var app = await CreateAppAsync(transponders: backend);
+        using var client = CreateClient(app);
+        await client.GetAsync("signin?role=user");
+
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            new TransponderManagementHttpService(client).RegisterOwnershipAsync(new("FF-87718", DateTimeOffset.UtcNow, null), false));
+
+        Assert.Equal(HttpStatusCode.Conflict, exception.StatusCode);
+        Assert.Contains("conflicts with an existing ownership", exception.Message);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TransponderRegistration_ServerAdapterMapsGeneratedClientContracts(bool administration)
+    {
+        var start = new DateTimeOffset(2026, 3, 28, 23, 0, 0, TimeSpan.Zero);
+        var request = new TimingContracts.RegisterTransponderRequest("FF-87718", start, start.AddHours(23),
+            administration ? ResourceId : null, "previous-snapshot");
+        var timing = PlatformServiceTests.TestProxy.Create<VeloTime.Module.Timing.Client.ITimingClient>((method, arguments) =>
+        {
+            Assert.Equal(administration ? "RegisterTransponderOwnershipAsync" : "RegisterMyTransponderAsync", method.Name);
+            var body = Assert.IsType<VeloTime.Module.Timing.Client.RegisterTransponderRequest>(arguments[0]);
+            Assert.Equal(request.Code, body.Code);
+            Assert.Equal(request.OwnedFrom, body.OwnedFrom);
+            Assert.Equal(request.OwnedTo, body.OwnedTo);
+            Assert.Equal(request.OwnerId, body.OwnerId);
+            Assert.Equal(request.ConfirmationToken, body.ConfirmationToken);
+            return new VeloTime.Module.Timing.Client.RegisterTransponderResult
+            {
+                RequiresConfirmation = true, ConfirmationToken = "current-snapshot",
+                ExistingOwnerships = [new()
+                {
+                    Id = ResourceId, TransponderId = ResourceId, OwnerId = ResourceId,
+                    OwnedFrom = start.AddDays(-1), OwnedTo = null
+                }]
+            };
+        });
+
+        var result = await new VeloTime.WebUI.Mud.Services.TransponderManagementService(timing)
+            .RegisterOwnershipAsync(request, administration);
+
+        Assert.True(result.RequiresConfirmation);
+        Assert.Equal("current-snapshot", result.ConfirmationToken);
+        var ownership = Assert.Single(result.ExistingOwnerships);
+        Assert.Equal(ResourceId, ownership.Id);
+        Assert.Equal(start.AddDays(-1), ownership.OwnedFrom);
+        Assert.Null(ownership.OwnedTo);
+    }
+
+    [Theory]
     [InlineData("statistics-admin", HttpStatusCode.OK)]
     [InlineData("velotime-admin", HttpStatusCode.OK)]
     [InlineData("timing-admin", HttpStatusCode.Forbidden)]
@@ -440,7 +542,8 @@ public sealed class WebUiBffTests
         Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1893456000), view.ExpiresAt);
     }
 
-    private static async Task<WebApplication> CreateAppAsync(IStatisticsService? statistics = null, IStatisticsAdministrationService? administration = null, IInfrastructureAdministrationService? infrastructure = null, IAuthDebugService? authDebug = null)
+    private static async Task<WebApplication> CreateAppAsync(IStatisticsService? statistics = null, IStatisticsAdministrationService? administration = null, IInfrastructureAdministrationService? infrastructure = null, IAuthDebugService? authDebug = null,
+        ITransponderManagementService? transponders = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -457,7 +560,7 @@ public sealed class WebUiBffTests
             nameof(IStatisticsAdministrationService.GetConfigurationsAsync) => (IReadOnlyList<StatisticsConfigurationDTO>)Array.Empty<StatisticsConfigurationDTO>(),
             _ => null
         }));
-        builder.Services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, _) => method.Name switch
+        builder.Services.AddSingleton(transponders ?? PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, _) => method.Name switch
         {
             nameof(ITransponderManagementService.GetTranspondersAsync) => (IReadOnlyList<TimingContracts.TransponderDTO>)Array.Empty<TimingContracts.TransponderDTO>(),
             _ => null

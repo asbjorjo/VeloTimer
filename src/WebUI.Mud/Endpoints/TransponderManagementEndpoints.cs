@@ -21,6 +21,8 @@ internal static class TransponderManagementEndpoints
             await service.RegisterAsync(request.Code, administration, cancellationToken);
             return Results.NoContent();
         });
+        endpoints.MapPost("/transponders/register", async (RegisterTransponderRequest request, ITransponderManagementService service, CancellationToken cancellationToken) =>
+            Results.Ok(await service.RegisterOwnershipAsync(request, administration, cancellationToken)));
         endpoints.MapPost("/ownerships/{id:guid}/end", async (Guid id, ITransponderManagementService service, CancellationToken cancellationToken) =>
         {
             await service.EndOwnershipAsync(id, administration, cancellationToken);
