@@ -87,6 +87,7 @@ internal static class BffEndpoints
         api.MapStatisticsEndpoints();
         api.MapStatisticsAdministrationEndpoints();
         api.MapTransponderManagementEndpoints();
+        api.MapTransponderOwnerEndpoints();
         api.MapInfrastructureAdministrationEndpoints();
 
         api.MapGet("/debug/auth/token", async (IAuthDebugService service, CancellationToken cancellationToken) =>

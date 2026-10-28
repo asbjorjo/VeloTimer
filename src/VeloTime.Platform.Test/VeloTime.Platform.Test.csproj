@@ -35,4 +35,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\config\keycloak\realms\velotime-realm.json" Link="Fixtures\velotime-realm.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

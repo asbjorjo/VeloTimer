@@ -19,7 +19,7 @@ using VeloTime.WebUI.Mud.Endpoints;
 
 namespace VeloTime.Platform.Test;
 
-public sealed class WebUiBffTests
+public sealed partial class WebUiBffTests
 {
     private static readonly Guid ResourceId = Guid.Parse("fa886b15-035b-43fe-984a-04c8ce566122");
 
@@ -543,7 +543,7 @@ public sealed class WebUiBffTests
     }
 
     private static async Task<WebApplication> CreateAppAsync(IStatisticsService? statistics = null, IStatisticsAdministrationService? administration = null, IInfrastructureAdministrationService? infrastructure = null, IAuthDebugService? authDebug = null,
-        ITransponderManagementService? transponders = null)
+        ITransponderManagementService? transponders = null, ITransponderOwnerService? owners = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -553,6 +553,8 @@ public sealed class WebUiBffTests
         builder.Services.AddTransient<TestCookieEvents>();
         builder.Services.AddAdministrationAuthorization();
         builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+        builder.Services.AddSingleton(owners ?? PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((_, _) =>
+            throw new NotSupportedException("Owner lookups require an explicit test response.")));
         builder.Services.AddSingleton(statistics ?? PlatformServiceTests.TestProxy.Create<IStatisticsService>((_, _) => Array.Empty<SampleView>()));
         builder.Services.AddSingleton(administration ?? PlatformServiceTests.TestProxy.Create<IStatisticsAdministrationService>((method, _) => method.Name switch
         {

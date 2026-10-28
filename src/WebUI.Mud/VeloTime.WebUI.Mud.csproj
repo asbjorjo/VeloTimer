@@ -51,5 +51,9 @@
     <OpenApiReference Include="..\..\api\keycloak.yaml" CodeGenerator="NSwagCSharp" Namespace="VeloTime.WebUI.Keycloak" ClassName="KeycloakClient">
       <Options>/UseBaseUrl:false /GenerateClientInterfaces:true</Options>
     </OpenApiReference>
+    <OpenApiReference Include="..\..\api\keycloak-admin.yaml" CodeGenerator="NSwagCSharp" Namespace="VeloTime.WebUI.KeycloakAdmin" ClassName="KeycloakAdminClient">
+      <NSwagGenerateExceptionClasses>true</NSwagGenerateExceptionClasses>
+      <Options>/UseBaseUrl:false /GenerateClientInterfaces:true</Options>
+    </OpenApiReference>
   </ItemGroup>
 </Project>

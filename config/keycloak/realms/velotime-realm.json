@@ -34,7 +34,13 @@
       },
       {
         "name": "velotime-admin",
-        "description": "Administrator for all VeloTime modules"
+        "description": "Administrator for all VeloTime modules",
+        "composite": true,
+        "composites": {
+          "client": {
+            "realm-management": ["query-users", "view-users"]
+          }
+        }
       },
       {
         "name": "facilities-admin",
@@ -42,7 +48,13 @@
       },
       {
         "name": "timing-admin",
-        "description": "Timing and transponder ownership administrator"
+        "description": "Timing and transponder ownership administrator",
+        "composite": true,
+        "composites": {
+          "client": {
+            "realm-management": ["query-users", "view-users"]
+          }
+        }
       },
       {
         "name": "statistics-admin",

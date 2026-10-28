@@ -23,6 +23,7 @@ builder.Services.AddScoped<ITimingService, TimingHttpService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsHttpService>();
 builder.Services.AddScoped<IStatisticsAdministrationService, StatisticsAdministrationHttpService>();
 builder.Services.AddScoped<ITransponderManagementService, TransponderManagementHttpService>();
+builder.Services.AddScoped<ITransponderOwnerService, TransponderOwnerHttpService>();
 builder.Services.AddScoped<IInfrastructureAdministrationService, InfrastructureAdministrationHttpService>();
 builder.Services.AddScoped<IProfileService, ProfileHttpService>();
 builder.Services.AddScoped<IAuthDebugService, AuthDebugHttpService>();

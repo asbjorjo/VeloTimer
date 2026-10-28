@@ -115,6 +115,12 @@ builder.Services
     .AddUserAccessTokenHandler();
 
 builder.Services
+    .AddHttpClient<VeloTime.WebUI.KeycloakAdmin.IKeycloakAdminClient, VeloTime.WebUI.KeycloakAdmin.KeycloakAdminClient>(client =>
+        client.BaseAddress = new Uri("https+http://keycloak/"))
+    .AddDefaultAccessTokenResiliency()
+    .AddUserAccessTokenHandler();
+
+builder.Services
     .AddFacilitiesClient()
     .AddDefaultAccessTokenResiliency()
     .AddUserAccessTokenHandler();
@@ -133,6 +139,7 @@ builder.Services.AddScoped<IFacilityService, FacilityService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IStatisticsAdministrationService, StatisticsAdministrationService>();
 builder.Services.AddScoped<ITransponderManagementService, TransponderManagementService>();
+builder.Services.AddScoped<ITransponderOwnerService, TransponderOwnerService>();
 builder.Services.AddScoped<IInfrastructureAdministrationService, InfrastructureAdministrationService>();
 builder.Services.AddScoped<ITimingService, TimingService>();
 
