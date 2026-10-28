@@ -69,6 +69,13 @@ Create the name of the service account to use
 {{- printf "%s:%s,user=%s,password=%s,ssl=true" .host (.port | toString) .user .password }}
 {{- end -}}
 
+{{- define "velotime.oidcConfig" -}}
+{{- with (.Values.global | default dict).oidcAuthority }}
+services__keycloak__https__0: {{ . | quote }}
+ConnectionStrings__keycloak: {{ printf "%s/realms/velotime" (regexReplaceAll "/+$" . "") | quote }}
+{{- end }}
+{{- end -}}
+
 {{- define "velotime.moduleApiHttp" -}}
 {{ $ := .root }}
 {{- printf "http://module-%s-api/" .module }}

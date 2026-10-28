@@ -1,0 +1,13 @@
+{{- with (.Values.global | default dict).oidcAuthority }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "velotime-users-migration.fullname" $ }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-1"
+    helm.sh/hook-delete-policy: before-hook-creation
+data:
+  services__keycloak__https__0: {{ . | quote }}
+  ConnectionStrings__keycloak: {{ printf "%s/realms/velotime" (regexReplaceAll "/+$" . "") | quote }}
+{{- end }}

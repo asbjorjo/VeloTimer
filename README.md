@@ -222,6 +222,15 @@ with the API deployment: `velotime.api` is no longer accepted.
 Sign out and back in, and obtain fresh service-account tokens after the change.
 WebUI client IDs, ID-token validation, and administrator permissions are unchanged.
 
+The application, bootstrap, and users-migration Helm charts accept an optional
+`global.oidcAuthority` containing the full Keycloak base URL, such as
+`https://identity.example.com`. When configured, each VeloTime workload's ConfigMap
+sets `services__keycloak__https__0` to that exact URL and
+`ConnectionStrings__keycloak` to the URL followed by `/realms/velotime`, removing
+trailing slashes before appending the realm path. The default is empty and omits
+both settings. Configure the value separately for each installed chart; it does
+not replace the API audience setting.
+
 Build-time OpenAPI generation starts the API hosts and therefore also requires an
 explicit audience. CI and package/container build jobs configure `https://build.invalid`
 only for this tooling; this value is not an application default or container runtime

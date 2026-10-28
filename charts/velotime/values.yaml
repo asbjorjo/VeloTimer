@@ -3,6 +3,7 @@ global:
     repository: ghcr.io/asbjorjo/
     tag: 3.0.0-alpha.71
   oidcAudience: ""
+  oidcAuthority: ""
   imagePullSecrets:
     - name: ghcr
 valkey:

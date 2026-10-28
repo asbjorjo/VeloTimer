@@ -24,5 +24,9 @@ spec:
           image: "{{ .Values.global.image.repository }}{{ .Chart.Name }}:{{ .Values.global.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           envFrom:
+            {{- if (.Values.global | default dict).oidcAuthority }}
+            - configMapRef:
+                name: {{ include "velotime-users-migration.fullname" . }}
+            {{- end }}
             - secretRef:
                 name: {{ required "existingSecret is required" .Values.existingSecret | quote }}
