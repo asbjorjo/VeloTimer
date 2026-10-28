@@ -22,7 +22,7 @@ public sealed class TestAuthenticationHandler(
 
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, "test-user"),
+            new(ClaimTypes.NameIdentifier, Request.Headers["X-Test-Subject"].FirstOrDefault() ?? "test-user"),
             new(ClaimTypes.Name, "Test User")
         };
         if (Request.Headers.TryGetValue("X-Test-Scope", out var scope) && scope == "Statistics.Write")
