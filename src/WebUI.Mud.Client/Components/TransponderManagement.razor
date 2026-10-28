@@ -1,6 +1,9 @@
 @using VeloTime.Module.Timing.Interface.Data
 @using VeloTime.WebUI.Mud.Client.Services
+@using Microsoft.JSInterop
+@using System.Globalization
 @inject ITransponderManagementService Service
+@inject IJSRuntime JS
 @inject IDialogService Dialogs
 @inject ISnackbar Snackbar
 @implements IDisposable
@@ -24,6 +27,13 @@ else if (_editor is not null)
             @if (_editor == "register")
             {
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_code" Label="MyLaps X2 transponder code" Required="true" Disabled="_busy" /></MudItem>
+                @if (Administration)
+                {
+                    <MudItem xs="12" md="6"><MudTextField @bind-Value="_owner" Label="Owner user ID" Required="true" Validation="@(new Func<string, string?>(ValidateOwner))" Disabled="_busy" /></MudItem>
+                }
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_registrationFrom" Label="Registration start date" Required="true" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_registrationTo" Label="Registration end date (optional)" Clearable="true" MinDate="_registrationFrom" Disabled="_busy" /></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.body2">Dates use your local time zone. The entire end date is included. Leave it blank for no expiry.</MudText></MudItem>
             }
             else if (_editor == "transponder")
             {
@@ -59,7 +69,7 @@ else
     <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-4">
         <MudTextField @bind-Value="_search" Placeholder="Search transponders" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Margin="Margin.Dense" />
         <MudCheckBox @bind-Value="_showHistory" Label="Include history" />
-        <MudButton OnClick="Register" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">Register transponder</MudButton>
+        <MudButton OnClick="Register" Disabled="_busy" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">Register transponder</MudButton>
         @if (Administration)
         {
             <MudButton OnClick="AddOwnership" StartIcon="@Icons.Material.Filled.PersonAdd" Disabled="@(_transponders.Count == 0 || _busy)">Add ownership</MudButton>
@@ -116,6 +126,7 @@ else
     private string _code = "", _owner = "", _search = "", _label = "";
     private Guid? _ownershipId, _transponderId;
     private DateTime? _fromDate, _toDate;
+    private DateTime? _registrationFrom, _registrationTo;
     private TimeSpan? _fromTime, _toTime;
     private sealed record OwnershipRow(TransponderDTO Transponder, TransponderOwnershipDTO? Ownership);
 
@@ -136,7 +147,21 @@ else
         finally { _loading = false; }
     }
 
-    private void Register() { _editor = "register"; _code = ""; _error = null; }
+    private async Task Register()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            await using var dates = await JS.InvokeAsync<IJSObjectReference>("import", "./registrationDates.js");
+            _registrationFrom = DateTime.ParseExact(await dates.InvokeAsync<string>("today"), "yyyy-MM-dd", CultureInfo.InvariantCulture);
+            _registrationTo = null;
+            _owner = _code = "";
+            _editor = "register";
+        }
+        catch (JSException) { _error = "Your local registration date could not be determined. Please try again."; }
+        finally { _busy = false; }
+    }
 
     private void EditTransponder(TransponderDTO transponder)
     {
@@ -183,13 +208,37 @@ else
 
     private async Task Save()
     {
-        await _form!.Validate();
+        await _form!.ValidateAsync();
         if (!_valid || _busy) return;
         _busy = true;
         _error = null;
         try
         {
-            if (_editor == "register") await Service.RegisterAsync(_code, Administration, _lifetime.Token);
+            if (_editor == "register")
+            {
+                if (_registrationTo < _registrationFrom) { _error = "Registration end date cannot be before its start date."; return; }
+                await using var dates = await JS.InvokeAsync<IJSObjectReference>("import", "./registrationDates.js");
+                var period = await dates.InvokeAsync<RegistrationPeriod>("period",
+                    _registrationFrom!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    _registrationTo?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+                var request = new RegisterTransponderRequest(_code, period.OwnedFrom, period.OwnedTo,
+                    Administration ? Guid.Parse(_owner) : null);
+                var result = await Service.RegisterOwnershipAsync(request, Administration, _lifetime.Token);
+                while (result.RequiresConfirmation)
+                {
+                    if (string.IsNullOrWhiteSpace(result.ConfirmationToken))
+                        throw new HttpRequestException("The registration confirmation response was invalid.");
+                    var existing = new List<string>();
+                    foreach (var ownership in result.ExistingOwnerships)
+                        existing.Add(await dates.InvokeAsync<string>("describe", ownership.OwnedFrom, ownership.OwnedTo));
+                    var proposed = await dates.InvokeAsync<string>("describe", request.OwnedFrom, request.OwnedTo);
+                    var confirmed = await Dialogs.ShowMessageBoxAsync("Confirm ownership change",
+                        $"Existing ownership: {string.Join("; ", existing)}. Proposed ownership: {proposed}. This may shorten existing coverage. If ownership changed, review these updated dates before confirming.",
+                        yesText: "Apply dates", cancelText: "Keep existing ownership");
+                    if (confirmed != true) return;
+                    result = await Service.RegisterOwnershipAsync(request with { ConfirmationToken = result.ConfirmationToken }, Administration, _lifetime.Token);
+                }
+            }
             else if (_editor == "transponder") await Service.SaveTransponderAsync(_transponderId!.Value, _label, _lifetime.Token);
             else
             {
@@ -203,6 +252,7 @@ else
             await Load();
         }
         catch (HttpRequestException exception) { _error = exception.Message; }
+        catch (JSException) { _error = "Registration dates could not be converted in your local time zone. Check the dates and try again."; }
         catch (Exception) { _error = "The request could not be completed. Please try again."; }
         finally { _busy = false; }
     }
@@ -228,6 +278,7 @@ else
     }
 
     private static string? ValidateOwner(string value) => Guid.TryParse(value, out var id) && id != Guid.Empty ? null : "Enter a valid user ID.";
+    private sealed record RegistrationPeriod(DateTimeOffset OwnedFrom, DateTimeOffset? OwnedTo);
     private static DateTimeOffset Utc(DateTime date, TimeSpan time) => new(DateTime.SpecifyKind(date.Date.Add(time), DateTimeKind.Utc));
     private static bool IsActive(TransponderOwnershipDTO owner) => owner.OwnedFrom <= DateTimeOffset.UtcNow && (!owner.OwnedTo.HasValue || owner.OwnedTo > DateTimeOffset.UtcNow);
     private static string Status(TransponderOwnershipDTO? owner) => owner is null ? "Unassigned" : IsActive(owner) ? "Active" : owner.OwnedFrom > DateTimeOffset.UtcNow ? "Scheduled" : "Ended";

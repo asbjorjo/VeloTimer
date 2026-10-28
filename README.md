@@ -143,10 +143,23 @@ Interactive Auto/BFF infrastructure. Navigation and direct URLs enforce module r
   to timing semantics; create a new definition instead. Descriptive edits are allowed.
 * `/transponders` lets a signed-in user register a MyLaps X2 code, list their own
   ownership periods, end an active period, or permanently delete a selected period.
+  Registration has an editable start date (today by default) and an optional end
+  date. These are browser-local calendar days: the entire end day is included,
+  including across daylight-saving changes. A blank end means no expiry.
 * `/admin/timing/transponders` lets timing administrators register transponders, edit
   their labels, delete unused transponders, and create, edit, end, or delete anyone's
   ownership periods. Owner IDs are Keycloak subject UUIDs. Ownership editor timestamps
-  are UTC. Deleting a transponder is blocked by ownership, passings, or statistics.
+  are UTC. Registration uses the same local calendar dates as personal registration
+  and requires an Owner user ID. Deleting a transponder is blocked by ownership,
+  passings, or statistics.
+
+Registering an already-owned transponder updates overlapping periods for that owner
+instead of duplicating them. Extending coverage is allowed if no other owner's period
+conflicts. Shortening coverage requires confirmation showing the existing and proposed
+dates; cancelling keeps the existing ownership unchanged. If ownership changes while
+the confirmation is open, it must be reviewed again. Separate periods are retained as
+history. Personal registration always assigns the authenticated user; only timing
+administrators can select another owner.
 
 All relationship selections are validated again by the owning API. Facilities,
 layouts, installations, timing points, and statistics definitions cannot be deleted
@@ -240,6 +253,9 @@ setting. For local solution builds/tests without another configured value:
 OIDC_AUDIENCE=https://build.invalid dotnet build --configuration Release
 OIDC_AUDIENCE=https://build.invalid dotnet test --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
 ```
+
+The browser-local registration date helper also has dependency-free JavaScript tests:
+`node --test src/VeloTime.Platform.Test/RegistrationDates.test.mjs` (Node.js 22+).
 
 Ownership mutations use a PostgreSQL transaction advisory lock per transponder and
 the existing unique system/SystemId index. Self-service endpoints derive the owner
