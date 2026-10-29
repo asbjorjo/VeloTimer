@@ -1,4 +1,3 @@
-{{- with (.Values.global | default dict).oidcAuthority }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -8,6 +7,6 @@ metadata:
     helm.sh/hook-weight: "-1"
     helm.sh/hook-delete-policy: before-hook-creation
 data:
-  services__keycloak__https__0: {{ . | quote }}
-  ConnectionStrings__keycloak: {{ printf "%s/realms/velotime" (regexReplaceAll "/+$" . "") | quote }}
-{{- end }}
+  services__module-statistics-api__http__0: "http://module-statistics-api/"
+  services__module-timing-api__http__0: "http://module-timing-api/"
+  {{- include "velotime.oidcConfig" . | nindent 2 }}
