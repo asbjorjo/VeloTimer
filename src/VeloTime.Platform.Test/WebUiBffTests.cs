@@ -442,6 +442,72 @@ public sealed partial class WebUiBffTests
     }
 
     [Fact]
+    public async Task BestResultsHttpService_ForwardsFiltersAnonymouslyAndReturnsNamedRows()
+    {
+        var facilityId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 9, 29, 14, 0, 0, TimeSpan.FromHours(2));
+        var to = from.AddDays(30);
+        var expected = new BestStatisticsResultView(Guid.NewGuid(), "Lap", "Public rider", "Arena", TimeSpan.FromSeconds(20), 45);
+        var statistics = PlatformServiceTests.TestProxy.Create<IStatisticsService>((method, args) =>
+        {
+            Assert.Equal(nameof(IStatisticsService.GetBestResultsAsync), method.Name);
+            Assert.Equal(facilityId, args[0]);
+            Assert.Equal(from.ToUniversalTime(), args[1]);
+            Assert.Equal(to.ToUniversalTime(), args[2]);
+            return (IReadOnlyList<BestStatisticsResultView>)new[] { expected };
+        });
+        await using var app = await CreateAppAsync(statistics);
+        using var client = CreateClient(app);
+        Assert.Equal(expected, Assert.Single(await new StatisticsHttpService(client).GetBestResultsAsync(facilityId, from, to)));
+        using var response = await client.GetAsync($"api/statistics/best-results?facilityId={facilityId}&from=2026-09-29T12:00:00Z&to=2026-10-29T12:00:00Z");
+        Assert.True(response.Headers.CacheControl!.NoStore);
+    }
+
+    [Fact]
+    public async Task BestResultsHttpService_OmitsUnsetFilters()
+    {
+        var statistics = PlatformServiceTests.TestProxy.Create<IStatisticsService>((_, args) =>
+        {
+            Assert.Null(args[0]);
+            Assert.Null(args[1]);
+            Assert.Null(args[2]);
+            return (IReadOnlyList<BestStatisticsResultView>)Array.Empty<BestStatisticsResultView>();
+        });
+        await using var app = await CreateAppAsync(statistics);
+        using var client = CreateClient(app);
+        Assert.Empty(await new StatisticsHttpService(client).GetBestResultsAsync());
+    }
+
+    [Theory]
+    [InlineData("facilityId=00000000-0000-0000-0000-000000000000")]
+    [InlineData("facilityId=invalid")]
+    [InlineData("from=invalid")]
+    [InlineData("to=invalid")]
+    [InlineData("from=2026-10-29T00:00:00Z&to=2026-10-29T00:00:00Z")]
+    [InlineData("from=2026-10-30T00:00:00Z&to=2026-10-29T00:00:00Z")]
+    public async Task BestResultsBff_RejectsInvalidFiltersWithoutCallingUpstream(string query)
+    {
+        var statistics = PlatformServiceTests.TestProxy.Create<IStatisticsService>((_, _) => throw new InvalidOperationException());
+        await using var app = await CreateAppAsync(statistics);
+        using var client = CreateClient(app);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("api/statistics/best-results?" + query)).StatusCode);
+        Assert.Empty(((PlatformServiceTests.TestProxy)(object)statistics).Calls);
+    }
+
+    [Fact]
+    public async Task BestResultsHttpService_SurfacesSanitizedUpstreamFailures()
+    {
+        var statistics = PlatformServiceTests.TestProxy.Create<IStatisticsService>((_, _) =>
+            throw new HttpRequestException("secret", null, HttpStatusCode.BadGateway));
+        await using var app = await CreateAppAsync(statistics);
+        using var client = CreateClient(app);
+        using var response = await client.GetAsync("api/statistics/best-results");
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        Assert.DoesNotContain("secret", await response.Content.ReadAsStringAsync());
+        await Assert.ThrowsAsync<HttpRequestException>(() => new StatisticsHttpService(client).GetBestResultsAsync());
+    }
+
+    [Fact]
     public async Task StatisticsHttpService_ForwardsPaginationAndReturnsSamples()
     {
         var cursor = new DateTime(2026, 10, 22, 12, 0, 0, DateTimeKind.Utc);
