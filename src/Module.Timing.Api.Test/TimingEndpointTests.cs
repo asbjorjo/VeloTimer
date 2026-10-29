@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Storage;
 using VeloTime.Module.Timing.Interface.Data;
 
@@ -46,6 +47,37 @@ public sealed partial class TimingEndpointTests(TimingApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync($"/api/timing/transponders/{id}")).StatusCode);
         factory.References.Dependencies = 0;
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/timing/transponders/{id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task TransponderAdministration_ListsLatestPassingTimeAndNullWhenNeverSeen()
+    {
+        var older = new DateTime(2026, 4, 3, 2, 5, 0, DateTimeKind.Utc);
+        var latest = older.AddMinutes(10);
+        var seenId = Guid.NewGuid();
+        var unseenId = Guid.NewGuid();
+        using var client = factory.CreateClient();
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var storage = scope.ServiceProvider.GetRequiredService<TimingDbContext>();
+            var installation = new Installation { Id = Guid.NewGuid(), AgentId = "last-seen-test", TimingSystem = TimingSystem.MyLaps_X2 };
+            var timingPoint = new TimingPoint
+            {
+                Id = Guid.NewGuid(), SystemId = "finish", InstallationId = installation.Id, Installation = installation, Description = "Finish"
+            };
+            var seen = new MylapsX2Transponder { Id = seenId, SystemId = "106187718" };
+            var unseen = new MylapsX2Transponder { Id = unseenId, SystemId = "106187719" };
+            storage.AddRange(installation, seen, unseen);
+            storage.AddRange(
+                new Passing { Id = Guid.NewGuid(), Time = older, Transponder = seen, TransponderId = seen.Id, TimingPoint = timingPoint, TimingPointId = timingPoint.Id },
+                new Passing { Id = Guid.NewGuid(), Time = latest, Transponder = seen, TransponderId = seen.Id, TimingPoint = timingPoint, TimingPointId = timingPoint.Id });
+            await storage.SaveChangesAsync();
+        }
+
+        var transponders = await client.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/transponders");
+
+        Assert.Equal(new DateTimeOffset(latest), Assert.Single(transponders!, transponder => transponder.Id == seenId).LastSeen);
+        Assert.Null(Assert.Single(transponders!, transponder => transponder.Id == unseenId).LastSeen);
     }
 
     [Fact]

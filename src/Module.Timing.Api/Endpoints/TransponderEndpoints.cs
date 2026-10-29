@@ -76,10 +76,28 @@ internal static class TransponderEndpoints
         }
     }
 
-    static async Task<Ok<IEnumerable<TransponderDTO>>> ListTransponders(TimingDbContext storage)
+    static async Task<Ok<IEnumerable<TransponderDTO>>> ListTransponders(TimingDbContext storage, CancellationToken cancellationToken)
     {
-        var transponders = await storage.Set<Transponder>().AsNoTracking().Include(transponder => transponder.Owners).ToListAsync();
-        return TypedResults.Ok<IEnumerable<TransponderDTO>>(transponders.Select(transponder => TransponderOwnershipService.ToDto(transponder)).ToList());
+        var transponders = await storage.Set<Transponder>().AsNoTracking().Include(transponder => transponder.Owners)
+            .ToListAsync(cancellationToken);
+        var transponderIds = transponders.Select(transponder => transponder.Id).ToArray();
+        var lastSeenByTransponder = transponderIds.Length == 0
+            ? new Dictionary<Guid, DateTime>()
+            : await storage.Set<Passing>().AsNoTracking().Where(passing => transponderIds.Contains(passing.TransponderId))
+                .GroupBy(passing => passing.TransponderId)
+                .Select(group => new { TransponderId = group.Key, LastSeen = group.Max(passing => passing.Time) })
+                .ToDictionaryAsync(group => group.TransponderId, group => group.LastSeen, cancellationToken);
+        var result = transponders.Select(transponder =>
+        {
+            var dto = TransponderOwnershipService.ToDto(transponder);
+            return dto with
+            {
+                LastSeen = lastSeenByTransponder.TryGetValue(transponder.Id, out var time)
+                    ? new DateTimeOffset(DateTime.SpecifyKind(time, DateTimeKind.Utc))
+                    : null
+            };
+        }).ToList();
+        return TypedResults.Ok<IEnumerable<TransponderDTO>>(result);
     }
 
     static async Task<Results<Ok<TransponderDTO>, NotFound>> GetTransponderById(Guid id, TimingDbContext storage)
