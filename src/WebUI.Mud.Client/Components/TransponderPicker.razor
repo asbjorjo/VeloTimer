@@ -1,0 +1,76 @@
+@using VeloTime.Module.Timing.Interface.Data
+@using VeloTime.WebUI.Mud.Client.Services
+@inject ITransponderManagementService Service
+@implements IDisposable
+
+<MudTextField T="string" Value="@Value?.Label" Label="Transponder" ReadOnly="true" Required="true"
+              RequiredError="Select a transponder from the search results." Disabled="Disabled" />
+@if (!Disabled)
+{
+    <MudTextField T="string" Value="_search" ValueChanged="Search" DebounceInterval="300"
+                  Label="Find transponder by label or system ID" Clearable="true" />
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
+        <MudButton OnClick="Fetch">Retry transponder search</MudButton>
+    }
+    @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
+    @foreach (var item in _items)
+    {
+        <MudButton @key="item.Id" OnClick="() => ValueChanged.InvokeAsync(item)">@item.Label (@item.SystemId)</MudButton>
+    }
+    @if (!_loading && _error is null && _items.Count == 0) { <MudText>No matching transponders.</MudText> }
+    @if (_hasMore) { <MudButton OnClick="More" Disabled="_loading">Load more transponders</MudButton> }
+}
+
+@code {
+    [Parameter] public TransponderLookupItem? Value { get; set; }
+    [Parameter] public EventCallback<TransponderLookupItem?> ValueChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    private readonly CancellationTokenSource _lifetime = new();
+    private CancellationTokenSource? _request;
+    private readonly List<TransponderLookupItem> _items = [];
+    private string _search = "";
+    private string? _error;
+    private int _page, _version;
+    private bool _loading, _hasMore;
+
+    protected override Task OnInitializedAsync() => Disabled ? Task.CompletedTask : Fetch();
+
+    private async Task Search(string search)
+    {
+        _search = search ?? "";
+        _page = 0;
+        _items.Clear();
+        await Fetch();
+    }
+
+    private async Task More() { _page++; await Fetch(); }
+
+    private async Task Fetch()
+    {
+        _request?.Cancel();
+        _request?.Dispose();
+        _request = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        var token = _request.Token;
+        var version = ++_version;
+        _loading = true;
+        _hasMore = false;
+        _error = null;
+        try
+        {
+            var result = await Service.LookupTranspondersAsync(_page, _search, token);
+            token.ThrowIfCancellationRequested();
+            if (version != _version) return;
+            foreach (var item in result.Items)
+                if (_items.All(existing => existing.Id != item.Id)) _items.Add(item);
+            _hasMore = (long)(_page + 1) * 10 < result.TotalCount;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (HttpRequestException exception) { if (version == _version) _error = exception.Message; }
+        catch (Exception) { if (version == _version) _error = "Transponders could not be loaded. Retry the search."; }
+        finally { if (version == _version) _loading = false; }
+    }
+
+    public void Dispose() { _lifetime.Cancel(); _request?.Cancel(); _request?.Dispose(); _lifetime.Dispose(); }
+}

@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
+using MudBlazor;
 using MudBlazor.Services;
 using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.WebUI.Mud.Client.Components;
@@ -28,11 +30,8 @@ public sealed class TransponderOwnerRenderingTests
         services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, _) =>
         {
             Assert.Equal(nameof(ITransponderManagementService.GetTranspondersAsync), method.Name);
-            return (IReadOnlyList<TransponderDTO>)new[]
-            {
-                new TransponderDTO(transponderId, "MyLaps_X2", "106187718", "HT-24422",
-                    [new(Guid.NewGuid(), transponderId, OwnerId, DateTimeOffset.UtcNow.AddDays(-1), null)], LastSeen)
-            };
+            return new TransponderPage([new(new(transponderId, "MyLaps_X2", "106187718", "HT-24422", [], LastSeen),
+                new(Guid.NewGuid(), transponderId, OwnerId, DateTimeOffset.UtcNow.AddDays(-1), null))], 1);
         }));
         services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((method, _) => method.Name switch
         {
@@ -45,8 +44,18 @@ public sealed class TransponderOwnerRenderingTests
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
 
         var html = await renderer.Dispatcher.InvokeAsync(async () =>
-            (await renderer.RenderComponentAsync<TransponderManagement>(ParameterView.FromDictionary(
-                new Dictionary<string, object?> { [nameof(TransponderManagement.Administration)] = administration }))).ToHtmlString());
+        {
+            TransponderManagement? component = null;
+            var root = await renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
+                new Dictionary<string, object?>
+                {
+                    [nameof(ManagementHost.Administration)] = administration,
+                    [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value)
+                }));
+            // Static rendering does not run MudTable's interactive OnAfterRender load.
+            await Table(component!).ReloadServerData();
+            return root.ToHtmlString();
+        });
 
         Assert.Contains(profile ?? "No statistics profile", html);
         Assert.Contains("HT-24422", html);
@@ -87,6 +96,242 @@ public sealed class TransponderOwnerRenderingTests
         Assert.DoesNotContain("Owner user ID", html);
     }
 
+    [Fact]
+    public async Task List_LoadsOnlyRequestedRowsAndResolvesOnlyDisplayedOwners()
+    {
+        var id = Guid.NewGuid();
+        var services = CreateServices();
+        var calls = 0;
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, args) =>
+        {
+            Assert.Equal(nameof(ITransponderManagementService.GetTranspondersAsync), method.Name);
+            Assert.Equal(2, args[1]);
+            Assert.Equal(10, args[2]);
+            calls++;
+            return new TransponderPage([new(new(id, "X2", "123", "Page three", []),
+                new(Guid.NewGuid(), id, OwnerId, DateTimeOffset.UtcNow.AddDays(-1), null))], 100);
+        }));
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((method, args) =>
+        {
+            Assert.Equal(nameof(ITransponderOwnerService.ResolveAsync), method.Name);
+            Assert.Equal(OwnerId, Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<Guid>>(args[0])));
+            return (IReadOnlyList<TransponderOwnerView>)new[] { new TransponderOwnerView(OwnerId, "Visible owner", null, null, false) };
+        }));
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            TransponderManagement? component = null;
+            var root = await renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
+                new Dictionary<string, object?> { [nameof(ManagementHost.Administration)] = true,
+                    [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) }));
+            Assert.Equal(0, calls);
+            var table = Table(component!);
+            table.CurrentPage = 2;
+            await table.ReloadServerData();
+            Assert.Equal(100, table.GetFilteredItemsCount());
+            Assert.Contains("Visible owner", root.ToHtmlString());
+            Assert.Contains("Page three", root.ToHtmlString());
+        });
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task List_SelectedPageSizeSurvivesParentRerenders()
+    {
+        var sizes = new List<int>();
+        var services = CreateServices();
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((_, args) =>
+        {
+            var size = Assert.IsType<int>(args[2]);
+            sizes.Add(size);
+            return new TransponderPage(Enumerable.Range(0, size).Select(index =>
+                new TransponderRow(new(Guid.NewGuid(), "X2", index.ToString(), $"Label {index}", []), null)).ToList(), 100);
+        }));
+        services.AddSingleton(NoContentClientCallTests.UnusedOwners());
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            TransponderManagement? component = null;
+            await renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
+                new Dictionary<string, object?> { [nameof(ManagementHost.Administration)] = true,
+                    [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) }));
+            var table = Table(component!);
+            foreach (var size in new[] { 25, 50 })
+            {
+                table.SetRowsPerPage(size);
+                await table.ReloadServerData();
+                Assert.Equal(size, table.RowsPerPage);
+                Assert.Equal(size, table.FilteredItems.Count());
+            }
+        });
+        Assert.Equal(new[] { 25, 50 }, sizes);
+    }
+
+    [Fact]
+    public async Task List_CancelsSupersededLoadsAndPreventsLateResultsOverwritingNewRows()
+    {
+        var first = new TaskCompletionSource<TransponderPage>();
+        var second = new TaskCompletionSource<TransponderPage>();
+        var tokens = new List<CancellationToken>();
+        var services = CreateServices();
+        var management = System.Reflection.DispatchProxy.Create<ITransponderManagementService, DeferredManagementProxy>();
+        ((DeferredManagementProxy)(object)management).Handler = args =>
+        {
+            tokens.Add(Assert.IsType<CancellationToken>(args[5]));
+            return tokens.Count == 1 ? first.Task : second.Task;
+        };
+        services.AddSingleton(management);
+        services.AddSingleton(NoContentClientCallTests.UnusedOwners());
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        TransponderManagement? component = null;
+        var root = await renderer.Dispatcher.InvokeAsync(() => renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
+            new Dictionary<string, object?> { [nameof(ManagementHost.Administration)] = true,
+                [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) })));
+        var table = Table(component!);
+        var initial = renderer.Dispatcher.InvokeAsync(table.ReloadServerData);
+        var latest = renderer.Dispatcher.InvokeAsync(table.ReloadServerData);
+        Assert.True(tokens[0].IsCancellationRequested);
+        second.SetResult(new([new(new(Guid.NewGuid(), "X2", "123", "Newest page", []), null)], 1));
+        await latest;
+        first.SetResult(new([new(new(Guid.NewGuid(), "X2", "456", "Stale page", []), null)], 1));
+        await initial;
+        var html = await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+        Assert.Contains("Newest page", html);
+        Assert.DoesNotContain("Stale page", html);
+    }
+
+    [Fact]
+    public async Task List_RecoversLastValidPageAfterDeletion()
+    {
+        var requested = new List<int>();
+        var services = CreateServices();
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((_, args) =>
+        {
+            var page = Assert.IsType<int>(args[1]);
+            requested.Add(page);
+            return new TransponderPage(page == 2 ? [new(new(Guid.NewGuid(), "X2", "123", "Last row", []), null)] : [], 21);
+        }));
+        services.AddSingleton(NoContentClientCallTests.UnusedOwners());
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            TransponderManagement? component = null;
+            var root = await renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
+                new Dictionary<string, object?> { [nameof(ManagementHost.Administration)] = true,
+                    [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) }));
+            var table = Table(component!);
+            table.CurrentPage = 3;
+            await table.ReloadServerData();
+            Assert.Equal(2, table.CurrentPage);
+            Assert.Contains("Last row", root.ToHtmlString());
+        });
+        Assert.Equal(new[] { 3, 2 }, requested);
+    }
+
+    [Fact]
+    public async Task List_ShowsExplicitFailureInsteadOfSuccessfulEmptyState()
+    {
+        var services = CreateServices();
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((_, _) =>
+            throw new HttpRequestException("Directory unavailable.")));
+        services.AddSingleton(NoContentClientCallTests.UnusedOwners());
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            TransponderManagement? component = null;
+            var root = await renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
+                new Dictionary<string, object?> { [nameof(ManagementHost.Administration)] = true,
+                    [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) }));
+            await Table(component!).ReloadServerData();
+            var html = root.ToHtmlString();
+            Assert.Contains("Directory unavailable", html);
+            Assert.Contains("data is unavailable", html);
+            Assert.DoesNotContain("No transponders match", html);
+        });
+    }
+
+    [Fact]
+    public async Task List_SearchAndHistoryChangesResetThePageAndForwardFilters()
+    {
+        var requests = new List<(int Page, string Search, bool History)>();
+        var services = CreateServices();
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((_, args) =>
+        {
+            requests.Add((Assert.IsType<int>(args[1]), Assert.IsType<string>(args[3]), Assert.IsType<bool>(args[4])));
+            return new TransponderPage([], 0);
+        }));
+        services.AddSingleton(NoContentClientCallTests.UnusedOwners());
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            TransponderManagement? component = null;
+            await renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
+                new Dictionary<string, object?> { [nameof(ManagementHost.Administration)] = true,
+                    [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) }));
+            var table = Table(component!);
+            table.CurrentPage = 3;
+            await Invoke("SearchChanged", "Rider");
+            Assert.Equal(0, table.CurrentPage);
+            await table.ReloadServerData();
+            table.CurrentPage = 2;
+            await Invoke("HistoryChanged", false);
+            Assert.Equal(0, table.CurrentPage);
+            await table.ReloadServerData();
+
+            Task Invoke(string name, object value) => Assert.IsAssignableFrom<Task>(typeof(TransponderManagement)
+                .GetMethod(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(component, [value]));
+        });
+        Assert.Equal(new[] { (0, "Rider", true), (0, "Rider", false) }, requests);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task TransponderPicker_KeepsSelectionAndOnlyLoadsABoundedLookupWhenEditable(bool disabled)
+    {
+        var services = CreateServices();
+        var selected = new TransponderLookupItem(Guid.NewGuid(), "Selected transponder", "123", []);
+        var service = PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, args) =>
+        {
+            Assert.False(disabled);
+            Assert.Equal(nameof(ITransponderManagementService.LookupTranspondersAsync), method.Name);
+            Assert.Equal(0, args[0]);
+            Assert.Equal("", args[1]);
+            return new TransponderLookupPage([new(Guid.NewGuid(), "Other result", "456", [])], 100);
+        });
+        services.AddSingleton(service);
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        var html = await renderer.Dispatcher.InvokeAsync(async () => (await renderer.RenderComponentAsync<TransponderPicker>(
+            ParameterView.FromDictionary(new Dictionary<string, object?>
+            {
+                [nameof(TransponderPicker.Value)] = selected, [nameof(TransponderPicker.Disabled)] = disabled
+            }))).ToHtmlString());
+        Assert.Contains("Selected transponder", html);
+        if (!disabled)
+        {
+            Assert.Contains("Other result", html);
+            Assert.Contains("Load more transponders", html);
+        }
+        Assert.Equal(disabled ? 0 : 1, ((PlatformServiceTests.TestProxy)(object)service).Calls.Count);
+    }
+
+    public class DeferredManagementProxy : System.Reflection.DispatchProxy
+    {
+        public Func<object?[], Task<TransponderPage>> Handler { get; set; } = _ => throw new NotSupportedException();
+        protected override object? Invoke(System.Reflection.MethodInfo? targetMethod, object?[]? args)
+        {
+            Assert.Equal(nameof(ITransponderManagementService.GetTranspondersAsync), targetMethod!.Name);
+            return Handler(args!);
+        }
+    }
+
     private static ServiceCollection CreateServices()
     {
         var services = new ServiceCollection();
@@ -95,6 +340,24 @@ public sealed class TransponderOwnerRenderingTests
         services.AddSingleton<IJSRuntime, NoJavaScript>();
         services.AddSingleton<NavigationManager, TestNavigation>();
         return services;
+    }
+
+    internal static MudBlazor.MudTable<TransponderRow> Table(TransponderManagement component) =>
+        Assert.IsType<MudBlazor.MudTable<TransponderRow>>(typeof(TransponderManagement)
+            .GetField("_table", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(component));
+
+    public sealed class ManagementHost : ComponentBase
+    {
+        [Parameter] public bool Administration { get; set; }
+        [Parameter] public Action<TransponderManagement>? Capture { get; set; }
+
+        protected override void BuildRenderTree(RenderTreeBuilder builder)
+        {
+            builder.OpenComponent<TransponderManagement>(0);
+            builder.AddAttribute(1, nameof(TransponderManagement.Administration), Administration);
+            builder.AddComponentReferenceCapture(2, value => Capture?.Invoke((TransponderManagement)value));
+            builder.CloseComponent();
+        }
     }
 
     private sealed class NoJavaScript : IJSRuntime

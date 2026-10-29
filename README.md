@@ -149,6 +149,32 @@ dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --filter Fu
 
 ## Administration
 
+The personal and administrative transponder tables use server-side pagination of
+ownership rows (not distinct transponders). Pages default to 10 rows, with 10/25/50
+available in the UI and a server maximum of 100. Include history is enabled by
+default; disabling it retains current ownerships and genuinely unassigned
+administrative transponders. Search and history changes restart at the first page.
+The add-ownership transponder selector also searches and loads bounded pages.
+
+**Breaking API change:** the Timing `GET /api/timing/transponders` and
+`GET /api/timing/my/transponders` endpoints, and the corresponding WebUI BFF
+`GET /api/admin/timing/transponders` and `GET /api/transponders` routes, return
+`{ items: [{ transponder, ownership }], totalCount }` rather than an array of
+transponders. They accept zero-based `page`, `pageSize`, `search`, and
+`includeHistory` parameters. Each row contains at most one ownership;
+`transponder.ownerships` is empty. The total counts matching ownership rows before
+paging. Invalid page sizes or offsets return HTTP 400; out-of-range pages are empty.
+
+The WebUI search box preserves case-insensitive label, system-ID, and displayed
+owner-name matching, including one-character queries and fallback names.
+For nonempty searches the BFF streams compact candidate metadata and resolves
+owner identities in bounded server-side batches before requesting the matching
+database page. Broad owner-name searches can therefore be slower, but no complete
+transponder/ownership graph is loaded upfront. Ordinary paging resolves only the
+displayed owners and computes administrative LastSeen only for the current page.
+Direct Timing list searches match labels and system IDs; the BFF composes owner
+names without sharing databases between services.
+
 The administration screens replace the previous admin pages and share the existing
 Interactive Auto/BFF infrastructure. Navigation and direct URLs enforce module roles.
 

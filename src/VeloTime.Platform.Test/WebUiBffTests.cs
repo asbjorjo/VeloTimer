@@ -119,7 +119,7 @@ public sealed partial class WebUiBffTests
         using var client = CreateClient(app);
         await client.GetAsync("signin?role=user");
         var service = new TransponderManagementHttpService(client);
-        Assert.Empty(await service.GetTranspondersAsync(false));
+        Assert.Empty((await service.GetTranspondersAsync(false)).Items);
         await service.RegisterAsync("FF-87718", false);
         await service.EndOwnershipAsync(ResourceId, false);
         await service.DeleteOwnershipAsync(ResourceId, false);
@@ -230,7 +230,7 @@ public sealed partial class WebUiBffTests
             };
         });
 
-        var result = await new VeloTime.WebUI.Mud.Services.TransponderManagementService(timing)
+        var result = await new VeloTime.WebUI.Mud.Services.TransponderManagementService(timing, NoContentClientCallTests.UnusedOwners())
             .RegisterOwnershipAsync(request, administration);
 
         Assert.True(result.RequiresConfirmation);
@@ -630,7 +630,8 @@ public sealed partial class WebUiBffTests
         }));
         builder.Services.AddSingleton(transponders ?? PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, _) => method.Name switch
         {
-            nameof(ITransponderManagementService.GetTranspondersAsync) => (IReadOnlyList<TimingContracts.TransponderDTO>)Array.Empty<TimingContracts.TransponderDTO>(),
+            nameof(ITransponderManagementService.GetTranspondersAsync) => new TimingContracts.TransponderPage([], 0),
+            nameof(ITransponderManagementService.LookupTranspondersAsync) => new TimingContracts.TransponderLookupPage([], 0),
             _ => null
         }));
         builder.Services.AddSingleton(infrastructure ?? PlatformServiceTests.TestProxy.Create<IInfrastructureAdministrationService>((method, arguments) => method.Name switch

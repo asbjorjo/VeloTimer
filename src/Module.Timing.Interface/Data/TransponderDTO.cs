@@ -7,6 +7,17 @@ public sealed record TransponderOwnershipDTO(Guid Id, Guid TransponderId, Guid O
 
 public sealed record ClaimTransponderRequest(string Code);
 
+public sealed record TransponderPageRequest(int Page, int PageSize, string Search, bool IncludeHistory,
+    IReadOnlyList<Guid>? MatchingTransponderIds = null);
+
+public sealed record TransponderRow(TransponderDTO Transponder, TransponderOwnershipDTO? Ownership);
+
+public sealed record TransponderPage(IReadOnlyList<TransponderRow> Items, int TotalCount);
+
+public sealed record TransponderLookupItem(Guid Id, string Label, string SystemId, IReadOnlyList<Guid> OwnerIds);
+
+public sealed record TransponderLookupPage(IReadOnlyList<TransponderLookupItem> Items, int TotalCount);
+
 /// <summary>A calendar-day registration converted by the browser to UTC instants.</summary>
 /// <param name="Code">The MyLaps X2 transponder code.</param>
 /// <param name="OwnedFrom">The inclusive start instant.</param>

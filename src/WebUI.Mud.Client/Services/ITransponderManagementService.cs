@@ -4,7 +4,9 @@ namespace VeloTime.WebUI.Mud.Client.Services;
 
 public interface ITransponderManagementService
 {
-    Task<IReadOnlyList<TransponderDTO>> GetTranspondersAsync(bool administration, CancellationToken cancellationToken = default);
+    Task<TransponderPage> GetTranspondersAsync(bool administration, int page = 0, int pageSize = 10,
+        string search = "", bool includeHistory = true, CancellationToken cancellationToken = default);
+    Task<TransponderLookupPage> LookupTranspondersAsync(int page, string search, CancellationToken cancellationToken = default);
     Task RegisterAsync(string code, bool administration, CancellationToken cancellationToken = default);
     /// <summary>Registers the selected ownership period or returns a shortening proposal requiring confirmation.</summary>
     /// <param name="request">The code, dates, optional administrator-selected owner, and confirmed snapshot.</param>

@@ -27,7 +27,7 @@ public sealed partial class TimingEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.False((await response.Content.ReadFromJsonAsync<RegisterTransponderResult>())!.RequiresConfirmation);
-        var ownership = Assert.Single(Assert.Single((await client.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/my/transponders"))!).Ownerships);
+        var ownership = Assert.Single((await client.GetFromJsonAsync<TransponderPage>("/api/timing/my/transponders"))!.Items).Ownership!;
         Assert.Equal(start, ownership.OwnedFrom);
         Assert.Equal(request.OwnedTo, ownership.OwnedTo);
         Assert.Equal(TestAuthenticationHandler.DefaultOwnerId, ownership.OwnerId);
@@ -42,7 +42,7 @@ public sealed partial class TimingEndpointTests
         var response = await client.PostAsJsonAsync(PersonalRegistration,
             new RegisterTransponderRequest("FF-87718", RegistrationStart, RegistrationStart.AddHours(hours)));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty((await client.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/transponders"))!);
+        Assert.Empty((await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items);
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed partial class TimingEndpointTests
             new { Code = "FF-87718" })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(PersonalRegistration,
             new RegisterTransponderRequest("invalid", RegistrationStart, null))).StatusCode);
-        Assert.Empty((await client.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/transponders"))!);
+        Assert.Empty((await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items);
     }
 
     [Fact]
@@ -147,13 +147,13 @@ public sealed partial class TimingEndpointTests
         await AssertRegistrationSaved(client, original);
         var next = original with { OwnedFrom = RegistrationStart.AddDays(2), OwnedTo = null, OwnerId = otherOwner };
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(AdminRegistration, next)).StatusCode);
-        var before = Assert.Single((await client.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/transponders"))!);
+        var before = (await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items.Select(row => row.Ownership).ToList();
 
         var conflict = await client.PostAsJsonAsync(PersonalRegistration, original with { OwnedTo = RegistrationStart.AddDays(4) });
 
         Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
-        var after = Assert.Single((await client.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/transponders"))!);
-        Assert.Equal(before.Ownerships, after.Ownerships);
+        var after = (await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items.Select(row => row.Ownership).ToList();
+        Assert.Equal(before, after);
     }
 
     [Fact]
@@ -193,8 +193,8 @@ public sealed partial class TimingEndpointTests
         Assert.Equal(allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden, response.StatusCode);
         if (allowed)
         {
-            var transponder = Assert.Single((await client.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/transponders"))!);
-            Assert.Equal(owner, Assert.Single(transponder.Ownerships).OwnerId);
+            var transponder = Assert.Single((await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items);
+            Assert.Equal(owner, transponder.Ownership!.OwnerId);
         }
     }
 
@@ -206,7 +206,7 @@ public sealed partial class TimingEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(PersonalRegistration, request with { OwnerId = Guid.NewGuid() })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(AdminRegistration, request)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(AdminRegistration, request with { OwnerId = Guid.Empty })).StatusCode);
-        Assert.Empty((await client.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/transponders"))!);
+        Assert.Empty((await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items);
     }
 
     [Fact]
@@ -263,8 +263,8 @@ public sealed partial class TimingEndpointTests
         var response = await client.PostAsJsonAsync(PersonalRegistration, shorter with { ConfirmationToken = proposal.ConfirmationToken });
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        var transponder = Assert.Single((await client.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/transponders"))!);
-        var after = Assert.Single(transponder.Ownerships);
+        var transponder = Assert.Single((await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items);
+        var after = transponder.Ownership!;
         Assert.NotEqual(TestAuthenticationHandler.DefaultOwnerId, after.OwnerId);
         Assert.Null(after.OwnedTo);
     }
@@ -277,5 +277,5 @@ public sealed partial class TimingEndpointTests
     }
 
     private static async Task<IReadOnlyList<TransponderOwnershipDTO>> PersonalOwnerships(HttpClient client) =>
-        Assert.Single((await client.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/my/transponders"))!).Ownerships;
+        (await client.GetFromJsonAsync<TransponderPage>("/api/timing/my/transponders"))!.Items.Select(row => row.Ownership!).ToList();
 }

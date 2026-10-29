@@ -19,6 +19,8 @@ internal static class TransponderEndpoints
             .AddEndpointFilter<AdministrationDependencyFilter>();
 
         installations.MapGet("", ListTransponders);
+        installations.MapPost("/query", QueryTransponders).WithName("QueryTransponders");
+        installations.MapGet("/lookup", LookupTransponders).WithName("LookupTransponders");
         installations.MapGet("{id}", GetTransponderById);
         installations.MapPost("", RegisterTransponder);
         installations.MapPost("{id}/owners", AddTransponderOwner);
@@ -76,28 +78,22 @@ internal static class TransponderEndpoints
         }
     }
 
-    static async Task<Ok<IEnumerable<TransponderDTO>>> ListTransponders(TimingDbContext storage, CancellationToken cancellationToken)
+    static Task<Results<Ok<TransponderPage>, ProblemHttpResult>> ListTransponders(TimingDbContext storage, CancellationToken cancellationToken,
+        int page = 0, int pageSize = 10, string search = "", bool includeHistory = true) =>
+        QueryTransponders(new(page, pageSize, search, includeHistory), storage, cancellationToken);
+
+    static async Task<Results<Ok<TransponderPage>, ProblemHttpResult>> QueryTransponders(
+        TransponderPageRequest request, TimingDbContext storage, CancellationToken cancellationToken)
     {
-        var transponders = await storage.Set<Transponder>().AsNoTracking().Include(transponder => transponder.Owners)
-            .ToListAsync(cancellationToken);
-        var transponderIds = transponders.Select(transponder => transponder.Id).ToArray();
-        var lastSeenByTransponder = transponderIds.Length == 0
-            ? new Dictionary<Guid, DateTime>()
-            : await storage.Set<Passing>().AsNoTracking().Where(passing => transponderIds.Contains(passing.TransponderId))
-                .GroupBy(passing => passing.TransponderId)
-                .Select(group => new { TransponderId = group.Key, LastSeen = group.Max(passing => passing.Time) })
-                .ToDictionaryAsync(group => group.TransponderId, group => group.LastSeen, cancellationToken);
-        var result = transponders.Select(transponder =>
-        {
-            var dto = TransponderOwnershipService.ToDto(transponder);
-            return dto with
-            {
-                LastSeen = lastSeenByTransponder.TryGetValue(transponder.Id, out var time)
-                    ? new DateTimeOffset(DateTime.SpecifyKind(time, DateTimeKind.Utc))
-                    : null
-            };
-        }).ToList();
-        return TypedResults.Ok<IEnumerable<TransponderDTO>>(result);
+        try { return TypedResults.Ok(await TransponderQuery.ListAsync(storage, request, null, cancellationToken)); }
+        catch (ArgumentException exception) { return TypedResults.Problem(detail: exception.Message, statusCode: 400); }
+    }
+
+    static async Task<Results<Ok<TransponderLookupPage>, ProblemHttpResult>> LookupTransponders(
+        TimingDbContext storage, CancellationToken cancellationToken, int page = 0, int pageSize = 10, string search = "", bool includeOwners = false)
+    {
+        try { return TypedResults.Ok(await TransponderQuery.LookupAsync(storage, page, pageSize, search, includeOwners, null, cancellationToken)); }
+        catch (ArgumentException exception) { return TypedResults.Problem(detail: exception.Message, statusCode: 400); }
     }
 
     static async Task<Results<Ok<TransponderDTO>, NotFound>> GetTransponderById(Guid id, TimingDbContext storage)

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using VeloTime.WebUI.Mud.Client.ViewModel;
 using VeloTime.WebUI.Mud.Services;
+using VeloTime.WebUI.Mud.Client.Services;
 using Facilities = VeloTime.Module.Facilities.Client;
 using Statistics = VeloTime.Module.Statistics.Client;
 using Timing = VeloTime.Module.Timing.Client;
@@ -12,6 +13,8 @@ namespace VeloTime.Platform.Test;
 
 public sealed class NoContentClientCallTests
 {
+    internal static ITransponderOwnerService UnusedOwners() =>
+        PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((method, _) => throw new NotSupportedException(method.Name));
     [Theory]
     [InlineData("facilities")]
     [InlineData("timing")]
@@ -73,7 +76,7 @@ public sealed class NoContentClientCallTests
         var timing = new Timing.TimingClient(http);
         var facilities = new Facilities.FacilitiesClient(http);
         var statistics = new Statistics.StatisticsClient(http);
-        var transponders = new TransponderManagementService(timing);
+        var transponders = new TransponderManagementService(timing, UnusedOwners());
         var infrastructure = new InfrastructureAdministrationService(facilities, timing);
         var definitions = new StatisticsAdministrationService(statistics);
         var id = Guid.NewGuid();
@@ -121,7 +124,7 @@ public sealed class NoContentClientCallTests
         var id = Guid.NewGuid();
         Func<Task>[] actions =
         [
-            () => new TransponderManagementService(timing).SaveOwnershipAsync(id, new(id, id, DateTimeOffset.UtcNow, null)),
+            () => new TransponderManagementService(timing, UnusedOwners()).SaveOwnershipAsync(id, new(id, id, DateTimeOffset.UtcNow, null)),
             () => new InfrastructureAdministrationService(new Facilities.FacilitiesClient(http), timing).DeleteFacilityAsync(id),
             () => new StatisticsAdministrationService(new Statistics.StatisticsClient(http)).DeleteItemAsync(id)
         ];
@@ -145,7 +148,7 @@ public sealed class NoContentClientCallTests
             BaseAddress = new Uri("http://upstream/")
         };
         var timing = new Timing.TimingClient(http);
-        var transponders = new TransponderManagementService(timing);
+        var transponders = new TransponderManagementService(timing, UnusedOwners());
         var infrastructure = new InfrastructureAdministrationService(new Facilities.FacilitiesClient(http), timing);
         var definitions = new StatisticsAdministrationService(new Statistics.StatisticsClient(http));
         var id = Guid.NewGuid();
@@ -201,7 +204,7 @@ public sealed partial class WebUiBffTests
         {
             BaseAddress = new Uri("http://timing/")
         };
-        await using var app = await CreateAppAsync(transponders: new TransponderManagementService(new Timing.TimingClient(upstream)));
+        await using var app = await CreateAppAsync(transponders: new TransponderManagementService(new Timing.TimingClient(upstream), NoContentClientCallTests.UnusedOwners()));
         using var client = CreateClient(app);
         await client.GetAsync("signin?role=timing-admin");
 

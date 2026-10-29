@@ -7,8 +7,22 @@ public sealed class TransponderManagementHttpService(HttpClient client) : ITrans
 {
     private static string Root(bool administration) => administration ? "api/admin/timing" : "api";
 
-    public async Task<IReadOnlyList<TransponderDTO>> GetTranspondersAsync(bool administration, CancellationToken cancellationToken = default) =>
-        await client.GetFromJsonAsync<List<TransponderDTO>>($"{Root(administration)}/transponders", cancellationToken) ?? [];
+    public async Task<TransponderPage> GetTranspondersAsync(bool administration, int page = 0, int pageSize = 10,
+        string search = "", bool includeHistory = true, CancellationToken cancellationToken = default)
+    {
+        using var response = await client.GetAsync($"{Root(administration)}/transponders?page={page}&pageSize={pageSize}&search={Uri.EscapeDataString(search)}&includeHistory={includeHistory}", cancellationToken);
+        await EnsureSuccess(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<TransponderPage>(cancellationToken)
+            ?? throw new HttpRequestException("The transponder page response was empty.");
+    }
+
+    public async Task<TransponderLookupPage> LookupTranspondersAsync(int page, string search, CancellationToken cancellationToken = default)
+    {
+        using var response = await client.GetAsync($"api/admin/timing/transponders/lookup?page={page}&search={Uri.EscapeDataString(search)}", cancellationToken);
+        await EnsureSuccess(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<TransponderLookupPage>(cancellationToken)
+            ?? throw new HttpRequestException("The transponder lookup response was empty.");
+    }
 
     public Task RegisterAsync(string code, bool administration, CancellationToken cancellationToken = default) =>
         Send(HttpMethod.Post, $"{Root(administration)}/transponders", new ClaimTransponderRequest(code), cancellationToken);

@@ -74,7 +74,7 @@ public sealed partial class TimingEndpointTests(TimingApiFactory factory) : ICla
             await storage.SaveChangesAsync();
         }
 
-        var transponders = await client.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/transponders");
+        var transponders = (await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items.Select(row => row.Transponder);
 
         Assert.Equal(new DateTimeOffset(latest), Assert.Single(transponders!, transponder => transponder.Id == seenId).LastSeen);
         Assert.Null(Assert.Single(transponders!, transponder => transponder.Id == unseenId).LastSeen);
@@ -156,21 +156,21 @@ public sealed partial class TimingEndpointTests(TimingApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.Forbidden, (await owner.GetAsync("/api/timing/transponders")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await owner.GetAsync("/api/timing/admin/ownerships")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync("/api/timing/my/transponders", new ClaimTransponderRequest("FF-87718"))).StatusCode);
-        Assert.Single(Assert.Single((await owner.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/my/transponders"))!).Ownerships);
+        Assert.NotNull(Assert.Single((await owner.GetFromJsonAsync<TransponderPage>("/api/timing/my/transponders"))!.Items).Ownership);
 
         using var other = factory.CreateClient();
         other.DefaultRequestHeaders.Add("X-Test-Role", "user");
         other.DefaultRequestHeaders.Add("X-Test-Subject", Guid.NewGuid().ToString());
-        Assert.Empty((await other.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/my/transponders"))!);
+        Assert.Empty((await other.GetFromJsonAsync<TransponderPage>("/api/timing/my/transponders"))!.Items);
         Assert.Equal(HttpStatusCode.NotFound, (await other.DeleteAsync($"/api/timing/my/ownerships/{ownership.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await other.PostAsync($"/api/timing/my/ownerships/{ownership.Id}/end", null)).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await other.PostAsJsonAsync("/api/timing/my/transponders", new ClaimTransponderRequest("FF-87718"))).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await owner.PostAsync($"/api/timing/my/ownerships/{ownership.Id}/end", null)).StatusCode);
-        Assert.NotNull(Assert.Single(Assert.Single((await owner.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/my/transponders"))!).Ownerships).OwnedTo);
+        Assert.NotNull(Assert.Single((await owner.GetFromJsonAsync<TransponderPage>("/api/timing/my/transponders"))!.Items).Ownership!.OwnedTo);
         Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"/api/timing/my/ownerships/{ownership.Id}")).StatusCode);
-        Assert.Empty((await owner.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/my/transponders"))!);
+        Assert.Empty((await owner.GetFromJsonAsync<TransponderPage>("/api/timing/my/transponders"))!.Items);
         using var admin = factory.CreateClient();
-        Assert.Equal(transponder.Id, Assert.Single((await admin.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/transponders"))!).Id);
+        Assert.Equal(transponder.Id, Assert.Single((await admin.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items).Transponder.Id);
     }
 
     [Theory]
@@ -198,7 +198,7 @@ public sealed partial class TimingEndpointTests(TimingApiFactory factory) : ICla
         using var client = factory.CreateClient();
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/timing/my/transponders", new ClaimTransponderRequest("invalid"))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/timing/my/transponders", new ClaimTransponderRequest("CCC-00000"))).StatusCode);
-        Assert.Empty((await client.GetFromJsonAsync<List<TransponderDTO>>("/api/timing/my/transponders"))!);
+        Assert.Empty((await client.GetFromJsonAsync<TransponderPage>("/api/timing/my/transponders"))!.Items);
     }
 
     [Fact]

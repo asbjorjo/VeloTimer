@@ -17,11 +17,7 @@
 {
     <MudAlert Severity="Severity.Error" ShowCloseIcon="true" CloseIconClicked="() => _error = null" Class="mb-4">@_error</MudAlert>
 }
-@if (_loading)
-{
-    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
-}
-else if (_editor is not null)
+@if (_editor is not null)
 {
     <MudText Typo="Typo.h6" Class="mb-4">@(_editor == "register" ? "Register transponder" : _editor == "transponder" ? "Edit transponder" : _ownershipId.HasValue ? "Edit ownership" : "Add ownership")</MudText>
     <MudForm @ref="_form" @bind-IsValid="_valid">
@@ -49,9 +45,7 @@ else if (_editor is not null)
             else
             {
                 <MudItem xs="12" md="6">
-                    <MudSelect T="Guid?" @bind-Value="_transponderId" Label="Transponder" Required="true" Disabled="@(_busy || _ownershipId.HasValue)">
-                        @foreach (var transponder in _transponders) { <MudSelectItem T="Guid?" Value="@((Guid?)transponder.Id)">@transponder.Label</MudSelectItem> }
-                    </MudSelect>
+                    <TransponderPicker Value="_selectedTransponder" ValueChanged="SelectTransponder" Disabled="@(_busy || _ownershipId.HasValue)" />
                 </MudItem>
                 <MudItem xs="12" md="6"><TransponderOwnerPicker @bind-Value="_owner" Disabled="_busy" /></MudItem>
                 <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_fromDate" Label="Owned from date (UTC)" Required="true" Disabled="_busy" /></MudItem>
@@ -70,19 +64,18 @@ else if (_editor is not null)
         </MudStack>
     </MudForm>
 }
-else
-{
+<div style="@(_editor is null ? null : "display:none")">
     <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-4">
-        <MudTextField @bind-Value="_search" Placeholder="Search transponders" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Margin="Margin.Dense" />
-        <MudCheckBox @bind-Value="_showHistory" Label="Include history" />
+        <MudTextField T="string" Value="_search" ValueChanged="SearchChanged" DebounceInterval="300" Placeholder="Search transponders" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Margin="Margin.Dense" />
+        <MudCheckBox T="bool" Value="_showHistory" ValueChanged="HistoryChanged" Label="Include history" />
         <MudButton OnClick="Register" Disabled="@(_busy || !_namesLoaded)" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">Register transponder</MudButton>
         @if (Administration)
         {
-            <MudButton OnClick="AddOwnership" StartIcon="@Icons.Material.Filled.PersonAdd" Disabled="@(_transponders.Count == 0 || _busy || !_namesLoaded)">Add ownership</MudButton>
+            <MudButton OnClick="AddOwnership" StartIcon="@Icons.Material.Filled.PersonAdd" Disabled="@(_busy || !_namesLoaded)">Add ownership</MudButton>
         }
         <MudTooltip Text="Refresh"><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" Disabled="_busy" /></MudTooltip>
     </MudStack>
-    <MudTable T="OwnershipRow" Items="Rows" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+    <MudTable T="TransponderRow" @ref="_table" ServerData="LoadPage" @bind-CurrentPage="_page" @bind-RowsPerPage="_pageSize" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
         <HeaderContent>
             <MudTh>Transponder</MudTh><MudTh>System</MudTh>
             @if (Administration) { <MudTh>Last seen (UTC)</MudTh> }
@@ -126,19 +119,25 @@ else
                 }
             </MudTd>
         </RowTemplate>
-        <NoRecordsContent><MudText>No transponders match this view.</MudText></NoRecordsContent>
-        <PagerContent><MudTablePager /></PagerContent>
+        <NoRecordsContent><MudText>@(_error is null ? "No transponders match this view." : "Transponder data is unavailable. Use Refresh to retry.")</MudText></NoRecordsContent>
+        <PagerContent><MudTablePager PageSizeOptions="@(new[] { 10, 25, 50 })" /></PagerContent>
     </MudTable>
-}
+</div>
 
 </MudContainer>
 
 @code {
     [Parameter] public bool Administration { get; set; }
     private readonly CancellationTokenSource _lifetime = new();
-    private IReadOnlyList<TransponderDTO> _transponders = [];
+    private MudTable<TransponderRow>? _table;
+    private CancellationTokenSource? _request;
+    private TableData<TransponderRow> _lastData = new() { Items = [], TotalItems = 0 };
+    private Task<TableData<TransponderRow>> _pageLoad = Task.FromResult(new TableData<TransponderRow> { Items = [], TotalItems = 0 });
+    private int _page, _version;
+    private int _pageSize = 10;
+    private TransponderLookupItem? _selectedTransponder;
     private MudForm? _form;
-    private bool _loading = true, _busy, _valid, _hasEnd, _showHistory = true;
+    private bool _busy, _valid, _hasEnd, _showHistory = true;
     private string? _editor, _error;
     private string _code = "", _search = "", _label = "";
     private TransponderOwnerView? _owner;
@@ -149,38 +148,90 @@ else
     private DateTime? _fromDate, _toDate;
     private DateTime? _registrationFrom, _registrationTo;
     private TimeSpan? _fromTime, _toTime;
-    private sealed record OwnershipRow(TransponderDTO Transponder, TransponderOwnershipDTO? Ownership);
+    private Task Load() => _table?.ReloadServerData() ?? Task.CompletedTask;
 
-    private IEnumerable<OwnershipRow> Rows => _transponders
-        .Where(transponder => $"{transponder.Label} {transponder.SystemId} {string.Join(' ', transponder.Ownerships.Select(owner => Administration ? OwnerName(owner.OwnerId) : _ownProfile?.DisplayName))}".Contains(_search, StringComparison.OrdinalIgnoreCase))
-        .SelectMany(transponder => transponder.Ownerships.Count == 0 ? [new OwnershipRow(transponder, null)] : transponder.Ownerships
-            .Where(owner => _showHistory || IsActive(owner)).Select(owner => new OwnershipRow(transponder, owner)));
-
-    protected override Task OnInitializedAsync() => Load();
-
-    private async Task Load()
+    private async Task SearchChanged(string search)
     {
-        _loading = true;
+        _search = search;
+        _page = 0;
+        if (_table is { CurrentPage: not 0 }) _table.CurrentPage = 0;
+        else await Load();
+    }
+
+    private async Task HistoryChanged(bool history)
+    {
+        _showHistory = history;
+        _page = 0;
+        if (_table is { CurrentPage: not 0 }) _table.CurrentPage = 0;
+        else await Load();
+    }
+
+    private Task<TableData<TransponderRow>> LoadPage(TableState state, CancellationToken cancellationToken)
+    {
+        _request?.Cancel();
+        _request?.Dispose();
+        _request = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token, cancellationToken);
+        var token = _request.Token;
+        var version = ++_version;
+        _pageLoad = FetchPage(state, token, version);
+        return _pageLoad;
+    }
+
+    private async Task<TableData<TransponderRow>> FetchPage(TableState state, CancellationToken token, int version)
+    {
         _namesLoaded = false;
         _error = null;
-        _owners.Clear();
-        _ownProfile = null;
         try
         {
-            _transponders = await Service.GetTranspondersAsync(Administration, _lifetime.Token);
+            var result = await Service.GetTranspondersAsync(Administration, state.Page, state.PageSize, _search, _showHistory, token);
+            token.ThrowIfCancellationRequested();
+            if (result.Items.Count == 0 && state.Page > 0)
+            {
+                _page = result.TotalCount == 0 ? 0 : (result.TotalCount - 1) / state.PageSize;
+                if (_table is not null) _table.CurrentPage = _page;
+                if (version != _version) return await _pageLoad;
+                result = await Service.GetTranspondersAsync(Administration, _page, state.PageSize, _search, _showHistory, token);
+            }
+            if (result.TotalCount == 0) _page = 0;
+            var names = new Dictionary<Guid, TransponderOwnerView>();
+            OwnTransponderProfile? profile = null;
             if (Administration)
             {
-                var ids = _transponders.SelectMany(transponder => transponder.Ownerships).Select(owner => owner.OwnerId).Distinct();
+                var ids = result.Items.Where(row => row.Ownership is not null).Select(row => row.Ownership!.OwnerId).Distinct();
                 foreach (var batch in ids.Chunk(100))
-                    foreach (var owner in await Owners.ResolveAsync(batch, _lifetime.Token)) _owners[owner.UserId] = owner;
+                    foreach (var owner in await Owners.ResolveAsync(batch, token)) names[owner.UserId] = owner;
             }
-            else _ownProfile = await Owners.GetOwnProfileAsync(_lifetime.Token);
+            else profile = await Owners.GetOwnProfileAsync(token);
+            token.ThrowIfCancellationRequested();
+            if (version != _version) throw new OperationCanceledException(token);
+            _owners.Clear();
+            foreach (var pair in names) _owners[pair.Key] = pair.Value;
+            _ownProfile = profile;
             _namesLoaded = true;
+            _lastData = new() { Items = result.Items, TotalItems = result.TotalCount };
+            return _lastData;
         }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (HttpRequestException exception) { _error = $"{exception.Message} Use Refresh to retry."; }
-        catch (Exception) { _error = "Transponders could not be loaded. Check your access and refresh."; }
-        finally { _loading = false; }
+        catch (OperationCanceledException) when (token.IsCancellationRequested || version != _version)
+        {
+            // MudTable assigns every completed callback; superseded callbacks must return the newest result.
+            return version != _version ? await _pageLoad : _lastData;
+        }
+        catch (HttpRequestException exception)
+        {
+            if (version != _version) return await _pageLoad;
+            _error = $"{exception.Message} Use Refresh to retry.";
+        }
+        catch (Exception)
+        {
+            if (version != _version) return await _pageLoad;
+            _error = "Transponders could not be loaded. Check your access and refresh.";
+        }
+        finally
+        {
+            if (version == _version && !_lifetime.IsCancellationRequested)
+                await InvokeAsync(StateHasChanged);
+        }
+        return new() { Items = [], TotalItems = 0 };
     }
 
     private async Task Register()
@@ -219,6 +270,7 @@ else
     {
         _editor = "ownership";
         _ownershipId = _transponderId = null;
+        _selectedTransponder = null;
         _owner = null;
         var now = DateTime.UtcNow;
         _fromDate = now.Date;
@@ -229,12 +281,20 @@ else
         _error = null;
     }
 
-    private void EditOwnership(OwnershipRow row)
+    private Task SelectTransponder(TransponderLookupItem? transponder)
+    {
+        _selectedTransponder = transponder;
+        _transponderId = transponder?.Id;
+        return Task.CompletedTask;
+    }
+
+    private void EditOwnership(TransponderRow row)
     {
         AddOwnership();
         var ownership = row.Ownership!;
         _ownershipId = ownership.Id;
         _transponderId = row.Transponder.Id;
+        _selectedTransponder = new(row.Transponder.Id, row.Transponder.Label, row.Transponder.SystemId, []);
         _owner = _owners[ownership.OwnerId];
         _fromDate = ownership.OwnedFrom.UtcDateTime.Date;
         _fromTime = ownership.OwnedFrom.UtcDateTime.TimeOfDay;
@@ -328,5 +388,5 @@ else
     private async Task<bool> ConfirmDiscard() => _editor is null || await Dialogs.ShowMessageBoxAsync("Discard changes?", "Unsaved changes will be lost.", yesText: "Discard", cancelText: "Keep editing") == true;
     private async Task Cancel() { if (await ConfirmDiscard()) { _editor = null; _error = null; } }
     private async Task ConfirmNavigation(LocationChangingContext context) { if (!await ConfirmDiscard()) context.PreventNavigation(); }
-    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+    public void Dispose() { _lifetime.Cancel(); _request?.Cancel(); _request?.Dispose(); _lifetime.Dispose(); }
 }

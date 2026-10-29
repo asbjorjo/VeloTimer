@@ -13,7 +13,9 @@ internal static class OwnershipEndpoints
     internal static void MapOwnershipEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var personal = endpoints.MapGroup("/my").RequireAuthorization();
-        personal.MapGet("/transponders", ListPersonal).WithName("ListMyTransponders").Produces<List<TransponderDTO>>();
+        personal.MapGet("/transponders", ListPersonal).WithName("ListMyTransponders").Produces<TransponderPage>();
+        personal.MapPost("/transponders/query", QueryPersonal).WithName("QueryMyTransponders").Produces<TransponderPage>();
+        personal.MapGet("/transponders/lookup", LookupPersonal).WithName("LookupMyTransponders").Produces<TransponderLookupPage>();
         personal.MapPost("/transponders", Claim).WithName("ClaimMyTransponder").Produces<TransponderDTO>();
         personal.MapPost("/transponders/register", RegisterPersonal).WithName("RegisterMyTransponder").Produces<RegisterTransponderResult>();
         personal.MapPost("/ownerships/{id:guid}/end", EndPersonal).WithName("EndMyTransponderOwnership").Produces(StatusCodes.Status204NoContent);
@@ -34,12 +36,21 @@ internal static class OwnershipEndpoints
     private static Guid? Subject(ClaimsPrincipal user) =>
         Guid.TryParse(user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier), out var id) && id != Guid.Empty ? id : null;
 
-    private static async Task<IResult> ListPersonal(ClaimsPrincipal user, TimingDbContext storage, CancellationToken cancellationToken)
+    private static Task<IResult> ListPersonal(ClaimsPrincipal user, TimingDbContext storage, CancellationToken cancellationToken,
+        int page = 0, int pageSize = 10, string search = "", bool includeHistory = true) =>
+        QueryPersonal(new(page, pageSize, search, includeHistory), user, storage, cancellationToken);
+
+    private static async Task<IResult> QueryPersonal(TransponderPageRequest request, ClaimsPrincipal user, TimingDbContext storage, CancellationToken cancellationToken)
     {
         if (Subject(user) is not { } ownerId) return Results.Forbid();
-        var transponders = await storage.Set<Transponder>().AsNoTracking().Where(transponder => transponder.Owners.Any(owner => owner.OwnerId == ownerId))
-            .Include(transponder => transponder.Owners.Where(owner => owner.OwnerId == ownerId)).ToListAsync(cancellationToken);
-        return Results.Ok(transponders.Select(transponder => TransponderOwnershipService.ToDto(transponder, ownerId)).ToList());
+        return await Execute(async () => Results.Ok(await TransponderQuery.ListAsync(storage, request, ownerId, cancellationToken)));
+    }
+
+    private static async Task<IResult> LookupPersonal(ClaimsPrincipal user, TimingDbContext storage, CancellationToken cancellationToken,
+        int page = 0, int pageSize = 10, string search = "", bool includeOwners = false)
+    {
+        if (Subject(user) is not { } ownerId) return Results.Forbid();
+        return await Execute(async () => Results.Ok(await TransponderQuery.LookupAsync(storage, page, pageSize, search, includeOwners, ownerId, cancellationToken)));
     }
 
     private static async Task<IResult> Claim(ClaimTransponderRequest request, ClaimsPrincipal user, TransponderOwnershipService service, CancellationToken cancellationToken)
