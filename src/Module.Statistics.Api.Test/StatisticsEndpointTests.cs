@@ -150,7 +150,7 @@ public sealed class StatisticsEndpointTests(StatisticsApiFactory factory) : ICla
     }
 
     [Fact]
-    public async Task ProfileEndpoints_EnforceReadAndWritePolicies()
+    public async Task ProfileEndpoints_AllowAuthenticatedReads()
     {
         var userId = Guid.NewGuid();
         await using (var scope = factory.Services.CreateAsyncScope())
@@ -161,7 +161,6 @@ public sealed class StatisticsEndpointTests(StatisticsApiFactory factory) : ICla
         }
 
         using var readClient = factory.CreateClient();
-        readClient.DefaultRequestHeaders.Add("X-Test-Scope", "Statistics.Read");
         Assert.Equal(HttpStatusCode.OK, (await readClient.GetAsync("/api/statistics/profiles")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await readClient.GetAsync($"/api/statistics/profiles/{userId}")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await readClient.PutAsJsonAsync($"/api/statistics/profiles/{userId}", new UpdateStatsProfileRequest("Updated", true))).StatusCode);
@@ -170,15 +169,74 @@ public sealed class StatisticsEndpointTests(StatisticsApiFactory factory) : ICla
         using var anonymousClient = factory.CreateClient();
         anonymousClient.DefaultRequestHeaders.Add("X-Test-Anonymous", "true");
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymousClient.GetAsync("/api/statistics/profiles")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymousClient.GetAsync($"/api/statistics/profiles/{userId}")).StatusCode);
+    }
 
+    [Theory]
+    [InlineData("statistics-admin")]
+    [InlineData("velotime-admin")]
+    [InlineData("timing-admin,statistics-admin")]
+    public async Task ProfileEndpoints_AllowStatisticsAdministratorsToManageProfiles(string roles)
+    {
+        var userId = Guid.NewGuid();
         using var writeClient = factory.CreateClient();
-        writeClient.DefaultRequestHeaders.Add("X-Test-Scope", "Statistics.Write");
-        var createResponse = await writeClient.PostAsJsonAsync("/api/statistics/profiles", new CreateStatsProfileRequest(Guid.NewGuid(), "Created"));
+        writeClient.DefaultRequestHeaders.Add("X-Test-Role", roles);
+        var request = new CreateStatsProfileRequest(userId, "Created", false);
+        var createResponse = await writeClient.PostAsJsonAsync("/api/statistics/profiles", request);
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        Assert.Equal($"/api/statistics/profiles/{userId}", createResponse.Headers.Location?.OriginalString);
+        Assert.Equal(new StatsProfileResponse(userId, "Created", false),
+            await writeClient.GetFromJsonAsync<StatsProfileResponse>($"/api/statistics/profiles/{userId}"));
+        Assert.Equal(HttpStatusCode.Conflict,
+            (await writeClient.PostAsJsonAsync("/api/statistics/profiles", request)).StatusCode);
 
-        var updateResponse = await writeClient.PutAsJsonAsync($"/api/statistics/profiles/{userId}", new UpdateStatsProfileRequest("Updated", false));
+        var updateResponse = await writeClient.PutAsJsonAsync($"/api/statistics/profiles/{userId}", new UpdateStatsProfileRequest("Updated", true));
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal(new StatsProfileResponse(userId, "Updated", true),
+            await writeClient.GetFromJsonAsync<StatsProfileResponse>($"/api/statistics/profiles/{userId}"));
         Assert.Equal(HttpStatusCode.NoContent, (await writeClient.DeleteAsync($"/api/statistics/profiles/{userId}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await writeClient.GetAsync($"/api/statistics/profiles/{userId}")).StatusCode);
+
+        await using var verification = factory.Services.CreateAsyncScope();
+        Assert.Empty(verification.ServiceProvider.GetRequiredService<StatisticsDbContext>().Set<StatsProfile>());
+    }
+
+    [Theory]
+    [InlineData(null, false, false, HttpStatusCode.Forbidden)]
+    [InlineData("user", false, false, HttpStatusCode.Forbidden)]
+    [InlineData("timing-admin", false, false, HttpStatusCode.Forbidden)]
+    [InlineData("facilities-admin", false, false, HttpStatusCode.Forbidden)]
+    [InlineData(null, true, false, HttpStatusCode.Forbidden)]
+    [InlineData(null, false, true, HttpStatusCode.Unauthorized)]
+    public async Task ProfileEndpoints_RejectUnauthorizedMutations(
+        string? role, bool writeScope, bool anonymous, HttpStatusCode expectedStatus)
+    {
+        var userId = Guid.NewGuid();
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var storage = scope.ServiceProvider.GetRequiredService<StatisticsDbContext>();
+            storage.Add(new StatsProfile { UserId = userId, ProfileName = "Before", IsPublic = false });
+            await storage.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+        if (role is not null)
+            client.DefaultRequestHeaders.Add("X-Test-Role", role);
+        if (writeScope)
+            client.DefaultRequestHeaders.Add("X-Test-Scope", "Statistics.Write");
+        if (anonymous)
+            client.DefaultRequestHeaders.Add("X-Test-Anonymous", "true");
+
+        Assert.Equal(expectedStatus, (await client.PostAsJsonAsync("/api/statistics/profiles",
+            new CreateStatsProfileRequest(Guid.NewGuid(), "Created"))).StatusCode);
+        Assert.Equal(expectedStatus, (await client.PutAsJsonAsync($"/api/statistics/profiles/{userId}",
+            new UpdateStatsProfileRequest("Updated", true))).StatusCode);
+        Assert.Equal(expectedStatus, (await client.DeleteAsync($"/api/statistics/profiles/{userId}")).StatusCode);
+
+        await using var verification = factory.Services.CreateAsyncScope();
+        var profile = Assert.Single(verification.ServiceProvider.GetRequiredService<StatisticsDbContext>().Set<StatsProfile>());
+        Assert.Equal(userId, profile.UserId);
+        Assert.Equal("Before", profile.ProfileName);
+        Assert.False(profile.IsPublic);
     }
 }

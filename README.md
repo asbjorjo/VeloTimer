@@ -220,6 +220,16 @@ Facilities write access. APIs, BFF routes, pages, and navigation all use named
 permission policies; they do not authorize with role checks. Ordinary accounts do not
 receive administrator permissions automatically.
 
+Statistics profile mutations (`POST /api/statistics/profiles` and
+`PUT`/`DELETE /api/statistics/profiles/{userId}`) require the `statistics-admin`
+or `velotime-admin` realm role through the Statistics administrator permission
+policy. A `Statistics.Write` scope alone no longer grants write access.
+Profile list and detail reads remain available to authenticated callers.
+The users-migration service account must include `statistics-admin` (or
+`velotime-admin`) in its access token's `realm_access.roles`; assigning a role
+in Keycloak is insufficient if client scope mappings exclude it from the token.
+Obtain a fresh service-account token after changing role or scope mappings.
+
 For a new realm, the checked-in import declares these roles and includes realm roles
 in the WebUI ID token. Existing Keycloak realms are not updated by editing the import:
 create the roles, add the WebUI realm-role mapper to ID/access tokens, assign the

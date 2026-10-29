@@ -32,7 +32,10 @@ public sealed class TestAuthenticationHandler(
 
         if (Request.Headers.TryGetValue("X-Test-Role", out var role))
         {
-            claims.Add(new Claim("realm_access", System.Text.Json.JsonSerializer.Serialize(new { roles = new[] { role.ToString() } })));
+            claims.Add(new Claim("realm_access", System.Text.Json.JsonSerializer.Serialize(new
+            {
+                roles = role.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            })));
         }
 
         var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, AuthenticationSchemeName));

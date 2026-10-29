@@ -10,8 +10,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient<ICoursePointReferences, CoursePointReferences>(client =>
     client.BaseAddress = new Uri("https+http://module-facilities-api"));
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("Statistics.Read", policy => policy.RequireAuthenticatedUser())
-    .AddPolicy("Statistics.Write", policy => policy.RequireClaim("scope", "Statistics.Write"));
+    .AddPolicy("Statistics.Read", policy => policy.RequireAuthenticatedUser());
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
