@@ -20,6 +20,12 @@ VeloTimer is a microservices architecture built with .NET 10 using Aspire for di
 - For concrete implementations, follow [TimingEndpoints.cs](src/Module.Timing.Api/Endpoints/TimingEndpoints.cs) for route grouping, [TransponderEndpoints.cs](src/Module.Timing.Api/Endpoints/TransponderEndpoints.cs) for typed results, [PassingObservedHandler.cs](src/Module.Timing.Processor/Handlers/PassingObservedHandler.cs) for message consumers, and [InstallationMapper.cs](src/Module.Timing/Mapping/InstallationMapper.cs) for entity-to-contract mapping.
 - Package versions are centrally managed in [Directory.Packages.props](Directory.Packages.props); avoid adding per-project versions unless a project has an established exception.
 
+## Git Workflow
+
+- Start new work on a dedicated branch based on the appropriate up-to-date base branch; do not make changes directly on the default branch.
+- Keep commits atomic: each commit should contain one focused, self-contained change.
+- Use Conventional Commit messages in the format `<type>(<scope>): <imperative summary>`, for example `fix(timing): validate passing timestamps`.
+
 ## Architecture
 
 ### Microservices Structure
