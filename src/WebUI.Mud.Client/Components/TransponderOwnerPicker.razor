@@ -1,0 +1,110 @@
+@using VeloTime.WebUI.Mud.Client.Services
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@inject ITransponderOwnerService Owners
+@implements IDisposable
+
+<MudTextField T="string" Value="@Value?.DisplayName" Label="Owner" ReadOnly="true" Required="true"
+              RequiredError="Select an owner from the search results." Disabled="Disabled" />
+@if (Value is not null)
+{
+    <MudText Typo="Typo.caption">User ID: @Value.UserId</MudText>
+}
+<MudTextField T="string" @bind-Value="_query" Label="Find owner by profile or name" DebounceInterval="300"
+              OnDebounceIntervalElapsed="Search" Disabled="Disabled" Clearable="true" MaxLength="100"
+              HelperText="Enter at least 2 characters, then select an owner below." />
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error">@_error</MudAlert>
+    <MudButton OnClick="Retry" Disabled="@(_loading || Disabled)">Retry owner search</MudButton>
+}
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+<MudStack Spacing="1" Class="mt-2">
+    @foreach (var owner in _results)
+    {
+        <MudButton @key="owner.UserId" OnClick="() => Select(owner)" Disabled="Disabled" Style="justify-content:flex-start;text-align:left">
+            <MudStack Spacing="0">
+                <MudText>@owner.DisplayName</MudText>
+                <MudText Typo="Typo.caption">User ID: @owner.UserId</MudText>
+            </MudStack>
+        </MudButton>
+    }
+</MudStack>
+@if (!_loading && _searched && _error is null && _results.Count == 0)
+{
+    <MudText Typo="Typo.body2">No matching users.</MudText>
+}
+@if (_profileOffset.HasValue || _keycloakOffset.HasValue)
+{
+    <MudButton OnClick="LoadMore" Disabled="@(_loading || Disabled)">Load more owners</MudButton>
+}
+
+@code {
+    [Parameter] public TransponderOwnerView? Value { get; set; }
+    [Parameter] public EventCallback<TransponderOwnerView?> ValueChanged { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private CancellationTokenSource? _request;
+    private readonly List<TransponderOwnerView> _results = [];
+    private string _query = "", _activeQuery = "";
+    private string? _error;
+    private int? _profileOffset, _keycloakOffset;
+    private bool _loading, _searched;
+    private int _version;
+
+    private async Task Search(string query)
+    {
+        _request?.Cancel();
+        _version++;
+        _results.Clear();
+        _error = null;
+        _searched = false;
+        _loading = false;
+        _profileOffset = _keycloakOffset = null;
+        _activeQuery = query?.Trim() ?? "";
+        if (_activeQuery.Length < 2) return;
+        _profileOffset = _keycloakOffset = 0;
+        await Fetch();
+    }
+
+    private Task LoadMore() => Fetch();
+    private Task Retry() => Fetch();
+
+    private async Task Fetch()
+    {
+        _request?.Cancel();
+        _request?.Dispose();
+        _request = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        var cancellation = _request.Token;
+        var version = ++_version;
+        _loading = true;
+        _error = null;
+        try
+        {
+            var page = await Owners.SearchAsync(_activeQuery, _profileOffset, _keycloakOffset, cancellation);
+            if (version != _version || !string.Equals(_query.Trim(), _activeQuery, StringComparison.Ordinal)) return;
+            foreach (var owner in page.Owners)
+                if (_results.All(existing => existing.UserId != owner.UserId)) _results.Add(owner);
+            _profileOffset = page.NextProfileOffset;
+            _keycloakOffset = page.NextKeycloakOffset;
+            _searched = true;
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (HttpRequestException exception) { if (version == _version) _error = exception.Message; }
+        catch (Exception) { if (version == _version) _error = "Owner search could not be completed. Please retry."; }
+        finally { if (version == _version) _loading = false; }
+    }
+
+    private Task Select(TransponderOwnerView owner) => ValueChanged.InvokeAsync(owner);
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _request?.Cancel();
+        _request?.Dispose();
+        _lifetime.Dispose();
+    }
+}

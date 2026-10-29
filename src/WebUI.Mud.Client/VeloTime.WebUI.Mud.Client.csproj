@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -6,16 +6,23 @@
     <Nullable>enable</Nullable>
     <NoDefaultLaunchSettingsFile>true</NoDefaultLaunchSettingsFile>
     <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
-	<Version>3.0.0-alpha.50</Version>
-	<ContainerRepository>asbjorjo/velotime-webui-client</ContainerRepository>
-	<ContainerImageTag>$(Version)</ContainerImageTag>
+	  <Version>2.0.0</Version>
+	  <ContainerRepository>asbjorjo/velotime-webui-client</ContainerRepository>
+	  <ContainerImageTag>$(Version)</ContainerImageTag>
+    <IsPublishable>false</IsPublishable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.5" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="10.0.5" />
-	<PackageReference Include="Extensions.MudBlazor.StaticInput" Version="4.1.0" />
-    <PackageReference Include="MudBlazor" Version="9.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" />
+	  <PackageReference Include="Extensions.MudBlazor.StaticInput" />
+    <PackageReference Include="MudBlazor" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Module.Facilities.Interface\VeloTime.Module.Facilities.Interface.csproj" />
+    <ProjectReference Include="..\Module.Statistics.Interface\VeloTime.Module.Statistics.Interface.csproj" />
+    <ProjectReference Include="..\Module.Timing.Interface\VeloTime.Module.Timing.Interface.csproj" />
   </ItemGroup>
 
 </Project>

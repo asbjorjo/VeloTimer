@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "dotnet build": true,
+        "dotnet test": true,
+        "git diff": true,
+        "git status": true
+    }
+}

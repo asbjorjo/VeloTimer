@@ -6,6 +6,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 builder.AddModuleAuthentication();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<ICoursePointReferences, CoursePointReferences>(client =>
+    client.BaseAddress = new Uri("https+http://module-facilities-api"));
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("Statistics.Read", policy => policy.RequireAuthenticatedUser());
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -20,6 +25,8 @@ builder.AddModuleStatistics();
 
 var app = builder.Build();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapStatisticsEndpoints();
 
@@ -39,3 +46,5 @@ app.UseHttpsRedirection();
 app.UseModuleStatistics();
 
 app.Run();
+
+public partial class Program;

@@ -6,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 builder.AddModuleAuthentication();
+VeloTime.Module.Common.AdministrationReferences.AddServices(builder.Services);
 
 builder.Services.AddHttpForwarderWithServiceDiscovery();
 
@@ -30,6 +31,8 @@ builder.AddModuleFacilities();
 
 var app = builder.Build();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapDefaultEndpoints();
 app.MapFacilitiesEndpoints();
 
@@ -51,3 +54,5 @@ app.UseModuleFacilities();
 app.UseOutputCache();
 
 app.Run();
+
+public partial class Program;

@@ -7,7 +7,7 @@
     <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
     <IsPublishable>True</IsPublishable>
     <DockerfileContext>..\..</DockerfileContext>
-	<Version>3.0.0-alpha.50</Version>
+	<Version>2.0.0</Version>
 	<InvariantGlobalization>true</InvariantGlobalization>
 	<EnableSdkContainerSupport>True</EnableSdkContainerSupport>
     <ContainerRepository>asbjorjo/velotime-bootstrap</ContainerRepository>
@@ -20,5 +20,10 @@
     <ProjectReference Include="..\Module.Statistics\VeloTime.Module.Statistics.csproj" />
     <ProjectReference Include="..\Module.Timing\VeloTime.Module.Timing.csproj" />
     <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>VeloTime.Platform.Test</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 </Project>

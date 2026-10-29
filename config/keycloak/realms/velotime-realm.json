@@ -2,6 +2,9 @@
   "realm": "velotime",
   "enabled": true,
   "displayName": "VeloTime Realm",
+  "attributes": {
+    "CreateDefaultClientScopes": "true"
+  },
   "sslRequired": "external",
   "registrationAllowed": true,
   "registrationEmailAsUsername": false,
@@ -19,11 +22,226 @@
   "quickLoginCheckMilliSeconds": 1000,
   "maxDeltaTimeSeconds": 43200,
   "failureFactor": 30,
+  "accessTokenLifespan": 300,
+  "defaultRoles": [
+    "velotime-user"
+  ],
   "roles": {
     "realm": [
       {
-        "name": "user",
+        "name": "velotime-user",
         "description": "User role"
+      },
+      {
+        "name": "velotime-admin",
+        "description": "Administrator for all VeloTime modules",
+        "composite": true,
+        "composites": {
+          "client": {
+            "realm-management": ["query-users", "view-users"]
+          }
+        }
+      },
+      {
+        "name": "facilities-admin",
+        "description": "Facilities administrator"
+      },
+      {
+        "name": "timing-admin",
+        "description": "Timing and transponder ownership administrator",
+        "composite": true,
+        "composites": {
+          "client": {
+            "realm-management": ["query-users", "view-users"]
+          }
+        }
+      },
+      {
+        "name": "statistics-admin",
+        "description": "Statistics definitions administrator"
+      },
+      {
+        "name": "velotime-users-migration",
+        "description": "Import users and their timing and statistics records",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "timing-admin",
+            "statistics-admin"
+          ],
+          "client": {
+            "realm-management": [
+              "query-users",
+              "manage-users"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "velotime.webui",
+      "name": "VeloTime Web UI",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "fullScopeAllowed": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
+    },
+    {
+      "clientId": "velotime.users.migration",
+      "name": "VeloTime Users Migration",
+      "enabled": true,
+      "secret": "${USER_MIGRATION_SECRET}",
+      "clientAuthenticatorType": "client-secret",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    },
+    {
+      "clientId": "velotime.statistics.processor",
+      "name": "VeloTime Statistics Processor",
+      "enabled": true,
+      "secret": "${STATISTICS_PROCESSOR_SECRET}",
+      "clientAuthenticatorType": "client-secret",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    },
+    {
+      "clientId": "velotime.timing.processor",
+      "name": "VeloTime Timing Processor",
+      "enabled": true,
+      "secret": "${TIMING_PROCESSOR_SECRET}",
+      "clientAuthenticatorType": "client-secret",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    }
+  ],
+  "defaultDefaultClientScopes": [
+    "profile",
+    "email",
+    "roles",
+    "web-origins",
+    "basic",
+    "velotime"
+  ],
+  "defaultOptionalClientScopes": [
+    "offline_access"
+  ],
+  "clientScopes": [
+    {
+      "name": "velotime",
+      "description": "VeloTime API audience, subject and permission claims",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "velotime-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "${OIDC_AUDIENCE}",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "client roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "",
+            "access.token.claim": "true",
+            "claim.name": "resource_access.${client_id}.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience resolve",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-resolve-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "clientProfiles": {
+    "profiles": [
+      {
+        "name": "velotime-public-pkce",
+        "executors": [
+          {
+            "executor": "pkce-enforcer",
+            "configuration": {
+              "auto-configure": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "clientPolicies": {
+    "policies": [
+      {
+        "name": "velotime-public-pkce",
+        "enabled": true,
+        "conditions": [
+          {
+            "condition": "client-access-type",
+            "configuration": {
+              "type": [
+                "public"
+              ]
+            }
+          }
+        ],
+        "profiles": [
+          "velotime-public-pkce"
+        ]
       }
     ]
   },
@@ -41,165 +259,35 @@
           "temporary": false
         }
       ],
-      "realmRoles": [ "user", "offline_access" ]
-    }
-  ],
-  "identityProviders": [],
-  "clients": [
+      "realmRoles": [
+        "default-roles-velotime"
+      ]
+    },
     {
-      "clientId": "velotime.webui",
-      "name": "Web UI",
-      "description": "web frontend",
+      "username": "testadm",
       "enabled": true,
-      "bearerOnly": true,
-      "publicClient": true,
-      "protocol": "openid-connect",
-      "attributes": {
-        "access.token.lifespan": "300"
-      },
-      "fullScopeAllowed": true,
-      "nodeReRegistrationTimeout": -1,
-      "protocolMappers": [
+      "firstName": "Test",
+      "lastName": "Admin",
+      "email": "testadm@velotime.local",
+      "credentials": [
         {
-          "name": "name",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-usermodel-property-mapper",
-          "consentRequired": false,
-          "config": {
-            "userinfo.token.claim": "true",
-            "user.attribute": "username",
-            "id.token.claim": "true",
-            "access.token.claim": "true",
-            "claim.name": "name",
-            "jsonType.label": "String"
-          }
+          "type": "password",
+          "value": "asdf1234",
+          "temporary": false
         }
       ],
-      "defaultClientScopes": [ "web-origins", "acr", "profile", "roles", "email", "openid" ],
-      "optionalClientScopes": [ "offline_access", "sandbox:all" ],
-      "redirectUris": [ "*" ],
-      "webOrigins": [ "*" ]
+      "realmRoles": [
+        "default-roles-velotime",
+        "velotime-admin"
+      ]
     },
     {
-      "clientId": "velotime.timing.api",
-      "name": "Timing API",
-      "description": "API client for JWT authentication",
+      "username": "service-account-velotime.users.migration",
       "enabled": true,
-      "bearerOnly": true,
-      "publicClient": false,
-      "protocol": "openid-connect",
-      "attributes": {
-        "access.token.lifespan": "300"
-      },
-      "fullScopeAllowed": true
-    }
-  ],
-  "authenticationFlows": [
-    {
-      "alias": "registration form",
-      "description": "Registration form",
-      "providerId": "form-flow",
-      "topLevel": false,
-      "builtIn": true,
-      "authenticationExecutions": [
-        {
-          "authenticator": "registration-user-creation",
-          "requirement": "REQUIRED",
-          "priority": 20,
-          "userSetupAllowed": false,
-          "autheticatorFlow": false
-        },
-        {
-          "authenticator": "registration-password-action",
-          "requirement": "REQUIRED",
-          "priority": 50,
-          "userSetupAllowed": false,
-          "autheticatorFlow": false
-        }
+      "serviceAccountClientId": "velotime.users.migration",
+      "realmRoles": [
+        "velotime-users-migration"
       ]
     }
-  ],
-  "clientScopes": [
-    {
-      "name": "openid",
-      "description": "OpenID Connect built-in scope",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "false"
-      }
-    },
-    {
-      "name": "profile",
-      "description": "OpenID Connect built-in scope for profile information",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "true"
-      }
-    },
-    {
-      "name": "email",
-      "description": "OpenID Connect built-in scope for email",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "true"
-      }
-    },
-    {
-      "name": "offline_access",
-      "description": "OpenID Connect built-in scope for refresh tokens",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "true"
-      }
-    },
-    {
-      "name": "velotime:all",
-      "description": "Full access",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "true"
-      },
-      "protocolMappers": [
-        {
-          "name": "velotime-audience",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "velotime.api",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
-          }
-        }
-      ]
-    },
-    {
-      "name": "velotime:web",
-      "description": "Web access",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "true"
-      }
-    }
-  ],
-  "components": {
-    "org.keycloak.userprofile.UserProfileProvider": [
-      {
-        "id": "7723bfc4-6c92-4847-a346-cb61a22926f1",
-        "providerId": "declarative-user-profile",
-        "subComponents": {},
-        "config": {
-          "kc.user.profile.config": [
-            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}]}"
-          ]
-        }
-      }
-    ]
-  }
+  ]
 }

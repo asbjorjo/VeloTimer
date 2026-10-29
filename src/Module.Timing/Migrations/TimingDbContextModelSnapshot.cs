@@ -18,7 +18,7 @@ namespace VeloTime.Module.Timing.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("timing")
-                .HasAnnotation("ProductVersion", "10.0.3")
+                .HasAnnotation("ProductVersion", "10.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -43,6 +43,10 @@ namespace VeloTime.Module.Timing.Migrations
                     b.Property<Guid>("Facility")
                         .HasColumnType("uuid")
                         .HasColumnName("facility");
+
+                    b.Property<DateTime?>("LastSeen")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen");
 
                     b.Property<int>("TimingSystem")
                         .HasColumnType("integer")
@@ -192,6 +196,38 @@ namespace VeloTime.Module.Timing.Migrations
                     b.UseTphMappingStrategy();
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.TransponderOwner", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("OwnedFrom")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("owned_from");
+
+                    b.Property<DateTime?>("OwnedTo")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("owned_to");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("owner_id");
+
+                    b.Property<Guid>("TransponderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transponder_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_transponder_owner");
+
+                    b.HasIndex("TransponderId")
+                        .HasDatabaseName("ix_transponder_owner_transponder_id");
+
+                    b.ToTable("transponder_owner", "timing");
+                });
+
             modelBuilder.Entity("VeloTime.Module.Timing.Model.MylapsX2Transponder", b =>
                 {
                     b.HasBaseType("VeloTime.Module.Timing.Model.Transponder");
@@ -255,9 +291,26 @@ namespace VeloTime.Module.Timing.Migrations
                     b.Navigation("Installation");
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.TransponderOwner", b =>
+                {
+                    b.HasOne("VeloTime.Module.Timing.Model.Transponder", "Transponder")
+                        .WithMany("Owners")
+                        .HasForeignKey("TransponderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_transponder_owner_transponder_transponder_id");
+
+                    b.Navigation("Transponder");
+                });
+
             modelBuilder.Entity("VeloTime.Module.Timing.Model.Installation", b =>
                 {
                     b.Navigation("TimingPoints");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.Transponder", b =>
+                {
+                    b.Navigation("Owners");
                 });
 #pragma warning restore 612, 618
         }

@@ -35,6 +35,7 @@ public class TimingDbContext : BaseDbContext
 
         modelBuilder.Entity<Transponder>(e =>
         {
+            e.Property(transponder => transponder.Label).UsePropertyAccessMode(PropertyAccessMode.Property);
             e.HasDiscriminator(t => t.System)
                 .HasValue<MylapsX2Transponder>(TimingSystem.MyLaps_X2);
             e.HasIndex(t => new { t.System, t.SystemId }).IsUnique();
@@ -58,6 +59,15 @@ public class TimingDbContext : BaseDbContext
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(s => new { s.StartId, s.EndId }).IsUnique();
+        });
+        modelBuilder.Entity<TransponderOwner>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.HasOne(t => t.Transponder)
+                .WithMany(t => t.Owners)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.Property(t => t.OwnedFrom)
+                .IsRequired();
         });
 
         base.OnModelCreating(modelBuilder);

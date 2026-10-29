@@ -1,0 +1,6 @@
+dependencies:
+- name: velotime-library
+  repository: file://../velotime-library
+  version: 0.1.1
+digest: sha256:f4cedbce96d71c0adff56f6e1258d5bf140844939534359110cbdfa698a82636
+generated: "2026-09-25T10:34:29.702936807Z"

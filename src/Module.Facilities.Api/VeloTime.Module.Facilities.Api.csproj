@@ -9,21 +9,21 @@
     <DockerfileContext>..\..</DockerfileContext>
     <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
-	<Version>3.0.0-alpha.50</Version>
+	<Version>2.0.0</Version>
 	<ContainerRepository>asbjorjo/velotime-module-facilities-api</ContainerRepository>
 	<ContainerImageTag>$(Version)</ContainerImageTag>
 	<OpenApiDocumentsDirectory>..\..\api</OpenApiDocumentsDirectory>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
-    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.5">
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery.Yarp" Version="10.4.0" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
-	<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.5" />
+    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery.Yarp" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
+	<PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
   </ItemGroup>
 
   <ItemGroup>

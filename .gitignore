@@ -366,3 +366,13 @@ FodyWeavers.xsd
 /nuget.config
 _logs*.txt
 /src/AppHost/aspire-output
+
+# Helm dependency build artefacts
+/charts/*/charts/
+/charts/**/*.tgz
+
+# Devcontainer generated lock file
+/.devcontainer/devcontainer-lock.json
+api/VeloTime.Module.Facilities.Api.json
+api/VeloTime.Module.Statistics.Api.json
+api/VeloTime.Module.Timing.Api.json

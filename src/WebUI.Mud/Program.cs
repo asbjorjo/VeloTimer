@@ -3,14 +3,20 @@ using Duende.AccessTokenManagement.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.StackExchangeRedis;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using MudBlazor.Extensions;
 using MudBlazor.Services;
+using StackExchange.Redis;
+using VeloTime.Module.Common;
 using VeloTime.WebUI.Keycloak;
 using VeloTime.WebUI.Mud;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Components;
+using VeloTime.WebUI.Mud.Endpoints;
 using VeloTime.WebUI.Mud.Services;
 using Yarp.ReverseProxy.Transforms;
 
@@ -20,7 +26,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = VELOTIME_OIDC_SCHEME;
+    })
     .AddKeycloakOpenIdConnect(
         serviceName: "keycloak",
         realm: "velotime",
@@ -30,10 +40,11 @@ builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
             options.ClientId = "velotime.webui";
             options.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
             options.ResponseType = OpenIdConnectResponseType.Code;
-            //options.Scope.Add("velotime:api");
+            options.TokenValidationParameters.NameClaimType = "preferred_username";
 
             options.Scope.Add("openid");
             options.Scope.Add("profile");
+            options.Scope.Add("velotime");
 
             options.SaveTokens = true;
             if (builder.Environment.IsDevelopment())
@@ -45,17 +56,27 @@ builder.Services.AddAuthentication(VELOTIME_OIDC_SCHEME)
                 options.Authority = builder.Configuration.GetConnectionString("keycloak");
             }
         })
-    .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme);
+    .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+        options.AccessDeniedPath = "/access-denied");
 
 builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStateProvider>();
 builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.ConfigureCookieOidc(CookieAuthenticationDefaults.AuthenticationScheme, VELOTIME_OIDC_SCHEME);
 
-builder.Services.AddAuthorization();
+builder.Services.AddAdministrationAuthorization();
+builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 
 //builder.Services.AddMemoryCache();
 builder.AddModuleCache();
+
+builder.Services.AddDataProtection()
+    .SetApplicationName("VeloTime.WebUI");
+builder.Services.AddOptions<KeyManagementOptions>()
+    .Configure<IConnectionMultiplexer>((options, redis) =>
+        options.XmlRepository = new RedisXmlRepository(() => redis.GetDatabase(), "velotime:webui:dataprotection-keys"));
+
+builder.Services.AddSingleton<ITicketStore, DistributedTicketStore>();
 
 // Add MudBlazor services
 builder.Services.AddMudServices();
@@ -68,9 +89,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
-    //.AddInteractiveWebAssemblyComponents()
-    //.AddAuthenticationStateSerialization();
+    .AddInteractiveServerComponents()
+    .AddInteractiveWebAssemblyComponents()
+    .AddAuthenticationStateSerialization(options => options.SerializeAllClaims = true);
 
 builder.Services.AddHttpContextAccessor();
 
@@ -94,6 +115,12 @@ builder.Services
     .AddUserAccessTokenHandler();
 
 builder.Services
+    .AddHttpClient<VeloTime.WebUI.KeycloakAdmin.IKeycloakAdminClient, VeloTime.WebUI.KeycloakAdmin.KeycloakAdminClient>(client =>
+        client.BaseAddress = new Uri("https+http://keycloak/"))
+    .AddDefaultAccessTokenResiliency()
+    .AddUserAccessTokenHandler();
+
+builder.Services
     .AddFacilitiesClient()
     .AddDefaultAccessTokenResiliency()
     .AddUserAccessTokenHandler();
@@ -107,8 +134,13 @@ builder.Services
     .AddUserAccessTokenHandler();
 
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<IAuthDebugService, AuthDebugService>();
 builder.Services.AddScoped<IFacilityService, FacilityService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
+builder.Services.AddScoped<IStatisticsAdministrationService, StatisticsAdministrationService>();
+builder.Services.AddScoped<ITransponderManagementService, TransponderManagementService>();
+builder.Services.AddScoped<ITransponderOwnerService, TransponderOwnerService>();
+builder.Services.AddScoped<IInfrastructureAdministrationService, InfrastructureAdministrationService>();
 builder.Services.AddScoped<ITimingService, TimingService>();
 
 var app = builder.Build();
@@ -123,7 +155,7 @@ if (app.Environment.IsDevelopment())
         context.Request.Scheme = "https";
         return next(context);
     });
-    //app.UseWebAssemblyDebugging();
+    app.UseWebAssemblyDebugging();
 }
 else
 {
@@ -134,15 +166,18 @@ else
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
-    //.AddInteractiveWebAssemblyRenderMode()
+    .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(VeloTime.WebUI.Mud.Client._Imports).Assembly);
 
 app.MapGroup("/authentication").MapLoginAndLogout();
+app.MapBffEndpoints();
 
 app.Run();

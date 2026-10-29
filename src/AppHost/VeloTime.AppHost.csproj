@@ -1,4 +1,4 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.2.0">
+<Project Sdk="Aspire.AppHost.Sdk/13.6.3">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -6,17 +6,17 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>103fca41-9f30-4779-8f62-678337e4f92c</UserSecretsId>
-	<Version>3.0.0-alpha.50</Version>
+	<Version>2.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.Keycloak" Version="13.2.0-preview.1.26170.3" />
-    <PackageReference Include="Aspire.Hosting.Kubernetes" Version="13.2.0-preview.1.26170.3" />
-    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.2.0" />
-    <PackageReference Include="Aspire.Hosting.Redis" Version="13.2.0" />
-    <PackageReference Include="Aspire.Hosting.Valkey" Version="13.2.0" />
-    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Keycloak.Extensions" Version="13.1.2-beta.516" />
-    <PackageReference Include="CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions" Version="13.1.1" />
+    <PackageReference Include="Aspire.Hosting.Keycloak" />
+    <PackageReference Include="Aspire.Hosting.Kubernetes" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
+    <PackageReference Include="Aspire.Hosting.Valkey" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Keycloak.Extensions" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,6 +30,7 @@
     <ProjectReference Include="..\Module.Timing.Api\VeloTime.Module.Timing.Api.csproj" />
     <ProjectReference Include="..\Module.Timing.Migration\VeloTime.Module.Timing.Migration.csproj" />
     <ProjectReference Include="..\Module.Timing.Processor\VeloTime.Module.Timing.Processor.csproj" />
+    <ProjectReference Include="..\Users.Migration\VeloTime.Users.Migration.csproj" />
     <ProjectReference Include="..\WebUI.Mud\VeloTime.WebUI.Mud.csproj" />
   </ItemGroup>
 

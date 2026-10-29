@@ -68,11 +68,14 @@ namespace VeloTime.WebUI.Mud.Services
 
         public async Task<IEnumerable<InstallationView>> GetInstallationsAsync(Guid id, CancellationToken cancellationToken)
         {
-            var i = await timing.InstallationAllAsync(id);
+            var i = await timing.InstallationsAllAsync(id, cancellationToken);
+            var facility = await facitilies.FacilityAsync(id, cancellationToken);
 
             return i.Select(i => new InstallationView
             {
                 Id = i.Id,
+                FacilityId = i.FacilityId,
+                FacilityName = facility.Name,
                 Description = i.Description,
                 AgentId = i.AgentId,
                 TimingSystem = i.TimingSystem.Name,

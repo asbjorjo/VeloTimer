@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}
+data:
+  ASPNETCORE_ENVIRONMENT: Development
+  DOTNET_ENVIRONMENT: Development
+  services__module-facilities-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "facilities")}}
+  services__module-statistics-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "statistics")}}
+  services__module-timing-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "timing")}}
+  {{- include "velotime.oidcConfig" . | nindent 2 }}

@@ -5,6 +5,8 @@ using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Storage;
 using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.Module.Timing.Mapping;
+using VeloTime.Module.Common;
+using VeloTime.Module.Timing.Service;
 
 namespace VeloTime.Module.Timing.Api.Endpoints;
 
@@ -12,14 +14,14 @@ internal static class InstallationEndpoints
 {
     internal static void MapInstallationEndpoints(this IEndpointRouteBuilder builder)
     {
-        var installations = builder.MapGroup("/installation");
+        var installations = builder.MapGroup("/installations");
 
         installations.MapGet("", ListInstallations);
         installations.MapGet("{id}", GetInstallationById);
-        installations.MapPost("", CreateInstallation);
-        installations.MapPut("{id}", UpdateInstallation);
+        installations.MapPost("", CreateInstallation).RequireAuthorization(AdministrationAuthorization.TimingPolicy).AddEndpointFilter<AdministrationDependencyFilter>();
+        installations.MapPut("{id}", UpdateInstallation).RequireAuthorization(AdministrationAuthorization.TimingPolicy).AddEndpointFilter<AdministrationDependencyFilter>();
         
-        installations.MapDelete("{id}", DeleteInstallation);
+        installations.MapDelete("{id}", DeleteInstallation).RequireAuthorization(AdministrationAuthorization.TimingPolicy).AddEndpointFilter<AdministrationDependencyFilter>();
     }
     static async Task<Ok<IEnumerable<InstallationDTO>>> ListInstallations(TimingDbContext storage, [FromQuery] Guid? FacilityId)
     {
@@ -48,14 +50,20 @@ internal static class InstallationEndpoints
         return TypedResults.Ok(installationData);
     }
 
-    static async Task<Results<Created<InstallationDTO>, NotFound>> CreateInstallation(InstallationDTO installationData, TimingDbContext storage)
+    static async Task<Results<Created<InstallationDTO>, NotFound>> CreateInstallation(InstallationDTO installationData, TimingDbContext storage, TimingAdministrationService administration, CancellationToken cancellationToken)
     {
+        var system = await administration.ValidateInstallationAsync(null, new(installationData.FacilityId == Guid.Empty ? null : installationData.FacilityId,
+            installationData.AgentId, installationData.TimingSystem?.Name ?? "", installationData.Description), cancellationToken);
+        if (installationData.Id == Guid.Empty || installationData.TimingPoints.Any(point => point.Id == Guid.Empty || string.IsNullOrWhiteSpace(point.SystemId)) ||
+            installationData.TimingPoints.Select(point => point.SystemId).Distinct().Count() != installationData.TimingPoints.Count)
+            throw new ArgumentException("Installation and timing-point IDs must be valid and hardware system IDs unique.");
         Installation installation = new()
         {
             Id = installationData.Id,
+            Facility = installationData.FacilityId,
             AgentId = installationData.AgentId,
             Description = installationData.Description,
-            TimingSystem = installationData.TimingSystem.ToModel()
+            TimingSystem = system
         };
         var timingPoints = installationData.TimingPoints.Select(tp => new TimingPoint
         {
@@ -66,39 +74,23 @@ internal static class InstallationEndpoints
         }).ToList();
         installation.TimingPoints.AddRange(timingPoints);
         await storage.AddAsync(installation);
-        
+
         await storage.SaveChangesAsync();
-        
-        return TypedResults.Created($"/api/timing/installation/{installationData.Id}", installation.ToDto());
+
+        return TypedResults.Created($"/api/timing/installations/{installationData.Id}", installation.ToDto());
     }
 
-    static async Task<Results<Ok, NotFound>> UpdateInstallation(Guid id, InstallationDTO installationData, TimingDbContext storage)
+    static async Task<Results<Ok, NotFound>> UpdateInstallation(Guid id, InstallationDTO installationData, TimingAdministrationService administration, CancellationToken cancellationToken)
     {
-        var installation = await storage.Set<Installation>()
-            .Include(i => i.TimingPoints)
-            .FirstOrDefaultAsync(i => i.Id == id);
-        
-        if (installation == null)
-        {
-            return TypedResults.NotFound();
-        }
-        installation.Description = installationData.Description;
- 
-        await storage.SaveChangesAsync();
-
+        if (installationData.Id != id) throw new ArgumentException("The installation ID must match the route.");
+        await administration.SaveInstallationAsync(id, new(installationData.FacilityId == Guid.Empty ? null : installationData.FacilityId,
+            installationData.AgentId, installationData.TimingSystem?.Name ?? "", installationData.Description), cancellationToken);
         return TypedResults.Ok();
     }
 
-    static async Task<Results<NoContent, NotFound>> DeleteInstallation(Guid id, TimingDbContext storage)
+    static async Task<Results<NoContent, NotFound>> DeleteInstallation(Guid id, TimingAdministrationService administration, CancellationToken cancellationToken)
     {
-        if (await storage.Set<Installation>().FindAsync(id) is not Installation installation)
-        {
-            return TypedResults.NotFound();
-        }
-
-        storage.Set<Installation>().Remove(installation);
-        await storage.SaveChangesAsync();
-
+        await administration.DeleteInstallationAsync(id, cancellationToken);
         return TypedResults.NoContent();
     }
 }

@@ -12,6 +12,11 @@ public class InstallationService (TimingDbContext storage, HybridCache cache)
     private static readonly SemaphoreSlim timingPointSemaphore = new(1, 1);
     private static readonly SemaphoreSlim transponderSemaphore = new(1, 1);
 
+    public async Task<IEnumerable<Installation>> GetAllInstallations(CancellationToken cancellationToken = default)
+    {
+        return await storage.Set<Installation>().AsNoTracking().ToListAsync(cancellationToken: cancellationToken);
+    }
+
     public async Task<Installation> CreateInstallationForAgent(string agentId, TimingSystem timingSystem = TimingSystem.Unknown, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("FindOrCreateInstallationForAgent");
@@ -182,5 +187,23 @@ public class InstallationService (TimingDbContext storage, HybridCache cache)
             .FirstOrDefaultAsync(p =>
                 p.Transponder == transponder
                 && p.TimingPoint.Installation == installation, cancellationToken: cancellationToken);
+    }
+
+    public async Task UpdateLastSeenAsync(Installation installation, DateTime timestamp, CancellationToken cancellationToken = default)
+    {
+        var trackedInstallation = storage.Set<Installation>().Local
+            .FirstOrDefault(item => item.Id == installation.Id);
+        var installationToUpdate = trackedInstallation ?? installation;
+
+        if (installationToUpdate.LastSeen >= timestamp)
+            return;
+        installationToUpdate.LastSeen = timestamp;
+        if (trackedInstallation is null)
+        {
+            storage.Attach(installationToUpdate);
+            storage.Entry(installationToUpdate).Property(item => item.LastSeen).IsModified = true;
+        }
+        await storage.SaveChangesAsync(cancellationToken);
+        await cache.RemoveAsync($"installation_{installationToUpdate.AgentId}", cancellationToken);
     }
 }

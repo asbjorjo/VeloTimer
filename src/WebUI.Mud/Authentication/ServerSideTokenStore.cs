@@ -1,12 +1,13 @@
 ﻿// Copyright (c) Duende Software. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See LICENSE in the project root for license information.
 
-using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text.Json;
 using Duende.AccessTokenManagement;
 using Duende.AccessTokenManagement.OpenIdConnect;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.AspNetCore.DataProtection;
 using ZiggyCreatures.Caching.Fusion;
 
 
@@ -18,20 +19,19 @@ public sealed record TokenCacheEntry(UserToken userToken, string? refreshToken);
 /// Simplified implementation of a server-side token store.
 /// Probably want something more robust IRL
 /// </summary>
-public class ServerSideTokenStore(IFusionCache cache) : IUserTokenStore
+public class ServerSideTokenStore(IFusionCache cache, IDataProtectionProvider dataProtection) : IUserTokenStore
 {
-    //private static readonly ConcurrentDictionary<string, TokenForParameters> _tokens = new();
+    private const string KeyPrefix = "velotime:webui:token:";
+
+    private readonly IDataProtector _protector = dataProtection.CreateProtector("VeloTime.WebUI.UserTokenStore");
 
     public async Task<TokenResult<TokenForParameters>> GetTokenAsync(ClaimsPrincipal user, UserTokenRequestParameters? parameters = null,
         CancellationToken cancellationToken = default)
     {
-        var sub = user.FindFirst("sub")?.Value ?? throw new InvalidOperationException("no sub claim");
+        var value = await cache.TryGetAsync<string>(CacheKey(user), token: cancellationToken);
 
-        var value = await cache.TryGetAsync<UserToken>(sub, token: cancellationToken);
-
-        if (value.HasValue)
+        if (value.HasValue && TryUnprotect(value.Value, out var token))
         {
-            var token = value.Value;
             return new TokenForParameters(
                 token,
                 token.RefreshToken == null
@@ -45,8 +45,8 @@ public class ServerSideTokenStore(IFusionCache cache) : IUserTokenStore
 
     public async Task StoreTokenAsync(ClaimsPrincipal user, UserToken token, UserTokenRequestParameters? parameters = null, CancellationToken ct = default)
     {
-        var sub = user.FindFirst("sub")?.Value ?? throw new InvalidOperationException("no sub claim");
-        await cache.SetAsync(sub, token, options =>
+        var payload = _protector.Protect(JsonSerializer.Serialize(token));
+        await cache.SetAsync(CacheKey(user), payload, options =>
         {
             options.Duration = token.Expiration - DateTimeOffset.Now + TimeSpan.FromDays(7);
         }, token: ct);
@@ -54,8 +54,28 @@ public class ServerSideTokenStore(IFusionCache cache) : IUserTokenStore
 
     public async Task ClearTokenAsync(ClaimsPrincipal user, UserTokenRequestParameters? parameters = null, CancellationToken ct = default)
     {
-        var sub = user.FindFirst("sub")?.Value ?? throw new InvalidOperationException("no sub claim");
+        await cache.RemoveAsync(CacheKey(user), token: ct);
+    }
 
-        await cache.RemoveAsync(sub, token: ct);
+    private static string CacheKey(ClaimsPrincipal user)
+    {
+        var sub = user.FindFirst("sub")?.Value ?? throw new InvalidOperationException("no sub claim");
+        var sid = user.FindFirst("sid")?.Value;
+
+        return sid is null ? $"{KeyPrefix}{sub}" : $"{KeyPrefix}{sub}:{sid}";
+    }
+
+    private bool TryUnprotect(string payload, [NotNullWhen(true)] out UserToken? token)
+    {
+        try
+        {
+            token = JsonSerializer.Deserialize<UserToken>(_protector.Unprotect(payload));
+            return token is not null;
+        }
+        catch (Exception ex) when (ex is CryptographicException or JsonException)
+        {
+            token = null;
+            return false;
+        }
     }
 }

@@ -17,7 +17,7 @@ public class AccessTokenHandler(IHttpContextAccessor httpContextAccessor) :
         var accessToken = await httpContextAccessor.HttpContext
             .GetTokenAsync("access_token");
 
-        request.Headers.Authorization =
+        request.Headers.Authorization = 
             new AuthenticationHeaderValue("Bearer", accessToken);
 
         return await base.SendAsync(request, cancellationToken);

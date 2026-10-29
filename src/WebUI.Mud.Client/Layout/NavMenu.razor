@@ -1,4 +1,5 @@
 ﻿@implements IDisposable
+@using VeloTime.WebUI.Mud.Client
 
 @inject NavigationManager NavigationManager
 
@@ -11,10 +12,24 @@
 
     <AuthorizeView>
         <Authorized>
-            <MudNavGroup Icon="@Icons.Material.Filled.AdminPanelSettings" Title="Admin">
-                <MudNavLink Href="admin/facilities" Match="NavLinkMatch.Prefix">Facilities</MudNavLink>
-                <MudNavLink Href="admin/timing/installations" Match="NavLinkMatch.Prefix">Timing Systems</MudNavLink>
-            </MudNavGroup>
+            <MudNavLink Href="transponders" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Sensors">My Transponders</MudNavLink>
+            <AuthorizeView Policy="@AdministrationPolicies.Timing" Context="timingAccess">
+                <MudNavGroup Icon="@Icons.Material.Filled.Timer" Title="Timing Administration">
+                    <MudNavLink Href="admin/timing/installations" Match="NavLinkMatch.Prefix">Installations</MudNavLink>
+                    <MudNavLink Href="admin/timing/transponders" Match="NavLinkMatch.Prefix">Transponders</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+            <AuthorizeView Policy="@AdministrationPolicies.Facilities" Context="facilitiesAccess">
+                <MudNavGroup Icon="@Icons.Material.Filled.LocationOn" Title="Facilities Administration">
+                    <MudNavLink Href="admin/facilities" Match="NavLinkMatch.Prefix">Facilities</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
+            <AuthorizeView Policy="@AdministrationPolicies.Statistics" Context="statisticsAccess">
+                <MudNavGroup Icon="@Icons.Material.Filled.Analytics" Title="Statistics Administration">
+                    <MudNavLink Href="admin/statistics/items" Match="NavLinkMatch.Prefix">Items</MudNavLink>
+                    <MudNavLink Href="admin/statistics/configurations" Match="NavLinkMatch.Prefix">Configurations</MudNavLink>
+                </MudNavGroup>
+            </AuthorizeView>
             <form action="authentication/logout" method="post">
                 <AntiforgeryToken />
                 <input type="hidden" name="ReturnUrl" value="@currentUrl" />
