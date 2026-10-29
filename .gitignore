@@ -366,3 +366,10 @@ FodyWeavers.xsd
 /nuget.config
 _logs*.txt
 /src/AppHost/aspire-output
+
+# Helm dependency build artefacts
+/charts/*/charts/
+/charts/**/*.tgz
+
+# Devcontainer generated lock file
+/.devcontainer/devcontainer-lock.json
