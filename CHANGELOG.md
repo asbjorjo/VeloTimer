@@ -17,6 +17,19 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="3.0.0-alpha.74"></a>
+## [3.0.0-alpha.74](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.74) (2026-10-29)
+
+### Features
+
+* **statistics:** add public best-results query ([195fa7d](https://www.github.com/asbjorjo/VeloTimer/commit/195fa7d303655c2d76da7690e9310ad3fd624dbb))
+* **web:** display reusable best-times table on home page ([d590fdd](https://www.github.com/asbjorjo/VeloTimer/commit/d590fddf010ced974d596fca5426f7ee104adc3f))
+* **web:** expose best results through statistics services ([3e0208f](https://www.github.com/asbjorjo/VeloTimer/commit/3e0208f180dcc3a277887a52b9adec379f05d170))
+
+### Bug Fixes
+
+* **helm:** configure migration API service discovery ([faecd5a](https://www.github.com/asbjorjo/VeloTimer/commit/faecd5ac321d6eb32e25b81ec06bf22209425db3))
+
 <a name="3.0.0-alpha.73"></a>
 ## [3.0.0-alpha.73](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.73) (2026-10-29)
 
