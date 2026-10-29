@@ -14,6 +14,7 @@ namespace VeloTime.Platform.Test;
 public sealed class TransponderOwnerRenderingTests
 {
     private static readonly Guid OwnerId = Guid.Parse("da04e68b-d0e2-4590-9e83-689eab2bbf83");
+    private static readonly DateTimeOffset LastSeen = new(2026, 4, 3, 2, 5, 0, TimeSpan.Zero);
 
     [Theory]
     [InlineData(false, "Profile rider")]
@@ -30,7 +31,7 @@ public sealed class TransponderOwnerRenderingTests
             return (IReadOnlyList<TransponderDTO>)new[]
             {
                 new TransponderDTO(transponderId, "MyLaps_X2", "106187718", "HT-24422",
-                    [new(Guid.NewGuid(), transponderId, OwnerId, DateTimeOffset.UtcNow.AddDays(-1), null)])
+                    [new(Guid.NewGuid(), transponderId, OwnerId, DateTimeOffset.UtcNow.AddDays(-1), null)], LastSeen)
             };
         }));
         services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((method, _) => method.Name switch
@@ -52,11 +53,15 @@ public sealed class TransponderOwnerRenderingTests
         if (administration)
         {
             Assert.Contains("KeycloakFirst KeycloakLast", html);
+            Assert.Contains("Last seen (UTC)", html);
+            Assert.Contains("2026-04-03 02:05", html);
         }
         else
         {
             Assert.DoesNotContain("KeycloakFirst", html);
             Assert.DoesNotContain(OwnerId.ToString(), html);
+            Assert.DoesNotContain("Last seen (UTC)", html);
+            Assert.DoesNotContain("2026-04-03 02:05", html);
         }
     }
 

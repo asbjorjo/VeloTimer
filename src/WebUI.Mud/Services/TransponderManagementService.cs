@@ -13,7 +13,8 @@ public sealed class TransponderManagementService(ITimingClient client) : ITransp
         {
             var transponders = administration ? await client.TranspondersAllAsync(cancellationToken) : await client.ListMyTranspondersAsync(cancellationToken);
             return transponders.Select(transponder => new Contracts.TransponderDTO(transponder.Id, transponder.System, transponder.SystemId, transponder.Label,
-                transponder.Ownerships.Select(owner => new Contracts.TransponderOwnershipDTO(owner.Id, owner.TransponderId, owner.OwnerId, owner.OwnedFrom, owner.OwnedTo)).ToList()))
+                transponder.Ownerships.Select(owner => new Contracts.TransponderOwnershipDTO(owner.Id, owner.TransponderId, owner.OwnerId, owner.OwnedFrom, owner.OwnedTo)).ToList(),
+                transponder.LastSeen))
                 .OrderBy(transponder => transponder.Label).ToList();
         });
 

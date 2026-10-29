@@ -85,12 +85,14 @@ else
     <MudTable T="OwnershipRow" Items="Rows" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
         <HeaderContent>
             <MudTh>Transponder</MudTh><MudTh>System</MudTh>
+            @if (Administration) { <MudTh>Last seen (UTC)</MudTh> }
             <MudTh>Owner</MudTh>
             <MudTh>From (UTC)</MudTh><MudTh>To (UTC)</MudTh><MudTh>Status</MudTh><MudTh />
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Transponder">@context.Transponder.Label</MudTd>
             <MudTd DataLabel="System">@context.Transponder.System</MudTd>
+            @if (Administration) { <MudTd DataLabel="Last seen (UTC)">@Format(context.Transponder.LastSeen)</MudTd> }
             <MudTd DataLabel="Owner">
                 @if (Administration && context.Ownership is { } namedOwnership)
                 {
