@@ -31,6 +31,8 @@ public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
             RemoveServices<DbContextOptions<StatisticsDbContext>>(services);
             RemoveServices<IDbContextOptionsConfiguration<StatisticsDbContext>>(services);
             services.AddDbContext<StatisticsDbContext>(options => options.UseSqlite(connection));
+            services.AddScoped<StatisticsDbContext>(provider =>
+                new TestStatisticsDbContext(provider.GetRequiredService<DbContextOptions<StatisticsDbContext>>()));
 
             RemoveServices<HybridCache>(services);
             RemoveServices<IDistributedCache>(services);
@@ -68,6 +70,16 @@ public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
     {
         public Task<Guid?> GetFacilityAsync(Guid pointId, CancellationToken cancellationToken) =>
             Task.FromResult<Guid?>(pointId == Guid.Empty ? null : Guid.Parse("00000000-0000-0000-0000-000000000001"));
+    }
+
+    private sealed class TestStatisticsDbContext(DbContextOptions<StatisticsDbContext> options) : StatisticsDbContext(options)
+    {
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+            // SQLite cannot order TimeSpan values natively.
+            modelBuilder.Entity<Model.StatisticsEntry>().Property(entry => entry.Duration).HasConversion<long>();
+        }
     }
 
     protected override void Dispose(bool disposing)
