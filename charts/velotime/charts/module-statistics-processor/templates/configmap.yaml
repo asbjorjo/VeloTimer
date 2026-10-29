@@ -4,5 +4,5 @@ metadata:
   name: {{ .Release.Name }}-{{ .Chart.Name }}
 data:
   services__module-facilities-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "facilities")}}
+  services__module-timing-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "timing")}}
   {{- include "velotime.oidcConfig" . | nindent 2 }}
-

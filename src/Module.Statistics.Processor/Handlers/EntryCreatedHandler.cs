@@ -7,13 +7,16 @@ namespace VeloTime.Module.Statistics.Handlers;
 
 public class EntryCreatedHandler(
     StatisticsService statistics,
+    StatisticsOwnershipService ownership,
     IMessageBus messageBus,
     ILogger<EntryCreatedHandler> logger) : IConsumer<EntryCreated>
 {
     public async Task OnHandle(EntryCreated message, CancellationToken cancellationToken)
     {
         using var activity = Instrumentation.Source.StartActivity("OnHandle.EntryCreated");
-        var entries = await statistics.ProcessEntryAsync(message.TransponderId, message.StatisticsItemId, message.ConfigItemId, message.TimeStart, message.TimeEnd);
+        var entries = await ownership.CreateEntriesAsync(message.TransponderId,
+            cancel => statistics.ProcessEntryAsync(message.TransponderId, message.StatisticsItemId, message.ConfigItemId,
+                message.TimeStart, message.TimeEnd, cancel), cancellationToken);
 
         logger.LogInformation("Processed {EntriesCount} statistics entries for transponder {TransponderId}",
             entries.Count(), message.TransponderId);
@@ -28,6 +31,6 @@ public class EntryCreatedHandler(
         ));
     
         activity?.AddEvent(new("EntriesPublished"));
-        await messageBus.Publish(entryMessages);
+        await messageBus.Publish(entryMessages, cancellationToken: cancellationToken);
     }
 }

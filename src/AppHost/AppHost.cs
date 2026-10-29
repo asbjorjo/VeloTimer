@@ -127,10 +127,12 @@ var statsproc = builder.AddProject<Projects.VeloTime_Module_Statistics_Processor
     .WithReference(velotimedb)
     .WithReference(servicebusconnection)
     .WithReference(facilityapi)
+    .WithReference(timingapi)
     .WithReference(keycloak)
     .WithEnvironment("CLIENT_SECRET", statisticsprocsecret)
     .WaitFor(velotimedb)
     .WaitFor(facilityapi)
+    .WaitFor(timingapi)
     .WithExplicitStart();
 var timingproc = builder.AddProject<Projects.VeloTime_Module_Timing_Processor>("module-timing-processor")
     .WithReference(cache)

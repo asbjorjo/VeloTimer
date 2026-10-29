@@ -42,6 +42,7 @@ public class StatisticsDbContext : BaseDbContext
                 .OnDelete(DeleteBehavior.ClientNoAction);
             e.HasOne(e => e.StatsProfile)
                 .WithMany()
+                .HasForeignKey(e => e.StatsProfileUserId)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(s => new { s.StatisticsItemId, s.TransponderId, s.TimeStart, s.TimeEnd });

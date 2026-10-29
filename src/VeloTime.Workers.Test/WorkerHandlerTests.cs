@@ -203,10 +203,11 @@ public sealed class WorkerHandlerTests
         services.AddMetrics();
         using var serviceProvider = services.BuildServiceProvider();
         var statistics = new StatisticsService(storage, serviceProvider.GetRequiredService<HybridCache>());
+        var ownership = new StatisticsOwnershipService(storage, new EmptyOwnershipReader());
         var metrics = new Metrics(serviceProvider.GetRequiredService<IMeterFactory>());
         var (messageBus, recorder) = RecordingMessageBus.Create();
-        var sampleHandler = new SampleCompleteHandler(statistics, metrics, messageBus, NullLogger<SampleCompleteHandler>.Instance);
-        var entryHandler = new EntryCreatedHandler(statistics, messageBus, NullLogger<EntryCreatedHandler>.Instance);
+        var sampleHandler = new SampleCompleteHandler(statistics, ownership, metrics, messageBus, NullLogger<SampleCompleteHandler>.Instance);
+        var entryHandler = new EntryCreatedHandler(statistics, ownership, messageBus, NullLogger<EntryCreatedHandler>.Instance);
 
         await sampleHandler.OnHandle(new SampleComplete(Guid.NewGuid(), DateTime.UtcNow.AddSeconds(-10), DateTime.UtcNow, Guid.NewGuid(), Guid.NewGuid(), 100), CancellationToken.None);
         await entryHandler.OnHandle(new EntryCreated(Guid.NewGuid(), DateTime.UtcNow.AddSeconds(-10), DateTime.UtcNow, Guid.NewGuid(), Guid.NewGuid()), CancellationToken.None);
@@ -215,6 +216,13 @@ public sealed class WorkerHandlerTests
         Assert.Empty((IEnumerable<EntryCreated>)recorder.Published[0].Payload!);
         Assert.Equal(true, recorder.Published[0].Headers!["Single"]);
         Assert.Empty((IEnumerable<EntryCreated>)recorder.Published[1].Payload!);
+    }
+
+    private sealed class EmptyOwnershipReader : ITransponderOwnershipReader
+    {
+        public Task<IReadOnlyList<VeloTime.Module.Timing.Interface.Data.TransponderOwnershipDTO>> ReadAsync(
+            Guid transponderId, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<VeloTime.Module.Timing.Interface.Data.TransponderOwnershipDTO>>([]);
     }
 
     private sealed class RecordingControlService : IControlService

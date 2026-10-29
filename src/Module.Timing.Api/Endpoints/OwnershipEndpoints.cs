@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using VeloTime.Module.Common;
 using VeloTime.Module.Timing.Interface.Data;
@@ -12,6 +13,9 @@ internal static class OwnershipEndpoints
 {
     internal static void MapOwnershipEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/ownerships/{transponderId:guid}", GetTransponderOwnerships)
+            .RequireAuthorization(AdministrationAuthorization.OwnershipReadPolicy)
+            .WithName("GetTransponderOwnerships");
         var personal = endpoints.MapGroup("/my").RequireAuthorization();
         personal.MapGet("/transponders", ListPersonal).WithName("ListMyTransponders").Produces<TransponderPage>();
         personal.MapPost("/transponders/query", QueryPersonal).WithName("QueryMyTransponders").Produces<TransponderPage>();
@@ -31,6 +35,16 @@ internal static class OwnershipEndpoints
             await Execute(async () => { await service.RemoveOrEndAsync(id, null, true, cancellationToken); return Results.NoContent(); })).WithName("EndTransponderOwnership").Produces(StatusCodes.Status204NoContent);
         admin.MapDelete("/{id:guid}", async (Guid id, TransponderOwnershipService service, CancellationToken cancellationToken) =>
             await Execute(async () => { await service.RemoveOrEndAsync(id, null, false, cancellationToken); return Results.NoContent(); })).WithName("DeleteTransponderOwnership").Produces(StatusCodes.Status204NoContent);
+    }
+
+    private static async Task<Ok<List<TransponderOwnershipDTO>>> GetTransponderOwnerships(
+        Guid transponderId, TimingDbContext storage, CancellationToken cancellationToken)
+    {
+        var owners = await storage.Set<TransponderOwner>().AsNoTracking()
+            .Where(owner => owner.TransponderId == transponderId)
+            .OrderBy(owner => owner.OwnedFrom).ThenBy(owner => owner.Id)
+            .ToListAsync(cancellationToken);
+        return TypedResults.Ok(owners.Select(TransponderOwnershipService.ToDto).ToList());
     }
 
     private static Guid? Subject(ClaimsPrincipal user) =>

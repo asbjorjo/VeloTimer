@@ -7,6 +7,7 @@ namespace VeloTime.Module.Statistics.Handlers;
 
 public class SampleCompleteHandler(
     StatisticsService statistics,
+    StatisticsOwnershipService ownership,
     Metrics metrics,
     IMessageBus messageBus,
     ILogger<SampleCompleteHandler> logger
@@ -17,7 +18,9 @@ public class SampleCompleteHandler(
         using var activity = Instrumentation.Source.StartActivity("OnHandle.SampleComplete");
         activity?.SetTag("TransponderId", message.TransponderId);
 
-        var entries = await statistics.ProcessCompletedAsync(message.TransponderId, message.TimeStart, message.TimeEnd, message.CoursePointStart, message.CoursePointEnd, cancellationToken);
+        var entries = await ownership.CreateEntriesAsync(message.TransponderId,
+            cancel => statistics.ProcessCompletedAsync(message.TransponderId, message.TimeStart, message.TimeEnd,
+                message.CoursePointStart, message.CoursePointEnd, cancel), cancellationToken);
         activity?.SetTag("EntriesCreated", entries.Count());
         logger.LogInformation("Processed SampleComplete for TransponderId: {TransponderId}, Entries Created: {EntryCount}",
             message.TransponderId, entries.Count());
@@ -33,6 +36,6 @@ public class SampleCompleteHandler(
         metrics.SampleCompleted((DateTime.UtcNow - activity?.StartTimeUtc)?.TotalMilliseconds ?? 0);
 
         activity?.AddEvent(new("EntriesPublished"));
-        await messageBus.Publish(entryMessages, headers: new Dictionary<string, object> { ["Single"] = true });
+        await messageBus.Publish(entryMessages, headers: new Dictionary<string, object> { ["Single"] = true }, cancellationToken: cancellationToken);
     }
 }

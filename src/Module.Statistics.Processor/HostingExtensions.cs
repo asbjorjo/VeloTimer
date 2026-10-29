@@ -6,6 +6,7 @@ using SlimMessageBus.Host.Serialization.SystemTextJson;
 using VeloTime.Module.Statistics;
 using VeloTime.Module.Statistics.Handlers;
 using VeloTime.Module.Statistics.Interface.Messages;
+using VeloTime.Module.Statistics.Service;
 using VeloTime.Module.Timing.Interface.Messages;
 
 internal static class StartupExtensions
@@ -43,6 +44,12 @@ internal static class StartupExtensions
                 .EnableSession(s => {
                     //s.MaxConcurrentSessions(1);
                 }));
+            mbb.Consume<TransponderOwnershipChanged>(x => x
+                .Topic("velotime-timing-test")
+                .SubscriptionName("statistics")
+                .WithConsumer<TransponderOwnershipChangedHandler>()
+                .Instances(1)
+                .EnableSession());
             mbb.Consume<EntryCreated>(x => x
                 .Topic("velotime-statistics-test")
                 .SubscriptionName("statistics")
@@ -82,6 +89,12 @@ internal static class StartupExtensions
         });
 
         builder.AddModuleIdentity("velotime.statistics.processor");
+
+        services.AddTimingClient()
+            .AddDefaultAccessTokenResiliency()
+            .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("velotime.statistics.processor"));
+        services.AddScoped<ITransponderOwnershipReader, TransponderOwnershipReader>();
+        services.AddScoped<StatisticsOwnershipService>();
 
         services.AddFacilitiesClient()
             .AddDefaultAccessTokenResiliency()

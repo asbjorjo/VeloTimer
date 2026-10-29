@@ -29,6 +29,10 @@
   "roles": {
     "realm": [
       {
+        "name": "statistics-processor",
+        "description": "Read transponder ownership for statistics profile assignment"
+      },
+      {
         "name": "velotime-user",
         "description": "User role"
       },
@@ -246,6 +250,14 @@
     ]
   },
   "users": [
+    {
+      "username": "service-account-velotime.statistics.processor",
+      "enabled": true,
+      "serviceAccountClientId": "velotime.statistics.processor",
+      "realmRoles": [
+        "statistics-processor"
+      ]
+    },
     {
       "username": "testuser",
       "enabled": true,

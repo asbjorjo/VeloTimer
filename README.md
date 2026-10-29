@@ -313,8 +313,10 @@ the API does not provision Service Bus topology. Configure
 `MessageBus` reference; Helm exposes `secrets.MessageBus`. With `existingSecret`,
 include the `ConnectionStrings__MessageBus` key in that secret.
 
-Delivery is **at least once**: consumers must deduplicate by `EventId`, which is
-preserved through retries and restarts. No consumer is added here. The outbox
+Delivery is **at least once**: consumers must be idempotent or deduplicate by
+`EventId`, which is preserved through retries and restarts. The Statistics
+processor reconciles profile links against current ownership, making repeated
+deliveries and replayed snapshots safe without a processed-event table. The outbox
 preserves its sequence across API instances and dispatches one event at a time
 to prevent later ownership events overtaking a failed event. A blocked event can
 therefore delay all ownership events. This does not order ownership events
@@ -322,6 +324,60 @@ relative to independently published passing/sample events. Idle polling is every
 five seconds; the Service Bus client's retry policy applies to transport sends.
 The library delivery-attempt limit is set to `int.MaxValue` rather than the
 three-attempt default so ordinary outages do not exhaust retries.
+
+#### Statistics profile assignment
+
+The Statistics processor consumes ownership changes on `velotime-timing-test`,
+subscription `statistics`, alongside `TimingSampleComplete`. If subscription
+filters are managed externally, allow both message types (`MessageName`) and
+retain session support. Before/after periods identify impacted entries, including
+entries losing coverage after an ownership is shortened, moved, or deleted.
+The processor reads all current ownership periods from
+`GET /api/timing/ownerships/{transponderId}`; it does not apply stale event
+snapshots as the desired state or access the Timing database.
+
+An entry belongs to an owner only when one ownership period contains the entire
+entry: `TimeStart >= OwnedFrom`, `TimeStart < OwnedTo`, and `TimeEnd <= OwnedTo`
+for a bounded period. An entry ending exactly at the ownership end is included;
+one starting at that instant is not. Open-ended periods have no upper bound.
+Entries spanning ownership boundaries have no profile link. The processor clears
+stale links but does not recalculate durations, speeds, or statistics definitions.
+Simple and multi-entry creation use the same assignment rules, including when
+the ownership event arrived before the entry existed.
+
+Owners map to `StatsProfile.UserId`. Missing profiles are automatically created
+with the display name `Rider {owner GUID}` and **`IsPublic = true`**. This makes
+their eligible results visible in public statistics. Existing profile names and
+privacy settings are preserved. No Keycloak user-name lookup is performed.
+
+The processor serializes creation/reconciliation per transponder using a
+Statistics-owned PostgreSQL transaction advisory lock, with ordered owner locks
+to prevent duplicate profile creation across transponders/replicas. Profile
+updates and entry creation commit together, before downstream entry messages are
+published. Ownership changes in Timing remain independently transactional and
+converge through subsequent events. Timing lookup failures fail processing for
+normal message retry, rather than clearing links as if ownership were empty.
+
+The read endpoint requires `timing.ownership.read` (or existing Timing/global
+administration permission). The checked-in realm assigns the narrow
+`statistics-processor` realm role to the
+`velotime.statistics.processor` service account. For existing realms, create that
+role and assign it to the processor service account; include realm roles and the
+application audience in its access tokens. This role does not grant ownership
+mutations or Timing administration. Configure the processor's existing
+`CLIENT_SECRET` and Keycloak connection, plus Timing service discovery.
+Aspire supplies the Timing API reference/readiness dependency; Helm supplies
+`services__module-timing-api__http__0`. No Statistics schema migration is required.
+This is not a blanket historical backfill: unaffected historical entries are
+updated only by a relevant ownership event.
+
+PostgreSQL ownership/concurrency tests create and drop uniquely named isolated
+databases. Set `VELOTIME_TEST_STATISTICS_POSTGRES` to a test connection with
+database create/drop privileges, then run:
+
+```sh
+OIDC_AUDIENCE=https://test.invalid dotnet test src/VeloTime.Workers.Test/VeloTime.Workers.Test.csproj --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
+```
 
 Run the existing Timing EF migration worker before starting the API so the
 `timing` schema exists. At API startup, the library applies its supported outbox

@@ -10,7 +10,8 @@ public class StatisticsEntry
     public StatisticsItemConfig StatisticsItemConfig { get; init; } = default!;
     public Guid StatisticsItemConfigId { get; init; }
     public Guid TransponderId { get; init; }
-    public StatsProfile? StatsProfile { get; init; }
+    public StatsProfile? StatsProfile { get; set; }
+    public Guid? StatsProfileUserId { get; set; }
     public TimeSpan Duration { get; init; }
     public double Speed { get; init; }
     public Guid FacilityId { get; init; }

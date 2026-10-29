@@ -16,12 +16,14 @@ public static class AdministrationAuthorization
     public const string StatisticsPermission = "statistics.admin";
     public const string TimingLinkPermission = "coursepoint-timing-link.write";
     public const string ReferencesPermission = "administration.references.read";
+    public const string OwnershipReadPermission = "timing.ownership.read";
 
     public const string FacilitiesPolicy = "Facilities.Admin";
     public const string TimingPolicy = "Timing.Admin";
     public const string StatisticsPolicy = "Statistics.Admin";
     public const string TimingLinkPolicy = "CoursePointTimingLink.Write";
     public const string ReferencePolicy = "Administration.References";
+    public const string OwnershipReadPolicy = "Timing.Ownership.Read";
 
     public static IServiceCollection AddAdministrationAuthorization(this IServiceCollection services)
     {
@@ -31,7 +33,8 @@ public static class AdministrationAuthorization
             .AddPolicy(TimingPolicy, policy => RequireAnyPermission(policy, GlobalPermission, TimingPermission))
             .AddPolicy(StatisticsPolicy, policy => RequireAnyPermission(policy, GlobalPermission, StatisticsPermission))
             .AddPolicy(TimingLinkPolicy, policy => RequireAnyPermission(policy, GlobalPermission, TimingLinkPermission))
-            .AddPolicy(ReferencePolicy, policy => RequireAnyPermission(policy, GlobalPermission, ReferencesPermission));
+            .AddPolicy(ReferencePolicy, policy => RequireAnyPermission(policy, GlobalPermission, ReferencesPermission))
+            .AddPolicy(OwnershipReadPolicy, policy => RequireAnyPermission(policy, GlobalPermission, TimingPermission, OwnershipReadPermission));
         return services;
     }
 
@@ -46,6 +49,7 @@ public sealed class RealmPermissionClaimsTransformation : IClaimsTransformation
 {
     private static readonly IReadOnlyDictionary<string, string[]> PermissionsByRealmRole = new Dictionary<string, string[]>(StringComparer.Ordinal)
     {
+        ["statistics-processor"] = [AdministrationAuthorization.OwnershipReadPermission],
         ["velotime-admin"] = [
             AdministrationAuthorization.GlobalPermission,
             AdministrationAuthorization.FacilitiesPermission,
