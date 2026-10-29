@@ -117,6 +117,10 @@ Login, logout, password changes, and provider challenges remain full-page
 `/authentication/...` operations. Before a browser mutation, the HTTP handler
 fetches `GET /api/antiforgery`, then sends its JSON string token in `X-CSRF-TOKEN`.
 Mutations without a valid token are rejected. BFF responses are marked `no-store`.
+For upstream mutations that require no response body, the BFF accepts any HTTP
+200–299 status while preserving its existing browser-facing response codes.
+Calls requiring a DTO still require a valid response body. Non-success responses
+continue through the existing error handling.
 
 Run the application through the Aspire AppHost for service discovery and its
 Redis, Keycloak, and domain API dependencies. Focused boundary tests run with:

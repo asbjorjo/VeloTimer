@@ -43,22 +43,22 @@ public sealed class TransponderManagementService(ITimingClient client) : ITransp
     public Task SaveOwnershipAsync(Guid? id, Contracts.SaveTransponderOwnershipRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
     {
         var body = new SaveTransponderOwnershipRequest { TransponderId = request.TransponderId, OwnerId = request.OwnerId, OwnedFrom = request.OwnedFrom, OwnedTo = request.OwnedTo };
-        if (id.HasValue) await client.UpdateTransponderOwnershipAsync(id.Value, body, cancellationToken);
-        else await client.CreateTransponderOwnershipAsync(body, cancellationToken);
+        if (id.HasValue) await AdministrationClientCall.ExecuteNoContent(() => client.UpdateTransponderOwnershipAsync(id.Value, body, cancellationToken));
+        else await AdministrationClientCall.ExecuteNoContent(() => client.CreateTransponderOwnershipAsync(body, cancellationToken));
         return true;
     });
 
     public Task EndOwnershipAsync(Guid id, bool administration, CancellationToken cancellationToken = default) => Execute(async () =>
     {
-        if (administration) await client.EndTransponderOwnershipAsync(id, cancellationToken);
-        else await client.EndMyTransponderOwnershipAsync(id, cancellationToken);
+        if (administration) await AdministrationClientCall.ExecuteNoContent(() => client.EndTransponderOwnershipAsync(id, cancellationToken));
+        else await AdministrationClientCall.ExecuteNoContent(() => client.EndMyTransponderOwnershipAsync(id, cancellationToken));
         return true;
     });
 
     public Task DeleteOwnershipAsync(Guid id, bool administration, CancellationToken cancellationToken = default) => Execute(async () =>
     {
-        if (administration) await client.DeleteTransponderOwnershipAsync(id, cancellationToken);
-        else await client.DeleteMyTransponderOwnershipAsync(id, cancellationToken);
+        if (administration) await AdministrationClientCall.ExecuteNoContent(() => client.DeleteTransponderOwnershipAsync(id, cancellationToken));
+        else await AdministrationClientCall.ExecuteNoContent(() => client.DeleteMyTransponderOwnershipAsync(id, cancellationToken));
         return true;
     });
 
@@ -70,7 +70,7 @@ public sealed class TransponderManagementService(ITimingClient client) : ITransp
 
     public Task DeleteTransponderAsync(Guid id, CancellationToken cancellationToken = default) => Execute(async () =>
     {
-        await client.DeleteTransponderAsync(id, cancellationToken);
+        await AdministrationClientCall.ExecuteNoContent(() => client.DeleteTransponderAsync(id, cancellationToken));
         return true;
     });
 

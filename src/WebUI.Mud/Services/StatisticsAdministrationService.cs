@@ -27,7 +27,7 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client) : 
 
     public Task DeleteItemAsync(Guid id, CancellationToken cancellationToken = default) => Execute(async () =>
     {
-        await client.DeleteStatisticsItemAsync(id, cancellationToken);
+        await AdministrationClientCall.ExecuteNoContent(() => client.DeleteStatisticsItemAsync(id, cancellationToken));
         return true;
     });
 
@@ -45,7 +45,7 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client) : 
 
     public Task DeleteConfigurationAsync(Guid id, CancellationToken cancellationToken = default) => Execute(async () =>
     {
-        await client.DeleteStatisticsConfigurationAsync(id, cancellationToken);
+        await AdministrationClientCall.ExecuteNoContent(() => client.DeleteStatisticsConfigurationAsync(id, cancellationToken));
         return true;
     });
 

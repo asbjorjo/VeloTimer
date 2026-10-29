@@ -73,7 +73,7 @@ public class TimingService(ITimingClient timing, IFacilitiesClient facilities) :
             }).ToList()
         };
 
-        await timing.InstallationsPUTAsync(installation.Id, request, cancellationToken);
+        await AdministrationClientCall.ExecuteNoContent(() => timing.InstallationsPUTAsync(installation.Id, request, cancellationToken));
     }
 
     private async Task<string> GetFacilityNameAsync(Guid facilityId, CancellationToken cancellationToken)

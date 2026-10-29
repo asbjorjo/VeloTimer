@@ -5,6 +5,22 @@ namespace VeloTime.WebUI.Mud.Services;
 
 internal static class AdministrationClientCall
 {
+    internal static async Task ExecuteNoContent(Func<Task> action)
+    {
+        try { await action(); }
+        // Generated clients can reject successful statuses not declared in the upstream OpenAPI contract.
+        catch (Exception exception) when (exception switch
+        {
+            Module.Facilities.Client.ApiException api => api.StatusCode is >= 200 and <= 299,
+            Module.Timing.Client.ApiException api => api.StatusCode is >= 200 and <= 299,
+            Module.Statistics.Client.ApiException api => api.StatusCode is >= 200 and <= 299,
+            Keycloak.ApiException api => api.StatusCode is >= 200 and <= 299,
+            _ => false
+        })
+        {
+        }
+    }
+
     internal static async Task<TResult> Execute<TResult>(Func<Task<TResult>> action)
     {
         try { return await action(); }

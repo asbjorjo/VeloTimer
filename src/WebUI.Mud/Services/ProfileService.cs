@@ -36,6 +36,6 @@ public class ProfileService(IKeycloakClient keycloak) : IProfileService
 
     public async Task DeleteLinkedAccountAsync(string Provider, CancellationToken cancellationToken = default)
     {
-        await keycloak.DeleteLinkedProviderAsync(realm, Provider, cancellationToken);
+        await AdministrationClientCall.ExecuteNoContent(() => keycloak.DeleteLinkedProviderAsync(realm, Provider, cancellationToken));
     }
 }
