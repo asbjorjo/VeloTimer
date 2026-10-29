@@ -17,6 +17,15 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.1"></a>
+## [2.1.0-alpha.1](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.1) (2026-10-29)
+
+### Features
+
+* **timing:** expose transponder last-seen timestamps ([b20e9c1](https://www.github.com/asbjorjo/VeloTimer/commit/b20e9c1c6a298e2b9aa1c8de60e3167a2ddc524e))
+* **timing:** paginate transponder management server-side ([ee1e721](https://www.github.com/asbjorjo/VeloTimer/commit/ee1e72127e9c2d0a9ec967a475a2e92aab4dd985))
+* **web:** show transponder last seen in administration ([303e73f](https://www.github.com/asbjorjo/VeloTimer/commit/303e73fa52bb7bfe6df9efadc883538f9aaba3ae))
+
 <a name="2.1.0-alpha.0"></a>
 ## [2.1.0-alpha.0](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.0) (2026-10-29)
 

@@ -9,7 +9,7 @@
     <DockerfileContext>..\..</DockerfileContext>
     <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
     <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
-	<Version>2.1.0-alpha.0</Version>
+	<Version>2.1.0-alpha.1</Version>
 	<ContainerRepository>asbjorjo/velotime-module-statistics-api</ContainerRepository>
 	<ContainerImageTag>$(Version)</ContainerImageTag>
 	<OpenApiDocumentsDirectory>..\..\api</OpenApiDocumentsDirectory>
