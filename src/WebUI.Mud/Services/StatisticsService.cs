@@ -25,7 +25,7 @@ public class StatisticsService(
             var names = new Dictionary<Guid, string>();
             foreach (var id in results.Select(result => result.FacilityId).Distinct())
             {
-                var facility = await facitilies.FacilityAsync(id, cancellationToken);
+                var facility = await facitilies.Facility2Async(id, cancellationToken);
                 if (facility is null || string.IsNullOrWhiteSpace(facility.Name))
                     throw new HttpRequestException("The result facility could not be resolved.", null, HttpStatusCode.BadGateway);
                 names.Add(id, facility.Name);
