@@ -17,7 +17,7 @@
 *** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
 *** https://www.markdownguide.org/basic-syntax/#reference-style-links
 -->
-[![Build pre-release](https://github.com/asbjorjo/VeloTimer/actions/workflows/prerelease.yml/badge.svg)](https://github.com/asbjorjo/VeloTimer/actions/workflows/prerelease.yml)
+[![Build pre-release](https://github.com/asbjorjo/VeloTimer/actions/workflows/development-release.yml/badge.svg?branch=v2)](https://github.com/asbjorjo/VeloTimer/actions/workflows/development-release.yml)
 <br/>
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
@@ -86,6 +86,39 @@ An aside is to produce fun statistics for riders and track owners.
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- ROADMAP -->
+## Publishing
+
+Pushes to `v2` automatically run the
+[Development Release workflow](.github/workflows/development-release.yml), which
+calls the reusable [Publish workflow](.github/workflows/publish.yml) with the
+`alpha` prerelease identifier. Versionize retains its
+`--exit-insignificant-commits` behavior: pushes without significant commits do not
+publish a new version and leave the rolling prerelease unchanged. Such runs stop
+with Versionize's existing nonzero exit status.
+
+Successful alpha builds publish NuGet packages to GitHub Packages and container
+images to GHCR. The workflow pushes version commits and tags back to the branch
+and updates chart image tags and `appVersion` to the published version. Packages
+and images use unique versions such as `2.1.0-alpha.2`. After successful
+publishing, the development workflow creates or updates the single
+[rolling alpha prerelease](https://github.com/asbjorjo/VeloTimer/releases/tag/alpha)
+and moves its `alpha` tag to the exact published commit. It is never marked as
+the latest stable release. Failed publishes do not advance the rolling release.
+Helm chart packages are not published by this workflow.
+
+Development runs are serialized without cancelling active publishing; newer
+pushes may replace pending runs. Workflow-generated pushes use `GITHUB_TOKEN`
+and do not recursively trigger publishing. Repository policies must allow that
+token to write packages, push version commits/tags, and move the `alpha` tag.
+
+Manual Publish runs remain available: leave `prerelease` empty for the existing
+stable publishing behavior or supply an identifier such as `alpha` or `beta`.
+Successful manual Publish runs still trigger the
+[GitHub Release workflow](.github/workflows/github-release.yml), creating
+version-specific releases rather than updating the rolling `alpha` prerelease.
+The GitHub Release workflow's compatibility changes must also be present on the
+default branch, where GitHub evaluates its `workflow_run` trigger.
+
 ## WebUI Backend for Frontend
 
 `WebUI.Mud` hosts the browser API and owns backend service discovery, aggregation,

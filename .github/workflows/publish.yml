@@ -8,16 +8,41 @@ on:
         required: false
         type: string
         default: ''
+  workflow_call:
+    inputs:
+      prerelease:
+        description: Prerelease tag (optional)
+        required: false
+        type: string
+        default: ''
+    outputs:
+      version:
+        description: Published application version
+        value: ${{ jobs.publish-new-version.outputs.version }}
+      commit:
+        description: Published commit including chart metadata updates
+        value: ${{ jobs.publish-new-version.outputs.commit }}
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
   publish-new-version:
     runs-on: ubuntu-latest
+    concurrency:
+      group: publish-${{ github.ref }}
+      cancel-in-progress: false
+    outputs:
+      version: ${{ steps.published.outputs.version }}
+      commit: ${{ steps.published.outputs.commit }}
     env:
       OIDC_AUDIENCE: https://build.invalid
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: '0'
+          ref: ${{ github.ref }}
 
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
@@ -34,10 +59,23 @@ jobs:
 
       - name: Version Bump
         env:
-          PRERELEASE: ${{ github.event.inputs.prerelease }}
-        run: >
-          dotnet tool run versionize -- --exit-insignificant-commits
-          ${{ env.PRERELEASE != '' && format('--pre-release {0}', env.PRERELEASE) || '' }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          args=(--exit-insignificant-commits)
+          if [[ -n "$PRERELEASE" ]]; then
+            args+=(--pre-release "$PRERELEASE")
+          fi
+          dotnet tool run versionize -- "${args[@]}"
+
+      - name: Get application version
+        id: version
+        run: |
+          APP_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/AppHost/VeloTime.AppHost.csproj | head -n 1)
+          if [[ -z "$APP_VERSION" ]]; then
+            echo "::error ::Unable to read <Version> from VeloTime.AppHost.csproj"
+            exit 1
+          fi
+          echo "version=$APP_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v4
@@ -59,15 +97,11 @@ jobs:
         run: dotnet publish --configuration Release /t:PublishContainer -p ContainerRegistry=ghcr.io
 
       - name: Update chart versions
-        if: github.event.inputs.prerelease != ''
+        if: inputs.prerelease != ''
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -e
-          APP_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/AppHost/VeloTime.AppHost.csproj | head -n 1)
-          if [[ -z "$APP_VERSION" ]]; then
-            echo "::error ::Unable to read <Version> from VeloTime.AppHost.csproj"
-            exit 1
-          fi
-          export APP_VERSION
           for chart in velotime velotime-bootstrap velotime-migration; do
             yq -i '.global.image.tag = strenv(APP_VERSION)' "charts/$chart/values.yaml"
             yq -i '.appVersion = strenv(APP_VERSION)' "charts/$chart/Chart.yaml"
@@ -78,8 +112,15 @@ jobs:
           fi
 
       - name: Push changes to GitHub
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
-          tags: true
+        env:
+          PUBLISH_REF: ${{ github.ref }}
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: git push --atomic origin "HEAD:$PUBLISH_REF" "refs/tags/v$APP_VERSION"
+
+      - name: Record published version and commit
+        id: published
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          echo "version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"

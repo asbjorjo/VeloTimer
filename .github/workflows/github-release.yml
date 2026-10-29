@@ -7,9 +7,15 @@ on:
     types:
       - completed
 
+permissions:
+  contents: write
+
 jobs:
   create-release:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,7 +46,7 @@ jobs:
           } >> $GITHUB_ENV
 
       - name: Get latest tag
-        run: echo "VERSION_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+        run: echo "VERSION_TAG=$(git describe --tags --exclude=alpha --abbrev=0)" >> $GITHUB_ENV
 
       - name: Create a Release
         uses: softprops/action-gh-release@v2
