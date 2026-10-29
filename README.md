@@ -101,6 +101,24 @@ Public reads:
 * `GET /api/facilities/{facilityId}/layouts`
 * `GET /api/layouts/{layoutId}`
 * `GET /api/statistics/samples?cursor=...&isNextPage=false&pageSize=10`
+* `GET /api/statistics/best-results?facilityId=...&from=...&to=...`
+
+The front page shows one fastest public result per statistics item across all
+facilities for the rolling last 30 days. Each row includes the statistics profile
+name, average speed in km/h, elapsed time, and facility name. Speed and elapsed
+seconds display three decimal places; both columns are right-aligned. Hidden profiles and
+results without a linked statistics profile are excluded before selecting winners.
+Result processing does not currently populate profile links automatically; without
+existing public profile links, the table is empty.
+
+The reusable `StatisticsTable` component accepts optional `FacilityId`, `From`, and
+`To` parameters. Omit the facility for all facilities and omit time bounds for
+all-time results. Bounds filter result completion time in UTC, with an inclusive
+`From` and exclusive `To`; a supplied range must have `From < To`. Equal durations
+are resolved by earliest completion time, then result ID. Items without eligible
+results are omitted. The Statistics API exposes the same best-results route and
+filters; the WebUI BFF resolves facility names without exposing backend services
+to the browser. The table distinguishes loading, empty data, and retryable errors.
 
 Cookie-authenticated operations:
 

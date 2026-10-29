@@ -1,29 +1,14 @@
 ﻿@page "/"
 @using VeloTime.WebUI.Mud.Client.Components
 
-<MudGrid Spacing="12">
-    <MudItem xs="3">
-        <MudText Typo="Typo.h5">Status</MudText>
-        <FacilityStatus Status="@SolaStatus" />
-        <FacilityStatus Status="@AskerStatus" />
-    </MudItem>
-    <MudItem xs="6">
-        <MudText Typo="Typo.h5">Tider</MudText>
-        <MudGrid>
-            <MudItem xs="12">
-                <PeriodLeaders />
-            </MudItem>
-            <MudItem xs="12">
-                <PeriodLeaders />
-            </MudItem>
-        </MudGrid>
-    </MudItem>
-</MudGrid>
+<PageTitle>Best times</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    <MudText Typo="Typo.h4" HtmlTag="h1" Class="mb-2">Best times - last 30 days</MudText>
+    <MudText Class="mb-4">The fastest public result for each statistics item across all facilities.</MudText>
+    <StatisticsTable From="@_periodEnd.AddDays(-30)" To="@_periodEnd" />
+</MudContainer>
 
 @code {
-    private static readonly FacilityStatusViewModel SolaStatus =
-        new("Sola", false, 0);
-
-    private static readonly FacilityStatusViewModel AskerStatus =
-        new("Asker", true, 18);
+    private readonly DateTimeOffset _periodEnd = DateTimeOffset.UtcNow;
 }
