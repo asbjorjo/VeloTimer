@@ -284,6 +284,78 @@ administrator roles or bypass ownership checks. Existing realms need the scope
 assigned to clients and users must sign out and back in after scope assignments
 change so newly issued tokens contain the claims.
 
+### Transponder Ownership Events
+
+The Timing API queues [TransponderOwnershipChanged](src/Module.Timing.Interface/Messages/TransponderOwnershipChanged.cs)
+in a PostgreSQL transactional outbox within the same transaction as the ownership
+change. Either both commit or neither does. A committed request does not wait for
+Azure Service Bus delivery, so broker outages do not prevent saving ownership.
+Serialization/outbox persistence failures roll back the mutation and return HTTP
+500; they are not reported as ownership conflicts.
+
+Each event contains a stable `EventId`, `TransponderId`, and a `Changes` list
+ordered by ownership record ID. Each change includes `Before` and `After`
+snapshots with the record ID, transponder ID, owner ID, inclusive UTC start,
+and optional exclusive UTC end. Creation has a null `Before`; deletion has a null
+`After`. Registration/reconciliation, claiming, admin creation/editing, ending,
+deletion, and the legacy add-owner endpoint queue one event per changed operation,
+including historical and future periods. Reconciliation groups updates and
+deletions into one event. No event is queued for unchanged saves, repeated
+claims/registrations, confirmation previews, rejected requests, or failed
+transactions. Reaching a period's start or end time does not itself queue an event.
+
+The API host dispatches committed messages using SlimMessageBus's PostgreSQL
+DbContext outbox integration. Messages go to the existing `velotime-timing-test`
+topic as JSON, with `MessageName = TransponderOwnershipChanged`, the transponder
+ID as `SessionId`, and `EventId` as `MessageId`. The topic must already exist;
+the API does not provision Service Bus topology. Configure
+`ConnectionStrings__MessageBus` for the Timing API. Aspire provides the
+`MessageBus` reference; Helm exposes `secrets.MessageBus`. With `existingSecret`,
+include the `ConnectionStrings__MessageBus` key in that secret.
+
+Delivery is **at least once**: consumers must deduplicate by `EventId`, which is
+preserved through retries and restarts. No consumer is added here. The outbox
+preserves its sequence across API instances and dispatches one event at a time
+to prevent later ownership events overtaking a failed event. A blocked event can
+therefore delay all ownership events. This does not order ownership events
+relative to independently published passing/sample events. Idle polling is every
+five seconds; the Service Bus client's retry policy applies to transport sends.
+The library delivery-attempt limit is set to `int.MaxValue` rather than the
+three-attempt default so ordinary outages do not exhaust retries.
+
+Run the existing Timing EF migration worker before starting the API so the
+`timing` schema exists. At API startup, the library applies its supported outbox
+migrations in that schema, creating `timing.smb_outbox`,
+`timing."__EFMigrationsHistory"`, indexes, and its locking function. These are
+separate from EF's module migration history in the `ef` schema; no EF model change
+is needed. The API database role needs schema `USAGE`/`CREATE`, permission to
+create the outbox tables/indexes/function, and read/write/delete/execute access
+to those objects. Startup waits for outbox initialization and fails explicitly
+if it cannot complete. Build-time OpenAPI generation skips messaging startup.
+
+Delivery failures are logged by SlimMessageBus. Inspect `timing.smb_outbox`:
+`delivery_complete = false AND delivery_aborted = false` is the pending backlog;
+`timestamp` shows its age, `delivery_attempt` shows attempts, and
+`delivery_aborted = true` requires operator investigation (for example an
+unresolvable event type after a deployment). Keep event contracts compatible
+across replicas and restarts. Fix the underlying cause before requeueing an
+aborted message; do not generate a replacement event ID. Delivered messages older
+than three days are cleaned hourly in batches of 100. Pending and aborted events
+are not removed by that cleanup.
+
+Outbox integration tests use real PostgreSQL and the real SlimMessageBus dispatcher
+with a controlled Azure sender, without a live broker. Set
+`VELOTIME_TEST_OUTBOX_POSTGRES` to a test PostgreSQL connection whose role can
+create/drop databases, then run:
+
+```sh
+OIDC_AUDIENCE=https://test.invalid dotnet test src/Module.Timing.Api.Test/VeloTime.Module.Timing.Api.Test.csproj --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
+```
+
+Each outbox test uses a uniquely named temporary database and removes it afterward.
+Without that variable the PostgreSQL tests are explicitly skipped, not replaced by
+SQLite atomicity tests. CI supplies an isolated PostgreSQL service and runs them.
+
 ### Access-Token Audience Configuration
 
 Set `OIDC_AUDIENCE` to the public application base URL in all three domain APIs,

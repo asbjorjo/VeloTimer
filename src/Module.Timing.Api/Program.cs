@@ -1,4 +1,6 @@
+using System.Reflection;
 using VeloTime.Module.Timing;
+using VeloTime.Module.Timing.Api;
 using VeloTime.Module.Timing.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +15,9 @@ VeloTime.Module.Common.AdministrationReferences.AddServices(builder.Services);
 builder.Services.AddOpenApi();
 
 builder.AddModuleTiming();
+// Schema generation must not start outbox dispatch or connect to a message broker.
+if (Assembly.GetEntryAssembly()?.GetName().Name != "GetDocument.Insider")
+    builder.AddOwnershipMessaging();
 builder.Services.AddScoped<VeloTime.Module.Timing.Service.TransponderOwnershipService>();
 builder.Services.AddScoped<VeloTime.Module.Timing.Service.TimingAdministrationService>();
 

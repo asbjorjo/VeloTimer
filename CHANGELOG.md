@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file. See [versio
 
 ### Features
 
+* **timing:** enqueue ownership change events atomically with ownership writes and deliver through a PostgreSQL transactional outbox.
 * **webui:** replace administration pages with Facilities/course-layout, installation/timing-point, transponder ownership, and statistics definition management.
 * **authorization:** map identity claims to explicit permission claims and enforce named policies for modules, scoped coursepoint linking, and ownership isolation.
 * **timing:** allow signed-in users to register transponders and end or delete their own ownership periods; allow timing administrators to manage all ownerships.

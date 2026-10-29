@@ -99,6 +99,7 @@ internal static class OwnershipEndpoints
     private static async Task<IResult> Execute(Func<Task<IResult>> action)
     {
         try { return await action(); }
+        catch (OwnershipChangeEnqueueException exception) { return Results.Problem(detail: exception.Message, statusCode: 500); }
         catch (KeyNotFoundException) { return Results.NotFound(); }
         catch (ArgumentException exception) { return Results.Problem(detail: exception.Message, statusCode: 400); }
         catch (InvalidOperationException) { return Results.Problem(detail: "The ownership period conflicts with an existing ownership.", statusCode: 409); }

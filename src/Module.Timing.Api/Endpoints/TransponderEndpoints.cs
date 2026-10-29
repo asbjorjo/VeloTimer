@@ -108,7 +108,7 @@ internal static class TransponderEndpoints
         return TypedResults.Ok(TransponderOwnershipService.ToDto(transponder));
     }
 
-    static async Task<Results<Ok, Conflict, NotFound, BadRequest>> AddTransponderOwner(TransponderOwnershipService service, Guid id, TransponderOwnership ownership)
+    static async Task<Results<Ok, Conflict, NotFound, BadRequest, ProblemHttpResult>> AddTransponderOwner(TransponderOwnershipService service, Guid id, TransponderOwnership ownership)
     {
         try
         {
@@ -116,6 +116,7 @@ internal static class TransponderEndpoints
                 new DateTimeOffset(ownership.OwnedFrom.ToUniversalTime()), ownership.OwnedTo.HasValue ? new DateTimeOffset(ownership.OwnedTo.Value.ToUniversalTime()) : null), CancellationToken.None);
             return TypedResults.Ok();
         }
+        catch (OwnershipChangeEnqueueException exception) { return TypedResults.Problem(detail: exception.Message, statusCode: 500); }
         catch (KeyNotFoundException) { return TypedResults.NotFound(); }
         catch (ArgumentException) { return TypedResults.BadRequest(); }
         catch (InvalidOperationException)

@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using SlimMessageBus;
 using VeloTime.Module.Timing.Storage;
 using VeloTime.Module.Common;
 
@@ -18,11 +20,13 @@ public sealed class TimingApiFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection connection = new("Data Source=:memory:");
     public TestReferences References { get; } = new();
+    public RecordingOwnershipMessageBus Messages { get; } = RecordingOwnershipMessageBus.Create();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         connection.Open();
         builder.UseEnvironment("Development");
+        builder.UseSetting("ConnectionStrings:MessageBus", "Endpoint=sb://localhost/;SharedAccessKeyName=test;SharedAccessKey=dGVzdA==");
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:velotimedb"] = "Host=localhost;Database=timing-tests;Username=test;Password=test",
@@ -39,6 +43,13 @@ public sealed class TimingApiFactory : WebApplicationFactory<Program>
                 if (string.IsNullOrWhiteSpace(postgres)) options.UseSqlite(connection);
                 else options.UseNpgsql(postgres);
             });
+
+            foreach (var descriptor in services.Where(descriptor => descriptor.ServiceType == typeof(IHostedService)
+                && (descriptor.ImplementationType?.Namespace?.StartsWith("SlimMessageBus", StringComparison.Ordinal) == true
+                    || descriptor.ImplementationType?.Name == "OwnershipOutboxStartup")).ToList())
+                services.Remove(descriptor);
+            services.RemoveAll<IMessageBus>();
+            services.AddSingleton<IMessageBus>(Messages.Bus);
 
             services.RemoveAll<HybridCache>();
             services.RemoveAll<IDistributedCache>();
@@ -58,6 +69,7 @@ public sealed class TimingApiFactory : WebApplicationFactory<Program>
     {
         References.Dependencies = 0;
         References.Unavailable = false;
+        Messages.Reset();
         await using var scope = Services.CreateAsyncScope();
         var storage = scope.ServiceProvider.GetRequiredService<TimingDbContext>();
         await storage.Database.EnsureDeletedAsync();

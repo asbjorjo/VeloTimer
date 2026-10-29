@@ -31,6 +31,9 @@ public sealed partial class TimingEndpointTests
         Assert.Equal(start, ownership.OwnedFrom);
         Assert.Equal(request.OwnedTo, ownership.OwnedTo);
         Assert.Equal(TestAuthenticationHandler.DefaultOwnerId, ownership.OwnerId);
+        var message = Assert.Single(factory.Messages.Enqueued);
+        Assert.Equal(ownership.TransponderId, message.TransponderId);
+        Assert.Equal(new VeloTime.Module.Timing.Interface.Messages.TransponderOwnershipChange(null, ownership), Assert.Single(message.Changes));
     }
 
     [Theory]
@@ -67,6 +70,7 @@ public sealed partial class TimingEndpointTests
 
         await AssertRegistrationSaved(client, extended);
         await AssertRegistrationSaved(client, extended);
+        Assert.Equal(2, factory.Messages.Enqueued.Count);
 
         var after = Assert.Single(await PersonalOwnerships(client));
         Assert.Equal(before.Id, after.Id);
@@ -103,6 +107,7 @@ public sealed partial class TimingEndpointTests
         var proposal = (await response.Content.ReadFromJsonAsync<RegisterTransponderResult>())!;
 
         Assert.True(proposal.RequiresConfirmation);
+        Assert.Single(factory.Messages.Enqueued);
         Assert.NotEmpty(proposal.ConfirmationToken!);
         Assert.Equal(before, Assert.Single(proposal.ExistingOwnerships));
         // Cancelling is simply not resubmitting; the first request must not save anything.
@@ -128,10 +133,12 @@ public sealed partial class TimingEndpointTests
         await AssertRegistrationSaved(client, original with { OwnedFrom = RegistrationStart.AddDays(-1) });
         var before = Assert.Single(await PersonalOwnerships(client));
 
+        var eventCount = factory.Messages.Enqueued.Count;
         var staleResponse = await client.PostAsJsonAsync(PersonalRegistration, shorter with { ConfirmationToken = proposal.ConfirmationToken });
         var refreshed = (await staleResponse.Content.ReadFromJsonAsync<RegisterTransponderResult>())!;
 
         Assert.True(refreshed.RequiresConfirmation);
+        Assert.Equal(eventCount, factory.Messages.Enqueued.Count);
         Assert.NotEqual(proposal.ConfirmationToken, refreshed.ConfirmationToken);
         Assert.Equal(before, Assert.Single(refreshed.ExistingOwnerships));
         Assert.Equal(before, Assert.Single(await PersonalOwnerships(client)));
@@ -152,6 +159,7 @@ public sealed partial class TimingEndpointTests
         var conflict = await client.PostAsJsonAsync(PersonalRegistration, original with { OwnedTo = RegistrationStart.AddDays(4) });
 
         Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        Assert.Equal(2, factory.Messages.Enqueued.Count);
         var after = (await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items.Select(row => row.Ownership).ToList();
         Assert.Equal(before, after);
     }
@@ -170,8 +178,15 @@ public sealed partial class TimingEndpointTests
         Assert.True(proposal.RequiresConfirmation);
         Assert.Equal(2, proposal.ExistingOwnerships.Count);
         Assert.Equal(before, await PersonalOwnerships(client));
+        factory.Messages.Reset();
         await AssertRegistrationSaved(client, bridge with { ConfirmationToken = proposal.ConfirmationToken });
         var after = Assert.Single(await PersonalOwnerships(client));
+        var message = Assert.Single(factory.Messages.Enqueued);
+        Assert.Equal(2, message.Changes.Count);
+        Assert.Equal(message.Changes.Select(change => change.Before!.Id).Order(), message.Changes.Select(change => change.Before!.Id));
+        Assert.Equal(before.Single(owner => owner.Id == after.Id), Assert.Single(message.Changes, change => change.After is not null).Before);
+        Assert.Equal(after, Assert.Single(message.Changes, change => change.After is not null).After);
+        Assert.Equal(before.Single(owner => owner.Id != after.Id), Assert.Single(message.Changes, change => change.After is null).Before);
         Assert.Contains(after.Id, before.Select(owner => owner.Id));
         Assert.Equal(bridge.OwnedFrom, after.OwnedFrom);
         Assert.Equal(bridge.OwnedTo, after.OwnedTo);

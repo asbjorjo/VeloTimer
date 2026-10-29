@@ -1,15 +1,18 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging;
+using SlimMessageBus;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using VeloTime.Module.Timing.Interface.Data;
+using VeloTime.Module.Timing.Interface.Messages;
 using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Storage;
 
 namespace VeloTime.Module.Timing.Service;
 
-public sealed class TransponderOwnershipService(TimingDbContext storage)
+public sealed class TransponderOwnershipService(TimingDbContext storage, IMessageBus messageBus, ILogger<TransponderOwnershipService> logger)
 {
     /// <summary>Registers a transponder and reconciles the selected owner's coverage under a transaction lock.</summary>
     /// <param name="request">The requested period and, when needed, the confirmed ownership snapshot.</param>
@@ -45,6 +48,7 @@ public sealed class TransponderOwnershipService(TimingDbContext storage)
             (request.ConfirmationToken is not null && request.ConfirmationToken != token))
             return new(true, token, affected.Select(ToDto).ToList());
 
+        var before = affected.Select(ToDto).ToList();
         if (storage.Entry(transponder).State == EntityState.Detached) storage.Add(transponder);
         var ownership = affected.FirstOrDefault();
         if (ownership is null)
@@ -56,8 +60,7 @@ public sealed class TransponderOwnershipService(TimingDbContext storage)
         foreach (var duplicate in affected.Skip(1)) storage.Remove(duplicate);
         ownership.OwnedFrom = start;
         ownership.OwnedTo = end;
-        await storage.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        await SaveAndEnqueueAsync(transaction, transponder.Id, before, [ToDto(ownership)], cancellationToken);
         return new(false, null, []);
     }
 
@@ -76,10 +79,10 @@ public sealed class TransponderOwnershipService(TimingDbContext storage)
             var ownership = new TransponderOwner { Id = Guid.NewGuid(), OwnerId = ownerId, TransponderId = transponder.Id, OwnedFrom = now };
             transponder.Owners.Add(ownership);
             storage.Add(ownership);
-            await storage.SaveChangesAsync(cancellationToken);
+            await SaveAndEnqueueAsync(transaction, transponder.Id, [], [ToDto(ownership)], cancellationToken);
         }
+        else await transaction.CommitAsync(cancellationToken);
 
-        await transaction.CommitAsync(cancellationToken);
         return ToDto(transponder, ownerId);
     }
 
@@ -94,6 +97,7 @@ public sealed class TransponderOwnershipService(TimingDbContext storage)
         var start = request.OwnedFrom.UtcDateTime;
         var end = request.OwnedTo?.UtcDateTime;
         Validate(transponder, id, request.OwnerId, start, end);
+        TransponderOwnershipDTO[] before = owner is null ? [] : [ToDto(owner)];
         if (owner is null)
         {
             owner = new TransponderOwner { Id = Guid.NewGuid(), TransponderId = transponder.Id };
@@ -103,8 +107,7 @@ public sealed class TransponderOwnershipService(TimingDbContext storage)
         owner.OwnerId = request.OwnerId;
         owner.OwnedFrom = start;
         owner.OwnedTo = end;
-        await storage.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        await SaveAndEnqueueAsync(transaction, transponder.Id, before, [ToDto(owner)], cancellationToken);
     }
 
     public async Task RemoveOrEndAsync(Guid id, Guid? requiredOwnerId, bool end, CancellationToken cancellationToken)
@@ -116,6 +119,7 @@ public sealed class TransponderOwnershipService(TimingDbContext storage)
         var owner = await storage.Set<TransponderOwner>()
             .FirstOrDefaultAsync(owner => owner.Id == id && (!requiredOwnerId.HasValue || owner.OwnerId == requiredOwnerId.Value), cancellationToken)
             ?? throw new KeyNotFoundException();
+        var before = ToDto(owner);
         if (end)
         {
             var now = DateTime.UtcNow;
@@ -124,7 +128,36 @@ public sealed class TransponderOwnershipService(TimingDbContext storage)
             owner.OwnedTo = now;
         }
         else storage.Remove(owner);
+        await SaveAndEnqueueAsync(transaction, owner.TransponderId, [before], end ? [ToDto(owner)] : [], cancellationToken);
+    }
+
+    private async Task SaveAndEnqueueAsync(IDbContextTransaction transaction, Guid transponderId,
+        IReadOnlyList<TransponderOwnershipDTO> before, IReadOnlyList<TransponderOwnershipDTO> after, CancellationToken cancellationToken)
+    {
+        var original = before.ToDictionary(owner => owner.Id);
         await storage.SaveChangesAsync(cancellationToken);
+        var afterIds = after.Select(owner => owner.Id).ToArray();
+        // Read persisted values so snapshots reflect database timestamp precision, not unsaved CLR precision.
+        var persisted = afterIds.Length == 0 ? [] : await storage.Set<TransponderOwner>().AsNoTracking()
+            .Where(owner => afterIds.Contains(owner.Id)).ToListAsync(cancellationToken);
+        var updated = persisted.Select(ToDto).ToDictionary(owner => owner.Id);
+        var changes = original.Keys.Union(updated.Keys).Order()
+            .Select(id => new TransponderOwnershipChange(original.GetValueOrDefault(id), updated.GetValueOrDefault(id)))
+            .Where(change => change.Before != change.After).ToList();
+
+        if (changes.Count > 0)
+        {
+            try
+            {
+                // The scoped outbox uses this context's connection and its active PostgreSQL transaction.
+                await messageBus.Publish(new TransponderOwnershipChanged(Guid.NewGuid(), transponderId, changes), cancellationToken: cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "Could not enqueue ownership changes for transponder {TransponderId}; the transaction will roll back.", transponderId);
+                throw new OwnershipChangeEnqueueException(exception);
+            }
+        }
         await transaction.CommitAsync(cancellationToken);
     }
 
