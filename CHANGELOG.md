@@ -17,6 +17,23 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="3.0.0-alpha.72"></a>
+## [3.0.0-alpha.72](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.72) (2026-10-29)
+
+### Features
+
+* **helm:** add global OIDC authority configuration ([7bb5c0a](https://www.github.com/asbjorjo/VeloTimer/commit/7bb5c0a168fa46bc756739ba3190a92e900aa937))
+* **statistics:** add scoped transponder owner profile lookups ([6640136](https://www.github.com/asbjorjo/VeloTimer/commit/664013651ed1b7d1fee88f5953af95e60bac339c))
+* **timing:** support dated transponder ownership registration ([55ce5f6](https://www.github.com/asbjorjo/VeloTimer/commit/55ce5f6fefde3df8fa28b75fd799dcb874e51f46))
+* **web:** add local registration dates to transponder forms ([9b05a8e](https://www.github.com/asbjorjo/VeloTimer/commit/9b05a8e40a2999537c91aca66c0b228db6fd3574))
+* **web:** forward dated registration and ownership confirmation ([f43dd6a](https://www.github.com/asbjorjo/VeloTimer/commit/f43dd6a13cdaace0ca3a9104773f31ba6d1e0319))
+* **web:** resolve transponder owners through a read-only directory ([5b6bb8c](https://www.github.com/asbjorjo/VeloTimer/commit/5b6bb8c041c4e6fad36d92f2d1c9a0f387d5ae4f))
+* **web:** show named transponder owners and searchable selection ([fb0c89e](https://www.github.com/asbjorjo/VeloTimer/commit/fb0c89edfc18dc26f811a9a8b67ee605e472ac69))
+
+### Bug Fixes
+
+* Update role mapping and default role ([0a295f4](https://www.github.com/asbjorjo/VeloTimer/commit/0a295f49b5f34d14700e392b89ac342ffec3fce2))
+
 <a name="3.0.0-alpha.71"></a>
 ## [3.0.0-alpha.71](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.71) (2026-10-27)
 
