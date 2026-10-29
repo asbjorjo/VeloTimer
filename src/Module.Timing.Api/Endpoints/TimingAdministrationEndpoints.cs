@@ -25,7 +25,7 @@ internal static class TimingAdministrationEndpoints
         {
             await service.DeleteInstallationAsync(id, cancellationToken);
             return Results.NoContent();
-        }).WithName("DeleteManagedInstallation");
+        }).WithName("DeleteManagedInstallation").Produces(StatusCodes.Status204NoContent);
         admin.MapPost("/{installationId:guid}/points", async (Guid installationId, SaveTimingPointRequest request, TimingAdministrationService service, CancellationToken cancellationToken) =>
             Results.Ok((await service.SavePointAsync(installationId, null, request, cancellationToken)).ToDto())).WithName("CreateTimingPoint").Produces<TimingPointDTO>();
         admin.MapPut("/{installationId:guid}/points/{id:guid}", async (Guid installationId, Guid id, SaveTimingPointRequest request, TimingAdministrationService service, CancellationToken cancellationToken) =>
@@ -34,7 +34,7 @@ internal static class TimingAdministrationEndpoints
         {
             await service.DeletePointAsync(installationId, id, cancellationToken);
             return Results.NoContent();
-        }).WithName("DeleteTimingPoint");
+        }).WithName("DeleteTimingPoint").Produces(StatusCodes.Status204NoContent);
 
         var references = endpoints.MapGroup("/references").RequireAuthorization(AdministrationAuthorization.ReferencePolicy);
         references.MapGet("/timingpoints/{id:guid}", async (Guid id, TimingDbContext storage, CancellationToken cancellationToken) =>

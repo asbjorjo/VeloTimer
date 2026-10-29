@@ -13,6 +13,27 @@ public sealed partial class TimingEndpointTests(TimingApiFactory factory) : ICla
 
     public Task DisposeAsync() => Task.CompletedTask;
 
+    [Theory]
+    [InlineData("CreateTransponderOwnership")]
+    [InlineData("UpdateTransponderOwnership")]
+    [InlineData("EndTransponderOwnership")]
+    [InlineData("DeleteTransponderOwnership")]
+    [InlineData("EndMyTransponderOwnership")]
+    [InlineData("DeleteMyTransponderOwnership")]
+    [InlineData("DeleteManagedInstallation")]
+    [InlineData("DeleteTimingPoint")]
+    public async Task NoContentMutations_Declare204InOpenApi(string operationId)
+    {
+        using var client = factory.CreateClient();
+        using var document = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/openapi/v1.json"));
+        var operation = Assert.Single(document.RootElement.GetProperty("paths").EnumerateObject()
+            .SelectMany(path => path.Value.EnumerateObject())
+            .Where(method => method.Value.TryGetProperty("operationId", out var id) && id.GetString() == operationId));
+        var responses = operation.Value.GetProperty("responses");
+        Assert.True(responses.TryGetProperty("204", out _));
+        Assert.False(responses.TryGetProperty("200", out _));
+    }
+
     [Fact]
     public async Task TransponderAdministration_UpdatesLabelAndProtectsDependencies()
     {

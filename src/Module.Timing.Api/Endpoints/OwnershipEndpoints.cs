@@ -16,19 +16,19 @@ internal static class OwnershipEndpoints
         personal.MapGet("/transponders", ListPersonal).WithName("ListMyTransponders").Produces<List<TransponderDTO>>();
         personal.MapPost("/transponders", Claim).WithName("ClaimMyTransponder").Produces<TransponderDTO>();
         personal.MapPost("/transponders/register", RegisterPersonal).WithName("RegisterMyTransponder").Produces<RegisterTransponderResult>();
-        personal.MapPost("/ownerships/{id:guid}/end", EndPersonal).WithName("EndMyTransponderOwnership");
-        personal.MapDelete("/ownerships/{id:guid}", DeletePersonal).WithName("DeleteMyTransponderOwnership");
+        personal.MapPost("/ownerships/{id:guid}/end", EndPersonal).WithName("EndMyTransponderOwnership").Produces(StatusCodes.Status204NoContent);
+        personal.MapDelete("/ownerships/{id:guid}", DeletePersonal).WithName("DeleteMyTransponderOwnership").Produces(StatusCodes.Status204NoContent);
         var admin = endpoints.MapGroup("/admin/ownerships").RequireAuthorization(AdministrationAuthorization.TimingPolicy);
         admin.MapPost("/register", RegisterAdministration).WithName("RegisterTransponderOwnership").Produces<RegisterTransponderResult>();
         admin.MapGet("", ListAll).WithName("ListTransponderOwnerships").Produces<List<TransponderOwnershipDTO>>();
         admin.MapPost("", async (SaveTransponderOwnershipRequest request, TransponderOwnershipService service, CancellationToken cancellationToken) =>
-            await Execute(async () => { await service.SaveAsync(null, request, cancellationToken); return Results.NoContent(); })).WithName("CreateTransponderOwnership");
+            await Execute(async () => { await service.SaveAsync(null, request, cancellationToken); return Results.NoContent(); })).WithName("CreateTransponderOwnership").Produces(StatusCodes.Status204NoContent);
         admin.MapPut("/{id:guid}", async (Guid id, SaveTransponderOwnershipRequest request, TransponderOwnershipService service, CancellationToken cancellationToken) =>
-            await Execute(async () => { await service.SaveAsync(id, request, cancellationToken); return Results.NoContent(); })).WithName("UpdateTransponderOwnership");
+            await Execute(async () => { await service.SaveAsync(id, request, cancellationToken); return Results.NoContent(); })).WithName("UpdateTransponderOwnership").Produces(StatusCodes.Status204NoContent);
         admin.MapPost("/{id:guid}/end", async (Guid id, TransponderOwnershipService service, CancellationToken cancellationToken) =>
-            await Execute(async () => { await service.RemoveOrEndAsync(id, null, true, cancellationToken); return Results.NoContent(); })).WithName("EndTransponderOwnership");
+            await Execute(async () => { await service.RemoveOrEndAsync(id, null, true, cancellationToken); return Results.NoContent(); })).WithName("EndTransponderOwnership").Produces(StatusCodes.Status204NoContent);
         admin.MapDelete("/{id:guid}", async (Guid id, TransponderOwnershipService service, CancellationToken cancellationToken) =>
-            await Execute(async () => { await service.RemoveOrEndAsync(id, null, false, cancellationToken); return Results.NoContent(); })).WithName("DeleteTransponderOwnership");
+            await Execute(async () => { await service.RemoveOrEndAsync(id, null, false, cancellationToken); return Results.NoContent(); })).WithName("DeleteTransponderOwnership").Produces(StatusCodes.Status204NoContent);
     }
 
     private static Guid? Subject(ClaimsPrincipal user) =>
