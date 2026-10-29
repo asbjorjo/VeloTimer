@@ -17,6 +17,14 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="3.0.0-alpha.73"></a>
+## [3.0.0-alpha.73](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.73) (2026-10-29)
+
+### Bug Fixes
+
+* **timing:** declare no-content mutation responses in OpenAPI ([5fc1b9f](https://www.github.com/asbjorjo/VeloTimer/commit/5fc1b9f1021b7b906fcf03c4045168a79d8e2296))
+* **web:** accept all 2xx statuses for no-body upstream mutations ([8636b11](https://www.github.com/asbjorjo/VeloTimer/commit/8636b1124cb9ec43bb436c6aba1b70be1d38daf9))
+
 <a name="3.0.0-alpha.72"></a>
 ## [3.0.0-alpha.72](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.72) (2026-10-29)
 
