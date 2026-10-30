@@ -18,6 +18,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.9"></a>
+## [2.1.0-alpha.9](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.9) (2026-10-30)
+
+### Features
+
+* **webui:** localize data grid pager ([6f832a5](https://www.github.com/asbjorjo/VeloTimer/commit/6f832a51b37b610f3e89c3e4d7827d8f6d7f9903))
+
 <a name="2.1.0-alpha.8"></a>
 ## [2.1.0-alpha.8](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.8) (2026-10-30)
 
