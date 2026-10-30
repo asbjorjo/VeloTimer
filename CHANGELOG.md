@@ -18,6 +18,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.6"></a>
+## [2.1.0-alpha.6](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.6) (2026-10-30)
+
+### Features
+
+* **transponders:** use server-side MudDataGrid ([1ea4a81](https://www.github.com/asbjorjo/VeloTimer/commit/1ea4a813cab24872ed4b3c7380f429d66da00321))
+
 <a name="2.1.0-alpha.5"></a>
 ## [2.1.0-alpha.5](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.5) (2026-10-30)
 
