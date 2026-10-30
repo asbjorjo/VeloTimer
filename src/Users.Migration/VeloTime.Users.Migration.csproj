@@ -7,7 +7,7 @@
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>..\..</DockerfileContext>
     <IsPublishable>True</IsPublishable>
-    <Version>2.1.0-alpha.11</Version>
+    <Version>2.1.0-alpha.12</Version>
     <InvariantGlobalization>false</InvariantGlobalization>
     <EnableSdkContainerSupport>True</EnableSdkContainerSupport>
     <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
