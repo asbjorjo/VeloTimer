@@ -75,86 +75,75 @@
         }
         <MudTooltip Text="Refresh"><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" Disabled="_busy" /></MudTooltip>
     </MudStack>
-    <MudTable T="TransponderRow" @ref="_table" ServerData="LoadPage" @bind-CurrentPage="_page" @bind-RowsPerPage="_pageSize" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
-        <HeaderContent>
-            <MudTh><MudTableSortLabel T="TransponderRow" SortLabel="label">Transponder</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel T="TransponderRow" SortLabel="system">System</MudTableSortLabel></MudTh>
-            @if (Administration) { <MudTh><MudTableSortLabel T="TransponderRow" SortLabel="lastSeen">Last seen (UTC)</MudTableSortLabel></MudTh> }
-            <MudTh>Owner</MudTh>
-            <MudTh><MudTableSortLabel T="TransponderRow" SortLabel="ownedFrom">From (UTC)</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel T="TransponderRow" SortLabel="ownedTo">To (UTC)</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel T="TransponderRow" SortLabel="status">Status</MudTableSortLabel></MudTh>
-            <MudTh />
-            <MudTr>
-                <MudTh><MudTextField T="string" Value="@_filters.Label" ValueChanged="LabelFilterChanged" DebounceInterval="300" Placeholder="Filter label" Margin="Margin.Dense" Clearable="true" /></MudTh>
-                <MudTh><MudTextField T="string" Value="@_filters.System" ValueChanged="SystemFilterChanged" DebounceInterval="300" Placeholder="Filter system" Margin="Margin.Dense" Clearable="true" /></MudTh>
-                @if (Administration)
-                {
-                    <MudTh><MudDatePicker Date="@DateValue(_filters.LastSeen)" DateChanged="LastSeenFilterChanged" Placeholder="Filter date" Margin="Margin.Dense" Clearable="true" /></MudTh>
-                }
-                <MudTh><MudTextField T="string" Value="@_filters.Owner" ValueChanged="OwnerFilterChanged" DebounceInterval="300" Placeholder="Filter owner" Margin="Margin.Dense" Clearable="true" /></MudTh>
-                <MudTh><MudDatePicker Date="@DateValue(_filters.OwnedFrom)" DateChanged="OwnedFromFilterChanged" Placeholder="Filter date" Margin="Margin.Dense" Clearable="true" /></MudTh>
-                <MudTh><MudDatePicker Date="@DateValue(_filters.OwnedTo)" DateChanged="OwnedToFilterChanged" Placeholder="Filter date" Margin="Margin.Dense" Clearable="true" /></MudTh>
-                <MudTh>
-                    <MudSelect T="string" Value="@_filters.Status?.ToString()" ValueChanged="StatusFilterChanged" Placeholder="Filter status" Margin="Margin.Dense" Clearable="true">
-                        <MudSelectItem Value="@nameof(TransponderOwnershipStatus.Unassigned)">Unassigned</MudSelectItem>
-                        <MudSelectItem Value="@nameof(TransponderOwnershipStatus.Active)">Active</MudSelectItem>
-                        <MudSelectItem Value="@nameof(TransponderOwnershipStatus.Scheduled)">Scheduled</MudSelectItem>
-                        <MudSelectItem Value="@nameof(TransponderOwnershipStatus.Ended)">Ended</MudSelectItem>
-                    </MudSelect>
-                </MudTh>
-                <MudTh />
-            </MudTr>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Transponder">
-                @if (Administration || context.Transponder.CanViewStatus)
-                {
-                    <MudLink Href="@($"/transponders/{context.Transponder.Id}")">@context.Transponder.Label</MudLink>
-                }
-                else
-                {
-                    @context.Transponder.Label
-                }
-            </MudTd>
-            <MudTd DataLabel="System">@context.Transponder.System</MudTd>
-            @if (Administration) { <MudTd DataLabel="Last seen (UTC)">@Format(context.Transponder.LastSeen)</MudTd> }
-            <MudTd DataLabel="Owner">
-                @if (Administration && context.Ownership is { } namedOwnership)
-                {
-                    <MudTooltip Text="@($"User ID: {namedOwnership.OwnerId}")"><MudText>@OwnerName(namedOwnership.OwnerId)</MudText></MudTooltip>
-                }
-                else if (context.Ownership is not null)
-                {
-                    @(_ownProfile?.DisplayName ?? "Owner names unavailable")
-                }
-            </MudTd>
-            <MudTd DataLabel="From (UTC)">@Format(context.Ownership?.OwnedFrom)</MudTd>
-            <MudTd DataLabel="To (UTC)">@Format(context.Ownership?.OwnedTo)</MudTd>
-            <MudTd DataLabel="Status">@Status(context.Ownership)</MudTd>
-            <MudTd DataLabel="Actions">
-                @if (Administration)
-                {
-                    <MudTooltip Text="Edit transponder label"><MudIconButton Icon="@Icons.Material.Filled.Label" OnClick="() => EditTransponder(context.Transponder)" Disabled="_busy" /></MudTooltip>
-                    <MudTooltip Text="Delete unused transponder"><MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error" OnClick="() => DeleteTransponder(context.Transponder)" Disabled="_busy" /></MudTooltip>
-                }
-                @if (context.Ownership is { } ownership)
-                {
+    <MudDataGrid T="GridTransponderRow" @ref="_grid" ServerData="LoadPage" @bind-CurrentPage="_page" @bind-RowsPerPage="_pageSize"
+                 Dense="true" Hover="true" Elevation="0" SortMode="SortMode.Single" Filterable="true"
+                 FilterMode="DataGridFilterMode.ColumnFilterRow" FilterCaseSensitivity="DataGridFilterCaseSensitivity.CaseInsensitive">
+        <Columns>
+            <PropertyColumn Property="row => row.Label" Title="Transponder" FilterOperators="@ContainsFilterOperators">
+                <CellTemplate Context="cell">
+                    @if (Administration || cell.Item.Row.Transponder.CanViewStatus)
+                    {
+                        <MudLink Href="@($"/transponders/{cell.Item.Row.Transponder.Id}")">@cell.Item.Label</MudLink>
+                    }
+                    else
+                    {
+                        @cell.Item.Label
+                    }
+                </CellTemplate>
+            </PropertyColumn>
+            <PropertyColumn Property="row => row.System" Title="System" FilterOperators="@ContainsFilterOperators" />
+            @if (Administration)
+            {
+                <PropertyColumn Property="row => row.LastSeenDate" Title="Last seen (UTC)" FilterOperators="@DateFilterOperators">
+                    <CellTemplate Context="cell">@Format(cell.Item.Row.Transponder.LastSeen)</CellTemplate>
+                </PropertyColumn>
+            }
+            <PropertyColumn Property="row => row.OwnerName" Title="Owner" FilterOperators="@ContainsFilterOperators">
+                <CellTemplate Context="cell">
+                    @if (Administration && cell.Item.Row.Ownership is { } namedOwnership)
+                    {
+                        <MudTooltip Text="@($"User ID: {namedOwnership.OwnerId}")"><MudText>@cell.Item.OwnerName</MudText></MudTooltip>
+                    }
+                    else
+                    {
+                        @cell.Item.OwnerName
+                    }
+                </CellTemplate>
+            </PropertyColumn>
+            <PropertyColumn Property="row => row.OwnedFromDate" Title="From (UTC)" FilterOperators="@DateFilterOperators">
+                <CellTemplate Context="cell">@Format(cell.Item.Row.Ownership?.OwnedFrom)</CellTemplate>
+            </PropertyColumn>
+            <PropertyColumn Property="row => row.OwnedToDate" Title="To (UTC)" FilterOperators="@DateFilterOperators">
+                <CellTemplate Context="cell">@Format(cell.Item.Row.Ownership?.OwnedTo)</CellTemplate>
+            </PropertyColumn>
+            <PropertyColumn Property="row => row.Status" Title="Status" FilterOperators="@StatusFilterOperators">
+                <CellTemplate Context="cell">@Status(cell.Item.Row.Ownership)</CellTemplate>
+            </PropertyColumn>
+            <TemplateColumn Title="Actions" Sortable="false" Filterable="false">
+                <CellTemplate Context="cell">
                     @if (Administration)
                     {
-                        <MudTooltip Text="Edit ownership"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditOwnership(context)" Disabled="@(_busy || !_namesLoaded)" /></MudTooltip>
+                        <MudTooltip Text="Edit transponder label"><MudIconButton Icon="@Icons.Material.Filled.Label" OnClick="() => EditTransponder(cell.Item.Row.Transponder)" Disabled="_busy" /></MudTooltip>
+                        <MudTooltip Text="Delete unused transponder"><MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error" OnClick="() => DeleteTransponder(cell.Item.Row.Transponder)" Disabled="_busy" /></MudTooltip>
                     }
-                    @if (IsActive(ownership))
+                    @if (cell.Item.Row.Ownership is { } ownership)
                     {
-                        <MudTooltip Text="End ownership now"><MudIconButton Icon="@Icons.Material.Filled.EventBusy" OnClick="() => Remove(ownership.Id, true)" Disabled="_busy" /></MudTooltip>
+                        @if (Administration)
+                        {
+                            <MudTooltip Text="Edit ownership"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditOwnership(cell.Item.Row)" Disabled="@(_busy || !_namesLoaded)" /></MudTooltip>
+                        }
+                        @if (IsActive(ownership))
+                        {
+                            <MudTooltip Text="End ownership now"><MudIconButton Icon="@Icons.Material.Filled.EventBusy" OnClick="() => Remove(ownership.Id, true)" Disabled="_busy" /></MudTooltip>
+                        }
+                        <MudTooltip Text="Delete ownership"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => Remove(ownership.Id, false)" Disabled="_busy" /></MudTooltip>
                     }
-                    <MudTooltip Text="Delete ownership"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => Remove(ownership.Id, false)" Disabled="_busy" /></MudTooltip>
-                }
-            </MudTd>
-        </RowTemplate>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
         <NoRecordsContent><MudText>@(_error is null ? "No transponders match this view." : "Transponder data is unavailable. Use Refresh to retry.")</MudText></NoRecordsContent>
-        <PagerContent><MudTablePager PageSizeOptions="@(new[] { 10, 25, 50 })" /></PagerContent>
-    </MudTable>
+        <PagerContent><MudDataGridPager T="GridTransponderRow" PageSizeOptions="@(new[] { 10, 25, 50 })" /></PagerContent>
+    </MudDataGrid>
 </div>
 
 </MudContainer>
@@ -162,13 +151,12 @@
 @code {
     [Parameter] public bool Administration { get; set; }
     private readonly CancellationTokenSource _lifetime = new();
-    private MudTable<TransponderRow>? _table;
+    private MudDataGrid<GridTransponderRow>? _grid;
     private CancellationTokenSource? _request;
-    private TableData<TransponderRow> _lastData = new() { Items = [], TotalItems = 0 };
-    private Task<TableData<TransponderRow>> _pageLoad = Task.FromResult(new TableData<TransponderRow> { Items = [], TotalItems = 0 });
+    private GridData<GridTransponderRow> _lastData = new() { Items = [], TotalItems = 0 };
+    private Task<GridData<GridTransponderRow>> _pageLoad = Task.FromResult(new GridData<GridTransponderRow> { Items = [], TotalItems = 0 });
     private int _page, _version;
     private int _pageSize = 10;
-    private TransponderColumnFilters _filters = new();
     private TransponderLookupItem? _selectedTransponder;
     private MudForm? _form;
     private bool _busy, _valid, _hasEnd, _showHistory = true;
@@ -182,13 +170,16 @@
     private DateTime? _fromDate, _toDate;
     private DateTime? _registrationFrom, _registrationTo;
     private TimeSpan? _fromTime, _toTime;
-    private Task Load() => _table?.ReloadServerData() ?? Task.CompletedTask;
+    private static readonly HashSet<string> ContainsFilterOperators = [FilterOperator.String.Contains];
+    private static readonly HashSet<string> DateFilterOperators = [FilterOperator.DateOnly.Is];
+    private static readonly HashSet<string> StatusFilterOperators = [FilterOperator.Enum.Is];
+    private Task Load() => _grid?.ReloadServerData() ?? Task.CompletedTask;
 
     private async Task SearchChanged(string search)
     {
         _search = search;
         _page = 0;
-        if (_table is { CurrentPage: not 0 }) _table.CurrentPage = 0;
+        if (_grid is { CurrentPage: not 0 }) _grid.CurrentPage = 0;
         else await Load();
     }
 
@@ -196,30 +187,11 @@
     {
         _showHistory = history;
         _page = 0;
-        if (_table is { CurrentPage: not 0 }) _table.CurrentPage = 0;
+        if (_grid is { CurrentPage: not 0 }) _grid.CurrentPage = 0;
         else await Load();
     }
 
-    private async Task FilterChanged(TransponderColumnFilters filters)
-    {
-        _filters = filters;
-        _page = 0;
-        if (_table is { CurrentPage: not 0 }) _table.CurrentPage = 0;
-        else await Load();
-    }
-
-    private Task LabelFilterChanged(string value) => FilterChanged(_filters with { Label = value });
-    private Task SystemFilterChanged(string value) => FilterChanged(_filters with { System = value });
-    private Task OwnerFilterChanged(string value) => FilterChanged(_filters with { Owner = value });
-    private Task StatusFilterChanged(string? value) => FilterChanged(_filters with
-    {
-        Status = Enum.TryParse<TransponderOwnershipStatus>(value, out var status) ? status : null
-    });
-    private Task LastSeenFilterChanged(DateTime? value) => FilterChanged(_filters with { LastSeen = ToDateOnly(value) });
-    private Task OwnedFromFilterChanged(DateTime? value) => FilterChanged(_filters with { OwnedFrom = ToDateOnly(value) });
-    private Task OwnedToFilterChanged(DateTime? value) => FilterChanged(_filters with { OwnedTo = ToDateOnly(value) });
-
-    private Task<TableData<TransponderRow>> LoadPage(TableState state, CancellationToken cancellationToken)
+    private Task<GridData<GridTransponderRow>> LoadPage(GridState<GridTransponderRow> state, CancellationToken cancellationToken)
     {
         _request?.Cancel();
         _request?.Dispose();
@@ -230,22 +202,25 @@
         return _pageLoad;
     }
 
-    private async Task<TableData<TransponderRow>> FetchPage(TableState state, CancellationToken token, int version)
+    private async Task<GridData<GridTransponderRow>> FetchPage(GridState<GridTransponderRow> state, CancellationToken token, int version)
     {
         _namesLoaded = false;
         _error = null;
         try
         {
+            var filters = GetFilters(state.FilterDefinitions);
+            var sort = state.SortDefinitions.OrderBy(definition => definition.Index).FirstOrDefault();
+            var sortBy = sort is null ? null : GetSortKey(sort.SortBy);
             var result = await Service.GetTranspondersAsync(Administration, state.Page, state.PageSize, _search, _showHistory,
-                token, _filters, state.SortLabel, state.SortDirection == SortDirection.Descending);
+                token, filters, sortBy, sort?.Descending ?? false);
             token.ThrowIfCancellationRequested();
             if (result.Items.Count == 0 && state.Page > 0)
             {
                 _page = result.TotalCount == 0 ? 0 : (result.TotalCount - 1) / state.PageSize;
-                if (_table is not null) _table.CurrentPage = _page;
+                if (_grid is not null) _grid.CurrentPage = _page;
                 if (version != _version) return await _pageLoad;
                 result = await Service.GetTranspondersAsync(Administration, _page, state.PageSize, _search, _showHistory,
-                    token, _filters, state.SortLabel, state.SortDirection == SortDirection.Descending);
+                    token, filters, sortBy, sort?.Descending ?? false);
             }
             if (result.TotalCount == 0) _page = 0;
             var names = new Dictionary<Guid, TransponderOwnerView>();
@@ -263,12 +238,15 @@
             foreach (var pair in names) _owners[pair.Key] = pair.Value;
             _ownProfile = profile;
             _namesLoaded = true;
-            _lastData = new() { Items = result.Items, TotalItems = result.TotalCount };
+            var rows = result.Items.Select(row => new GridTransponderRow(row,
+                row.Ownership is not { } ownership ? "" : Administration
+                    ? OwnerName(ownership.OwnerId) : profile?.DisplayName ?? "Owner names unavailable")).ToList();
+            _lastData = new() { Items = rows, TotalItems = result.TotalCount };
             return _lastData;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested || version != _version)
         {
-            // MudTable assigns every completed callback; superseded callbacks must return the newest result.
+            // MudDataGrid assigns every completed callback; superseded callbacks must return the newest result.
             return version != _version ? await _pageLoad : _lastData;
         }
         catch (HttpRequestException exception)
@@ -288,6 +266,48 @@
         }
         return new() { Items = [], TotalItems = 0 };
     }
+
+    private static TransponderColumnFilters GetFilters(IEnumerable<IFilterDefinition<GridTransponderRow>> definitions) => new(
+        Label: GetStringFilter(definitions, nameof(GridTransponderRow.Label)),
+        System: GetStringFilter(definitions, nameof(GridTransponderRow.System)),
+        LastSeen: GetDateFilter(definitions, nameof(GridTransponderRow.LastSeenDate)),
+        Owner: GetStringFilter(definitions, nameof(GridTransponderRow.OwnerName)),
+        OwnedFrom: GetDateFilter(definitions, nameof(GridTransponderRow.OwnedFromDate)),
+        OwnedTo: GetDateFilter(definitions, nameof(GridTransponderRow.OwnedToDate)),
+        Status: GetStatusFilter(definitions));
+
+    private static string? GetStringFilter(IEnumerable<IFilterDefinition<GridTransponderRow>> definitions, string identifier) =>
+        definitions.FirstOrDefault(definition => definition.Column?.PropertyName == identifier &&
+            definition.Operator == FilterOperator.String.Contains)?.Value?.ToString();
+
+    private static DateOnly? GetDateFilter(IEnumerable<IFilterDefinition<GridTransponderRow>> definitions, string identifier) =>
+        definitions.FirstOrDefault(definition => definition.Column?.PropertyName == identifier &&
+            definition.Operator == FilterOperator.DateOnly.Is)?.Value switch
+        {
+            DateOnly value => value,
+            DateTime value => DateOnly.FromDateTime(value),
+            _ => null
+        };
+
+    private static TransponderOwnershipStatus? GetStatusFilter(IEnumerable<IFilterDefinition<GridTransponderRow>> definitions) =>
+        definitions.FirstOrDefault(definition => definition.Column?.PropertyName == nameof(GridTransponderRow.Status) &&
+            definition.Operator == FilterOperator.Enum.Is)?.Value switch
+        {
+            TransponderOwnershipStatus value => value,
+            string value when Enum.TryParse<TransponderOwnershipStatus>(value, out var status) => status,
+            _ => null
+        };
+
+    private static string GetSortKey(string sortBy) => sortBy switch
+    {
+        "label" or nameof(GridTransponderRow.Label) => "label",
+        "system" or nameof(GridTransponderRow.System) => "system",
+        "lastSeen" or nameof(GridTransponderRow.LastSeenDate) => "lastSeen",
+        "ownedFrom" or nameof(GridTransponderRow.OwnedFromDate) => "ownedFrom",
+        "ownedTo" or nameof(GridTransponderRow.OwnedToDate) => "ownedTo",
+        "status" or nameof(GridTransponderRow.Status) => "status",
+        _ => throw new InvalidOperationException($"The transponder grid sort '{sortBy}' is not supported.")
+    };
 
     private async Task Register()
     {
@@ -435,12 +455,26 @@
     }
 
     private string OwnerName(Guid id) => _owners.TryGetValue(id, out var owner) ? owner.DisplayName : "Owner names unavailable";
-    private static DateTime? DateValue(DateOnly? value) => value?.ToDateTime(TimeOnly.MinValue);
-    private static DateOnly? ToDateOnly(DateTime? value) => value is { } date ? DateOnly.FromDateTime(date) : null;
     private sealed record RegistrationPeriod(DateTimeOffset OwnedFrom, DateTimeOffset? OwnedTo);
+    private sealed record GridTransponderRow(TransponderRow Row, string OwnerName)
+    {
+        public string Label => Row.Transponder.Label;
+        public string System => Row.Transponder.System;
+        public DateOnly? LastSeenDate => Row.Transponder.LastSeen is { } lastSeen
+            ? DateOnly.FromDateTime(lastSeen.UtcDateTime) : null;
+        public DateOnly? OwnedFromDate => Row.Ownership is { } ownership
+            ? DateOnly.FromDateTime(ownership.OwnedFrom.UtcDateTime) : null;
+        public DateOnly? OwnedToDate => Row.Ownership?.OwnedTo is { } ownedTo
+            ? DateOnly.FromDateTime(ownedTo.UtcDateTime) : null;
+        public TransponderOwnershipStatus Status => GetStatus(Row.Ownership);
+    }
+
     private static DateTimeOffset Utc(DateTime date, TimeSpan time) => new(DateTime.SpecifyKind(date.Date.Add(time), DateTimeKind.Utc));
     private static bool IsActive(TransponderOwnershipDTO owner) => owner.OwnedFrom <= DateTimeOffset.UtcNow && (!owner.OwnedTo.HasValue || owner.OwnedTo > DateTimeOffset.UtcNow);
-    private static string Status(TransponderOwnershipDTO? owner) => owner is null ? "Unassigned" : IsActive(owner) ? "Active" : owner.OwnedFrom > DateTimeOffset.UtcNow ? "Scheduled" : "Ended";
+    private static TransponderOwnershipStatus GetStatus(TransponderOwnershipDTO? owner) => owner is null
+        ? TransponderOwnershipStatus.Unassigned : IsActive(owner) ? TransponderOwnershipStatus.Active
+        : owner.OwnedFrom > DateTimeOffset.UtcNow ? TransponderOwnershipStatus.Scheduled : TransponderOwnershipStatus.Ended;
+    private static string Status(TransponderOwnershipDTO? owner) => GetStatus(owner).ToString();
     private static string Format(DateTimeOffset? value) => value?.UtcDateTime.ToString("yyyy-MM-dd HH:mm") ?? "-";
     private async Task<bool> ConfirmDiscard() => _editor is null || await Dialogs.ShowMessageBoxAsync("Discard changes?", "Unsaved changes will be lost.", yesText: "Discard", cancelText: "Keep editing") == true;
     private async Task Cancel() { if (await ConfirmDiscard()) { _editor = null; _error = null; } }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
+using System.Collections;
 using MudBlazor;
 using MudBlazor.Services;
 using VeloTime.Module.Timing.Interface.Data;
@@ -52,23 +53,26 @@ public sealed class TransponderOwnerRenderingTests
                     [nameof(ManagementHost.Administration)] = administration,
                     [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value)
                 }));
-            // Static rendering does not run MudTable's interactive OnAfterRender load.
-            await Table(component!).ReloadServerData();
+            // Static rendering does not run MudDataGrid's interactive OnAfterRender load.
+            var grid = Grid(component!);
+            Assert.True(grid.Filterable);
+            Assert.Equal(DataGridFilterMode.ColumnFilterRow, grid.FilterMode);
+            Assert.Equal(SortMode.Single, grid.SortMode);
+            await grid.ReloadServerData();
             return root.ToHtmlString();
         });
 
         Assert.Contains(profile ?? "No statistics profile", html);
         Assert.Contains("HT-24422", html);
         Assert.Contains($"href=\"/transponders/{transponderId}\"", html);
-        Assert.Contains("Filter label", html);
-        Assert.Contains("Filter system", html);
-        Assert.Contains("Filter owner", html);
-        Assert.Contains("Filter status", html);
+        Assert.Contains("Transponder", html);
+        Assert.Contains("System", html);
+        Assert.Contains("Owner", html);
+        Assert.Contains("Status", html);
         if (administration)
         {
             Assert.Contains("KeycloakFirst KeycloakLast", html);
             Assert.Contains("Last seen (UTC)", html);
-            Assert.Contains("Filter date", html);
             Assert.Contains("2026-04-03 02:05", html);
         }
         else
@@ -132,10 +136,10 @@ public sealed class TransponderOwnerRenderingTests
                 new Dictionary<string, object?> { [nameof(ManagementHost.Administration)] = true,
                     [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) }));
             Assert.Equal(0, calls);
-            var table = Table(component!);
-            table.CurrentPage = 2;
-            await table.ReloadServerData();
-            Assert.Equal(100, table.GetFilteredItemsCount());
+            var grid = Grid(component!);
+            grid.CurrentPage = 2;
+            await grid.ReloadServerData();
+            Assert.Equal(100, grid.GetFilteredItemsCount());
             Assert.Contains("Visible owner", root.ToHtmlString());
             Assert.Contains("Page three", root.ToHtmlString());
         });
@@ -163,13 +167,13 @@ public sealed class TransponderOwnerRenderingTests
             await renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
                 new Dictionary<string, object?> { [nameof(ManagementHost.Administration)] = true,
                     [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) }));
-            var table = Table(component!);
+            var grid = Grid(component!);
             foreach (var size in new[] { 25, 50 })
             {
-                table.SetRowsPerPage(size);
-                await table.ReloadServerData();
-                Assert.Equal(size, table.RowsPerPage);
-                Assert.Equal(size, table.FilteredItems.Count());
+                await grid.SetRowsPerPageAsync(size);
+                await grid.ReloadServerData();
+                Assert.Equal(size, grid.RowsPerPage);
+                Assert.Equal(size, grid.FilteredItemsCount);
             }
         });
         Assert.Equal(new[] { 25, 50 }, sizes);
@@ -196,9 +200,9 @@ public sealed class TransponderOwnerRenderingTests
         var root = await renderer.Dispatcher.InvokeAsync(() => renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
             new Dictionary<string, object?> { [nameof(ManagementHost.Administration)] = true,
                 [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) })));
-        var table = Table(component!);
-        var initial = renderer.Dispatcher.InvokeAsync(table.ReloadServerData);
-        var latest = renderer.Dispatcher.InvokeAsync(table.ReloadServerData);
+        var grid = Grid(component!);
+        var initial = renderer.Dispatcher.InvokeAsync((Func<Task>)grid.ReloadServerData);
+        var latest = renderer.Dispatcher.InvokeAsync((Func<Task>)grid.ReloadServerData);
         Assert.True(tokens[0].IsCancellationRequested);
         second.SetResult(new([new(new(Guid.NewGuid(), "X2", "123", "Newest page", []), null)], 1));
         await latest;
@@ -229,10 +233,10 @@ public sealed class TransponderOwnerRenderingTests
             var root = await renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
                 new Dictionary<string, object?> { [nameof(ManagementHost.Administration)] = true,
                     [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) }));
-            var table = Table(component!);
-            table.CurrentPage = 3;
-            await table.ReloadServerData();
-            Assert.Equal(2, table.CurrentPage);
+            var grid = Grid(component!);
+            grid.CurrentPage = 3;
+            await grid.ReloadServerData();
+            Assert.Equal(2, grid.CurrentPage);
             Assert.Contains("Last row", root.ToHtmlString());
         });
         Assert.Equal(new[] { 3, 2 }, requested);
@@ -253,7 +257,7 @@ public sealed class TransponderOwnerRenderingTests
             var root = await renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
                 new Dictionary<string, object?> { [nameof(ManagementHost.Administration)] = true,
                     [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) }));
-            await Table(component!).ReloadServerData();
+            await Grid(component!).ReloadServerData();
             var html = root.ToHtmlString();
             Assert.Contains("Directory unavailable", html);
             Assert.Contains("data is unavailable", html);
@@ -280,15 +284,15 @@ public sealed class TransponderOwnerRenderingTests
             await renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
                 new Dictionary<string, object?> { [nameof(ManagementHost.Administration)] = true,
                     [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) }));
-            var table = Table(component!);
-            table.CurrentPage = 3;
+            var grid = Grid(component!);
+            grid.CurrentPage = 3;
             await Invoke("SearchChanged", "Rider");
-            Assert.Equal(0, table.CurrentPage);
-            await table.ReloadServerData();
-            table.CurrentPage = 2;
+            Assert.Equal(0, grid.CurrentPage);
+            await grid.ReloadServerData();
+            grid.CurrentPage = 2;
             await Invoke("HistoryChanged", false);
-            Assert.Equal(0, table.CurrentPage);
-            await table.ReloadServerData();
+            Assert.Equal(0, grid.CurrentPage);
+            await grid.ReloadServerData();
 
             Task Invoke(string name, object value) => Assert.IsAssignableFrom<Task>(typeof(TransponderManagement)
                 .GetMethod(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(component, [value]));
@@ -348,9 +352,39 @@ public sealed class TransponderOwnerRenderingTests
         return services;
     }
 
-    internal static MudBlazor.MudTable<TransponderRow> Table(TransponderManagement component) =>
-        Assert.IsType<MudBlazor.MudTable<TransponderRow>>(typeof(TransponderManagement)
-            .GetField("_table", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(component));
+    private static GridHarness Grid(TransponderManagement component)
+    {
+        var grid = typeof(TransponderManagement)
+            .GetField("_grid", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(component)!;
+        Assert.Equal(typeof(MudDataGrid<>), grid.GetType().GetGenericTypeDefinition());
+        return new GridHarness(grid);
+    }
+
+    private sealed class GridHarness(object grid)
+    {
+        private object Grid { get; } = grid;
+
+        public int CurrentPage
+        {
+            get => (int)Property(nameof(CurrentPage)).GetValue(Grid)!;
+            set => Property(nameof(CurrentPage)).SetValue(Grid, value);
+        }
+
+        public int RowsPerPage => (int)Property(nameof(RowsPerPage)).GetValue(Grid)!;
+        public int FilteredItemsCount => ((IEnumerable)Property("FilteredItems").GetValue(Grid)!).Cast<object>().Count();
+        public bool Filterable => (bool)Property(nameof(Filterable)).GetValue(Grid)!;
+        public DataGridFilterMode FilterMode => (DataGridFilterMode)Property(nameof(FilterMode)).GetValue(Grid)!;
+        public SortMode SortMode => (SortMode)Property(nameof(SortMode)).GetValue(Grid)!;
+        public Task ReloadServerData() => (Task)Method(nameof(ReloadServerData)).Invoke(Grid, null)!;
+        public Task SetRowsPerPageAsync(int size) => (Task)Method(nameof(SetRowsPerPageAsync), typeof(int)).Invoke(Grid, [size])!;
+        public int GetFilteredItemsCount() => (int)Method(nameof(GetFilteredItemsCount)).Invoke(Grid, null)!;
+
+        private System.Reflection.PropertyInfo Property(string name) =>
+            Grid.GetType().GetProperty(name)!;
+
+        private System.Reflection.MethodInfo Method(string name, params Type[] parameterTypes) =>
+            Grid.GetType().GetMethod(name, parameterTypes)!;
+    }
 
     public sealed class ManagementHost : ComponentBase
     {
