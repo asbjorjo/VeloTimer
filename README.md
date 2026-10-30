@@ -121,6 +121,15 @@ default branch, where GitHub evaluates its `workflow_run` trigger.
 
 ## WebUI Backend for Frontend
 
+The independent Profiles service stores signed-in language preferences in its
+own `profilesdb` PostgreSQL database. It is separate from Statistics display-name
+profiles and Keycloak account linking. Its authenticated API exposes
+`GET /api/profiles/me/preferences` and
+`PUT /api/profiles/me/preferences/language`; saved values are exactly `en` or
+`nb-NO`, and a missing preference is returned as `null` without creating a row.
+See [Profiles persistence and deployment](src/Module.Profiles/README.md) for
+database, migration ordering, Helm Secret, and API deployment requirements.
+
 `WebUI.Mud` hosts the browser API and owns backend service discovery, aggregation,
 Keycloak access, and token refresh. `WebUI.Mud.Client` uses the same service
 interfaces, with same-origin HTTP implementations in the browser. Interactive Auto

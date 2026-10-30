@@ -1,0 +1,16 @@
+existingSecret: velotime-profiles
+oidcAudience: ""
+replicaCount: 1
+image:
+  pullPolicy: IfNotPresent
+service:
+  type: ClusterIP
+  port: 80
+global:
+  image:
+    repository: ghcr.io/asbjorjo/
+    tag: 2.1.0-alpha.6
+  oidcAudience: ""
+  oidcAuthority: ""
+  imagePullSecrets:
+    - name: ghcr

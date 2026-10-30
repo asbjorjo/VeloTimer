@@ -24,6 +24,8 @@
     <ProjectReference Include="..\Module.Facilities.Api\VeloTime.Module.Facilities.Api.csproj" />
     <ProjectReference Include="..\Module.Facilities.Migration\VeloTime.Module.Facilities.Migration.csproj" />
     <ProjectReference Include="..\Module.Facilities.Processor\VeloTime.Module.Facilities.Processor.csproj" />
+    <ProjectReference Include="..\Module.Profiles.Api\VeloTime.Module.Profiles.Api.csproj" />
+    <ProjectReference Include="..\Module.Profiles.Migration\VeloTime.Module.Profiles.Migration.csproj" />
     <ProjectReference Include="..\Module.Statistics.Api\VeloTime.Module.Statistics.Api.csproj" />
     <ProjectReference Include="..\Module.Statistics.Migration\VeloTime.Module.Statistics.Migration.csproj" />
     <ProjectReference Include="..\Module.Statistics.Processor\VeloTime.Module.Statistics.Processor.csproj" />

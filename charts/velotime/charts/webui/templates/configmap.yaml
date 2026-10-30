@@ -7,5 +7,6 @@ data:
   DOTNET_ENVIRONMENT: Development
   services__module-facilities-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "facilities")}}
   services__module-statistics-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "statistics")}}
+  services__module-profiles-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "profiles")}}
   services__module-timing-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "timing")}}
   {{- include "velotime.oidcConfig" . | nindent 2 }}

@@ -5,6 +5,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Version>2.1.0-alpha.6</Version>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+    <IsPublishable>True</IsPublishable>
+    <EnableSdkContainerSupport>True</EnableSdkContainerSupport>
+    <ContainerRepository>asbjorjo/velotime-module-profiles-migration</ContainerRepository>
+    <ContainerImageTag>$(Version)</ContainerImageTag>
   </PropertyGroup>
 
   <ItemGroup>
