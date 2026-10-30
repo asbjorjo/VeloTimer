@@ -17,6 +17,11 @@ public static class TransponderQuery
         Guid? ownerId, CancellationToken cancellationToken, bool statusAdministration = false)
     {
         Validate(request.Page, request.PageSize);
+        ValidateSort(request.SortBy);
+        var filters = request.Filters ?? new TransponderColumnFilters();
+        if (filters.Status.HasValue && !Enum.IsDefined(filters.Status.Value))
+            throw new ArgumentException("The transponder status filter is invalid.");
+
         var transponders = Visible(storage, ownerId);
         if (request.MatchingTransponderIds is { } ids)
             transponders = transponders.Where(transponder => ids.Contains(transponder.Id));
@@ -25,6 +30,21 @@ public static class TransponderQuery
             var search = request.Search.ToUpperInvariant();
             transponders = transponders.Where(transponder =>
                 transponder.Label.ToUpper().Contains(search) || transponder.SystemId.ToUpper().Contains(search));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filters.Label))
+        {
+            var label = filters.Label.Trim().ToUpperInvariant();
+            transponders = transponders.Where(transponder => transponder.Label.ToUpper().Contains(label));
+        }
+        if (!string.IsNullOrWhiteSpace(filters.System))
+        {
+            var system = filters.System.Trim();
+            var matchingSystems = Enum.GetNames<TimingSystem>()
+                .Where(name => name.Contains(system, StringComparison.OrdinalIgnoreCase))
+                .Select(name => Enum.Parse<TimingSystem>(name))
+                .ToArray();
+            transponders = transponders.Where(transponder => matchingSystems.Contains(transponder.System));
         }
 
         var now = DateTime.UtcNow;
@@ -39,8 +59,63 @@ public static class TransponderQuery
                    select new { Transponder = transponder, Owner = owner,
                        CanViewStatus = statusAdministration || !ownerId.HasValue || transponder.Owners.Any(period => period.OwnerId == ownerId &&
                            period.OwnedFrom <= now && (!period.OwnedTo.HasValue || period.OwnedTo > now)) };
+        if (request.MatchingOwnerIds is { } matchingOwnerIds)
+            rows = rows.Where(row => row.Owner != null && matchingOwnerIds.Contains(row.Owner.OwnerId));
+
+        var ownedFromStart = filters.OwnedFrom?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var ownedToStart = filters.OwnedTo?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        if (ownedFromStart.HasValue)
+            rows = rows.Where(row => row.Owner != null && row.Owner.OwnedFrom >= ownedFromStart &&
+                row.Owner.OwnedFrom < ownedFromStart.Value.AddDays(1));
+        if (ownedToStart.HasValue)
+            rows = rows.Where(row => row.Owner != null && row.Owner.OwnedTo >= ownedToStart &&
+                row.Owner.OwnedTo < ownedToStart.Value.AddDays(1));
+        if (filters.Status is { } status)
+            rows = status switch
+            {
+                TransponderOwnershipStatus.Unassigned => rows.Where(row => row.Owner == null),
+                TransponderOwnershipStatus.Scheduled => rows.Where(row => row.Owner != null && row.Owner.OwnedFrom > now),
+                TransponderOwnershipStatus.Ended => rows.Where(row => row.Owner != null && row.Owner.OwnedFrom <= now &&
+                    row.Owner.OwnedTo.HasValue && row.Owner.OwnedTo <= now),
+                TransponderOwnershipStatus.Active => rows.Where(row => row.Owner != null && row.Owner.OwnedFrom <= now &&
+                    (!row.Owner.OwnedTo.HasValue || row.Owner.OwnedTo > now)),
+                _ => rows
+            };
+        if (filters.LastSeen.HasValue)
+        {
+            var start = filters.LastSeen.Value.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            var end = start.AddDays(1);
+            rows = rows.Where(row => storage.Set<Passing>().Where(passing =>
+                    passing.TransponderId == row.Transponder.Id)
+                .Select(passing => (DateTime?)passing.Time).Max() >= start &&
+                storage.Set<Passing>().Where(passing => passing.TransponderId == row.Transponder.Id)
+                    .Select(passing => (DateTime?)passing.Time).Max() < end);
+        }
+
         var total = await rows.CountAsync(cancellationToken);
-        var page = await rows.OrderBy(row => row.Transponder.Label).ThenBy(row => row.Transponder.Id)
+        var orderedRows = (request.SortBy, request.SortDescending) switch
+        {
+            ("system", false) => rows.OrderBy(row => row.Transponder.System).ThenBy(row => row.Transponder.SystemId),
+            ("system", true) => rows.OrderByDescending(row => row.Transponder.System).ThenByDescending(row => row.Transponder.SystemId),
+            ("lastSeen", false) => rows.OrderBy(row => storage.Set<Passing>().Where(passing => passing.TransponderId == row.Transponder.Id)
+                .Select(passing => (DateTime?)passing.Time).Max()),
+            ("lastSeen", true) => rows.OrderByDescending(row => storage.Set<Passing>().Where(passing => passing.TransponderId == row.Transponder.Id)
+                .Select(passing => (DateTime?)passing.Time).Max()),
+            ("ownedFrom", false) => rows.OrderBy(row => row.Owner == null ? (DateTime?)null : row.Owner.OwnedFrom),
+            ("ownedFrom", true) => rows.OrderByDescending(row => row.Owner == null ? (DateTime?)null : row.Owner.OwnedFrom),
+            ("ownedTo", false) => rows.OrderBy(row => row.Owner == null ? (DateTime?)null : row.Owner.OwnedTo),
+            ("ownedTo", true) => rows.OrderByDescending(row => row.Owner == null ? (DateTime?)null : row.Owner.OwnedTo),
+            ("status", false) => rows.OrderBy(row => row.Owner == null ? "Unassigned" : row.Owner.OwnedFrom > now ? "Scheduled" :
+                row.Owner.OwnedTo.HasValue && row.Owner.OwnedTo <= now ? "Ended" : "Active"),
+            ("status", true) => rows.OrderByDescending(row => row.Owner == null ? "Unassigned" : row.Owner.OwnedFrom > now ? "Scheduled" :
+                row.Owner.OwnedTo.HasValue && row.Owner.OwnedTo <= now ? "Ended" : "Active"),
+            ("label", false) => rows.OrderBy(row => row.Transponder.Label),
+            ("label", true) => rows.OrderByDescending(row => row.Transponder.Label),
+            (null or "", false) => rows.OrderBy(row => row.Transponder.Label),
+            (null or "", true) => rows.OrderByDescending(row => row.Transponder.Label),
+            _ => rows.OrderBy(row => row.Transponder.Label)
+        };
+        var page = await orderedRows.ThenBy(row => row.Transponder.Label).ThenBy(row => row.Transponder.Id)
             .ThenBy(row => row.Owner == null ? (DateTime?)null : row.Owner.OwnedFrom)
             .ThenBy(row => row.Owner == null ? (Guid?)null : row.Owner.Id)
             .Skip(request.Page * request.PageSize).Take(request.PageSize).ToListAsync(cancellationToken);
@@ -85,4 +160,10 @@ public static class TransponderQuery
     private static IQueryable<Transponder> Visible(TimingDbContext storage, Guid? ownerId) =>
         storage.Set<Transponder>().AsNoTracking()
             .Where(transponder => !ownerId.HasValue || transponder.Owners.Any(owner => owner.OwnerId == ownerId));
+
+    private static void ValidateSort(string? sortBy)
+    {
+        if (sortBy is not (null or "" or "label" or "system" or "lastSeen" or "ownedFrom" or "ownedTo" or "status"))
+            throw new ArgumentException("The transponder sort column is invalid.");
+    }
 }

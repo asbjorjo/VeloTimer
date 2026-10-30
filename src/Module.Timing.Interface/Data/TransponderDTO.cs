@@ -7,8 +7,29 @@ public sealed record TransponderOwnershipDTO(Guid Id, Guid TransponderId, Guid O
 
 public sealed record ClaimTransponderRequest(string Code);
 
+public enum TransponderOwnershipStatus
+{
+    Unassigned,
+    Active,
+    Scheduled,
+    Ended
+}
+
+public sealed record TransponderColumnFilters(
+    string? Label = null,
+    string? System = null,
+    DateOnly? LastSeen = null,
+    string? Owner = null,
+    DateOnly? OwnedFrom = null,
+    DateOnly? OwnedTo = null,
+    TransponderOwnershipStatus? Status = null);
+
 public sealed record TransponderPageRequest(int Page, int PageSize, string Search, bool IncludeHistory,
-    IReadOnlyList<Guid>? MatchingTransponderIds = null);
+    IReadOnlyList<Guid>? MatchingTransponderIds = null,
+    IReadOnlyList<Guid>? MatchingOwnerIds = null,
+    TransponderColumnFilters? Filters = null,
+    string? SortBy = null,
+    bool SortDescending = false);
 
 public sealed record TransponderRow(TransponderDTO Transponder, TransponderOwnershipDTO? Ownership);
 

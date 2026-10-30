@@ -93,6 +93,62 @@ public sealed partial class TimingEndpointTests
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/timing/transponders/lookup")).StatusCode);
     }
 
+    [Fact]
+    public async Task TransponderQuery_AppliesColumnFiltersAndSortBeforePaging()
+    {
+        var transponderId = await SeedPagedTransponders();
+        DateOnly ownedFrom;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var storage = scope.ServiceProvider.GetRequiredService<TimingDbContext>();
+            ownedFrom = DateOnly.FromDateTime(await storage.Set<TransponderOwner>()
+                .Where(owner => owner.TransponderId == transponderId && owner.OwnerId == TestAuthenticationHandler.DefaultOwnerId)
+                .OrderBy(owner => owner.OwnedFrom).Select(owner => owner.OwnedFrom).FirstAsync());
+            var installation = new Installation { Id = Guid.NewGuid(), AgentId = "last-seen-filter-test", TimingSystem = TimingSystem.MyLaps_X2 };
+            var timingPoint = new TimingPoint
+            {
+                Id = Guid.NewGuid(), SystemId = "finish", InstallationId = installation.Id, Installation = installation, Description = "Finish"
+            };
+            var oldPassing = DateTime.UtcNow.Date.AddDays(-2);
+            var latestPassing = oldPassing.AddDays(1);
+            storage.Add(installation);
+            storage.AddRange(
+                new Passing { Id = Guid.NewGuid(), Time = oldPassing.AddHours(12), TransponderId = transponderId, TimingPoint = timingPoint, TimingPointId = timingPoint.Id },
+                new Passing { Id = Guid.NewGuid(), Time = latestPassing.AddHours(12), TransponderId = transponderId, TimingPoint = timingPoint, TimingPointId = timingPoint.Id });
+            await storage.SaveChangesAsync();
+        }
+        using var client = factory.CreateClient();
+
+        using var statusResponse = await client.PostAsJsonAsync("/api/timing/transponders/query",
+            new TransponderPageRequest(0, 10, "", true, Filters: new(Status: TransponderOwnershipStatus.Active)));
+        var active = (await statusResponse.Content.ReadFromJsonAsync<TransponderPage>())!;
+        Assert.Equal(1, active.TotalCount);
+        Assert.Equal(transponderId, Assert.Single(active.Items).Transponder.Id);
+
+        using var dateResponse = await client.PostAsJsonAsync("/api/timing/transponders/query",
+            new TransponderPageRequest(0, 10, "", true, MatchingOwnerIds: [TestAuthenticationHandler.DefaultOwnerId],
+                Filters: new(OwnedFrom: ownedFrom)));
+        var ownership = (await dateResponse.Content.ReadFromJsonAsync<TransponderPage>())!;
+        Assert.Equal(1, ownership.TotalCount);
+        Assert.Equal(transponderId, Assert.Single(ownership.Items).Transponder.Id);
+
+        using var lastSeenResponse = await client.PostAsJsonAsync("/api/timing/transponders/query",
+            new TransponderPageRequest(0, 10, "", true, Filters: new(LastSeen: DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-2)))));
+        var oldLastSeen = (await lastSeenResponse.Content.ReadFromJsonAsync<TransponderPage>())!;
+        Assert.Equal(0, oldLastSeen.TotalCount);
+
+        using var sortResponse = await client.PostAsJsonAsync("/api/timing/transponders/query",
+            new TransponderPageRequest(0, 100, "", true, SortBy: "label", SortDescending: true));
+        var sorted = (await sortResponse.Content.ReadFromJsonAsync<TransponderPage>())!;
+        Assert.Equal(sorted.Items.Select(row => row.Transponder.Label).OrderDescending(),
+            sorted.Items.Select(row => row.Transponder.Label));
+
+        using var lastSeenSortResponse = await client.PostAsJsonAsync("/api/timing/transponders/query",
+            new TransponderPageRequest(0, 100, "", true, SortBy: "lastSeen", SortDescending: true));
+        var sortedByLastSeen = (await lastSeenSortResponse.Content.ReadFromJsonAsync<TransponderPage>())!;
+        Assert.Equal(transponderId, sortedByLastSeen.Items[0].Transponder.Id);
+    }
+
     [Theory]
     [InlineData(-1, 10)]
     [InlineData(0, 0)]

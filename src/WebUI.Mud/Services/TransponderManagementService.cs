@@ -9,15 +9,19 @@ namespace VeloTime.WebUI.Mud.Services;
 public sealed class TransponderManagementService(ITimingClient client, ITransponderOwnerService owners) : ITransponderManagementService
 {
     public Task<Contracts.TransponderPage> GetTranspondersAsync(bool administration, int page = 0, int pageSize = 10,
-        string search = "", bool includeHistory = true, CancellationToken cancellationToken = default) =>
+        string search = "", bool includeHistory = true, CancellationToken cancellationToken = default,
+        Contracts.TransponderColumnFilters? filters = null, string? sortBy = null, bool sortDescending = false) =>
         Execute(async () =>
         {
             ValidatePage(page, pageSize);
             cancellationToken.ThrowIfCancellationRequested();
             List<Guid>? matchingIds = null;
-            if (!string.IsNullOrEmpty(search))
+            List<Guid>? matchingOwnerIds = null;
+            var ownerFilter = filters?.Owner?.Trim();
+            if (!string.IsNullOrEmpty(search) || !string.IsNullOrEmpty(ownerFilter))
             {
-                matchingIds = [];
+                if (!string.IsNullOrEmpty(search)) matchingIds = [];
+                if (!string.IsNullOrEmpty(ownerFilter)) matchingOwnerIds = [];
                 var ownProfile = administration ? null : await owners.GetOwnProfileAsync(cancellationToken);
                 // Stream compact search metadata to preserve matches across the full displayed name string.
                 for (var candidatePage = 0; ; candidatePage++)
@@ -29,7 +33,8 @@ public sealed class TransponderManagementService(ITimingClient client, ITranspon
                     var names = new Dictionary<Guid, string>();
                     if (administration)
                         foreach (var batch in candidates.Items
-                            .Where(item => !$"{item.Label} {item.SystemId} ".Contains(search, StringComparison.OrdinalIgnoreCase))
+                            .Where(item => !string.IsNullOrEmpty(ownerFilter) ||
+                                !string.IsNullOrEmpty(search) && !$"{item.Label} {item.SystemId} ".Contains(search, StringComparison.OrdinalIgnoreCase))
                             .SelectMany(item => item.OwnerIds).Distinct().Chunk(100))
                             foreach (var owner in await owners.ResolveAsync(batch, cancellationToken))
                                 names[owner.UserId] = owner.DisplayName;
@@ -37,17 +42,37 @@ public sealed class TransponderManagementService(ITimingClient client, ITranspon
                     {
                         var ownerNames = candidate.OwnerIds.Select(id => administration
                             ? names.GetValueOrDefault(id, "Owner names unavailable") : ownProfile!.DisplayName);
-                        if ($"{candidate.Label} {candidate.SystemId} ".Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                            $"{candidate.Label} {candidate.SystemId} {string.Join(' ', ownerNames)}".Contains(search, StringComparison.OrdinalIgnoreCase))
+                        var allOwnerNames = ownerNames.ToList();
+                        if (matchingIds is not null &&
+                            ($"{candidate.Label} {candidate.SystemId} ".Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                             $"{candidate.Label} {candidate.SystemId} {string.Join(' ', allOwnerNames)}".Contains(search, StringComparison.OrdinalIgnoreCase)))
                             matchingIds.Add(candidate.Id);
+                        if (matchingOwnerIds is not null)
+                            foreach (var ownerId in candidate.OwnerIds.Where(ownerId =>
+                                names.GetValueOrDefault(ownerId, ownProfile?.DisplayName ?? "Owner names unavailable")
+                                    .Contains(ownerFilter!, StringComparison.OrdinalIgnoreCase)))
+                                matchingOwnerIds.Add(ownerId);
                     }
                     if (candidates.Items.Count == 0 || (long)(candidatePage + 1) * 100 >= candidates.TotalCount) break;
                 }
             }
+            if (matchingOwnerIds is not null)
+                matchingOwnerIds = matchingOwnerIds.Distinct().ToList();
+            var clientFilters = filters is null ? null : new VeloTime.Module.Timing.Client.TransponderColumnFilters
+            {
+                Label = filters.Label,
+                System = filters.System,
+                LastSeen = filters.LastSeen?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
+                Owner = filters.Owner,
+                OwnedFrom = filters.OwnedFrom?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
+                OwnedTo = filters.OwnedTo?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
+                Status = filters.Status.HasValue ? (int)filters.Status.Value : null
+            };
             var request = new TransponderPageRequest
             {
                 Page = page, PageSize = pageSize, Search = search, IncludeHistory = includeHistory,
-                MatchingTransponderIds = matchingIds
+                MatchingTransponderIds = matchingIds, MatchingOwnerIds = matchingOwnerIds, Filters = clientFilters,
+                SortBy = sortBy, SortDescending = sortDescending
             };
             var result = administration ? await client.QueryTranspondersAsync(request, cancellationToken)
                 : await client.QueryMyTranspondersAsync(request, cancellationToken);

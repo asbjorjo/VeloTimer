@@ -77,10 +77,34 @@
     </MudStack>
     <MudTable T="TransponderRow" @ref="_table" ServerData="LoadPage" @bind-CurrentPage="_page" @bind-RowsPerPage="_pageSize" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
         <HeaderContent>
-            <MudTh>Transponder</MudTh><MudTh>System</MudTh>
-            @if (Administration) { <MudTh>Last seen (UTC)</MudTh> }
+            <MudTh><MudTableSortLabel T="TransponderRow" SortLabel="label">Transponder</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="TransponderRow" SortLabel="system">System</MudTableSortLabel></MudTh>
+            @if (Administration) { <MudTh><MudTableSortLabel T="TransponderRow" SortLabel="lastSeen">Last seen (UTC)</MudTableSortLabel></MudTh> }
             <MudTh>Owner</MudTh>
-            <MudTh>From (UTC)</MudTh><MudTh>To (UTC)</MudTh><MudTh>Status</MudTh><MudTh />
+            <MudTh><MudTableSortLabel T="TransponderRow" SortLabel="ownedFrom">From (UTC)</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="TransponderRow" SortLabel="ownedTo">To (UTC)</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="TransponderRow" SortLabel="status">Status</MudTableSortLabel></MudTh>
+            <MudTh />
+            <MudTr>
+                <MudTh><MudTextField T="string" Value="@_filters.Label" ValueChanged="LabelFilterChanged" DebounceInterval="300" Placeholder="Filter label" Margin="Margin.Dense" Clearable="true" /></MudTh>
+                <MudTh><MudTextField T="string" Value="@_filters.System" ValueChanged="SystemFilterChanged" DebounceInterval="300" Placeholder="Filter system" Margin="Margin.Dense" Clearable="true" /></MudTh>
+                @if (Administration)
+                {
+                    <MudTh><MudDatePicker Date="@DateValue(_filters.LastSeen)" DateChanged="LastSeenFilterChanged" Placeholder="Filter date" Margin="Margin.Dense" Clearable="true" /></MudTh>
+                }
+                <MudTh><MudTextField T="string" Value="@_filters.Owner" ValueChanged="OwnerFilterChanged" DebounceInterval="300" Placeholder="Filter owner" Margin="Margin.Dense" Clearable="true" /></MudTh>
+                <MudTh><MudDatePicker Date="@DateValue(_filters.OwnedFrom)" DateChanged="OwnedFromFilterChanged" Placeholder="Filter date" Margin="Margin.Dense" Clearable="true" /></MudTh>
+                <MudTh><MudDatePicker Date="@DateValue(_filters.OwnedTo)" DateChanged="OwnedToFilterChanged" Placeholder="Filter date" Margin="Margin.Dense" Clearable="true" /></MudTh>
+                <MudTh>
+                    <MudSelect T="string" Value="@_filters.Status?.ToString()" ValueChanged="StatusFilterChanged" Placeholder="Filter status" Margin="Margin.Dense" Clearable="true">
+                        <MudSelectItem Value="@nameof(TransponderOwnershipStatus.Unassigned)">Unassigned</MudSelectItem>
+                        <MudSelectItem Value="@nameof(TransponderOwnershipStatus.Active)">Active</MudSelectItem>
+                        <MudSelectItem Value="@nameof(TransponderOwnershipStatus.Scheduled)">Scheduled</MudSelectItem>
+                        <MudSelectItem Value="@nameof(TransponderOwnershipStatus.Ended)">Ended</MudSelectItem>
+                    </MudSelect>
+                </MudTh>
+                <MudTh />
+            </MudTr>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Transponder">
@@ -144,6 +168,7 @@
     private Task<TableData<TransponderRow>> _pageLoad = Task.FromResult(new TableData<TransponderRow> { Items = [], TotalItems = 0 });
     private int _page, _version;
     private int _pageSize = 10;
+    private TransponderColumnFilters _filters = new();
     private TransponderLookupItem? _selectedTransponder;
     private MudForm? _form;
     private bool _busy, _valid, _hasEnd, _showHistory = true;
@@ -175,6 +200,25 @@
         else await Load();
     }
 
+    private async Task FilterChanged(TransponderColumnFilters filters)
+    {
+        _filters = filters;
+        _page = 0;
+        if (_table is { CurrentPage: not 0 }) _table.CurrentPage = 0;
+        else await Load();
+    }
+
+    private Task LabelFilterChanged(string value) => FilterChanged(_filters with { Label = value });
+    private Task SystemFilterChanged(string value) => FilterChanged(_filters with { System = value });
+    private Task OwnerFilterChanged(string value) => FilterChanged(_filters with { Owner = value });
+    private Task StatusFilterChanged(string? value) => FilterChanged(_filters with
+    {
+        Status = Enum.TryParse<TransponderOwnershipStatus>(value, out var status) ? status : null
+    });
+    private Task LastSeenFilterChanged(DateTime? value) => FilterChanged(_filters with { LastSeen = ToDateOnly(value) });
+    private Task OwnedFromFilterChanged(DateTime? value) => FilterChanged(_filters with { OwnedFrom = ToDateOnly(value) });
+    private Task OwnedToFilterChanged(DateTime? value) => FilterChanged(_filters with { OwnedTo = ToDateOnly(value) });
+
     private Task<TableData<TransponderRow>> LoadPage(TableState state, CancellationToken cancellationToken)
     {
         _request?.Cancel();
@@ -192,14 +236,16 @@
         _error = null;
         try
         {
-            var result = await Service.GetTranspondersAsync(Administration, state.Page, state.PageSize, _search, _showHistory, token);
+            var result = await Service.GetTranspondersAsync(Administration, state.Page, state.PageSize, _search, _showHistory,
+                token, _filters, state.SortLabel, state.SortDirection == SortDirection.Descending);
             token.ThrowIfCancellationRequested();
             if (result.Items.Count == 0 && state.Page > 0)
             {
                 _page = result.TotalCount == 0 ? 0 : (result.TotalCount - 1) / state.PageSize;
                 if (_table is not null) _table.CurrentPage = _page;
                 if (version != _version) return await _pageLoad;
-                result = await Service.GetTranspondersAsync(Administration, _page, state.PageSize, _search, _showHistory, token);
+                result = await Service.GetTranspondersAsync(Administration, _page, state.PageSize, _search, _showHistory,
+                    token, _filters, state.SortLabel, state.SortDirection == SortDirection.Descending);
             }
             if (result.TotalCount == 0) _page = 0;
             var names = new Dictionary<Guid, TransponderOwnerView>();
@@ -389,6 +435,8 @@
     }
 
     private string OwnerName(Guid id) => _owners.TryGetValue(id, out var owner) ? owner.DisplayName : "Owner names unavailable";
+    private static DateTime? DateValue(DateOnly? value) => value?.ToDateTime(TimeOnly.MinValue);
+    private static DateOnly? ToDateOnly(DateTime? value) => value is { } date ? DateOnly.FromDateTime(date) : null;
     private sealed record RegistrationPeriod(DateTimeOffset OwnedFrom, DateTimeOffset? OwnedTo);
     private static DateTimeOffset Utc(DateTime date, TimeSpan time) => new(DateTime.SpecifyKind(date.Date.Add(time), DateTimeKind.Utc));
     private static bool IsActive(TransponderOwnershipDTO owner) => owner.OwnedFrom <= DateTimeOffset.UtcNow && (!owner.OwnedTo.HasValue || owner.OwnedTo > DateTimeOffset.UtcNow);
