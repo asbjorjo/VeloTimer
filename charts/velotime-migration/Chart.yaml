@@ -3,7 +3,7 @@ name: velotime-migration
 description: Velotime data migration jobs
 type: application
 version: 0.1.2
-appVersion: "2.1.0-alpha.7"
+appVersion: "2.1.0-alpha.8"
 dependencies:
   - name: velotime-users-migration
     version: 0.1.0
