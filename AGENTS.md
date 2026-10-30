@@ -16,9 +16,17 @@ VeloTimer is a microservices architecture built with .NET 10 using Aspire for di
 ## Working In The Repository
 
 - Use the checked-in CI commands as the build and test baseline: `dotnet test --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov` and `dotnet build --configuration Release`. See [CI](.github/workflows/ci.yml) and [publish workflow](.github/workflows/publish.yml).
-- Tests currently live in `src/VeloTime.Module.Timing.Test/` and use xUnit. Start with [TransponderTest.cs](src/VeloTime.Module.Timing.Test/TransponderTest.cs) when adding domain tests.
+- Test projects are in `src/VeloTime.Module.Timing.Test/`, `src/VeloTime.Module.Facilities.Test/`, `src/VeloTime.Module.Statistics.Test/`, `src/Module.Timing.Api.Test/`, `src/Module.Facilities.Api.Test/`, `src/Module.Statistics.Api.Test/`, `src/VeloTime.Platform.Test/`, and `src/VeloTime.Workers.Test/`. Start with targeted checks; use [TransponderTest.cs](src/VeloTime.Module.Timing.Test/TransponderTest.cs) for a domain-test example. The README JavaScript test is `node --test src/VeloTime.Platform.Test/RegistrationDates.test.mjs`. CI test runs need `OIDC_AUDIENCE=https://build.invalid`; PostgreSQL is required for tests that exercise database integration.
 - For concrete implementations, follow [TimingEndpoints.cs](src/Module.Timing.Api/Endpoints/TimingEndpoints.cs) for route grouping, [TransponderEndpoints.cs](src/Module.Timing.Api/Endpoints/TransponderEndpoints.cs) for typed results, [PassingObservedHandler.cs](src/Module.Timing.Processor/Handlers/PassingObservedHandler.cs) for message consumers, and [InstallationMapper.cs](src/Module.Timing/Mapping/InstallationMapper.cs) for entity-to-contract mapping.
 - Package versions are centrally managed in [Directory.Packages.props](Directory.Packages.props); avoid adding per-project versions unless a project has an established exception.
+
+## Specialist Agent Workflow
+
+The shared architecture and conventions in this file remain the source of truth. The eight workspace agents are configured for selection in the agent picker and for subagent invocation: [Coordinator](.github/agents/coordinator.agent.md), [Tester](.github/agents/tester.agent.md), [.NET API Developer](.github/agents/dotnet-api-developer.agent.md), [Blazor UI Developer](.github/agents/blazor-ui-developer.agent.md), [Data & Migrations Developer](.github/agents/data-migrations-developer.agent.md), [Messaging & Workers Developer](.github/agents/messaging-workers-developer.agent.md), [Platform & Deployment Developer](.github/agents/platform-deployment-developer.agent.md), and [Code Reviewer](.github/agents/code-reviewer.agent.md). Keep agent models unpinned.
+
+- Handle trivial tasks directly; avoid unnecessary delegation. For substantial work, the Coordinator routes to specialists, assigns non-overlapping ownership, and sequences dependencies. The normal sequence is developer → Tester → Reviewer. Send requested fixes through the Coordinator to the original owner.
+- When selected directly or delegated, a specialist must stay within its role and must not delegate further. Return a complete report with changed files, contract decisions, checks and exact results, blockers, and the next owner. The Tester adds or updates tests, reports exact outcomes, and never changes production code to suppress a failure. The Reviewer is read-only.
+- For portable Copilot SDK compatibility, do not define handoffs or `agents` YAML fields. Move manually by selecting the next agent in the picker and providing the previous agent's report. Start a fresh session or reload the workspace to discover new agents. Agent discovery and behavior depend on runtime support and higher-priority instructions.
 
 ## Git Workflow
 
