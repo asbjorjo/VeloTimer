@@ -10,10 +10,10 @@
         <MudList T="string" ReadOnly="true">
             <MudListItem Icon="@Icons.Material.Filled.OnlinePrediction"
                          IconColor="@(Status.IsOnline ? Color.Success : Color.Error)">
-                <MudText>@(Status.IsOnline ? "Online" : "Offline")</MudText>
+                <MudText>@(Status.IsOnline ? L["Online"] : L["Offline"])</MudText>
             </MudListItem>
             <MudListItem Icon="@Icons.Material.Filled.People">
-                <MudText>@Status.PeopleCount people</MudText>
+                <MudText>@L["PeopleCount", Status.PeopleCount]</MudText>
             </MudListItem>
         </MudList>
     </MudCardContent>

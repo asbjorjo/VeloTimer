@@ -1,37 +1,37 @@
 ﻿@page "/statistcs/samples"
 @using Microsoft.AspNetCore.Authorization
-@using VeloTime.WebUI.Mud.Client.Services
+@using System.Globalization
 @using VeloTime.WebUI.Mud.Client.ViewModel
 @* @rendermode InteractiveWebAssembly *@
 @inject IStatisticsService Client
 
 @* @attribute [Authorize] *@
 
-<PageTitle>Samples</PageTitle>
+<PageTitle>@L["SamplesTitle"]</PageTitle>
 
 @if (samples is null)
 {
-    <p><em>Loading...</em></p>
+    <p><em>@L["Loading"]</em></p>
 }
 else
 {
     <table class="table">
         <thead>
             <tr>
-                <th>Time</th>
-                <th>Transponder</th>
-                <th>Start</th>
-                <th>End</th>
-                <th>Distance</th>
-                <th>Duration</th>
-                <th>Speed</th>
+                <th>@L["Time"]</th>
+                <th>@L["Transponder"]</th>
+                <th>@L["Start"]</th>
+                <th>@L["End"]</th>
+                <th>@L["Distance"]</th>
+                <th>@L["Duration"]</th>
+                <th>@L["Speed"]</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var sample in samples)
             {
                 <tr>
-                    <td>@sample.Time.ToString("u")</td>
+                    <td>@sample.Time.ToString("G", CultureInfo.CurrentCulture) @L["UtcSuffix"]</td>
                     <td>
                         @if (sample.TransponderId != Guid.Empty)
                         {
@@ -45,7 +45,7 @@ else
                     <td>@sample.StartPoint</td>
                     <td>@sample.EndPoint</td>
                     <td>@sample.Distance</td>
-                    <td>@sample.Duration.TotalSeconds</td>
+                    <td>@sample.Duration.TotalSeconds.ToString(CultureInfo.CurrentCulture)</td>
                     <td>@sample.Speed</td>
                 </tr>
             }

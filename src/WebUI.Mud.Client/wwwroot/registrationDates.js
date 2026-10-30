@@ -31,15 +31,16 @@ export function period(start, end) {
     return { ownedFrom: from.toISOString(), ownedTo: to?.toISOString() ?? null };
 }
 
-export function describe(start, end) {
+export function describe(start, end, locale) {
+    const format = value => new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "medium" }).format(value);
     const from = new Date(start);
     if (!Number.isFinite(from.getTime()))
         throw new Error("The existing registration start is invalid.");
     if (!end)
-        return `${from.toLocaleString()} onwards (no expiry)`;
+        return { from: format(from), through: null };
     const to = new Date(end);
     if (!Number.isFinite(to.getTime()))
         throw new Error("The existing registration end is invalid.");
     // Ownership ends exclusively; show the last included instant in local time.
-    return `${from.toLocaleString()} through ${new Date(to.getTime() - 1).toLocaleString()}`;
+    return { from: format(from), through: format(new Date(to.getTime() - 1)) };
 }

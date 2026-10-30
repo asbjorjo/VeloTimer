@@ -2,16 +2,16 @@
 
 @using System.Security.Claims
 @using System.Text.Json
-@using VeloTime.WebUI.Mud.Client.Services
+@using System.Globalization
 @using VeloTime.WebUI.Mud.Client.ViewModel
 
 @inject IAuthDebugService AuthDebugService
 
 @attribute [Authorize]
 
-<PageTitle>Auth debug</PageTitle>
+<PageTitle>@L["AuthDebug"]</PageTitle>
 
-<MudText Typo="Typo.h3" GutterBottom="true">Auth debug</MudText>
+<MudText Typo="Typo.h3" GutterBottom="true">@L["AuthDebug"]</MudText>
 
 @if (loading)
 {
@@ -23,51 +23,51 @@ else if (error is not null)
 }
 else if (tokenInfo is null)
 {
-    <MudAlert Severity="Severity.Info">Auth debugging is only available in the Development environment.</MudAlert>
+    <MudAlert Severity="Severity.Info">@L["DevelopmentOnly"]</MudAlert>
 }
 else
 {
     <MudStack Spacing="4">
         <MudPaper Class="pa-4">
-            <MudText Typo="Typo.h5" GutterBottom="true">Access token</MudText>
+            <MudText Typo="Typo.h5" GutterBottom="true">@L["AccessToken"]</MudText>
             @if (!tokenInfo.HasAccessToken)
             {
-                <MudAlert Severity="Severity.Warning">No access token is stored for this session. Sign in again.</MudAlert>
+                <MudAlert Severity="Severity.Warning">@L["NoAccessToken"]</MudAlert>
             }
             else
             {
-                <MudText Typo="Typo.subtitle2">Audience</MudText>
+                <MudText Typo="Typo.subtitle2">@L["Audience"]</MudText>
                 @Chips(tokenInfo.Audiences)
-                <MudText Typo="Typo.subtitle2" Class="mt-2">Realm roles</MudText>
+                <MudText Typo="Typo.subtitle2" Class="mt-2">@L["RealmRoles"]</MudText>
                 @Chips(tokenInfo.RealmRoles)
                 <MudSimpleTable Dense="true" Class="mt-2">
                     <tbody>
-                        <tr><td>Issuer</td><td>@tokenInfo.Issuer</td></tr>
-                        <tr><td>Authorized party</td><td>@tokenInfo.AuthorizedParty</td></tr>
-                        <tr><td>Scope</td><td>@tokenInfo.Scope</td></tr>
-                        <tr><td>Expires</td><td>@tokenInfo.ExpiresAt?.ToLocalTime().ToString("u")</td></tr>
+                        <tr><td>@L["Issuer"]</td><td>@tokenInfo.Issuer</td></tr>
+                        <tr><td>@L["AuthorizedParty"]</td><td>@tokenInfo.AuthorizedParty</td></tr>
+                        <tr><td>@L["Scope"]</td><td>@tokenInfo.Scope</td></tr>
+                        <tr><td>@L["Expires"]</td><td>@tokenInfo.ExpiresAt?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</td></tr>
                     </tbody>
                 </MudSimpleTable>
             }
         </MudPaper>
 
         <MudPaper Class="pa-4">
-            <MudText Typo="Typo.h5" GutterBottom="true">Identity</MudText>
+            <MudText Typo="Typo.h5" GutterBottom="true">@L["Identity"]</MudText>
             <MudSimpleTable Dense="true">
                 <tbody>
-                    <tr><td>Name</td><td>@user?.Identity?.Name</td></tr>
-                    <tr><td>Authentication type</td><td>@user?.Identity?.AuthenticationType</td></tr>
+                    <tr><td>@L["Name"]</td><td>@user?.Identity?.Name</td></tr>
+                    <tr><td>@L["AuthenticationType"]</td><td>@user?.Identity?.AuthenticationType</td></tr>
                 </tbody>
             </MudSimpleTable>
-            <MudText Typo="Typo.subtitle2" Class="mt-2">Realm roles (realm_access claim)</MudText>
+            <MudText Typo="Typo.subtitle2" Class="mt-2">@L["IdentityRealmRoles"]</MudText>
             @Chips(identityRealmRoles)
         </MudPaper>
 
         <MudPaper Class="pa-4">
-            <MudText Typo="Typo.h5" GutterBottom="true">Claims</MudText>
+            <MudText Typo="Typo.h5" GutterBottom="true">@L["Claims"]</MudText>
             <MudSimpleTable Dense="true" Striped="true">
                 <thead>
-                    <tr><th>Type</th><th>Value</th></tr>
+                    <tr><th>@L["Type"]</th><th>@L["Value"]</th></tr>
                 </thead>
                 <tbody>
                     @foreach (var claim in user?.Claims ?? [])
@@ -103,7 +103,7 @@ else
         }
         catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
         {
-            error = "Unable to load access token details.";
+            error = L["TokenDetailsFailed"];
         }
         finally
         {
@@ -111,10 +111,10 @@ else
         }
     }
 
-    private static RenderFragment Chips(IReadOnlyList<string> values) => @<div>
+    private RenderFragment Chips(IReadOnlyList<string> values) => @<div>
         @if (values.Count == 0)
         {
-            <MudText Typo="Typo.body2" Color="Color.Secondary">None</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@L["None"]</MudText>
         }
         @foreach (var value in values)
         {

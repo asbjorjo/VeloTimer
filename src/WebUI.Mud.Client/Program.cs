@@ -1,10 +1,15 @@
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using MudBlazor;
 using MudBlazor.Services;
 using VeloTime.WebUI.Mud.Client;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
 builder.Services.AddMudServices();
+builder.Services.AddMudLocalization();
+builder.Services.AddLocalization();
+builder.Services.AddTransient<MudLocalizer, LocalizedMudLocalizer>();
+builder.Services.AddScoped<UnsavedChangesTracker>();
 
 builder.Services.AddAuthorizationCore(AdministrationPolicies.Configure);
 builder.Services.AddCascadingAuthenticationState();

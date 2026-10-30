@@ -6,12 +6,12 @@
 
 @attribute [Authorize]
 
-<PageTitle>Auth</PageTitle>
+<PageTitle>@L["Auth"]</PageTitle>
 
-<MudText Typo="Typo.h3" GutterBottom="true">You are authenticated</MudText>
+<MudText Typo="Typo.h3" GutterBottom="true">@L["Authenticated"]</MudText>
 
 <AuthorizeView>
-    <MudText Class="mb-4">Hello @context.User.Identity?.Name!</MudText>
+    <MudText Class="mb-4">@L["Hello"] @context.User.Identity?.Name!</MudText>
     <MudText>
         @if (string.IsNullOrWhiteSpace(username))
         {

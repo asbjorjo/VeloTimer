@@ -5,32 +5,32 @@
 
 @if (_loading)
 {
-    <MudProgressLinear Color="Color.Primary" Indeterminate="true" aria-label="Loading best times" />
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" aria-label="@L["LoadingBestTimes"]" />
 }
 else if (_error)
 {
-    <MudAlert Severity="Severity.Error">Best times could not be loaded. Please try again.</MudAlert>
-    <MudButton OnClick="LoadAsync" Class="mt-2">Retry</MudButton>
+    <MudAlert Severity="Severity.Error">@L["BestTimesLoadFailed"]</MudAlert>
+    <MudButton OnClick="LoadAsync" Class="mt-2">@L["Retry"]</MudButton>
 }
 else
 {
     <MudTable T="BestStatisticsResultView" Items="_results" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
         <HeaderContent>
-            <MudTh>Statistics item</MudTh>
-            <MudTh>Profile</MudTh>
-            <MudTh Class="text-right">Average speed (km/h)</MudTh>
-            <MudTh Class="text-right">Time</MudTh>
-            <MudTh>Facility</MudTh>
+            <MudTh>@L["StatisticsItem"]</MudTh>
+            <MudTh>@L["Profile"]</MudTh>
+            <MudTh Class="text-right">@L["AverageSpeed"]</MudTh>
+            <MudTh Class="text-right">@L["Time"]</MudTh>
+            <MudTh>@L["Facility"]</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Statistics item">@context.StatisticsItemName</MudTd>
-            <MudTd DataLabel="Profile">@context.ProfileName</MudTd>
-            <MudTd DataLabel="Average speed (km/h)" Class="text-right">@context.Speed.ToString("N3", CultureInfo.CurrentCulture)</MudTd>
-            <MudTd DataLabel="Time" Class="text-right">@context.Duration.ToString(context.Duration.Days == 0 ? @"hh\:mm\:ss\.fff" : @"d\.hh\:mm\:ss\.fff", CultureInfo.CurrentCulture)</MudTd>
-            <MudTd DataLabel="Facility">@context.FacilityName</MudTd>
+            <MudTd DataLabel="@L["StatisticsItem"]">@context.StatisticsItemName</MudTd>
+            <MudTd DataLabel="@L["Profile"]">@context.ProfileName</MudTd>
+            <MudTd DataLabel="@L["AverageSpeed"]" Class="text-right">@context.Speed.ToString("N3", CultureInfo.CurrentCulture)</MudTd>
+            <MudTd DataLabel="@L["Time"]" Class="text-right">@context.Duration.ToString(context.Duration.Days == 0 ? @"hh\:mm\:ss\.fff" : @"d\.hh\:mm\:ss\.fff", CultureInfo.CurrentCulture)</MudTd>
+            <MudTd DataLabel="@L["Facility"]">@context.FacilityName</MudTd>
         </RowTemplate>
         <NoRecordsContent>
-            <MudText>No public best times were recorded for this period and facility.</MudText>
+            <MudText>@L["NoPublicBestTimes"]</MudText>
         </NoRecordsContent>
     </MudTable>
 }

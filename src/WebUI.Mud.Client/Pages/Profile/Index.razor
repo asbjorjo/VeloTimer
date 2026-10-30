@@ -4,14 +4,16 @@
 @inject NavigationManager Navigation
 @inject IProfileService Profile
 
-<PageTitle>Profile</PageTitle>
+<PageTitle>@L["Profile"]</PageTitle>
+<MudText Typo="Typo.h4" Class="mb-4">@L["Profile"]</MudText>
+<LanguageSelector />
 
 @foreach (var linkedAccount in linkedAccounts)
 {
     <Account account="@linkedAccount" />
 }
 
-<MudButton Href="/authentication/changepass">Change password</MudButton>
+<MudButton Href="/authentication/changepass">@L["ChangePassword"]</MudButton>
 
 @code {
     IEnumerable<LinkedAccountView> linkedAccounts = Enumerable.Empty<LinkedAccountView>();

@@ -1,21 +1,22 @@
 @page "/admin/statistics/items"
 @page "/admin/statistics/configurations"
 @attribute [Authorize(Policy = AdministrationPolicies.Statistics)]
+@using System.Globalization
 @using VeloTime.Module.Statistics.Interface.Data
-@using VeloTime.WebUI.Mud.Client.Services
 @using VeloTime.WebUI.Mud.Client.ViewModel
 @inject IStatisticsAdministrationService Administration
 @inject IFacilityService Facilities
 @inject IDialogService Dialogs
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
+@inject UnsavedChangesTracker UnsavedChanges
 @implements IDisposable
 
-<PageTitle>Statistics Administration</PageTitle>
+<PageTitle>@L["StatisticsAdministrationTitle"]</PageTitle>
 <NavigationLock ConfirmExternalNavigation="@_editing" OnBeforeInternalNavigation="ConfirmNavigation" />
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
 <MudBreadcrumbs Items="_breadcrumbs" />
-<MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">Statistics</MudText>
+<MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">@L["Statistics"]</MudText>
 
 @if (_error is not null)
 {
@@ -27,47 +28,47 @@
 }
 else if (_editing)
 {
-    <MudText Typo="Typo.h6" Class="mb-4">@(_id.HasValue ? "Edit" : "New") @(_configurationEditor ? "configuration" : "item")</MudText>
+    <MudText Typo="Typo.h6" Class="mb-4">@(_configurationEditor ? (_id.HasValue ? L["EditConfiguration"] : L["NewConfiguration"]) : (_id.HasValue ? L["EditItem"] : L["NewItem"]))</MudText>
     <MudForm @ref="_form" @bind-IsValid="_valid">
         <MudGrid>
             @if (!_configurationEditor)
             {
-                <MudItem xs="12" md="6"><MudTextField @bind-Value="_name" Label="Name" Required="true" MaxLength="200" /></MudItem>
-                <MudItem xs="12" md="6"><MudNumericField T="float" @bind-Value="_distance" Label="Distance (m)" Min="0.001f" Required="true" /></MudItem>
-                <MudItem xs="12"><MudTextField @bind-Value="_description" Label="Description" Lines="3" /></MudItem>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_name" Label="@L["Name"]" Required="true" RequiredError="@L["RequiredError"]" MaxLength="200" /></MudItem>
+                <MudItem xs="12" md="6"><MudNumericField T="float" @bind-Value="_distance" Label="@L["DistanceMeters"]" Min="0.001f" Required="true" RequiredError="@L["RequiredError"]" /></MudItem>
+                <MudItem xs="12"><MudTextField @bind-Value="_description" Label="@L["Description"]" Lines="3" /></MudItem>
             }
             else
             {
                 <MudItem xs="12" md="6">
-                    <MudSelect T="Guid?" @bind-Value="_itemId" Label="Statistics item" Required="true">
+                    <MudSelect T="Guid?" @bind-Value="_itemId" Label="@L["StatisticsItemLabel"]" Required="true" RequiredError="@L["RequiredError"]">
                         @foreach (var item in _items) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Name (@item.Distance m)</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudToggleGroup T="StatisticsConfigurationType" Value="_type" ValueChanged="ChangeType" SelectionMode="SelectionMode.SingleSelection" Disabled="@_id.HasValue" Class="mt-4">
-                        <MudToggleItem Value="StatisticsConfigurationType.Simple" Text="Simple" />
-                        <MudToggleItem Value="StatisticsConfigurationType.Multi" Text="Multi" />
+                        <MudToggleItem Value="StatisticsConfigurationType.Simple" Text="@L["Simple"]" />
+                        <MudToggleItem Value="StatisticsConfigurationType.Multi" Text="@L["Multi"]" />
                     </MudToggleGroup>
                 </MudItem>
                 @if (_type == StatisticsConfigurationType.Simple)
                 {
                     <MudItem xs="12" md="6">
-                        <MudSelect T="Guid?" Value="_facilityId" ValueChanged="SelectFacility" Label="Facility" Required="true" Disabled="_busy">
+                        <MudSelect T="Guid?" Value="_facilityId" ValueChanged="SelectFacility" Label="@L["Facility"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy">
                             @foreach (var facility in _facilities) { <MudSelectItem T="Guid?" Value="@((Guid?)facility.Id)">@facility.Name</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="Guid?" Value="_layoutId" ValueChanged="SelectLayout" Label="Course layout" Required="true" Disabled="@(_busy || !_facilityId.HasValue)">
+                        <MudSelect T="Guid?" Value="_layoutId" ValueChanged="SelectLayout" Label="@L["CourseLayout"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || !_facilityId.HasValue)">
                             @foreach (var layout in _layouts) { <MudSelectItem T="Guid?" Value="@((Guid?)layout.Id)">@LayoutLabel(layout)</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="Guid?" @bind-Value="_startId" Label="Start coursepoint" Required="true" Disabled="@(_busy || !_layoutId.HasValue)">
+                        <MudSelect T="Guid?" @bind-Value="_startId" Label="@L["StartCoursepoint"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || !_layoutId.HasValue)">
                             @foreach (var point in _points) { <MudSelectItem T="Guid?" Value="@((Guid?)point.Id)">@PointLabel(point)</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="Guid?" @bind-Value="_endId" Label="End coursepoint" Required="true" Disabled="@(_busy || !_layoutId.HasValue)">
+                        <MudSelect T="Guid?" @bind-Value="_endId" Label="@L["EndCoursepoint"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || !_layoutId.HasValue)">
                             @foreach (var point in _points) { <MudSelectItem T="Guid?" Value="@((Guid?)point.Id)">@PointLabel(point)</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
@@ -75,61 +76,61 @@ else if (_editing)
                 else
                 {
                     <MudItem xs="12" md="8">
-                        <MudSelect T="Guid?" @bind-Value="_parentId" Label="Simple parent configuration" Required="true">
+                        <MudSelect T="Guid?" @bind-Value="_parentId" Label="@L["SimpleParentConfiguration"]" Required="true" RequiredError="@L["RequiredError"]">
                             @foreach (var parent in _configs.Where(config => config.Type == StatisticsConfigurationType.Simple))
                             { <MudSelectItem T="Guid?" Value="@((Guid?)parent.Id)">@ConfigurationLabel(parent)</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
-                    <MudItem xs="12" md="4"><MudNumericField T="int" @bind-Value="_repetitions" Min="1" Label="Repetitions" Required="true" /></MudItem>
+                    <MudItem xs="12" md="4"><MudNumericField T="int" @bind-Value="_repetitions" Min="1" Label="@L["Repetitions"]" Required="true" RequiredError="@L["RequiredError"]" /></MudItem>
                 }
             }
         </MudGrid>
         <MudStack Row="true" Class="mt-6" Spacing="3">
-            <MudButton OnClick="Save" Disabled="_busy" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save">Save</MudButton>
-            <MudButton OnClick="Cancel" Disabled="_busy">Cancel</MudButton>
+            <MudButton OnClick="Save" Disabled="_busy" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save">@L["Save"]</MudButton>
+            <MudButton OnClick="Cancel" Disabled="_busy">@L["Cancel"]</MudButton>
         </MudStack>
     </MudForm>
 }
 else
 {
     <MudTabs ActivePanelIndex="@(IsConfigurations ? 1 : 0)" ActivePanelIndexChanged="SwitchTab" Elevation="0" Class="mb-4">
-        <MudTabPanel Text="Items" />
-        <MudTabPanel Text="Configurations" />
+        <MudTabPanel Text="@L["Items"]" />
+        <MudTabPanel Text="@L["Configurations"]" />
     </MudTabs>
     <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-4">
-        <MudTextField @bind-Value="_search" Immediate="true" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Margin="Margin.Dense" />
-        <MudButton OnClick="New" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">@(IsConfigurations ? "New configuration" : "New item")</MudButton>
-        <MudTooltip Text="Refresh"><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" Disabled="_busy" /></MudTooltip>
+        <MudTextField @bind-Value="_search" Immediate="true" Placeholder="@L["Search"]" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Margin="Margin.Dense" />
+        <MudButton OnClick="New" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">@(IsConfigurations ? L["NewConfiguration"] : L["NewItem"])</MudButton>
+        <MudTooltip Text="@L["Refresh"]"><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" Disabled="_busy" aria-label="@L["Refresh"]" /></MudTooltip>
     </MudStack>
     @if (!IsConfigurations)
     {
         <MudTable T="StatisticsItemDTO" Items="@_items.Where(MatchesItem)" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
-            <HeaderContent><MudTh>Name</MudTh><MudTh>Description</MudTh><MudTh>Distance</MudTh><MudTh>Configurations</MudTh><MudTh /></HeaderContent>
+            <HeaderContent><MudTh>@L["Name"]</MudTh><MudTh>@L["Description"]</MudTh><MudTh>@L["Distance"]</MudTh><MudTh>@L["Configurations"]</MudTh><MudTh /></HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Name">@context.Name</MudTd><MudTd DataLabel="Description">@context.Description</MudTd><MudTd DataLabel="Distance">@context.Distance m</MudTd>
-                <MudTd DataLabel="Configurations">@_configs.Count(config => config.StatisticsItemId == context.Id)</MudTd>
-                <MudTd DataLabel="Actions">
-                    <MudTooltip Text="Edit item"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditItem(context)" /></MudTooltip>
-                    <MudTooltip Text="Delete item"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => Delete(context.Id, false)" Disabled="_busy" /></MudTooltip>
+                <MudTd DataLabel="@L["Name"]">@context.Name</MudTd><MudTd DataLabel="@L["Description"]">@context.Description</MudTd><MudTd DataLabel="@L["Distance"]">@context.Distance m</MudTd>
+                <MudTd DataLabel="@L["Configurations"]">@_configs.Count(config => config.StatisticsItemId == context.Id)</MudTd>
+                <MudTd DataLabel="@L["Actions"]">
+                    <MudTooltip Text="@L["EditItem"]"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditItem(context)" aria-label="@L["EditItem"]" /></MudTooltip>
+                    <MudTooltip Text="@L["DeleteItem"]"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => Delete(context.Id, false)" Disabled="_busy" aria-label="@L["DeleteItem"]" /></MudTooltip>
                 </MudTd>
             </RowTemplate>
-            <NoRecordsContent><MudText>No statistics items.</MudText></NoRecordsContent>
+            <NoRecordsContent><MudText>@L["NoStatisticsItems"]</MudText></NoRecordsContent>
             <PagerContent><MudTablePager /></PagerContent>
         </MudTable>
     }
     else
     {
         <MudTable T="StatisticsConfigurationDTO" Items="@_configs.Where(MatchesConfiguration)" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
-            <HeaderContent><MudTh>Item</MudTh><MudTh>Type</MudTh><MudTh>Connection</MudTh><MudTh /></HeaderContent>
+            <HeaderContent><MudTh>@L["Item"]</MudTh><MudTh>@L["Type"]</MudTh><MudTh>@L["Connection"]</MudTh><MudTh /></HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Item">@ItemName(context.StatisticsItemId)</MudTd><MudTd DataLabel="Type">@context.Type</MudTd>
-                <MudTd DataLabel="Connection">@ConnectionLabel(context)</MudTd>
-                <MudTd DataLabel="Actions">
-                    <MudTooltip Text="Edit configuration"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditConfiguration(context)" /></MudTooltip>
-                    <MudTooltip Text="Delete configuration"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => Delete(context.Id, true)" Disabled="_busy" /></MudTooltip>
+                <MudTd DataLabel="@L["Item"]">@ItemName(context.StatisticsItemId)</MudTd><MudTd DataLabel="@L["Type"]">@ConfigurationType(context.Type)</MudTd>
+                <MudTd DataLabel="@L["Connection"]">@ConnectionLabel(context)</MudTd>
+                <MudTd DataLabel="@L["Actions"]">
+                    <MudTooltip Text="@L["EditConfiguration"]"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditConfiguration(context)" aria-label="@L["EditConfiguration"]" /></MudTooltip>
+                    <MudTooltip Text="@L["DeleteConfiguration"]"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => Delete(context.Id, true)" Disabled="_busy" aria-label="@L["DeleteConfiguration"]" /></MudTooltip>
                 </MudTd>
             </RowTemplate>
-            <NoRecordsContent><MudText>No statistics configurations.</MudText></NoRecordsContent>
+            <NoRecordsContent><MudText>@L["NoStatisticsConfigurations"]</MudText></NoRecordsContent>
             <PagerContent><MudTablePager /></PagerContent>
         </MudTable>
     }
@@ -139,7 +140,8 @@ else
 
 @code {
     private readonly CancellationTokenSource _lifetime = new();
-    private readonly List<BreadcrumbItem> _breadcrumbs = [new("Administration", href: null, disabled: true), new("Statistics", href: null, disabled: true)];
+    private IDisposable? _unsavedRegistration;
+    private List<BreadcrumbItem> _breadcrumbs = [];
     private IReadOnlyList<StatisticsItemDTO> _items = [];
     private IReadOnlyList<StatisticsConfigurationDTO> _configs = [];
     private List<FacilityView> _facilities = [];
@@ -157,7 +159,12 @@ else
     private StatisticsConfigurationType _type;
     private bool IsConfigurations => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("admin/statistics/configurations", StringComparison.OrdinalIgnoreCase);
 
-    protected override Task OnInitializedAsync() => Load();
+    protected override Task OnInitializedAsync()
+    {
+        _breadcrumbs = [new(L["Administration"].Value, href: null, disabled: true), new(L["Statistics"].Value, href: null, disabled: true)];
+        _unsavedRegistration = UnsavedChanges.Register(() => _editing);
+        return Load();
+    }
 
     private async Task Load()
     {
@@ -184,7 +191,7 @@ else
             }
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (Exception) { _error = "Statistics could not be loaded. Check your access and try refreshing."; }
+        catch (Exception) { _error = L["StatisticsLoadFailed"]; }
         finally { _loading = false; }
     }
 
@@ -261,7 +268,7 @@ else
 
     private async Task Save()
     {
-        await _form!.Validate();
+        await _form!.ValidateAsync();
         if (!_valid || _busy) return;
         _busy = true;
         _error = null;
@@ -274,28 +281,28 @@ else
             else
                 await Administration.SaveItemAsync(_id, new(_name, _description, _distance), _lifetime.Token);
             _editing = false;
-            Snackbar.Add("Saved.", Severity.Success);
+            Snackbar.Add(L["Saved"], Severity.Success);
             await Load();
         }
-        catch (HttpRequestException exception) { _error = exception.Message; }
-        catch (Exception) { _error = "The changes could not be saved. Please try again."; }
+        catch (HttpRequestException exception) { _error = ErrorFor(exception); }
+        catch (Exception) { _error = L["ChangesNotSaved"]; }
         finally { _busy = false; }
     }
 
     private async Task Delete(Guid id, bool configuration)
     {
-        if (await Dialogs.ShowMessageBoxAsync("Delete definition?", "Deletion is permanent. Definitions with dependencies or recorded results cannot be deleted.", yesText: "Delete", cancelText: "Cancel") != true) return;
+        if (await Dialogs.ShowMessageBoxAsync(configuration ? L["DeleteConfigurationQuestion"] : L["DeleteItemQuestion"], L["DeleteDefinitionConfirm"], yesText: L["Delete"], cancelText: L["Cancel"]) != true) return;
         _busy = true;
         _error = null;
         try
         {
             if (configuration) await Administration.DeleteConfigurationAsync(id, _lifetime.Token);
             else await Administration.DeleteItemAsync(id, _lifetime.Token);
-            Snackbar.Add("Deleted.", Severity.Success);
+            Snackbar.Add(L["Deleted"], Severity.Success);
             await Load();
         }
-        catch (HttpRequestException exception) { _error = exception.Message; }
-        catch (Exception) { _error = "The definition could not be deleted. Please try again."; }
+        catch (HttpRequestException exception) { _error = ErrorFor(exception); }
+        catch (Exception) { _error = L["DefinitionDeleteFailed"]; }
         finally { _busy = false; }
     }
 
@@ -304,18 +311,30 @@ else
         if (await ConfirmDiscard()) { _editing = false; _error = null; }
     }
 
-    private async Task<bool> ConfirmDiscard() => !_editing || await Dialogs.ShowMessageBoxAsync("Discard changes?", "Unsaved changes will be lost.", yesText: "Discard", cancelText: "Keep editing") == true;
+    private async Task<bool> ConfirmDiscard() => !_editing || await Dialogs.ShowMessageBoxAsync(L["DiscardChanges"], L["UnsavedChangesLost"], yesText: L["Delete"], cancelText: L["KeepEditingAction"]) == true;
     private async Task ConfirmNavigation(LocationChangingContext context) { if (!await ConfirmDiscard()) context.PreventNavigation(); }
     private void SwitchTab(int index) { if (index != (IsConfigurations ? 1 : 0)) Navigation.NavigateTo(index == 1 ? "/admin/statistics/configurations" : "/admin/statistics/items"); }
     private bool MatchesItem(StatisticsItemDTO item) => $"{item.Name} {item.Description}".Contains(_search, StringComparison.OrdinalIgnoreCase);
     private bool MatchesConfiguration(StatisticsConfigurationDTO config) => ConfigurationLabel(config).Contains(_search, StringComparison.OrdinalIgnoreCase);
-    private string ItemName(Guid id) => _items.FirstOrDefault(item => item.Id == id)?.Name ?? $"Missing item ({id.ToString()[..8]})";
-    private static string PointLabel(CoursePointView point) => string.IsNullOrWhiteSpace(point.Name) ? $"Point {point.Id.ToString()[..8]}" : point.Name;
-    private static string LayoutLabel(CourseLayoutView layout) => $"Layout {layout.Id.ToString()[..8]}";
-    private string PointName(Guid? id) => id.HasValue && _pointNames.TryGetValue(id.Value, out var name) ? name : "Missing coursepoint";
+    private string ItemName(Guid id) => _items.FirstOrDefault(item => item.Id == id)?.Name ?? L["MissingItem", id.ToString()[..8]].Value;
+    private string PointLabel(CoursePointView point) => string.IsNullOrWhiteSpace(point.Name) ? L["Point", point.Id.ToString()[..8]].Value : point.Name;
+    private string LayoutLabel(CourseLayoutView layout) => L["LayoutIdLabel", layout.Id.ToString()[..8]];
+    private string PointName(Guid? id) => id.HasValue && _pointNames.TryGetValue(id.Value, out var name) ? name : L["MissingCoursepoint"].Value;
     private string ConfigurationLabel(StatisticsConfigurationDTO config) => $"{ItemName(config.StatisticsItemId)}: {ConnectionLabel(config)}";
     private string ConnectionLabel(StatisticsConfigurationDTO config) => config.Type == StatisticsConfigurationType.Simple
-        ? $"{PointName(config.CoursePointStart)} to {PointName(config.CoursePointEnd)}"
-        : $"{config.Repetitions} repetitions of {(_configs.FirstOrDefault(parent => parent.Id == config.ParentConfigId) is { } parent ? ConfigurationLabel(parent) : "missing parent")}";
-    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+        ? L["ConnectionTo", PointName(config.CoursePointStart), PointName(config.CoursePointEnd)]
+        : L["RepetitionsOf", config.Repetitions?.ToString(CultureInfo.CurrentCulture) ?? L["Unknown"].Value,
+            _configs.FirstOrDefault(parent => parent.Id == config.ParentConfigId) is { } parent ? ConfigurationLabel(parent) : L["MissingParent"].Value];
+    private LocalizedString ConfigurationType(StatisticsConfigurationType type) =>
+        type == StatisticsConfigurationType.Simple ? L["Simple"] : L["Multi"];
+    private string ErrorFor(HttpRequestException exception) => exception.StatusCode switch
+    {
+        System.Net.HttpStatusCode.Unauthorized => L["SignInRequired"].Value,
+        System.Net.HttpStatusCode.Forbidden => L["NoPermission"].Value,
+        System.Net.HttpStatusCode.Conflict => L["ConflictOccurred"].Value,
+        System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.UnprocessableEntity => L["RequestRejected"].Value,
+        System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout => L["ServiceUnavailable"].Value,
+        _ => L["RequestFailed"].Value
+    };
+    public void Dispose() { _unsavedRegistration?.Dispose(); _lifetime.Cancel(); _lifetime.Dispose(); }
 }

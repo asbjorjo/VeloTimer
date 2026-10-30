@@ -2,75 +2,75 @@
 @page "/admin/facilities/{FacilityId:guid}/layouts/{LayoutId:guid}"
 @attribute [Authorize(Policy = AdministrationPolicies.Facilities)]
 @using VeloTime.Module.Facilities.Interface.Data
-@using VeloTime.WebUI.Mud.Client.Services
 @inject IInfrastructureAdministrationService Service
 @inject IDialogService Dialogs
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
+@inject UnsavedChangesTracker UnsavedChanges
 @implements IDisposable
 
-<PageTitle>Course Layout Editor</PageTitle>
+<PageTitle>@L["CourseLayoutEditor"]</PageTitle>
 <NavigationLock ConfirmExternalNavigation="_dirty" OnBeforeInternalNavigation="ConfirmNavigation" />
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
-    <MudBreadcrumbs Items="@(new List<BreadcrumbItem> { new("Facilities", "/admin/facilities"), new(_facilityName, $"/admin/facilities/{FacilityId}/layouts"), new("Layout", null, true) })" />
-    <MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">@(_savedId.HasValue ? $"Layout {_savedId.Value.ToString()[..8]}" : "New course layout")</MudText>
+    <MudBreadcrumbs Items="@(new List<BreadcrumbItem> { new(L["Facilities"].Value, "/admin/facilities"), new(_facilityName, $"/admin/facilities/{FacilityId}/layouts"), new(L["Layout"].Value, null, true) })" />
+    <MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">@(_savedId.HasValue ? L["LayoutIdLabel", _savedId.Value.ToString()[..8]] : L["NewCourseLayout"])</MudText>
     @if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-4">@_error</MudAlert> }
     @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
     else if (_found)
     {
         <MudForm @ref="_form">
             <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-4">
-                <MudText Typo="Typo.h6">Coursepoints</MudText><MudSpacer />
-                <MudButton StartIcon="@Icons.Material.Filled.AddLocationAlt" OnClick="AddPoint" Disabled="_busy">New point</MudButton>
+                <MudText Typo="Typo.h6">@L["Coursepoints"]</MudText><MudSpacer />
+                <MudButton StartIcon="@Icons.Material.Filled.AddLocationAlt" OnClick="AddPoint" Disabled="_busy">@L["NewPoint"]</MudButton>
             </MudStack>
             <MudGrid Class="mb-4">
                 <MudItem xs="12" sm="9">
-                    <MudSelect T="Guid?" @bind-Value="_reuseId" Label="Reuse coursepoint" Clearable="true" Disabled="_busy">
+                    <MudSelect T="Guid?" @bind-Value="_reuseId" Label="@L["ReuseCoursepoint"]" Clearable="true" Disabled="_busy">
                         @foreach (var point in _facilityPoints.Where(point => _points.All(existing => existing.Id != point.Id)))
                         { <MudSelectItem T="Guid?" Value="@((Guid?)point.Id)">@point.Name</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" sm="3" Class="d-flex align-center"><MudTooltip Text="Add selected point"><MudIconButton Icon="@Icons.Material.Filled.Add" OnClick="ReusePoint" Disabled="@(_busy || !_reuseId.HasValue)" /></MudTooltip></MudItem>
+                <MudItem xs="12" sm="3" Class="d-flex align-center"><MudTooltip Text="@L["AddSelectedPoint"]"><MudIconButton Icon="@Icons.Material.Filled.Add" OnClick="ReusePoint" Disabled="@(_busy || !_reuseId.HasValue)" aria-label="@L["AddSelectedPoint"]" /></MudTooltip></MudItem>
             </MudGrid>
             <MudTable T="EditablePoint" Items="_points" Dense="true" Elevation="0" Class="mb-6">
-                <HeaderContent><MudTh>Name</MudTh><MudTh>Timing point</MudTh><MudTh /></HeaderContent>
+                <HeaderContent><MudTh>@L["Name"]</MudTh><MudTh>@L["TimingPoint"]</MudTh><MudTh /></HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Name"><MudTextField @bind-Value="context.Name" @bind-Value:after="MarkDirty" Required="true" Margin="Margin.Dense" Disabled="_busy" /></MudTd>
-                    <MudTd DataLabel="Timing point">
-                        <MudSelect T="Guid?" @bind-Value="context.TimingPointId" @bind-Value:after="MarkDirty" Clearable="true" Placeholder="Unlinked" Margin="Margin.Dense" Disabled="_busy">
+                    <MudTd DataLabel="@L["Name"]"><MudTextField @bind-Value="context.Name" @bind-Value:after="MarkDirty" Required="true" RequiredError="@L["RequiredError"]" Margin="Margin.Dense" Disabled="_busy" /></MudTd>
+                    <MudTd DataLabel="@L["TimingPoint"]">
+                        <MudSelect T="Guid?" @bind-Value="context.TimingPointId" @bind-Value:after="MarkDirty" Clearable="true" Placeholder="@L["Unlinked"]" Margin="Margin.Dense" Disabled="_busy">
                             @foreach (var timing in _timingPoints) { <MudSelectItem T="Guid?" Value="@((Guid?)timing.Id)">@timing.Name</MudSelectItem> }
                         </MudSelect>
                     </MudTd>
-                    <MudTd DataLabel="Actions"><MudTooltip Text="Remove unused point"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" OnClick="() => RemovePoint(context)" Disabled="@(_busy || _segments.Any(segment => segment.StartId == context.Id || segment.EndId == context.Id))" /></MudTooltip></MudTd>
+                    <MudTd DataLabel="@L["Actions"]"><MudTooltip Text="@L["RemoveUnusedPoint"]"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" OnClick="() => RemovePoint(context)" Disabled="@(_busy || _segments.Any(segment => segment.StartId == context.Id || segment.EndId == context.Id))" aria-label="@L["RemoveUnusedPoint"]" /></MudTooltip></MudTd>
                 </RowTemplate>
-                <NoRecordsContent><MudText>No coursepoints.</MudText></NoRecordsContent>
+                <NoRecordsContent><MudText>@L["NoCoursepoints"]</MudText></NoRecordsContent>
             </MudTable>
             <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-4">
-                <MudText Typo="Typo.h6">Segments</MudText><MudSpacer /><MudText>@_segments.Sum(segment => segment.Length) m</MudText>
-                <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddSegment" Disabled="@(_busy || _points.Count == 0)">Add segment</MudButton>
+                <MudText Typo="Typo.h6">@L["Segments"]</MudText><MudSpacer /><MudText>@_segments.Sum(segment => segment.Length) m</MudText>
+                <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddSegment" Disabled="@(_busy || _points.Count == 0)">@L["AddSegment"]</MudButton>
             </MudStack>
             <MudTable T="EditableSegment" Items="_segments" Dense="true" Elevation="0" Class="mb-6">
-                <HeaderContent><MudTh>Order</MudTh><MudTh>Start</MudTh><MudTh>End</MudTh><MudTh>Length (m)</MudTh><MudTh /></HeaderContent>
+                <HeaderContent><MudTh>@L["Order"]</MudTh><MudTh>@L["Start"]</MudTh><MudTh>@L["End"]</MudTh><MudTh>@L["LengthMeters"]</MudTh><MudTh /></HeaderContent>
                 <RowTemplate>
-                    <MudTd DataLabel="Order">@(_segments.IndexOf(context) + 1)</MudTd>
-                    <MudTd DataLabel="Start"><MudSelect T="Guid?" @bind-Value="context.StartId" @bind-Value:after="MarkDirty" Required="true" Margin="Margin.Dense" Disabled="_busy">
+                    <MudTd DataLabel="@L["Order"]">@(_segments.IndexOf(context) + 1)</MudTd>
+                    <MudTd DataLabel="@L["Start"]"><MudSelect T="Guid?" @bind-Value="context.StartId" @bind-Value:after="MarkDirty" Required="true" RequiredError="@L["RequiredError"]" Margin="Margin.Dense" Disabled="_busy">
                         @foreach (var point in _points) { <MudSelectItem T="Guid?" Value="@((Guid?)point.Id)">@point.Name</MudSelectItem> }
                     </MudSelect></MudTd>
-                    <MudTd DataLabel="End"><MudSelect T="Guid?" @bind-Value="context.EndId" @bind-Value:after="MarkDirty" Required="true" Margin="Margin.Dense" Disabled="_busy">
+                    <MudTd DataLabel="@L["End"]"><MudSelect T="Guid?" @bind-Value="context.EndId" @bind-Value:after="MarkDirty" Required="true" RequiredError="@L["RequiredError"]" Margin="Margin.Dense" Disabled="_busy">
                         @foreach (var point in _points) { <MudSelectItem T="Guid?" Value="@((Guid?)point.Id)">@point.Name</MudSelectItem> }
                     </MudSelect></MudTd>
-                    <MudTd DataLabel="Length (m)"><MudNumericField T="double" @bind-Value="context.Length" @bind-Value:after="MarkDirty" Min="0.001" Required="true" Margin="Margin.Dense" Disabled="_busy" /></MudTd>
-                    <MudTd DataLabel="Actions">
-                        <MudTooltip Text="Move segment up"><MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" OnClick="() => Move(context, -1)" Disabled="@(_busy || _segments.IndexOf(context) == 0)" /></MudTooltip>
-                        <MudTooltip Text="Move segment down"><MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" OnClick="() => Move(context, 1)" Disabled="@(_busy || _segments.IndexOf(context) == _segments.Count - 1)" /></MudTooltip>
-                        <MudTooltip Text="Remove segment"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" OnClick="() => RemoveSegment(context)" Disabled="_busy" /></MudTooltip>
+                    <MudTd DataLabel="@L["LengthMeters"]"><MudNumericField T="double" @bind-Value="context.Length" @bind-Value:after="MarkDirty" Min="0.001" Required="true" RequiredError="@L["RequiredError"]" Margin="Margin.Dense" Disabled="_busy" /></MudTd>
+                    <MudTd DataLabel="@L["Actions"]">
+                        <MudTooltip Text="@L["MoveSegmentUp"]"><MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" OnClick="() => Move(context, -1)" Disabled="@(_busy || _segments.IndexOf(context) == 0)" aria-label="@L["MoveSegmentUp"]" /></MudTooltip>
+                        <MudTooltip Text="@L["MoveSegmentDown"]"><MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" OnClick="() => Move(context, 1)" Disabled="@(_busy || _segments.IndexOf(context) == _segments.Count - 1)" aria-label="@L["MoveSegmentDown"]" /></MudTooltip>
+                        <MudTooltip Text="@L["RemoveSegment"]"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" OnClick="() => RemoveSegment(context)" Disabled="_busy" aria-label="@L["RemoveSegment"]" /></MudTooltip>
                     </MudTd>
                 </RowTemplate>
-                <NoRecordsContent><MudText>No segments.</MudText></NoRecordsContent>
+                <NoRecordsContent><MudText>@L["NoSegments"]</MudText></NoRecordsContent>
             </MudTable>
             <MudStack Row="true" Spacing="3">
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="Save" Disabled="@(_busy || !_dirty)">Save layout</MudButton>
-                <MudButton Href="@($"/admin/facilities/{FacilityId}/layouts")" Disabled="_busy">Back to layouts</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="Save" Disabled="@(_busy || !_dirty)">@L["SaveLayout"]</MudButton>
+                <MudButton Href="@($"/admin/facilities/{FacilityId}/layouts")" Disabled="_busy">@L["BackToLayouts"]</MudButton>
             </MudStack>
         </MudForm>
     }
@@ -80,6 +80,7 @@
     [Parameter] public Guid FacilityId { get; set; }
     [Parameter] public Guid? LayoutId { get; set; }
     private readonly CancellationTokenSource _lifetime = new();
+    private IDisposable? _unsavedRegistration;
     private List<EditablePoint> _points = [];
     private List<EditableSegment> _segments = [];
     private List<CoursePointDTO> _facilityPoints = [];
@@ -88,8 +89,9 @@
     private MudForm? _form;
     private bool _loading = true, _busy, _dirty, _found;
     private string? _error;
-    private string _facilityName = "Facility";
+    private string _facilityName = "";
     private Guid? _savedId, _reuseId;
+    protected override void OnInitialized() => _unsavedRegistration = UnsavedChanges.Register(() => _dirty);
     private sealed class EditablePoint { public Guid Id { get; init; } = Guid.NewGuid(); public string Name { get; set; } = ""; public Guid? TimingPointId { get; set; } }
     private sealed class EditableSegment { public Guid Id { get; init; } = Guid.NewGuid(); public Guid? StartId { get; set; } public Guid? EndId { get; set; } public double Length { get; set; } = 100; }
     private sealed record TimingChoice(Guid Id, string Name);
@@ -105,14 +107,14 @@
         try
         {
             var facility = (await Service.GetFacilitiesAsync(_lifetime.Token)).FirstOrDefault(facility => facility.Id == FacilityId);
-            if (facility is null) { _error = "Facility not found."; return; }
+            if (facility is null) { _error = L["FacilityNotFound"]; return; }
             _facilityName = facility.Name;
             var layouts = await Service.GetLayoutsAsync(FacilityId, _lifetime.Token);
             _facilityPoints = layouts.SelectMany(layout => layout.Segments).SelectMany(segment => new[] { segment.Start, segment.End }).DistinctBy(point => point.Id).ToList();
             _timingPoints = (await Service.GetInstallationsAsync(_lifetime.Token)).Where(installation => installation.FacilityId == FacilityId)
                 .SelectMany(installation => installation.TimingPoints.Select(point => new TimingChoice(point.Id, $"{installation.AgentId}: {(string.IsNullOrWhiteSpace(point.Description) ? point.SystemId : point.Description)}"))).ToList();
             var selected = LayoutId.HasValue ? layouts.FirstOrDefault(layout => layout.Id == LayoutId) : null;
-            if (LayoutId.HasValue && selected is null) { _error = "Course layout not found."; return; }
+            if (LayoutId.HasValue && selected is null) { _error = L["CourseLayoutNotFound"]; return; }
             _points = selected?.Segments.SelectMany(segment => new[] { segment.Start, segment.End }).DistinctBy(point => point.Id)
                 .Select(point => new EditablePoint { Id = point.Id, Name = point.Name, TimingPointId = point.TimingPointId }).ToList() ?? [];
             _segments = selected?.Segments.OrderBy(segment => segment.Order).Select(segment => new EditableSegment { Id = segment.Id, StartId = segment.Start.Id, EndId = segment.End.Id, Length = segment.Length }).ToList() ?? [];
@@ -121,7 +123,7 @@
             _found = true;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (Exception) { _error = "The layout could not be loaded. Return to layouts and try again."; }
+        catch (Exception) { _error = L["LayoutLoadFailed"]; }
         finally { _loading = false; }
     }
     private void MarkDirty() => _dirty = true;
@@ -143,11 +145,11 @@
     }
     private async Task Save()
     {
-        await _form!.Validate();
+        await _form!.ValidateAsync();
         if (!_form.IsValid || _busy) return;
-        if (_segments.Count == 0 || _segments.Any(segment => !segment.StartId.HasValue || !segment.EndId.HasValue)) { _error = "Add connected segments and select their endpoints."; return; }
+        if (_segments.Count == 0 || _segments.Any(segment => !segment.StartId.HasValue || !segment.EndId.HasValue)) { _error = L["AddConnectedSegments"]; return; }
         var used = _segments.SelectMany(segment => new[] { segment.StartId!.Value, segment.EndId!.Value }).ToHashSet();
-        if (!used.SetEquals(_points.Select(point => point.Id))) { _error = "Use every coursepoint in a segment, or remove unused points."; return; }
+        if (!used.SetEquals(_points.Select(point => point.Id))) { _error = L["UseEveryCoursepoint"]; return; }
         _busy = true; _error = null;
         var layoutSaved = false;
         try
@@ -161,16 +163,25 @@
                 await Service.SetTimingLinkAsync(point.Id, point.TimingPointId, _lifetime.Token);
                 _originalLinks[point.Id] = point.TimingPointId;
             }
-            _dirty = false; Snackbar.Add("Layout saved.", Severity.Success);
+            _dirty = false; Snackbar.Add(L["LayoutSaved"], Severity.Success);
             Navigation.NavigateTo($"/admin/facilities/{FacilityId}/layouts/{saved.Id}");
         }
-        catch (HttpRequestException exception) { _error = layoutSaved ? $"Layout saved, but a timing link was not saved: {exception.Message} Correct the link and save again." : exception.Message; }
-        catch (Exception) { _error = layoutSaved ? "Layout saved, but timing links could not be completed. Save again to retry." : "The layout could not be saved. Please try again."; }
+        catch (HttpRequestException exception) { _error = layoutSaved ? L["PartialLayoutLink"] : ErrorFor(exception); }
+        catch (Exception) { _error = layoutSaved ? L["PartialLayoutLink"] : L["LayoutSaveFailed"]; }
         finally { _busy = false; }
     }
     private async Task ConfirmNavigation(LocationChangingContext context)
     {
-        if (_dirty && await Dialogs.ShowMessageBoxAsync("Discard changes?", "Unsaved layout or link changes will be lost.", yesText: "Discard", cancelText: "Keep editing") != true) context.PreventNavigation();
+        if (_dirty && await Dialogs.ShowMessageBoxAsync(L["DiscardChanges"], L["DiscardLayoutChanges"], yesText: L["Delete"], cancelText: L["KeepEditingAction"]) != true) context.PreventNavigation();
     }
-    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+    private string ErrorFor(HttpRequestException exception) => exception.StatusCode switch
+    {
+        System.Net.HttpStatusCode.Unauthorized => L["SignInRequired"].Value,
+        System.Net.HttpStatusCode.Forbidden => L["NoPermission"].Value,
+        System.Net.HttpStatusCode.Conflict => L["ConflictOccurred"].Value,
+        System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.UnprocessableEntity => L["RequestRejected"].Value,
+        System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout => L["ServiceUnavailable"].Value,
+        _ => L["LayoutSaveFailed"].Value
+    };
+    public void Dispose() { _unsavedRegistration?.Dispose(); _lifetime.Cancel(); _lifetime.Dispose(); }
 }

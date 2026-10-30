@@ -4,49 +4,49 @@
 @inject NavigationManager NavigationManager
 
 <MudNavMenu>
-    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">@L["Home"]</MudNavLink>
 
-    <MudNavLink Href="statistcs/samples" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">Samples</MudNavLink>
+    <MudNavLink Href="statistcs/samples" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">@L["Samples"]</MudNavLink>
 
-    <MudNavLink Href="auth" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Login">Auth</MudNavLink>
+    <MudNavLink Href="auth" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Login">@L["Auth"]</MudNavLink>
 
     <AuthorizeView>
         <Authorized>
-            <MudNavLink Href="transponders" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Sensors">My Transponders</MudNavLink>
+            <MudNavLink Href="transponders" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Sensors">@L["MyTransponders"]</MudNavLink>
             <AuthorizeView Policy="@AdministrationPolicies.Timing" Context="timingAccess">
-                <MudNavGroup Icon="@Icons.Material.Filled.Timer" Title="Timing Administration">
-                    <MudNavLink Href="admin/timing/installations" Match="NavLinkMatch.Prefix">Installations</MudNavLink>
-                    <MudNavLink Href="admin/timing/transponders" Match="NavLinkMatch.Prefix">Transponders</MudNavLink>
+                <MudNavGroup Icon="@Icons.Material.Filled.Timer" Title="@L["TimingAdministration"]">
+                    <MudNavLink Href="admin/timing/installations" Match="NavLinkMatch.Prefix">@L["Installations"]</MudNavLink>
+                    <MudNavLink Href="admin/timing/transponders" Match="NavLinkMatch.Prefix">@L["Transponders"]</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@AdministrationPolicies.Facilities" Context="facilitiesAccess">
-                <MudNavGroup Icon="@Icons.Material.Filled.LocationOn" Title="Facilities Administration">
-                    <MudNavLink Href="admin/facilities" Match="NavLinkMatch.Prefix">Facilities</MudNavLink>
+                <MudNavGroup Icon="@Icons.Material.Filled.LocationOn" Title="@L["FacilitiesAdministration"]">
+                    <MudNavLink Href="admin/facilities" Match="NavLinkMatch.Prefix">@L["Facilities"]</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <AuthorizeView Policy="@AdministrationPolicies.Statistics" Context="statisticsAccess">
-                <MudNavGroup Icon="@Icons.Material.Filled.Analytics" Title="Statistics Administration">
-                    <MudNavLink Href="admin/statistics/items" Match="NavLinkMatch.Prefix">Items</MudNavLink>
-                    <MudNavLink Href="admin/statistics/configurations" Match="NavLinkMatch.Prefix">Configurations</MudNavLink>
+                <MudNavGroup Icon="@Icons.Material.Filled.Analytics" Title="@L["StatisticsAdministration"]">
+                    <MudNavLink Href="admin/statistics/items" Match="NavLinkMatch.Prefix">@L["Items"]</MudNavLink>
+                    <MudNavLink Href="admin/statistics/configurations" Match="NavLinkMatch.Prefix">@L["Configurations"]</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
             <form action="authentication/logout" method="post">
                 <AntiforgeryToken />
                 <input type="hidden" name="ReturnUrl" value="@currentUrl" />
                 <button type="submit" class="mud-nav-link mud-ripple">
-                    <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Info" Class="mr-3"></MudIcon> Logout
+                    <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Info" Class="mr-3"></MudIcon> @L["Logout"]
                 </button>
             </form>
         </Authorized>
         <NotAuthorized>
-            <MudNavLink Href="Account/Register" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">Register</MudNavLink>
-            <MudNavLink Href="authentication/login" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Password">Login</MudNavLink>
+            <MudNavLink Href="Account/Register" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">@L["Register"]</MudNavLink>
+            <MudNavLink Href="authentication/login" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Password">@L["Login"]</MudNavLink>
         </NotAuthorized>
     </AuthorizeView>
-    <MudNavGroup Icon="@Icons.Material.Filled.Info" Title="Om">
-        <MudNavLink Href="about/privacy">Personvern</MudNavLink>
-        <MudNavLink Href="about/terms">Brukervilkår</MudNavLink>
-        <MudNavLink Href="about/velotime">VeloTime</MudNavLink>
+    <MudNavGroup Icon="@Icons.Material.Filled.Info" Title="@L["About"]">
+        <MudNavLink Href="about/privacy">@L["Privacy"]</MudNavLink>
+        <MudNavLink Href="about/terms">@L["Terms"]</MudNavLink>
+        <MudNavLink Href="about/velotime">@L["AboutVeloTime"]</MudNavLink>
     </MudNavGroup>
 </MudNavMenu>
 
@@ -71,4 +71,3 @@
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
-

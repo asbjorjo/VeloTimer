@@ -5,6 +5,7 @@ using Duende.AccessTokenManagement;
 using Duende.AccessTokenManagement.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Localization;
 
 namespace VeloTime.WebUI.Mud;
 
@@ -16,6 +17,13 @@ public class OidcEvents : OpenIdConnectEvents
 
     public override async Task RedirectToIdentityProvider(RedirectContext context)
     {
+        var language = context.HttpContext.Features.Get<IRequestCultureFeature>()?
+            .RequestCulture.UICulture.Name;
+        if (language is "en" or "nb-NO")
+        {
+            context.ProtocolMessage.SetParameter("ui_locales", language);
+        }
+
         var action = context.Properties.GetParameter<string>("kc_action");
 
         if (action != null)
