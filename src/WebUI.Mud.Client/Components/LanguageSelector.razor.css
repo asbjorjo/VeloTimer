@@ -11,5 +11,5 @@
 
 .app-bar-language-selector ::deep .mud-input-label,
 .app-bar-language-selector ::deep .mud-select-input {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }

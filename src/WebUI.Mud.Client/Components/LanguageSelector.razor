@@ -8,7 +8,7 @@
 <div class="@(IsAppBar ? "app-bar-language-selector" : null)">
     <MudSelect T="string" Value="@_language" ValueChanged="ChangeLanguage" Label="@L["Language"]"
                Dense="true"
-               Style="@(IsAppBar ? "width: 110px;" : null)"
+               Style="@(IsAppBar ? "width: 96px;" : null)"
                Variant="Variant.Outlined" Class="language-selector" Disabled="_loading"
                aria-label="@L["ChangeLanguage"]">
         <MudSelectItem Value="@("en")">@L["EnglishNative"]</MudSelectItem>
