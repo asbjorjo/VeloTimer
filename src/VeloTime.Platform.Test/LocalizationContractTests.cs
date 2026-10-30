@@ -187,9 +187,9 @@ public sealed class LocalizationContractTests
     }
 
     [Theory]
-    [InlineData("en", "Cancel", "This field is required.")]
-    [InlineData("nb-NO", "Avbryt", "Dette feltet er obligatorisk.")]
-    public void MudLocalizer_UsesNorwegianBuiltInAndValidationText(string cultureName, string cancel, string required)
+    [InlineData("en", "Cancel", "This field is required.", "Time")]
+    [InlineData("nb-NO", "Avbryt", "Dette feltet må fylles ut.", "Tid")]
+    public void MudLocalizer_UsesResourceText(string cultureName, string cancel, string required, string time)
     {
         var previousCulture = CultureInfo.CurrentUICulture;
         try
@@ -203,6 +203,8 @@ public sealed class LocalizationContractTests
             var localizer = new LocalizedMudLocalizer(strings);
             Assert.Equal(cancel, localizer["Cancel"].Value);
             Assert.Equal(required, localizer["RequiredError"].Value);
+            Assert.Equal(time, localizer["Time"].Value);
+            Assert.Equal("UnknownMudKey", localizer["UnknownMudKey"].Value);
         }
         finally
         {
