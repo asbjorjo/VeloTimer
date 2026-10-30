@@ -23,38 +23,44 @@ internal static class CultureResolver
             options.RequestCultureProviders.Clear();
             options.RequestCultureProviders.Add(new CustomRequestCultureProvider(async context =>
             {
-                if (!IsDocumentRequest(context.Request))
+                if (!IsCultureRequest(context.Request))
                     return null;
 
-                string? selected = null;
-                if (context.User.Identity?.IsAuthenticated == true)
-                {
-                    try
-                    {
-                        var profile = context.RequestServices.GetRequiredService<IProfilesClient>();
-                        var preference = await profile.GetCurrentLanguagePreferenceAsync(context.RequestAborted);
-                        selected = Normalize(preference.Language);
-                        if (selected is null)
-                            selected = Normalize(context.Request.Cookies[AnonymousPreferenceCookie]);
-                    }
-                    catch (Exception exception) when (exception is not OperationCanceledException)
-                    {
-                        context.RequestServices.GetRequiredService<ILoggerFactory>()
-                            .CreateLogger("WebUI.LanguagePreference")
-                            .LogError("Could not resolve the signed-in language preference ({ExceptionType}).",
-                                exception.GetType().Name);
-                    }
-                }
-                else
-                {
-                    selected = Normalize(context.Request.Cookies[AnonymousPreferenceCookie]);
-                }
-
-                selected ??= BrowserLanguage(context.Request.Headers.AcceptLanguage.ToString());
-                selected ??= "en";
-                return new ProviderCultureResult(selected, selected);
+                var state = await ResolveAsync(context);
+                return new ProviderCultureResult(state.Language, state.Language);
             }));
         });
+    }
+
+    internal static async Task<LanguageSelectionState> ResolveAsync(HttpContext context)
+    {
+        string? selected = null;
+        var unavailable = false;
+        if (context.User.Identity?.IsAuthenticated == true)
+        {
+            try
+            {
+                var profile = context.RequestServices.GetRequiredService<IProfilesClient>();
+                var preference = await profile.GetCurrentLanguagePreferenceAsync(context.RequestAborted);
+                selected = Normalize(preference.Language)
+                    ?? Normalize(context.Request.Cookies[AnonymousPreferenceCookie]);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                unavailable = true;
+                context.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("WebUI.LanguagePreference")
+                    .LogError("Could not resolve the signed-in language preference ({ExceptionType}).",
+                        exception.GetType().Name);
+            }
+        }
+        else
+        {
+            selected = Normalize(context.Request.Cookies[AnonymousPreferenceCookie]);
+        }
+
+        selected ??= BrowserLanguage(context.Request.Headers.AcceptLanguage.ToString());
+        return new LanguageSelectionState(selected ?? "en", unavailable);
     }
 
     internal static string? Normalize(string? language)
@@ -90,11 +96,12 @@ internal static class CultureResolver
         return null;
     }
 
-    private static bool IsDocumentRequest(HttpRequest request) =>
-        HttpMethods.IsGet(request.Method) &&
+    private static bool IsCultureRequest(HttpRequest request) =>
+        request.Path.StartsWithSegments("/_blazor") ||
+        (HttpMethods.IsGet(request.Method) &&
         !request.Path.StartsWithSegments("/api") &&
         !request.Path.StartsWithSegments("/language") &&
         !request.Path.StartsWithSegments("/_") &&
         !request.Path.StartsWithSegments("/favicon") &&
-        request.Headers.Accept.Any(value => value?.Contains("text/html", StringComparison.OrdinalIgnoreCase) == true);
+        request.Headers.Accept.Any(value => value?.Contains("text/html", StringComparison.OrdinalIgnoreCase) == true));
 }

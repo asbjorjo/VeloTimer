@@ -7,7 +7,7 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
 builder.Services.AddMudServices();
 builder.Services.AddMudLocalization();
-builder.Services.AddLocalization();
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 builder.Services.AddTransient<MudLocalizer, LocalizedMudLocalizer>();
 builder.Services.AddScoped<UnsavedChangesTracker>();
 

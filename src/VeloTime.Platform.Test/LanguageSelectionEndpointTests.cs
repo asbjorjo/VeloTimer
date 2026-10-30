@@ -17,6 +17,35 @@ namespace VeloTime.Platform.Test;
 
 public sealed class LanguageSelectionEndpointTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task State_UsesBrowserCultureWhenPreferenceIsUnsetOrUnavailable(bool authenticated, bool unavailable)
+    {
+        var profiles = new RecordingProfilesClient
+        {
+            ReadFailure = unavailable ? new HttpRequestException("Profiles unavailable") : null
+        };
+        await using var app = await CreateApp(profiles);
+        using var client = CreateClient(app);
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("nn-NO, en;q=0.5");
+        if (authenticated)
+            await client.GetAsync("/signin");
+
+        var state = await client.GetFromJsonAsync<LanguageState>("/language/state");
+
+        Assert.Equal("nb-NO", state!.Language);
+        Assert.Equal(unavailable, state.PreferenceUnavailable);
+        Assert.Equal(authenticated ? 1 : 0, profiles.Reads.Count);
+        if (!unavailable)
+        {
+            await SelectAnonymous(client, "en", "/profile");
+            state = await client.GetFromJsonAsync<LanguageState>("/language/state");
+            Assert.Equal("en", state!.Language);
+        }
+    }
+
     [Fact]
     public async Task AnonymousSelection_IsAntiforgeryProtected_AndSavedOnlyInAnonymousCookie()
     {

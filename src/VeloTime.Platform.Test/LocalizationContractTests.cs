@@ -50,6 +50,22 @@ public sealed class LocalizationContractTests
         Assert.Empty(profile.Reads);
     }
 
+    [Theory]
+    [InlineData("/_blazor", "GET")]
+    [InlineData("/_blazor", "POST")]
+    [InlineData("/_blazor/negotiate", "POST")]
+    public async Task CircuitRequests_ResolveTheSameCultureAsPrerender(string path, string method)
+    {
+        var profiles = new RecordingProfilesClient { Language = "nb-NO" };
+        Assert.Equal("nb-NO", await ResolveCulture(profiles, authenticated: true,
+            acceptLanguage: "en", path: path, method: method, accept: "*/*"));
+        Assert.Equal("nb-NO", await ResolveCulture(new RecordingProfilesClient(),
+            anonymousCookie: "nb-NO", acceptLanguage: "en", path: path, method: method, accept: "*/*"));
+        Assert.Equal("nb-NO", await ResolveCulture(new RecordingProfilesClient(),
+            acceptLanguage: "nn-NO", path: path, method: method, accept: "*/*"));
+        Assert.Single(profiles.Reads);
+    }
+
     [Fact]
     public async Task Resolution_UsesSignedInProfileThenAnonymousSelectionThenBrowserThenEnglish()
     {
@@ -316,7 +332,8 @@ public sealed class LocalizationContractTests
     }
 
     private static async Task<string> ResolveCulture(RecordingProfilesClient profiles, bool authenticated = false,
-        string? anonymousCookie = null, string? acceptLanguage = null)
+        string? anonymousCookie = null, string? acceptLanguage = null,
+        string path = "/", string method = "GET", string accept = "text/html")
     {
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddSingleton<IProfilesClient>(profiles);
@@ -324,9 +341,9 @@ public sealed class LocalizationContractTests
         using var provider = builder.Services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
         var context = new DefaultHttpContext();
-        context.Request.Method = HttpMethods.Get;
-        context.Request.Path = "/";
-        context.Request.Headers.Accept = "text/html";
+        context.Request.Method = method;
+        context.Request.Path = path;
+        context.Request.Headers.Accept = accept;
         if (acceptLanguage is not null)
             context.Request.Headers.AcceptLanguage = acceptLanguage;
         if (anonymousCookie is not null)

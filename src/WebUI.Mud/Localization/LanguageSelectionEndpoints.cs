@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -35,29 +34,9 @@ internal static class LanguageSelectionEndpoints
             return await next(context);
         });
 
-        group.MapGet("/state", async (HttpContext http, IProfilesClient profiles, ILoggerFactory loggerFactory,
-            CancellationToken cancellationToken) =>
+        group.MapGet("/state", async (HttpContext http) =>
         {
-            var applied = CultureInfo.CurrentUICulture.Name == "nb-NO" ? "nb-NO" : "en";
-            if (http.User.Identity?.IsAuthenticated != true)
-            {
-                return Results.Ok(new LanguageSelectionState(
-                    CultureResolver.Normalize(http.Request.Cookies[CultureResolver.AnonymousPreferenceCookie]) ?? applied,
-                    false));
-            }
-
-            try
-            {
-                var saved = await profiles.GetCurrentLanguagePreferenceAsync(cancellationToken);
-                return Results.Ok(new LanguageSelectionState(
-                    CultureResolver.Normalize(saved.Language) ?? applied, false));
-            }
-            catch (Exception exception) when (exception is not OperationCanceledException)
-            {
-                loggerFactory.CreateLogger("WebUI.LanguagePreference")
-                    .LogError("Could not read the signed-in language preference ({ExceptionType}).", exception.GetType().Name);
-                return Results.Ok(new LanguageSelectionState(applied, true));
-            }
+            return Results.Ok(await CultureResolver.ResolveAsync(http));
         });
 
         group.MapPost("/select", async ([FromBody] LanguageSelection? selection, HttpContext http,

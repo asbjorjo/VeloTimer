@@ -37,7 +37,7 @@ spec:
             - configMapRef:
                 name: {{ include "velotime.fullname" . }}
             - secretRef:
-                name: {{ .Values.existingSecret | quote }}
+                name: {{ .Values.existingSecret | default (include "velotime.fullname" .) | quote }}
           readinessProbe:
             httpGet:
               path: /health
