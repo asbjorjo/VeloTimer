@@ -2,11 +2,8 @@ dependencies:
 - name: velotime-users-migration
   repository: file://charts/velotime-users-migration
   version: 0.1.0
-- name: velotime-module-profiles-migration
-  repository: file://charts/velotime-module-profiles-migration
-  version: 0.1.0
 - name: velotime-library
   repository: file://../velotime-library
   version: 0.1.1
-digest: sha256:8e377378fe8bf4e1705d1748869e288f8f6270f5ed0dc889c5f2076ac3f73a35
-generated: "2026-10-30T15:44:47.347053575Z"
+digest: sha256:a54af178b2c196de60c31b17d17a1f35063abbe7ace11cdf0c7348839003658b
+generated: "2026-10-30T16:54:01.591873057Z"

@@ -2,15 +2,12 @@ apiVersion: v2
 name: velotime-migration
 description: Velotime data migration jobs
 type: application
-version: 0.1.1
+version: 0.1.2
 appVersion: "2.1.0-alpha.6"
 dependencies:
   - name: velotime-users-migration
     version: 0.1.0
     repository: "file://charts/velotime-users-migration"
-  - name: velotime-module-profiles-migration
-    version: 0.1.0
-    repository: "file://charts/velotime-module-profiles-migration"
   - name: velotime-library
     version: 0.1.1
     repository: "file://../velotime-library"

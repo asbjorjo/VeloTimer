@@ -79,18 +79,18 @@ the Profiles database. Profiles does not require Redis or a messaging processor.
 
 For Kubernetes, provision a dedicated PostgreSQL database and a Secret named
 `velotime-profiles` containing `ConnectionStrings__profilesdb`. Never point this
-connection at another module's database. The Secret must exist before Helm hooks
-run; it is not generated from chart values. Override its name with
-`module-profiles-api.existingSecret` in the application chart and
-`velotime-module-profiles-migration.existingSecret` in the migration chart.
+connection at another module's database. The Secret must exist before the
+Profiles API pod starts; it is not generated from chart values. Override its
+name with `module-profiles-api.existingSecret` in the application chart.
 Configure `global.oidcAudience` and `global.oidcAuthority` in the application
 chart, as for the other APIs. No additional Keycloak client or user migration is
 required because the API validates the existing user's audience-bound token.
 
-The application chart's Profiles deployment always runs the migration worker as
-an init container before serving traffic. The migration chart additionally
-provides a pre-install/pre-upgrade Profiles schema job for installations that
-apply migrations separately. Both use the same idempotent EF migrations.
+The application chart's Profiles deployment always runs the schema migration
+worker as an init container before serving traffic. Database schema migrations
+belong to the service deployment; the separate `velotime-migration` chart is
+reserved for migrating data from legacy installations and does not run Profiles
+schema migrations.
 The deployment uses `/health` for database/schema readiness and `/alive` for
 liveness. The Profiles API remains internal to the cluster; WebUI calls it using
 service discovery and delegates the authenticated user's token.
