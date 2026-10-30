@@ -47,7 +47,20 @@ public class Worker(
             foreach (var rider in riders)
             {
                 stoppingToken.ThrowIfCancellationRequested();
-                var user = await userManager.FindByIdAsync(rider.UserId.ToString());
+                User? user;
+                try
+                {
+                    user = await userManager.FindByIdAsync(rider.UserId.ToString());
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
+                {
+                    logger.LogError(exception, "Could not look up identity user {UserId} for rider {RiderId}; skipping rider.", rider.UserId, rider.Id);
+                    const string reason = "the identity account lookup failed";
+                    profileWriter.MissingOwner(rider.Id, reason);
+                    ownershipWriter.MissingOwner(rider.Id, reason);
+                    continue;
+                }
+
                 if (user == null)
                 {
                     profileWriter.MissingOwner(rider.Id);

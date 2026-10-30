@@ -347,7 +347,9 @@ Even when a profile differs, that rider's ownership registrations and later ride
 continue. Profile and ownership issues are combined into the final failure with
 a nonzero exit code. Resolve preference differences explicitly before rerunning;
 matching existing profiles are successful retries. Missing identity accounts are
-reported as unresolved profile migrations.
+reported as unresolved profile migrations. If the identity account lookup throws,
+the error is logged, that rider is skipped, and its profile and ownership work is
+reported as unresolved.
 
 For a new realm, the checked-in import declares these roles and includes realm roles
 in the WebUI ID token. Existing Keycloak realms are not updated by editing the import:

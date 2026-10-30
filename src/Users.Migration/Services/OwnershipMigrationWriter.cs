@@ -17,10 +17,10 @@ internal sealed class OwnershipMigrationWriter(ITimingClient timing, ILogger log
                 period.RiderId, period.Code, period.OwnedFrom, period.OwnedTo, string.Join(", ", period.SourceIds));
     }
 
-    internal void MissingOwner(long riderId)
+    internal void MissingOwner(long riderId, string reason = "the legacy rider has no identity account")
     {
         foreach (var period in preflight.Registrations.Where(period => period.RiderId == riderId))
-            Report(period, "The legacy rider has no identity account.");
+            Report(period, $"Cannot register ownership because {reason}.");
     }
 
     internal async Task RegisterRiderAsync(long riderId, Guid ownerId, CancellationToken cancellationToken)

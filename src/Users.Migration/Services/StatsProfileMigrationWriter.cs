@@ -9,8 +9,8 @@ internal sealed class StatsProfileMigrationWriter(IStatisticsClient statistics, 
 
     internal IReadOnlyList<string> Issues => issues;
 
-    internal void MissingOwner(long riderId) =>
-        Report($"Rider {riderId}: cannot ensure a statistics profile because the legacy rider has no identity account.");
+    internal void MissingOwner(long riderId, string reason = "the legacy rider has no identity account") =>
+        Report($"Rider {riderId}: cannot ensure a statistics profile because {reason}.");
 
     internal async Task EnsureAsync(long riderId, Guid userId, string profileName, bool isPublic, CancellationToken cancellationToken)
     {
