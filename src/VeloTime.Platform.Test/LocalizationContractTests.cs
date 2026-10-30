@@ -220,6 +220,10 @@ public sealed class LocalizationContractTests
             Assert.Equal(cancel, localizer["Cancel"].Value);
             Assert.Equal(required, localizer["RequiredError"].Value);
             Assert.Equal(time, localizer["Time"].Value);
+            Assert.Equal(cultureName == "nb-NO" ? "Rader per side:" : "Rows per page:",
+                localizer["MudDataGridPager_RowsPerPage"].Value);
+            Assert.Equal(cultureName == "nb-NO" ? "1-10 av 25" : "1-10 of 25",
+                localizer["MudDataGridPager_InfoFormat", 1, 10, 25].Value);
             Assert.Equal("UnknownMudKey", localizer["UnknownMudKey"].Value);
         }
         finally

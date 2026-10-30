@@ -5,6 +5,8 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="Home" xml:space="preserve"><value>Hjem</value></data>
+  <data name="MudDataGridPager_RowsPerPage" xml:space="preserve"><value>Rader per side:</value></data>
+  <data name="MudDataGridPager_InfoFormat" xml:space="preserve"><value>{0}-{1} av {2}</value></data>
   <data name="Language" xml:space="preserve"><value>Språk</value></data>
   <data name="English" xml:space="preserve"><value>Engelsk</value></data>
   <data name="NorwegianBokmal" xml:space="preserve"><value>Norsk bokmål</value></data>
