@@ -298,6 +298,57 @@ The users-migration service account must include `statistics-admin` (or
 in Keycloak is insufficient if client scope mappings exclude it from the token.
 Obtain a fresh service-account token after changing role or scope mappings.
 
+Administrative provisioning can use `POST /api/statistics/profiles/ensure`
+(`EnsureStatsProfile`) with the existing create-profile request shape. It returns
+`201 Created` with a profile Location header when it creates a missing profile, or
+`200 OK` with the saved profile **unchanged** when one already exists. The requested
+name and privacy are creation defaults only. Both ensure and ordinary profile
+creation serialize with Statistics processor fallback creation using the same
+per-user PostgreSQL transaction lock. Ordinary POST creation still returns `409`
+for an existing profile; explicit PUT updates remain available to administrators.
+Creation and ensure reject an empty user ID or blank profile name.
+
+#### Legacy ownership migration
+
+The users-migration service account also needs `timing-admin` (or `velotime-admin`)
+in its access token. The checked-in `velotime-users-migration` composite role grants
+both Timing and Statistics administration; existing realms must be updated separately.
+
+Before any ownership writes, the worker validates legacy periods and groups them by
+rider and canonical X2 transponder ID. It merges duplicates, overlaps, touching
+periods, and gaps **strictly less than 15 minutes** into continuous coverage.
+A gap of exactly 15 minutes stays separate. Open-ended periods remain open-ended.
+Different riders and transponders are never merged. Invalid groups and cross-owner
+conflicts (including another owner's coverage inside a merged gap) are reported
+and withheld before any ownership writes; independent groups can proceed.
+
+UTC start timestamps are preserved without calendar-day truncation. Legacy finite
+ends were inclusive; the worker adds **one PostgreSQL microsecond** to convert
+each merged end to the registration API's exclusive-end convention. It does not
+add a day. Gap comparisons use the original timestamps before this conversion.
+
+Each normalized period is submitted to the administrative ownership registration
+endpoint, not the append-only ownership creation endpoint. Identical retries are
+no-ops. Conflicts and HTTP 200 responses requiring shortening confirmation are
+reported for manual review; the worker never automatically confirms shortening.
+Expected registration validation/conflict failures do not prevent independent
+registrations, but unresolved issues fail the run with a nonzero exit code after its
+summary. Cancellation, authentication/authorization errors, and unexpected server
+failures stop immediately.
+There is no global transaction: completed registrations remain saved and are safe
+to retry. This is not a general cleanup of existing destination ownership records.
+
+The worker also ensures each migrated user's Statistics profile rather than
+overwriting an existing profile after a create conflict. It compares the returned
+name exactly (including case and whitespace) and checks privacy against legacy
+values. Differences are logged as unresolved migration conflicts, never silently
+updated. This includes processor-generated `Rider {userId}` placeholder names.
+Even when a profile differs, that rider's ownership registrations and later riders
+continue. Profile and ownership issues are combined into the final failure with
+a nonzero exit code. Resolve preference differences explicitly before rerunning;
+matching existing profiles are successful retries. Missing identity accounts are
+reported as unresolved profile migrations.
+
 For a new realm, the checked-in import declares these roles and includes realm roles
 in the WebUI ID token. Existing Keycloak realms are not updated by editing the import:
 create the roles, add the WebUI realm-role mapper to ID/access tokens, assign the
@@ -471,6 +522,17 @@ database create/drop privileges, then run:
 ```sh
 OIDC_AUDIENCE=https://test.invalid dotnet test src/VeloTime.Workers.Test/VeloTime.Workers.Test.csproj --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
 ```
+
+The same variable enables Statistics profile API concurrency tests:
+
+```sh
+OIDC_AUDIENCE=https://test.invalid dotnet test src/Module.Statistics.Api.Test/VeloTime.Module.Statistics.Api.Test.csproj --filter FullyQualifiedName~StatsProfile --logger "trx"
+```
+
+These tests verify concurrent ensure/create requests and API/processor profile-lock
+interoperability against real PostgreSQL, using unique disposable databases. CI
+sets the variable for its isolated PostgreSQL service. Without it, PostgreSQL tests
+are explicitly skipped; ordinary endpoint tests still run on SQLite.
 
 Run the existing Timing EF migration worker before starting the API so the
 `timing` schema exists. At API startup, the library applies its supported outbox

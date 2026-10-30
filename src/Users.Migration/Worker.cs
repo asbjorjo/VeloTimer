@@ -12,7 +12,8 @@ namespace VeloTime.Users.Migration;
 
 public class Worker(
     IServiceProvider serviceProvider,
-    IHostApplicationLifetime hostApplicationLifetime) : BackgroundService
+    IHostApplicationLifetime hostApplicationLifetime,
+    ILogger<Worker> logger) : BackgroundService
 {
     public const string ActivitySourceName = "VeloTime.Users.Migration";
     private static readonly ActivitySource ActivitySource = new(ActivitySourceName);
@@ -36,17 +37,23 @@ public class Worker(
                 .ThenInclude(t => t.Transponder)
                 .ToListAsync(stoppingToken);
 
+            var preflight = OwnershipPreflight.Create(riders.SelectMany(rider => rider.Transponders.Select(ownership =>
+                new SourceOwnership(rider.Id, ownership.Id, ownership.Transponder.TimingSystem,
+                    ownership.Transponder.SystemId, ownership.OwnedFrom, ownership.OwnedUntil))));
+            var ownershipWriter = new OwnershipMigrationWriter(timing, logger, preflight);
+            var profileWriter = new StatsProfileMigrationWriter(statistics, logger);
+            ownershipWriter.LogPreflight();
+
             foreach (var rider in riders)
             {
-                User? user;
-                try {
-                    user = await userManager.FindByIdAsync(rider.UserId.ToString());
-                }
-                catch
+                stoppingToken.ThrowIfCancellationRequested();
+                var user = await userManager.FindByIdAsync(rider.UserId.ToString());
+                if (user == null)
                 {
+                    profileWriter.MissingOwner(rider.Id);
+                    ownershipWriter.MissingOwner(rider.Id);
                     continue;
                 }
-                if (user == null) continue;
 
                 var logins = await userManager.GetLoginsAsync(user);
 
@@ -133,49 +140,16 @@ public class Worker(
                 kcuser = kcusers.First();
                 var userId = Guid.Parse(kcuser.Id);
 
-                try
-                {
-                    var response = await statistics.CreateStatsProfileAsync(new()
-                    {
-                        UserId = userId,
-                        IsPublic = rider.IsPublic,
-                        ProfileName = rider.Name
-                    }, stoppingToken);
-                }
-                catch (Module.Statistics.Client.ApiException e) when (e.StatusCode == 409)
-                {
-                    await statistics.UpdateStatsProfileAsync(userId, new()
-                    {
-                        IsPublic = rider.IsPublic,
-                        ProfileName = rider.Name
-                    }, stoppingToken);
-                }
-
-                foreach (var transponder in rider.Transponders)
-                {
-                    var transponderId = await timing.TranspondersPOSTAsync(transponder.Transponder.SystemId, "", "X2", cancellationToken: stoppingToken);
-
-                    DateTime ownedFrom = transponder.OwnedFrom.ToUniversalTime().Date;
-                    DateTime? ownedUntil = transponder.OwnedUntil is null ? null : transponder.OwnedUntil.Value.ToUniversalTime().Date;
-
-                    try
-                    {
-                        await timing.OwnersAsync(transponderId, new()
-                        {
-                            OwnerId = userId,
-                            OwnedFrom = ownedFrom,
-                            OwnedTo = ownedUntil
-                        }, cancellationToken: stoppingToken);
-                    }
-                    catch (Module.Timing.Client.ApiException e) when (e.StatusCode == 409)
-                    {
-                        throw;
-                    }
-                }
+                await profileWriter.EnsureAsync(rider.Id, userId, rider.Name, rider.IsPublic, stoppingToken);
+                await ownershipWriter.RegisterRiderAsync(rider.Id, userId, stoppingToken);
             }
+            stoppingToken.ThrowIfCancellationRequested();
+            profileWriter.LogSummary();
+            ownershipWriter.Complete(profileWriter.Issues);
         }
         catch (Exception ex)
         {
+            Environment.ExitCode = 1;
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             activity?.AddException(ex);
             throw;

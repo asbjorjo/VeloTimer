@@ -79,6 +79,61 @@ public sealed partial class TimingEndpointTests
     }
 
     [Fact]
+    public async Task Registration_AdministrativeMergedMigrationRetriesPreserveRowsAndEvents()
+    {
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-Role", "timing-admin");
+        var ownerId = Guid.NewGuid();
+        var request = new RegisterTransponderRequest("FF-87718", RegistrationStart.AddHours(12),
+            RegistrationStart.AddHours(15).AddTicks(10), ownerId);
+        var separate = request with { OwnedFrom = RegistrationStart.AddDays(2), OwnedTo = null };
+
+        foreach (var registration in new[] { request, separate, request, separate })
+        {
+            var response = await client.PostAsJsonAsync(AdminRegistration, registration);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.False((await response.Content.ReadFromJsonAsync<RegisterTransponderResult>())!.RequiresConfirmation);
+        }
+
+        var rows = (await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items;
+        Assert.Equal(2, rows.Count);
+        Assert.Single(rows.Select(row => row.Transponder.Id).Distinct());
+        Assert.All(rows, row => Assert.Equal(ownerId, row.Ownership!.OwnerId));
+        Assert.Contains(rows, row => row.Ownership!.OwnedFrom == request.OwnedFrom && row.Ownership.OwnedTo == request.OwnedTo);
+        Assert.Contains(rows, row => row.Ownership!.OwnedFrom == separate.OwnedFrom && row.Ownership.OwnedTo == null);
+        Assert.Equal(2, factory.Messages.Enqueued.Count);
+    }
+
+    [Fact]
+    public async Task Registration_AdministrativeRetryReconcilesExistingIdenticalDuplicateRows()
+    {
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-Role", "timing-admin");
+        var ownerId = Guid.NewGuid();
+        var request = new RegisterTransponderRequest("FF-87718", RegistrationStart, RegistrationStart.AddDays(1), ownerId);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(AdminRegistration, request)).StatusCode);
+        var transponder = Assert.Single((await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items).Transponder;
+        var duplicate = new SaveTransponderOwnershipRequest(transponder.Id, ownerId, request.OwnedFrom, request.OwnedTo);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync("/api/timing/admin/ownerships", duplicate)).StatusCode);
+        Assert.Equal(2, (await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items.Count);
+        factory.Messages.Reset();
+
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var response = await client.PostAsJsonAsync(AdminRegistration, request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.False((await response.Content.ReadFromJsonAsync<RegisterTransponderResult>())!.RequiresConfirmation);
+        }
+
+        var ownership = Assert.Single((await client.GetFromJsonAsync<TransponderPage>("/api/timing/transponders"))!.Items).Ownership!;
+        Assert.Equal(ownerId, ownership.OwnerId);
+        Assert.Equal(request.OwnedFrom, ownership.OwnedFrom);
+        Assert.Equal(request.OwnedTo, ownership.OwnedTo);
+        var message = Assert.Single(factory.Messages.Enqueued);
+        Assert.Null(Assert.Single(message.Changes).After);
+    }
+
+    [Fact]
     public async Task Registration_AddsSeparatePeriodAndPreservesHistory()
     {
         using var client = factory.CreateClient();

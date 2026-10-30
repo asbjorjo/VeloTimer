@@ -36,11 +36,6 @@ namespace VeloTime.Module.Timing.Model
 
     public class MylapsX2Transponder : Transponder
     {
-        private const int idOffset = 0x6000000;
-        private const int numericOffset = 100000;
-
-        private static readonly char[] Characters = { 'C', 'F', 'G', 'H', 'K', 'L', 'N', 'P', 'R', 'S', 'T', 'V', 'W', 'X', 'Z' };
-
         public override TimingSystem System { get; } = TimingSystem.MyLaps_X2;
 
         public override string Label
@@ -63,63 +58,8 @@ namespace VeloTime.Module.Timing.Model
             }
         }
 
-        public static string IdToCode(long Id)
-        {
-            string code = string.Empty;
+        public static string IdToCode(long Id) => Interface.MylapsX2Code.IdToCode(Id);
 
-            if (Id <= 0 || Id <= idOffset)
-                throw new ArgumentOutOfRangeException(nameof(Id), $"Must be a positive number greather than {idOffset} - {Id}");
-
-            if (Id > idOffset)
-            {
-                string prefix = "";
-                var n = Id - idOffset;
-                var m = n / numericOffset;
-
-                for (int i = 2; i >= 0; i--)
-                {
-                    var c = Characters[m % 15];
-                    if ((c != 'C') || (i > 0))
-                    {
-                        prefix = c + prefix;
-                        m /= 15;
-                    }
-                }
-
-                code = $"{prefix}-{n % numericOffset:00000}";
-            }
-
-            return code;
-        }
-
-        public static long CodeToId(string code)
-        {
-            long id = -1;
-
-            if (string.IsNullOrWhiteSpace(code)) throw new ArgumentOutOfRangeException(nameof(code), "Cannot be empty");
-
-            if (code.IndexOf("-") > 0)
-                code = code.ToUpper().Remove(code.IndexOf("-"), 1);
-
-            if (code.Length == 7)
-            {
-                code = "C" + code;
-            }
-
-            var codeArray = code.ToCharArray();
-
-            if (code.Length != 8) throw new ArgumentException(nameof(code), "Must be 8 characters");
-            if (!code.Substring(3, 5).All(char.IsDigit)) throw new ArgumentOutOfRangeException(paramName: nameof(code), actualValue: code, "Last 5 characters must be numbers.");
-            if (code.Substring(0, 3).Except(Characters).Any()) throw new ArgumentOutOfRangeException(paramName: nameof(code), actualValue: code, "Contains illegal characters.");
-
-            id = numericOffset
-                    * (Array.IndexOf(Characters, codeArray[0]) * 225
-                    + Array.IndexOf(Characters, codeArray[1]) * 15
-                    + Array.IndexOf(Characters, codeArray[2]));
-            id += int.Parse(code.Substring(3, 5));
-            id += idOffset;
-
-            return id;
-        }
+        public static long CodeToId(string code) => Interface.MylapsX2Code.CodeToId(code);
     }
 }

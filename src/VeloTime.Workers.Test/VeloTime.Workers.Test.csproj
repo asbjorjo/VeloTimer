@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Agent\VeloTime.Agent.csproj" />
+    <ProjectReference Include="..\Users.Migration\VeloTime.Users.Migration.csproj" />
     <ProjectReference Include="..\Module.Facilities.Interface\VeloTime.Module.Facilities.Interface.csproj" />
     <ProjectReference Include="..\Module.Timing.Processor\VeloTime.Module.Timing.Processor.csproj" />
     <ProjectReference Include="..\Module.Statistics.Processor\VeloTime.Module.Statistics.Processor.csproj" />

@@ -29,6 +29,7 @@ public static class StartupExtensions
         builder.AddModuleStorage<StatisticsDbContext>(connectionName: "velotimedb");
 
         services.AddTransient<StatisticsService>();
+        services.AddScoped<StatsProfileCreationService>();
         services.AddSingleton<Metrics>();
 
         services.AddPagination();

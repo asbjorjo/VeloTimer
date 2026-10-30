@@ -15,10 +15,11 @@ namespace VeloTime.Module.Statistics.Api.Test;
 public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection connection = new("Data Source=:memory:");
+    public string? PostgreSqlConnectionString { get; init; }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        connection.Open();
+        if (PostgreSqlConnectionString is null) connection.Open();
         builder.UseEnvironment("Development");
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -30,9 +31,14 @@ public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
             RemoveServices<StatisticsDbContext>(services);
             RemoveServices<DbContextOptions<StatisticsDbContext>>(services);
             RemoveServices<IDbContextOptionsConfiguration<StatisticsDbContext>>(services);
-            services.AddDbContext<StatisticsDbContext>(options => options.UseSqlite(connection));
-            services.AddScoped<StatisticsDbContext>(provider =>
-                new TestStatisticsDbContext(provider.GetRequiredService<DbContextOptions<StatisticsDbContext>>()));
+            if (PostgreSqlConnectionString is { } postgres)
+                services.AddDbContext<StatisticsDbContext>(options => options.UseNpgsql(postgres).UseSnakeCaseNamingConvention());
+            else
+            {
+                services.AddDbContext<StatisticsDbContext>(options => options.UseSqlite(connection));
+                services.AddScoped<StatisticsDbContext>(provider =>
+                    new TestStatisticsDbContext(provider.GetRequiredService<DbContextOptions<StatisticsDbContext>>()));
+            }
 
             RemoveServices<HybridCache>(services);
             RemoveServices<IDistributedCache>(services);

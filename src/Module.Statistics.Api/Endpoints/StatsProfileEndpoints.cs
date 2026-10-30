@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using VeloTime.Module.Common;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Storage;
+using VeloTime.Module.Statistics.Service;
 
 namespace VeloTime.Module.Statistics.Api.Endpoints;
 
@@ -34,6 +35,17 @@ internal static class StatsProfileEndpoints
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status409Conflict)
             .Produces(StatusCodes.Status401Unauthorized)
+            .RequireAuthorization(AdministrationAuthorization.StatisticsPolicy);
+
+        profiles.MapPost("/ensure", EnsureStatsProfile)
+            .WithName("EnsureStatsProfile")
+            .WithSummary("Create a missing statistics profile without overwriting existing preferences")
+            .WithDescription("Returns 201 with a Location header when created, or 200 with the existing profile unchanged. Requested name and visibility are used only on creation.")
+            .Produces<StatsProfileResponse>(StatusCodes.Status200OK)
+            .Produces<StatsProfileResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden)
             .RequireAuthorization(AdministrationAuthorization.StatisticsPolicy);
 
         profiles.MapPut("{userId}", UpdateStatsProfile)
@@ -96,34 +108,40 @@ internal static class StatsProfileEndpoints
     /// </summary>
     private static async Task<Results<Created<StatsProfileResponse>, BadRequest<string>, Conflict<string>>> CreateStatsProfile(
         CreateStatsProfileRequest request,
-        StatisticsDbContext storage)
+        StatsProfileCreationService service,
+        CancellationToken cancellationToken)
     {
+        if (request.UserId == Guid.Empty)
+            return TypedResults.BadRequest("A valid user ID is required.");
         if (string.IsNullOrWhiteSpace(request.ProfileName))
         {
             return TypedResults.BadRequest("Profile name cannot be empty.");
         }
 
-        var existingProfile = await storage.Set<StatsProfile>()
-            .FirstOrDefaultAsync(p => p.UserId == request.UserId);
-
-        if (existingProfile != null)
+        var (profile, created) = await service.EnsureAsync(request.UserId, request.ProfileName, request.IsPublic, cancellationToken);
+        if (!created)
         {
             return TypedResults.Conflict("A profile for this user already exists.");
         }
 
-        var profile = new StatsProfile
-        {
-            UserId = request.UserId,
-            ProfileName = request.ProfileName,
-            IsPublic = request.IsPublic
-        };
-
-        storage.Set<StatsProfile>().Add(profile);
-        await storage.SaveChangesAsync();
-
         return TypedResults.Created(
             $"/api/statistics/profiles/{profile.UserId}",
             new StatsProfileResponse(profile.UserId, profile.ProfileName, profile.IsPublic));
+    }
+
+    private static async Task<Results<Created<StatsProfileResponse>, Ok<StatsProfileResponse>, BadRequest<string>>> EnsureStatsProfile(
+        CreateStatsProfileRequest request, StatsProfileCreationService service, CancellationToken cancellationToken)
+    {
+        if (request.UserId == Guid.Empty)
+            return TypedResults.BadRequest("A valid user ID is required.");
+        if (string.IsNullOrWhiteSpace(request.ProfileName))
+            return TypedResults.BadRequest("Profile name cannot be empty.");
+
+        var (profile, created) = await service.EnsureAsync(request.UserId, request.ProfileName, request.IsPublic, cancellationToken);
+        var response = new StatsProfileResponse(profile.UserId, profile.ProfileName, profile.IsPublic);
+        return created
+            ? TypedResults.Created($"/api/statistics/profiles/{profile.UserId}", response)
+            : TypedResults.Ok(response);
     }
 
     /// <summary>

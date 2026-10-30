@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Service;
@@ -144,6 +145,70 @@ public sealed class StatisticsOwnershipPostgreSqlTests : IAsyncLifetime
     }
 
     [PostgreSqlStatisticsFact]
+    public async Task ProfileEnsureWaitsForProcessorAndPreservesItsCommittedProfile()
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var ownerId = Guid.NewGuid();
+        var transponderId = Guid.NewGuid();
+        var gate = new ProfileSaveGate();
+        await using var processorStorage = CreateStorage(gate);
+        await using var apiStorage = CreateStorage();
+        var reader = new DelegateReader((id, _) =>
+            Task.FromResult<IReadOnlyList<TransponderOwnershipDTO>>([Owner(id, ownerId)]));
+        var creation = CreateAsync(processorStorage, reader, transponderId, timeout.Token);
+        try
+        {
+            await gate.Saved.Task.WaitAsync(timeout.Token);
+            var ensure = new StatsProfileCreationService(apiStorage).EnsureAsync(ownerId, "Legacy name", false, timeout.Token);
+            await WaitForAdvisoryWaitAsync(timeout.Token);
+            gate.Release.TrySetResult();
+            await creation;
+            var (profile, created) = await ensure;
+            Assert.False(created);
+            Assert.Equal($"Rider {ownerId:D}", profile.ProfileName);
+            Assert.True(profile.IsPublic);
+            Assert.Single(await apiStorage.Set<StatsProfile>().AsNoTracking().ToListAsync(timeout.Token));
+        }
+        finally
+        {
+            gate.Release.TrySetResult();
+            await creation;
+        }
+    }
+
+    [PostgreSqlStatisticsFact]
+    public async Task ProcessorWaitsForProfileEnsureAndPreservesItsCommittedSettings()
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var ownerId = Guid.NewGuid();
+        var transponderId = Guid.NewGuid();
+        var gate = new ProfileSaveGate();
+        await using var apiStorage = CreateStorage(gate);
+        await using var processorStorage = CreateStorage();
+        var ensure = new StatsProfileCreationService(apiStorage).EnsureAsync(ownerId, "Private name", false, timeout.Token);
+        try
+        {
+            await gate.Saved.Task.WaitAsync(timeout.Token);
+            var reader = new DelegateReader((id, _) =>
+                Task.FromResult<IReadOnlyList<TransponderOwnershipDTO>>([Owner(id, ownerId)]));
+            var creation = CreateAsync(processorStorage, reader, transponderId, timeout.Token);
+            await WaitForAdvisoryWaitAsync(timeout.Token);
+            gate.Release.TrySetResult();
+            Assert.True((await ensure).Created);
+            await creation;
+            var profile = Assert.Single(await processorStorage.Set<StatsProfile>().AsNoTracking().ToListAsync(timeout.Token));
+            Assert.Equal("Private name", profile.ProfileName);
+            Assert.False(profile.IsPublic);
+            Assert.Equal(ownerId, (await processorStorage.Set<StatisticsEntry>().SingleAsync(timeout.Token)).StatsProfileUserId);
+        }
+        finally
+        {
+            gate.Release.TrySetResult();
+            await ensure;
+        }
+    }
+
+    [PostgreSqlStatisticsFact]
     public async Task ExplicitForeignKeyPreservesExistingMigrationModel()
     {
         await using var storage = CreateStorage();
@@ -171,8 +236,26 @@ public sealed class StatisticsOwnershipPostgreSqlTests : IAsyncLifetime
     private static TransponderOwnershipChanged Change(Guid transponderId, Guid ownerId) =>
         new(Guid.NewGuid(), transponderId, [new(null, Owner(transponderId, ownerId))]);
 
-    private StatisticsDbContext CreateStorage() =>
-        new(new DbContextOptionsBuilder<StatisticsDbContext>().UseNpgsql(connectionString).UseSnakeCaseNamingConvention().Options);
+    private StatisticsDbContext CreateStorage(IInterceptor? interceptor = null)
+    {
+        var options = new DbContextOptionsBuilder<StatisticsDbContext>().UseNpgsql(connectionString).UseSnakeCaseNamingConvention();
+        if (interceptor is not null) options.AddInterceptors(interceptor);
+        return new(options.Options);
+    }
+
+    private sealed class ProfileSaveGate : SaveChangesInterceptor
+    {
+        internal TaskCompletionSource Saved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask<int> SavedChangesAsync(SaveChangesCompletedEventData eventData, int result,
+            CancellationToken cancellationToken = default)
+        {
+            Saved.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            return result;
+        }
+    }
 
     private async Task WaitForAdvisoryWaitAsync(CancellationToken cancellationToken)
     {

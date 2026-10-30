@@ -22,6 +22,7 @@ jobs:
     env:
       OIDC_AUDIENCE: https://build.invalid
       VELOTIME_TEST_OUTBOX_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
+      VELOTIME_TEST_STATISTICS_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
     services:
       postgres:
         image: postgres:17-alpine
