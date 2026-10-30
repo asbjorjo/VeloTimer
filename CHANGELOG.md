@@ -18,6 +18,14 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.8"></a>
+## [2.1.0-alpha.8](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.8) (2026-10-30)
+
+### Features
+
+* **webui:** improve app bar profile and language controls ([4a183b8](https://www.github.com/asbjorjo/VeloTimer/commit/4a183b82cb5d81db8ff3a7bc6be30e7f52dde17f))
+* **webui:** move auth actions to top bar ([832bd1f](https://www.github.com/asbjorjo/VeloTimer/commit/832bd1f4ec757f44decee3266cd6a1e55bf4c54f))
+
 <a name="2.1.0-alpha.7"></a>
 ## [2.1.0-alpha.7](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.7) (2026-10-30)
 
