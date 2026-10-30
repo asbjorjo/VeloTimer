@@ -11,9 +11,10 @@
         <MudStaticNavDrawerToggle DrawerId="nav-drawer" Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" aria-label="@L["ToggleNavigation"]" />
         <MudText Typo="Typo.h5" Class="ml-3">VeloTime</MudText>
         <MudSpacer />
-        <LanguageSelector />
+        <LanguageSelector IsAppBar="true" />
         <AuthorizeView>
             <Authorized>
+                <MudIconButton Href="profile" Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Edge="Edge.End" aria-label="@L["Profile"]" />
                 <form action="authentication/logout" method="post" class="d-flex align-center">
                     <AntiforgeryToken />
                     <input type="hidden" name="ReturnUrl" value="@NavigationManager.ToBaseRelativePath(NavigationManager.Uri)" />

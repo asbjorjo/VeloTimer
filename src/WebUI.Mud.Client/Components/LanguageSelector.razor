@@ -5,12 +5,16 @@
 @inject NavigationManager Navigation
 @inject UnsavedChangesTracker UnsavedChanges
 
-<MudSelect T="string" Value="@_language" ValueChanged="ChangeLanguage" Label="@L["Language"]"
-           Dense="true" Variant="Variant.Outlined" Class="language-selector" Disabled="_loading"
-           aria-label="@L["ChangeLanguage"]">
-    <MudSelectItem Value="@("en")">@L["EnglishNative"]</MudSelectItem>
-    <MudSelectItem Value="@("nb-NO")">@L["NorwegianNative"]</MudSelectItem>
-</MudSelect>
+<div class="@(IsAppBar ? "app-bar-language-selector" : null)">
+    <MudSelect T="string" Value="@_language" ValueChanged="ChangeLanguage" Label="@L["Language"]"
+               Dense="true"
+               Style="@(IsAppBar ? "width: 110px;" : null)"
+               Variant="Variant.Outlined" Class="language-selector" Disabled="_loading"
+               aria-label="@L["ChangeLanguage"]">
+        <MudSelectItem Value="@("en")">@L["EnglishNative"]</MudSelectItem>
+        <MudSelectItem Value="@("nb-NO")">@L["NorwegianNative"]</MudSelectItem>
+    </MudSelect>
+</div>
 @if (_error is not null)
 {
     <MudAlert Severity="Severity.Error" Dense="true" aria-live="assertive">@L[_error]</MudAlert>
@@ -18,6 +22,9 @@
 }
 
 @code {
+    [Parameter]
+    public bool IsAppBar { get; set; }
+
     private string _language = "en";
     private string? _error;
     private string? _failedLanguage;
