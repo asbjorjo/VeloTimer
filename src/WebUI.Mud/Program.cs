@@ -18,13 +18,16 @@ using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Components;
 using VeloTime.WebUI.Mud.Endpoints;
 using VeloTime.WebUI.Mud.Services;
+using VeloTime.WebUI.Mud.Localization;
 using Yarp.ReverseProxy.Transforms;
+using VeloTime.Module.Profiles.Client;
 
 const string VELOTIME_OIDC_SCHEME = "VeloTimeOIDC";
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+CultureResolver.Configure(builder);
 
 builder.Services.AddAuthentication(options =>
     {
@@ -80,6 +83,9 @@ builder.Services.AddSingleton<ITicketStore, DistributedTicketStore>();
 
 // Add MudBlazor services
 builder.Services.AddMudServices();
+builder.Services.AddMudLocalization();
+builder.Services.AddTransient<MudBlazor.MudLocalizer, VeloTime.WebUI.Mud.Client.Services.LocalizedMudLocalizer>();
+builder.Services.AddScoped<UnsavedChangesTracker>();
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -132,6 +138,10 @@ builder.Services
     .AddTimingClient()
     .AddDefaultAccessTokenResiliency()
     .AddUserAccessTokenHandler();
+builder.Services
+    .AddProfilesClient()
+    .AddDefaultAccessTokenResiliency()
+    .AddUserAccessTokenHandler();
 
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IAuthDebugService, AuthDebugService>();
@@ -168,6 +178,7 @@ else
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
+app.UseRequestLocalization();
 app.UseAuthorization();
 app.UseAntiforgery();
 
@@ -180,5 +191,6 @@ app.MapRazorComponents<App>()
 
 app.MapGroup("/authentication").MapLoginAndLogout();
 app.MapBffEndpoints();
+app.MapLanguageSelectionEndpoints();
 
 app.Run();

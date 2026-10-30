@@ -11,6 +11,7 @@
 	  <Version>2.1.0-alpha.6</Version>
 	  <ContainerRepository>asbjorjo/velotime-webui</ContainerRepository>
 	  <ContainerImageTag>$(Version)</ContainerImageTag>
+	  <BlazorWebAssemblyLoadAllGlobalizationData>true</BlazorWebAssemblyLoadAllGlobalizationData>
   </PropertyGroup>
   <ItemGroup>
 	  <PackageReference Include="Aspire.Keycloak.Authentication" />
@@ -36,6 +37,7 @@
     <ProjectReference Include="..\Module.Facilities.Client\VeloTime.Module.Facilities.Client.csproj" />
 	  <ProjectReference Include="..\Module.Statistics.Client\VeloTime.Module.Statistics.Client.csproj" />
 	  <ProjectReference Include="..\Module.Timing.Client\VeloTime.Module.Timing.Client.csproj" />
+	  <ProjectReference Include="..\Module.Profiles.Client\VeloTime.Module.Profiles.Client.csproj" />
 	  <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
     <ProjectReference Include="..\WebUI.Mud.Client\VeloTime.WebUI.Mud.Client.csproj" />
   </ItemGroup>

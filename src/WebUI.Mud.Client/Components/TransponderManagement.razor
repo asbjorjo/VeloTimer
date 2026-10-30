@@ -1,5 +1,4 @@
 @using VeloTime.Module.Timing.Interface.Data
-@using VeloTime.WebUI.Mud.Client.Services
 @using VeloTime.WebUI.Mud.Client.ViewModel
 @using Microsoft.JSInterop
 @using System.Globalization
@@ -8,39 +7,40 @@
 @inject IJSRuntime JS
 @inject IDialogService Dialogs
 @inject ISnackbar Snackbar
+@inject UnsavedChangesTracker UnsavedChanges
 @implements IDisposable
 
 <NavigationLock ConfirmExternalNavigation="@(_editor is not null)" OnBeforeInternalNavigation="ConfirmNavigation" />
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
-<MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">@(Administration ? "Transponders" : "My transponders")</MudText>
+<MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">@(Administration ? L["Transponders"] : L["MyTransponders"])</MudText>
 @if (_error is not null)
 {
     <MudAlert Severity="Severity.Error" ShowCloseIcon="true" CloseIconClicked="() => _error = null" Class="mb-4">@_error</MudAlert>
 }
 @if (_editor is not null)
 {
-    <MudText Typo="Typo.h6" Class="mb-4">@(_editor == "register" ? "Register transponder" : _editor == "transponder" ? "Edit transponder" : _ownershipId.HasValue ? "Edit ownership" : "Add ownership")</MudText>
+    <MudText Typo="Typo.h6" Class="mb-4">@(_editor == "register" ? L["RegisterTransponder"] : _editor == "transponder" ? L["EditTransponderLabel"] : _ownershipId.HasValue ? L["EditOwnership"] : L["AddOwnership"])</MudText>
     <MudForm @ref="_form" @bind-IsValid="_valid">
         <MudGrid>
             @if (_editor == "register")
             {
-                <MudItem xs="12" md="6"><MudTextField @bind-Value="_code" Label="MyLaps X2 transponder code" Required="true" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_code" Label="@L["TransponderCode"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy" /></MudItem>
                 @if (Administration)
                 {
                     <MudItem xs="12" md="6"><TransponderOwnerPicker @bind-Value="_owner" Disabled="_busy" /></MudItem>
                 }
                 else
                 {
-                    <MudItem xs="12" md="6"><MudTextField Value="@_ownProfile?.DisplayName" Label="Owner" ReadOnly="true" /></MudItem>
+                    <MudItem xs="12" md="6"><MudTextField Value="@(_ownProfile is null ? null : string.IsNullOrWhiteSpace(_ownProfile.ProfileName) ? L["NoStatisticsProfile"].Value : _ownProfile.ProfileName)" Label="@L["Owner"]" ReadOnly="true" /></MudItem>
                 }
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_registrationFrom" Label="Registration start date" Required="true" Disabled="_busy" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_registrationTo" Label="Registration end date (optional)" Clearable="true" MinDate="_registrationFrom" Disabled="_busy" /></MudItem>
-                <MudItem xs="12"><MudText Typo="Typo.body2">Dates use your local time zone. The entire end date is included. Leave it blank for no expiry.</MudText></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_registrationFrom" Label="@L["RegistrationStart"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_registrationTo" Label="@L["RegistrationEndOptional"]" Clearable="true" MinDate="_registrationFrom" Disabled="_busy" /></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.body2">@L["RegistrationDateHelp"]</MudText></MudItem>
             }
             else if (_editor == "transponder")
             {
-                <MudItem xs="12" md="6"><MudTextField Value="@_code" Label="System ID" ReadOnly="true" /></MudItem>
-                <MudItem xs="12" md="6"><MudTextField @bind-Value="_label" Label="Label" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" md="6"><MudTextField Value="@_code" Label="@L["SystemId"]" ReadOnly="true" /></MudItem>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_label" Label="@L["TransponderLabel"]" Disabled="_busy" /></MudItem>
             }
             else
             {
@@ -48,38 +48,38 @@
                     <TransponderPicker Value="_selectedTransponder" ValueChanged="SelectTransponder" Disabled="@(_busy || _ownershipId.HasValue)" />
                 </MudItem>
                 <MudItem xs="12" md="6"><TransponderOwnerPicker @bind-Value="_owner" Disabled="_busy" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_fromDate" Label="Owned from date (UTC)" Required="true" Disabled="_busy" /></MudItem>
-                <MudItem xs="12" md="6"><MudTimePicker @bind-Time="_fromTime" Label="Owned from time (UTC)" Required="true" AmPm="false" Disabled="_busy" /></MudItem>
-                <MudItem xs="12"><MudCheckBox @bind-Value="_hasEnd" Label="Has end date" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_fromDate" Label="@L["OwnedFromUTC"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" md="6"><MudTimePicker @bind-Time="_fromTime" Label="@L["OwnedFromTimeUTC"]" Required="true" RequiredError="@L["RequiredError"]" AmPm="false" Disabled="_busy" /></MudItem>
+                <MudItem xs="12"><MudCheckBox @bind-Value="_hasEnd" Label="@L["HasEndDate"]" Disabled="_busy" /></MudItem>
                 @if (_hasEnd)
                 {
-                    <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_toDate" Label="Owned to date (UTC)" Required="true" Disabled="_busy" /></MudItem>
-                    <MudItem xs="12" md="6"><MudTimePicker @bind-Time="_toTime" Label="Owned to time (UTC)" Required="true" AmPm="false" Disabled="_busy" /></MudItem>
+                    <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_toDate" Label="@L["OwnedToUTC"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy" /></MudItem>
+                    <MudItem xs="12" md="6"><MudTimePicker @bind-Time="_toTime" Label="@L["OwnedToTimeUTC"]" Required="true" RequiredError="@L["RequiredError"]" AmPm="false" Disabled="_busy" /></MudItem>
                 }
             }
         </MudGrid>
         <MudStack Row="true" Spacing="3" Class="mt-6">
-            <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="Save" Disabled="_busy">@(_editor == "register" ? "Register" : "Save")</MudButton>
-            <MudButton OnClick="Cancel" Disabled="_busy">Cancel</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="Save" Disabled="_busy">@(_editor == "register" ? L["Register"] : L["Save"])</MudButton>
+            <MudButton OnClick="Cancel" Disabled="_busy">@L["Cancel"]</MudButton>
         </MudStack>
     </MudForm>
 }
 <div style="@(_editor is null ? null : "display:none")">
     <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-4">
-        <MudTextField T="string" Value="_search" ValueChanged="SearchChanged" DebounceInterval="300" Placeholder="Search transponders" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Margin="Margin.Dense" />
-        <MudCheckBox T="bool" Value="_showHistory" ValueChanged="HistoryChanged" Label="Include history" />
-        <MudButton OnClick="Register" Disabled="@(_busy || !_namesLoaded)" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">Register transponder</MudButton>
+        <MudTextField T="string" Value="_search" ValueChanged="SearchChanged" DebounceInterval="300" Placeholder="@L["SearchTransponders"]" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Margin="Margin.Dense" />
+        <MudCheckBox T="bool" Value="_showHistory" ValueChanged="HistoryChanged" Label="@L["IncludeHistory"]" />
+        <MudButton OnClick="Register" Disabled="@(_busy || !_namesLoaded)" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">@L["RegisterTransponder"]</MudButton>
         @if (Administration)
         {
-            <MudButton OnClick="AddOwnership" StartIcon="@Icons.Material.Filled.PersonAdd" Disabled="@(_busy || !_namesLoaded)">Add ownership</MudButton>
+            <MudButton OnClick="AddOwnership" StartIcon="@Icons.Material.Filled.PersonAdd" Disabled="@(_busy || !_namesLoaded)">@L["AddOwnership"]</MudButton>
         }
-        <MudTooltip Text="Refresh"><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" Disabled="_busy" /></MudTooltip>
+        <MudTooltip Text="@L["Refresh"]"><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" Disabled="_busy" aria-label="@L["Refresh"]" /></MudTooltip>
     </MudStack>
     <MudDataGrid T="GridTransponderRow" @ref="_grid" ServerData="LoadPage" @bind-CurrentPage="_page" @bind-RowsPerPage="_pageSize"
                  Dense="true" Hover="true" Elevation="0" SortMode="SortMode.Single" Filterable="true"
                  FilterMode="DataGridFilterMode.ColumnFilterRow" FilterCaseSensitivity="DataGridFilterCaseSensitivity.CaseInsensitive">
         <Columns>
-            <PropertyColumn Property="row => row.Label" Title="Transponder" FilterOperators="@ContainsFilterOperators">
+            <PropertyColumn Property="row => row.Label" Title="@L["TransponderColumn"]" FilterOperators="@ContainsFilterOperators">
                 <CellTemplate Context="cell">
                     @if (Administration || cell.Item.Row.Transponder.CanViewStatus)
                     {
@@ -91,18 +91,18 @@
                     }
                 </CellTemplate>
             </PropertyColumn>
-            <PropertyColumn Property="row => row.System" Title="System" FilterOperators="@ContainsFilterOperators" />
+            <PropertyColumn Property="row => row.System" Title="@L["System"]" FilterOperators="@ContainsFilterOperators" />
             @if (Administration)
             {
-                <PropertyColumn Property="row => row.LastSeenDate" Title="Last seen (UTC)" FilterOperators="@DateFilterOperators">
+                <PropertyColumn Property="row => row.LastSeenDate" Title="@L["LastSeenUTC"]" FilterOperators="@DateFilterOperators">
                     <CellTemplate Context="cell">@Format(cell.Item.Row.Transponder.LastSeen)</CellTemplate>
                 </PropertyColumn>
             }
-            <PropertyColumn Property="row => row.OwnerName" Title="Owner" FilterOperators="@ContainsFilterOperators">
+            <PropertyColumn Property="row => row.OwnerName" Title="@L["Owner"]" FilterOperators="@ContainsFilterOperators">
                 <CellTemplate Context="cell">
                     @if (Administration && cell.Item.Row.Ownership is { } namedOwnership)
                     {
-                        <MudTooltip Text="@($"User ID: {namedOwnership.OwnerId}")"><MudText>@cell.Item.OwnerName</MudText></MudTooltip>
+                        <MudTooltip Text="@L["UserId", namedOwnership.OwnerId]"><MudText>@cell.Item.OwnerName</MudText></MudTooltip>
                     }
                     else
                     {
@@ -110,38 +110,38 @@
                     }
                 </CellTemplate>
             </PropertyColumn>
-            <PropertyColumn Property="row => row.OwnedFromDate" Title="From (UTC)" FilterOperators="@DateFilterOperators">
+            <PropertyColumn Property="row => row.OwnedFromDate" Title="@L["FromUTC"]" FilterOperators="@DateFilterOperators">
                 <CellTemplate Context="cell">@Format(cell.Item.Row.Ownership?.OwnedFrom)</CellTemplate>
             </PropertyColumn>
-            <PropertyColumn Property="row => row.OwnedToDate" Title="To (UTC)" FilterOperators="@DateFilterOperators">
+            <PropertyColumn Property="row => row.OwnedToDate" Title="@L["ToUTC"]" FilterOperators="@DateFilterOperators">
                 <CellTemplate Context="cell">@Format(cell.Item.Row.Ownership?.OwnedTo)</CellTemplate>
             </PropertyColumn>
-            <PropertyColumn Property="row => row.Status" Title="Status" FilterOperators="@StatusFilterOperators">
+            <PropertyColumn Property="row => row.Status" Title="@L["Status"]" FilterOperators="@StatusFilterOperators">
                 <CellTemplate Context="cell">@Status(cell.Item.Row.Ownership)</CellTemplate>
             </PropertyColumn>
-            <TemplateColumn Title="Actions" Sortable="false" Filterable="false">
+            <TemplateColumn Title="@L["Actions"]" Sortable="false" Filterable="false">
                 <CellTemplate Context="cell">
                     @if (Administration)
                     {
-                        <MudTooltip Text="Edit transponder label"><MudIconButton Icon="@Icons.Material.Filled.Label" OnClick="() => EditTransponder(cell.Item.Row.Transponder)" Disabled="_busy" /></MudTooltip>
-                        <MudTooltip Text="Delete unused transponder"><MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error" OnClick="() => DeleteTransponder(cell.Item.Row.Transponder)" Disabled="_busy" /></MudTooltip>
+                        <MudTooltip Text="@L["EditTransponderLabel"]"><MudIconButton Icon="@Icons.Material.Filled.Label" OnClick="() => EditTransponder(cell.Item.Row.Transponder)" Disabled="_busy" aria-label="@L["EditTransponderLabel"]" /></MudTooltip>
+                        <MudTooltip Text="@L["DeleteUnusedTransponder"]"><MudIconButton Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error" OnClick="() => DeleteTransponder(cell.Item.Row.Transponder)" Disabled="_busy" aria-label="@L["DeleteUnusedTransponder"]" /></MudTooltip>
                     }
                     @if (cell.Item.Row.Ownership is { } ownership)
                     {
                         @if (Administration)
                         {
-                            <MudTooltip Text="Edit ownership"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditOwnership(cell.Item.Row)" Disabled="@(_busy || !_namesLoaded)" /></MudTooltip>
+                            <MudTooltip Text="@L["EditOwnership"]"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditOwnership(cell.Item.Row)" Disabled="@(_busy || !_namesLoaded)" aria-label="@L["EditOwnership"]" /></MudTooltip>
                         }
                         @if (IsActive(ownership))
                         {
-                            <MudTooltip Text="End ownership now"><MudIconButton Icon="@Icons.Material.Filled.EventBusy" OnClick="() => Remove(ownership.Id, true)" Disabled="_busy" /></MudTooltip>
+                            <MudTooltip Text="@L["EndOwnershipNow"]"><MudIconButton Icon="@Icons.Material.Filled.EventBusy" OnClick="() => Remove(ownership.Id, true)" Disabled="_busy" aria-label="@L["EndOwnershipNow"]" /></MudTooltip>
                         }
-                        <MudTooltip Text="Delete ownership"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => Remove(ownership.Id, false)" Disabled="_busy" /></MudTooltip>
+                        <MudTooltip Text="@L["DeleteOwnership"]"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => Remove(ownership.Id, false)" Disabled="_busy" aria-label="@L["DeleteOwnership"]" /></MudTooltip>
                     }
                 </CellTemplate>
             </TemplateColumn>
         </Columns>
-        <NoRecordsContent><MudText>@(_error is null ? "No transponders match this view." : "Transponder data is unavailable. Use Refresh to retry.")</MudText></NoRecordsContent>
+        <NoRecordsContent><MudText>@(_error is null ? L["NoTranspondersMatch"] : L["TransponderDataUnavailable"])</MudText></NoRecordsContent>
         <PagerContent><MudDataGridPager T="GridTransponderRow" PageSizeOptions="@(new[] { 10, 25, 50 })" /></PagerContent>
     </MudDataGrid>
 </div>
@@ -149,6 +149,7 @@
 </MudContainer>
 
 @code {
+    private IDisposable? _unsavedRegistration;
     [Parameter] public bool Administration { get; set; }
     private readonly CancellationTokenSource _lifetime = new();
     private MudDataGrid<GridTransponderRow>? _grid;
@@ -161,6 +162,7 @@
     private MudForm? _form;
     private bool _busy, _valid, _hasEnd, _showHistory = true;
     private string? _editor, _error;
+    protected override void OnInitialized() => _unsavedRegistration = UnsavedChanges.Register(() => _editor is not null);
     private string _code = "", _search = "", _label = "";
     private TransponderOwnerView? _owner;
     private OwnTransponderProfile? _ownProfile;
@@ -240,7 +242,8 @@
             _namesLoaded = true;
             var rows = result.Items.Select(row => new GridTransponderRow(row,
                 row.Ownership is not { } ownership ? "" : Administration
-                    ? OwnerName(ownership.OwnerId) : profile?.DisplayName ?? "Owner names unavailable")).ToList();
+                    ? OwnerName(ownership.OwnerId) : profile is null ? L["OwnerNamesUnavailable"].Value
+                        : string.IsNullOrWhiteSpace(profile.ProfileName) ? L["NoStatisticsProfile"].Value : profile.ProfileName)).ToList();
             _lastData = new() { Items = rows, TotalItems = result.TotalCount };
             return _lastData;
         }
@@ -252,12 +255,12 @@
         catch (HttpRequestException exception)
         {
             if (version != _version) return await _pageLoad;
-            _error = $"{exception.Message} Use Refresh to retry.";
+            _error = ErrorFor(exception);
         }
         catch (Exception)
         {
             if (version != _version) return await _pageLoad;
-            _error = "Transponders could not be loaded. Check your access and refresh.";
+            _error = L["TranspondersLoadFailed"];
         }
         finally
         {
@@ -322,7 +325,7 @@
             _code = "";
             _editor = "register";
         }
-        catch (JSException) { _error = "Your local registration date could not be determined. Please try again."; }
+        catch (JSException) { _error = L["LocalRegistrationDateFailed"]; }
         finally { _busy = false; }
     }
 
@@ -333,11 +336,11 @@
 
     private async Task DeleteTransponder(TransponderDTO transponder)
     {
-        if (await Dialogs.ShowMessageBoxAsync("Delete transponder?", $"Permanently delete '{transponder.Label}'? Ownership periods, passings, and recorded results block deletion.", yesText: "Delete", cancelText: "Cancel") != true) return;
+        if (await Dialogs.ShowMessageBoxAsync(L["DeleteTransponderQuestion"], L["DeleteTransponderConfirm", transponder.Label], yesText: L["Delete"], cancelText: L["Cancel"]) != true) return;
         _busy = true; _error = null;
-        try { await Service.DeleteTransponderAsync(transponder.Id, _lifetime.Token); Snackbar.Add("Transponder deleted.", Severity.Success); await Load(); }
-        catch (HttpRequestException exception) { _error = exception.Message; }
-        catch (Exception) { _error = "The transponder could not be deleted. Please try again."; }
+        try { await Service.DeleteTransponderAsync(transponder.Id, _lifetime.Token); Snackbar.Add(L["TransponderDeleted"], Severity.Success); await Load(); }
+        catch (HttpRequestException exception) { _error = ErrorFor(exception); }
+        catch (Exception) { _error = L["OperationFailed"]; }
         finally { _busy = false; }
     }
 
@@ -384,7 +387,7 @@
         if (!_valid || _busy) return;
         if (Administration && _editor != "transponder" && _owner is null)
         {
-            _error = "Select an owner from the search results.";
+            _error = L["SelectOwnerSearchResults"];
             return;
         }
         _busy = true;
@@ -393,7 +396,7 @@
         {
             if (_editor == "register")
             {
-                if (_registrationTo < _registrationFrom) { _error = "Registration end date cannot be before its start date."; return; }
+                if (_registrationTo < _registrationFrom) { _error = L["RegistrationEndBeforeStart"]; return; }
                 await using var dates = await JS.InvokeAsync<IJSObjectReference>("import", "./registrationDates.js");
                 var period = await dates.InvokeAsync<RegistrationPeriod>("period",
                     _registrationFrom!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
@@ -404,14 +407,16 @@
                 while (result.RequiresConfirmation)
                 {
                     if (string.IsNullOrWhiteSpace(result.ConfirmationToken))
-                        throw new HttpRequestException("The registration confirmation response was invalid.");
+                        throw new HttpRequestException("Invalid registration confirmation response.", null, System.Net.HttpStatusCode.BadGateway);
                     var existing = new List<string>();
                     foreach (var ownership in result.ExistingOwnerships)
-                        existing.Add(await dates.InvokeAsync<string>("describe", ownership.OwnedFrom, ownership.OwnedTo));
-                    var proposed = await dates.InvokeAsync<string>("describe", request.OwnedFrom, request.OwnedTo);
-                    var confirmed = await Dialogs.ShowMessageBoxAsync("Confirm ownership change",
-                        $"Existing ownership: {string.Join("; ", existing)}. Proposed ownership: {proposed}. This may shorten existing coverage. If ownership changed, review these updated dates before confirming.",
-                        yesText: "Apply dates", cancelText: "Keep existing ownership");
+                        existing.Add(Describe(await dates.InvokeAsync<RegistrationDescription>("describe",
+                            ownership.OwnedFrom, ownership.OwnedTo, CultureInfo.CurrentCulture.Name)));
+                    var proposed = Describe(await dates.InvokeAsync<RegistrationDescription>("describe",
+                        request.OwnedFrom, request.OwnedTo, CultureInfo.CurrentCulture.Name));
+                    var confirmed = await Dialogs.ShowMessageBoxAsync(L["ConfirmOwnershipChange"],
+                        L["OwnershipConfirmationDetails", string.Join("; ", existing), proposed],
+                        yesText: L["ApplyDates"], cancelText: L["KeepExistingOwnership"]);
                     if (confirmed != true) return;
                     result = await Service.RegisterOwnershipAsync(request with { ConfirmationToken = result.ConfirmationToken }, Administration, _lifetime.Token);
                 }
@@ -421,24 +426,24 @@
             {
                 var start = Utc(_fromDate!.Value, _fromTime!.Value);
                 var end = _hasEnd ? Utc(_toDate!.Value, _toTime!.Value) : (DateTimeOffset?)null;
-                if (end.HasValue && end <= start) { _error = "Ownership end must be after its start."; return; }
+                if (end.HasValue && end <= start) { _error = L["OwnershipEndAfterStart"]; return; }
                 await Service.SaveOwnershipAsync(_ownershipId, new(_transponderId!.Value, _owner!.UserId, start, end), _lifetime.Token);
             }
             _editor = null;
-            Snackbar.Add("Saved.", Severity.Success);
+            Snackbar.Add(L["Saved"], Severity.Success);
             await Load();
         }
-        catch (HttpRequestException exception) { _error = exception.Message; }
-        catch (JSException) { _error = "Registration dates could not be converted in your local time zone. Check the dates and try again."; }
-        catch (Exception) { _error = "The request could not be completed. Please try again."; }
+        catch (HttpRequestException exception) { _error = ErrorFor(exception); }
+        catch (JSException) { _error = L["RegistrationDateConversionFailed"]; }
+        catch (Exception) { _error = L["RequestFailed"]; }
         finally { _busy = false; }
     }
 
     private async Task Remove(Guid id, bool end)
     {
-        var confirmed = await Dialogs.ShowMessageBoxAsync(end ? "End ownership?" : "Delete ownership?",
-            end ? "End this ownership period now and keep it in history?" : "Permanently delete this ownership period? The transponder and recorded results will not be deleted.",
-            yesText: end ? "End ownership" : "Delete ownership", cancelText: "Cancel");
+        var confirmed = await Dialogs.ShowMessageBoxAsync(end ? L["EndOwnershipQuestion"] : L["DeleteOwnershipQuestion"],
+            end ? L["EndOwnershipConfirm"] : L["DeleteOwnershipConfirm"],
+            yesText: end ? L["EndOwnershipNow"] : L["DeleteOwnership"], cancelText: L["Cancel"]);
         if (confirmed != true || _busy) return;
         _busy = true;
         _error = null;
@@ -446,16 +451,28 @@
         {
             if (end) await Service.EndOwnershipAsync(id, Administration, _lifetime.Token);
             else await Service.DeleteOwnershipAsync(id, Administration, _lifetime.Token);
-            Snackbar.Add(end ? "Ownership ended." : "Ownership deleted.", Severity.Success);
+            Snackbar.Add(end ? L["OwnershipEnded"] : L["OwnershipDeleted"], Severity.Success);
             await Load();
         }
-        catch (HttpRequestException exception) { _error = exception.Message; }
-        catch (Exception) { _error = "The ownership could not be changed. Please try again."; }
+        catch (HttpRequestException exception) { _error = ErrorFor(exception); }
+        catch (Exception) { _error = L["OwnershipChangeFailed"]; }
         finally { _busy = false; }
     }
 
-    private string OwnerName(Guid id) => _owners.TryGetValue(id, out var owner) ? owner.DisplayName : "Owner names unavailable";
+    private string OwnerName(Guid id)
+    {
+        if (!_owners.TryGetValue(id, out var owner))
+            return L["OwnerNamesUnavailable"];
+        var profile = string.IsNullOrWhiteSpace(owner.ProfileName) ? L["NoStatisticsProfile"].Value : owner.ProfileName;
+        if (!owner.AccountAvailable)
+            return $"{profile} ({L["UserUnavailable"]})";
+        var fullName = string.Join(" ", new[] { owner.FirstName, owner.LastName }.Where(name => !string.IsNullOrWhiteSpace(name)));
+        return $"{profile} ({(fullName.Length == 0 ? L["NameNotSet"].Value : fullName)})";
+    }
     private sealed record RegistrationPeriod(DateTimeOffset OwnedFrom, DateTimeOffset? OwnedTo);
+    private sealed record RegistrationDescription(string From, string? Through);
+    private string Describe(RegistrationDescription period) => period.Through is null
+        ? L["OwnershipOpenEnded", period.From] : L["OwnershipDateRange", period.From, period.Through];
     private sealed record GridTransponderRow(TransponderRow Row, string OwnerName)
     {
         public string Label => Row.Transponder.Label;
@@ -474,10 +491,27 @@
     private static TransponderOwnershipStatus GetStatus(TransponderOwnershipDTO? owner) => owner is null
         ? TransponderOwnershipStatus.Unassigned : IsActive(owner) ? TransponderOwnershipStatus.Active
         : owner.OwnedFrom > DateTimeOffset.UtcNow ? TransponderOwnershipStatus.Scheduled : TransponderOwnershipStatus.Ended;
-    private static string Status(TransponderOwnershipDTO? owner) => GetStatus(owner).ToString();
+    private string Status(TransponderOwnershipDTO? owner) => GetStatus(owner) switch
+    {
+        TransponderOwnershipStatus.Unassigned => L["Unassigned"].Value,
+        TransponderOwnershipStatus.Active => L["Active"].Value,
+        TransponderOwnershipStatus.Scheduled => L["Scheduled"].Value,
+        TransponderOwnershipStatus.Ended => L["Ended"].Value,
+        _ => L["Unknown"].Value
+    };
     private static string Format(DateTimeOffset? value) => value?.UtcDateTime.ToString("yyyy-MM-dd HH:mm") ?? "-";
-    private async Task<bool> ConfirmDiscard() => _editor is null || await Dialogs.ShowMessageBoxAsync("Discard changes?", "Unsaved changes will be lost.", yesText: "Discard", cancelText: "Keep editing") == true;
+    private string ErrorFor(HttpRequestException exception) => exception.StatusCode switch
+    {
+        System.Net.HttpStatusCode.Unauthorized => L["SignInRequired"].Value,
+        System.Net.HttpStatusCode.Forbidden => L["TransponderAccessDenied"].Value,
+        System.Net.HttpStatusCode.NotFound => L["TransponderNotFound"].Value,
+        System.Net.HttpStatusCode.Conflict => L["DeleteFailedConflict"].Value,
+        System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.UnprocessableEntity => L["RequestRejected"].Value,
+        System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout => L["ServiceUnavailable"].Value,
+        _ => L["OperationFailed"].Value
+    };
+    private async Task<bool> ConfirmDiscard() => _editor is null || await Dialogs.ShowMessageBoxAsync(L["DiscardChanges"], L["UnsavedChangesLost"], yesText: L["Delete"], cancelText: L["KeepEditingAction"]) == true;
     private async Task Cancel() { if (await ConfirmDiscard()) { _editor = null; _error = null; } }
     private async Task ConfirmNavigation(LocationChangingContext context) { if (!await ConfirmDiscard()) context.PreventNavigation(); }
-    public void Dispose() { _lifetime.Cancel(); _request?.Cancel(); _request?.Dispose(); _lifetime.Dispose(); }
+    public void Dispose() { _unsavedRegistration?.Dispose(); _lifetime.Cancel(); _request?.Cancel(); _request?.Dispose(); _lifetime.Dispose(); }
 }

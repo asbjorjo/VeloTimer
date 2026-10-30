@@ -376,3 +376,4 @@ _logs*.txt
 api/VeloTime.Module.Facilities.Api.json
 api/VeloTime.Module.Statistics.Api.json
 api/VeloTime.Module.Timing.Api.json
+api/VeloTime.Module.Profiles.Api.json

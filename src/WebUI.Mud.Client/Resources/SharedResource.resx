@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="Home" xml:space="preserve"><value>Home</value></data>
+  <data name="Language" xml:space="preserve"><value>Language</value></data>
+  <data name="English" xml:space="preserve"><value>English</value></data>
+  <data name="NorwegianBokmal" xml:space="preserve"><value>Norwegian Bokmål</value></data>
+  <data name="ChangeLanguage" xml:space="preserve"><value>Change language</value></data>
+  <data name="LanguagePreferenceUnavailable" xml:space="preserve"><value>Your saved language preference could not be loaded. Please try again.</value></data>
+  <data name="LanguageSaveFailed" xml:space="preserve"><value>Your language preference could not be saved. Your language has not been changed. Please try again.</value></data>
+  <data name="LanguageApplied" xml:space="preserve"><value>Language preference saved. Reloading…</value></data>
+  <data name="KeepEditing" xml:space="preserve"><value>You have unsaved changes. Discard them and change language?</value></data>
+  <data name="Retry" xml:space="preserve"><value>Retry</value></data>
+  <data name="Profile" xml:space="preserve"><value>Profile</value></data>
+  <data name="Loading" xml:space="preserve"><value>Loading…</value></data>
+  <data name="ErrorTitle" xml:space="preserve"><value>Something went wrong</value></data>
+  <data name="Reload" xml:space="preserve"><value>Reload</value></data>
+  <data name="UnhandledError" xml:space="preserve"><value>An unhandled error has occurred.</value></data>
+  <data name="Samples" xml:space="preserve"><value>Samples</value></data><data name="Auth" xml:space="preserve"><value>Auth</value></data>
+  <data name="MyTransponders" xml:space="preserve"><value>My Transponders</value></data>
+  <data name="TimingAdministration" xml:space="preserve"><value>Timing Administration</value></data>
+  <data name="FacilitiesAdministration" xml:space="preserve"><value>Facilities Administration</value></data>
+  <data name="StatisticsAdministration" xml:space="preserve"><value>Statistics Administration</value></data>
+  <data name="Installations" xml:space="preserve"><value>Installations</value></data><data name="Transponders" xml:space="preserve"><value>Transponders</value></data>
+  <data name="Facilities" xml:space="preserve"><value>Facilities</value></data><data name="Items" xml:space="preserve"><value>Items</value></data>
+  <data name="Configurations" xml:space="preserve"><value>Configurations</value></data><data name="Logout" xml:space="preserve"><value>Logout</value></data>
+  <data name="Register" xml:space="preserve"><value>Register</value></data><data name="Login" xml:space="preserve"><value>Login</value></data>
+  <data name="About" xml:space="preserve"><value>About</value></data><data name="Privacy" xml:space="preserve"><value>Privacy</value></data>
+  <data name="Terms" xml:space="preserve"><value>Terms</value></data><data name="AboutVeloTime" xml:space="preserve"><value>VeloTime</value></data>
+  <data name="ChangePassword" xml:space="preserve"><value>Change password</value></data>
+  <data name="AccessDenied" xml:space="preserve"><value>Access denied</value></data>
+  <data name="NoPermission" xml:space="preserve"><value>You do not have permission to access this page.</value></data>
+  <data name="SamplesTitle" xml:space="preserve"><value>Samples</value></data>
+  <data name="BestTimes" xml:space="preserve"><value>Best times</value></data>
+  <data name="BestTimesLast30Days" xml:space="preserve"><value>Best times - last 30 days</value></data>
+  <data name="FastestPublicResult" xml:space="preserve"><value>The fastest public result for each statistics item across all facilities.</value></data>
+  <data name="LoadingBestTimes" xml:space="preserve"><value>Loading best times</value></data>
+  <data name="BestTimesLoadFailed" xml:space="preserve"><value>Best times could not be loaded. Please try again.</value></data>
+  <data name="StatisticsItem" xml:space="preserve"><value>Statistics item</value></data>
+  <data name="AverageSpeed" xml:space="preserve"><value>Average speed (km/h)</value></data>
+  <data name="Time" xml:space="preserve"><value>Time</value></data><data name="Facility" xml:space="preserve"><value>Facility</value></data>
+  <data name="NoPublicBestTimes" xml:space="preserve"><value>No public best times were recorded for this period and facility.</value></data>
+  <data name="Online" xml:space="preserve"><value>Online</value></data><data name="Offline" xml:space="preserve"><value>Offline</value></data>
+  <data name="PeopleCount" xml:space="preserve"><value>{0} people</value></data>
+  <data name="RequestFailed" xml:space="preserve"><value>The request could not be completed. Please try again.</value></data>
+  <data name="PartialTimingPointLink" xml:space="preserve"><value>Timing point saved, but its coursepoint link was not completed. Save again to retry the link.</value></data>
+  <data name="PartialLayoutLink" xml:space="preserve"><value>Layout saved, but a timing link was not saved. Correct the link and save again.</value></data>
+  <data name="RefreshRetry" xml:space="preserve"><value>Could not load the data. Refresh to try again.</value></data>
+  <data name="OperationFailed" xml:space="preserve"><value>The operation could not be completed. Please try again.</value></data>
+  <data name="Delete" xml:space="preserve"><value>Delete</value></data><data name="Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="DiscardChanges" xml:space="preserve"><value>Discard changes?</value></data>
+  <data name="UnsavedChangesLost" xml:space="preserve"><value>Unsaved changes will be lost.</value></data>
+  <data name="KeepEditingAction" xml:space="preserve"><value>Keep editing</value></data>
+  <data name="Save" xml:space="preserve"><value>Save</value></data><data name="Saved" xml:space="preserve"><value>Saved.</value></data>
+  <data name="Refresh" xml:space="preserve"><value>Refresh</value></data><data name="Search" xml:space="preserve"><value>Search</value></data>
+  <data name="NoFacilities" xml:space="preserve"><value>No facilities.</value></data>
+  <data name="SearchFacilities" xml:space="preserve"><value>Search facilities</value></data>
+  <data name="NewFacility" xml:space="preserve"><value>New facility</value></data>
+  <data name="EditFacility" xml:space="preserve"><value>Edit facility</value></data>
+  <data name="FacilityName" xml:space="preserve"><value>Facility name</value></data>
+  <data name="CourseLayouts" xml:space="preserve"><value>Course layouts</value></data>
+  <data name="Name" xml:space="preserve"><value>Name</value></data><data name="Actions" xml:space="preserve"><value>Actions</value></data>
+  <data name="EditFacilityAction" xml:space="preserve"><value>Edit facility</value></data>
+  <data name="DeleteFacilityAction" xml:space="preserve"><value>Delete facility</value></data>
+  <data name="DeleteFacilityQuestion" xml:space="preserve"><value>Delete facility?</value></data>
+  <data name="DeleteFacilityConfirm" xml:space="preserve"><value>Permanently delete '{0}'? Linked layouts, installations, or results will block deletion.</value></data>
+  <data name="FacilitiesLoadFailed" xml:space="preserve"><value>Facilities could not be loaded. Refresh to try again.</value></data>
+  <data name="CourseLayoutsLoadFailed" xml:space="preserve"><value>Course layouts could not be loaded. Refresh to try again.</value></data>
+  <data name="TimingInstallationsTitle" xml:space="preserve"><value>Timing installations</value></data>
+  <data name="SearchInstallations" xml:space="preserve"><value>Search installations</value></data>
+  <data name="NewInstallation" xml:space="preserve"><value>New installation</value></data>
+  <data name="Agent" xml:space="preserve"><value>Agent</value></data><data name="System" xml:space="preserve"><value>System</value></data>
+  <data name="TimingPoints" xml:space="preserve"><value>Timing points</value></data><data name="LastSeenUTC" xml:space="preserve"><value>Last seen (UTC)</value></data>
+  <data name="NoInstallations" xml:space="preserve"><value>No installations match this view.</value></data>
+  <data name="InstallationsLoadFailed" xml:space="preserve"><value>Installations could not be loaded. Refresh to try again.</value></data>
+  <data name="Unassigned" xml:space="preserve"><value>Unassigned</value></data><data name="MissingFacility" xml:space="preserve"><value>Missing facility</value></data>
+  <data name="DeleteInstallation" xml:space="preserve"><value>Delete installation?</value></data>
+  <data name="DeleteInstallationConfirm" xml:space="preserve"><value>Delete '{0}'? Existing timing points must be removed first.</value></data>
+  <data name="InstallationDeleted" xml:space="preserve"><value>Installation deleted.</value></data>
+  <data name="LayoutDeleted" xml:space="preserve"><value>Layout deleted.</value></data>
+  <data name="NoCourseLayouts" xml:space="preserve"><value>No course layouts.</value></data>
+  <data name="DeleteCourseLayout" xml:space="preserve"><value>Delete course layout?</value></data>
+  <data name="DeleteCourseLayoutConfirm" xml:space="preserve"><value>The layout and unused coursepoints will be removed. Linked timing points or statistics records block deletion.</value></data>
+  <data name="LayoutDeleteFailed" xml:space="preserve"><value>The layout could not be deleted. Try again.</value></data>
+  <data name="NewLayout" xml:space="preserve"><value>New layout</value></data><data name="Layout" xml:space="preserve"><value>Layout</value></data>
+  <data name="Segments" xml:space="preserve"><value>Segments</value></data><data name="Distance" xml:space="preserve"><value>Distance</value></data>
+  <data name="DeleteLayoutAction" xml:space="preserve"><value>Delete layout</value></data>
+  <data name="DeleteInstallationAction" xml:space="preserve"><value>Delete installation</value></data>
+  <data name="Authenticated" xml:space="preserve"><value>Authenticated</value></data>
+  <data name="Hello" xml:space="preserve"><value>Hello</value></data>
+  <data name="Duration" xml:space="preserve"><value>Duration</value></data>
+  <data name="Start" xml:space="preserve"><value>Start</value></data>
+  <data name="End" xml:space="preserve"><value>End</value></data>
+  <data name="Speed" xml:space="preserve"><value>Speed</value></data>
+  <data name="Link" xml:space="preserve"><value>Link</value></data>
+  <data name="Unlink" xml:space="preserve"><value>Unlink</value></data>
+  <data name="RequestId" xml:space="preserve"><value>Request ID</value></data>
+  <data name="DevelopmentMode" xml:space="preserve"><value>Development Mode</value></data>
+  <data name="DevelopmentModeDescription" xml:space="preserve"><value>Switching to the Development environment displays more detailed error information.</value></data>
+  <data name="DevelopmentModeWarning" xml:space="preserve"><value>The Development environment should not be enabled for deployed applications because it can expose sensitive exception details.</value></data>
+  <data name="HostErrorMessage" xml:space="preserve"><value>An error occurred while processing your request.</value></data>
+  <data name="TransponderStatus" xml:space="preserve"><value>Transponder status</value></data>
+  <data name="RetryStatus" xml:space="preserve"><value>Retry status</value></data>
+  <data name="Code" xml:space="preserve"><value>Code</value></data>
+  <data name="SystemId" xml:space="preserve"><value>System ID</value></data>
+  <data name="TransponderId" xml:space="preserve"><value>Transponder ID</value></data>
+  <data name="LastSeen" xml:space="preserve"><value>Last seen</value></data>
+  <data name="NoPassingsRecorded" xml:space="preserve"><value>No passings recorded.</value></data>
+  <data name="NoOwnershipSightings" xml:space="preserve"><value>No sightings during your ownership periods.</value></data>
+  <data name="WarningsLast7Days" xml:space="preserve"><value>Warnings reported in the last 7 days</value></data>
+  <data name="LowBattery" xml:space="preserve"><value>Low battery</value></data>
+  <data name="LowSignalStrength" xml:space="preserve"><value>Low signal strength</value></data>
+  <data name="LowHitCount" xml:space="preserve"><value>Low hit count</value></data>
+  <data name="Reported" xml:space="preserve"><value>Reported</value></data>
+  <data name="NoReports" xml:space="preserve"><value>No reports</value></data>
+  <data name="NoWarningsHealth" xml:space="preserve"><value>No warnings reported in the last 7 days. This is not a guarantee of transponder health.</value></data>
+  <data name="Location" xml:space="preserve"><value>Location</value></data>
+  <data name="Warnings" xml:space="preserve"><value>Warnings</value></data>
+  <data name="PageCountWarnings" xml:space="preserve"><value>Page {0} - {1} warning occurrence(s)</value></data>
+  <data name="PreviousWarnings" xml:space="preserve"><value>Previous warnings</value></data>
+  <data name="NextWarnings" xml:space="preserve"><value>Next warnings</value></data>
+  <data name="OwnerHistory" xml:space="preserve"><value>Owner history</value></data>
+  <data name="YourOwnershipHistory" xml:space="preserve"><value>Your ownership history</value></data>
+  <data name="RetryOwnerNames" xml:space="preserve"><value>Retry owner names</value></data>
+  <data name="NoOwnershipHistory" xml:space="preserve"><value>No ownership history recorded.</value></data>
+  <data name="Owner" xml:space="preserve"><value>Owner</value></data>
+  <data name="FromUTC" xml:space="preserve"><value>From (UTC)</value></data>
+  <data name="ToUTCExclusive" xml:space="preserve"><value>To (UTC, exclusive)</value></data>
+  <data name="NoExpiry" xml:space="preserve"><value>No expiry</value></data>
+  <data name="PreviousOwners" xml:space="preserve"><value>Previous owners</value></data>
+  <data name="NextOwners" xml:space="preserve"><value>Next owners</value></data>
+  <data name="PageCountOwnership" xml:space="preserve"><value>Page {0} - {1} ownership period(s)</value></data>
+  <data name="OwnershipSightingsNotice" xml:space="preserve"><value>Only sightings during your ownership periods are shown. Status access ends when your current ownership ends.</value></data>
+  <data name="TransponderNotFound" xml:space="preserve"><value>Transponder not found or not available to your account.</value></data>
+  <data name="TransponderAccessDenied" xml:space="preserve"><value>Sign in with an account allowed to view this transponder.</value></data>
+  <data name="TransponderStatusLoadFailed" xml:space="preserve"><value>Transponder status could not be loaded. Please retry.</value></data>
+  <data name="OwnerNamesUnavailable" xml:space="preserve"><value>Owner names unavailable</value></data>
+  <data name="OwnerNamesRetry" xml:space="preserve"><value>Owner names could not be loaded. Retry to resolve names.</value></data>
+  <data name="UnassignedFacility" xml:space="preserve"><value>Unassigned facility</value></data>
+  <data name="FacilityNameUnavailable" xml:space="preserve"><value>Facility name unavailable ({0})</value></data>
+  <data name="TransponderCode" xml:space="preserve"><value>MyLaps X2 transponder code</value></data>
+  <data name="RegistrationStart" xml:space="preserve"><value>Registration start date</value></data>
+  <data name="RegistrationEndOptional" xml:space="preserve"><value>Registration end date (optional)</value></data>
+  <data name="RegistrationDateHelp" xml:space="preserve"><value>Dates use your local time zone. The entire end date is included. Leave it blank for no expiry.</value></data>
+  <data name="TransponderLabel" xml:space="preserve"><value>Label</value></data>
+  <data name="OwnedFromUTC" xml:space="preserve"><value>Owned from date (UTC)</value></data>
+  <data name="OwnedFromTimeUTC" xml:space="preserve"><value>Owned from time (UTC)</value></data>
+  <data name="HasEndDate" xml:space="preserve"><value>Has end date</value></data>
+  <data name="OwnedToUTC" xml:space="preserve"><value>Owned to date (UTC)</value></data>
+  <data name="OwnedToTimeUTC" xml:space="preserve"><value>Owned to time (UTC)</value></data>
+  <data name="SearchTransponders" xml:space="preserve"><value>Search transponders</value></data>
+  <data name="IncludeHistory" xml:space="preserve"><value>Include history</value></data>
+  <data name="RegisterTransponder" xml:space="preserve"><value>Register transponder</value></data>
+  <data name="AddOwnership" xml:space="preserve"><value>Add ownership</value></data>
+  <data name="TransponderColumn" xml:space="preserve"><value>Transponder</value></data>
+  <data name="Status" xml:space="preserve"><value>Status</value></data>
+  <data name="EditTransponderLabel" xml:space="preserve"><value>Edit transponder label</value></data>
+  <data name="DeleteUnusedTransponder" xml:space="preserve"><value>Delete unused transponder</value></data>
+  <data name="EditOwnership" xml:space="preserve"><value>Edit ownership</value></data>
+  <data name="EndOwnershipNow" xml:space="preserve"><value>End ownership now</value></data>
+  <data name="DeleteOwnership" xml:space="preserve"><value>Delete ownership</value></data>
+  <data name="NoTranspondersMatch" xml:space="preserve"><value>No transponders match this view.</value></data>
+  <data name="TransponderDataUnavailable" xml:space="preserve"><value>Transponder data is unavailable. Use Refresh to retry.</value></data>
+  <data name="TransponderSearchFailed" xml:space="preserve"><value>Transponders could not be loaded. Retry the search.</value></data>
+  <data name="TranspondersLoadFailed" xml:space="preserve"><value>Transponders could not be loaded. Check your access and refresh.</value></data>
+  <data name="OwnerNamesLoadFailed" xml:space="preserve"><value>Owner names could not be loaded.</value></data>
+  <data name="LocalRegistrationDateFailed" xml:space="preserve"><value>Your local registration date could not be determined. Please try again.</value></data>
+  <data name="DeleteTransponderQuestion" xml:space="preserve"><value>Delete transponder?</value></data>
+  <data name="DeleteTransponderConfirm" xml:space="preserve"><value>Permanently delete '{0}'? Ownership periods, passings, and recorded results block deletion.</value></data>
+  <data name="TransponderDeleted" xml:space="preserve"><value>Transponder deleted.</value></data>
+  <data name="SelectOwnerSearchResults" xml:space="preserve"><value>Select an owner from the search results.</value></data>
+  <data name="RegistrationEndBeforeStart" xml:space="preserve"><value>Registration end date cannot be before its start date.</value></data>
+  <data name="InvalidRegistrationResponse" xml:space="preserve"><value>The registration could not be completed. Please try again.</value></data>
+  <data name="ConfirmOwnershipChange" xml:space="preserve"><value>Confirm ownership change</value></data>
+  <data name="OwnershipConfirmationDetails" xml:space="preserve"><value>Existing ownership: {0}. Proposed ownership: {1}. This may shorten existing coverage. If ownership changed, review these updated dates before confirming.</value></data>
+  <data name="ApplyDates" xml:space="preserve"><value>Apply dates</value></data>
+  <data name="KeepExistingOwnership" xml:space="preserve"><value>Keep existing ownership</value></data>
+  <data name="OwnershipEndAfterStart" xml:space="preserve"><value>Ownership end must be after its start.</value></data>
+  <data name="RegistrationDateConversionFailed" xml:space="preserve"><value>Registration dates could not be converted in your local time zone. Check the dates and try again.</value></data>
+  <data name="EndOwnershipQuestion" xml:space="preserve"><value>End ownership?</value></data>
+  <data name="DeleteOwnershipQuestion" xml:space="preserve"><value>Delete ownership?</value></data>
+  <data name="EndOwnershipConfirm" xml:space="preserve"><value>End this ownership period now and keep it in history?</value></data>
+  <data name="DeleteOwnershipConfirm" xml:space="preserve"><value>Permanently delete this ownership period? The transponder and recorded results will not be deleted.</value></data>
+  <data name="OwnershipEnded" xml:space="preserve"><value>Ownership ended.</value></data>
+  <data name="OwnershipDeleted" xml:space="preserve"><value>Ownership deleted.</value></data>
+  <data name="OwnershipChangeFailed" xml:space="preserve"><value>The ownership could not be changed. Please try again.</value></data>
+  <data name="DeleteFailedConflict" xml:space="preserve"><value>This item is in use and cannot be deleted.</value></data>
+  <data name="SignInRequired" xml:space="preserve"><value>Your session has expired. Sign in again and retry.</value></data>
+  <data name="ServiceUnavailable" xml:space="preserve"><value>The service is temporarily unavailable. Please try again.</value></data>
+  <data name="SearchOwner" xml:space="preserve"><value>Find owner by profile or name</value></data>
+  <data name="OwnerSearchHelp" xml:space="preserve"><value>Enter at least 2 characters, then select an owner below.</value></data>
+  <data name="RetryOwnerSearch" xml:space="preserve"><value>Retry owner search</value></data>
+  <data name="NoMatchingUsers" xml:space="preserve"><value>No matching users.</value></data>
+  <data name="LoadMoreOwners" xml:space="preserve"><value>Load more owners</value></data>
+  <data name="OwnerSearchFailed" xml:space="preserve"><value>Owner search could not be completed. Please retry.</value></data>
+  <data name="SelectOwner" xml:space="preserve"><value>Select an owner from the search results.</value></data>
+  <data name="SearchTransponder" xml:space="preserve"><value>Find transponder by label or system ID</value></data>
+  <data name="RetryTransponderSearch" xml:space="preserve"><value>Retry transponder search</value></data>
+  <data name="NoMatchingTransponders" xml:space="preserve"><value>No matching transponders.</value></data>
+  <data name="LoadMoreTransponders" xml:space="preserve"><value>Load more transponders</value></data>
+  <data name="SelectTransponder" xml:space="preserve"><value>Select a transponder from the search results.</value></data>
+  <data name="SelectTransponderResults" xml:space="preserve"><value>Select a transponder from the search results.</value></data>
+  <data name="AuthDebug" xml:space="preserve"><value>Authentication diagnostics</value></data>
+  <data name="DevelopmentOnly" xml:space="preserve"><value>Authentication diagnostics are only available in the Development environment.</value></data>
+  <data name="AccessToken" xml:space="preserve"><value>Access token</value></data>
+  <data name="NoAccessToken" xml:space="preserve"><value>No access token is stored for this session. Sign in again.</value></data>
+  <data name="Audience" xml:space="preserve"><value>Audience</value></data>
+  <data name="RealmRoles" xml:space="preserve"><value>Realm roles</value></data>
+  <data name="Issuer" xml:space="preserve"><value>Issuer</value></data>
+  <data name="AuthorizedParty" xml:space="preserve"><value>Authorized party</value></data>
+  <data name="Scope" xml:space="preserve"><value>Scope</value></data>
+  <data name="Expires" xml:space="preserve"><value>Expires</value></data>
+  <data name="Identity" xml:space="preserve"><value>Identity</value></data>
+  <data name="AuthenticationType" xml:space="preserve"><value>Authentication type</value></data>
+  <data name="Claims" xml:space="preserve"><value>Claims</value></data>
+  <data name="Type" xml:space="preserve"><value>Type</value></data>
+  <data name="Value" xml:space="preserve"><value>Value</value></data>
+  <data name="None" xml:space="preserve"><value>None</value></data>
+  <data name="TokenDetailsFailed" xml:space="preserve"><value>Authentication details could not be loaded. Please retry.</value></data>
+  <data name="EnglishNative" xml:space="preserve"><value>English</value></data>
+  <data name="NorwegianNative" xml:space="preserve"><value>Norsk bokmål</value></data>
+  <data name="UserId" xml:space="preserve"><value>User ID: {0}</value></data>
+  <data name="FacilityNamesLoadFailed" xml:space="preserve"><value>Some facility names could not be loaded. Retry to resolve assigned facilities.</value></data>
+  <data name="RequestRejected" xml:space="preserve"><value>The request was rejected. Check the information and try again.</value></data>
+  <data name="Transponder" xml:space="preserve"><value>Transponder</value></data>
+  <data name="ToUTC" xml:space="preserve"><value>To (UTC)</value></data>
+  <data name="RequiredError" xml:space="preserve"><value>This field is required.</value></data>
+  <data name="Active" xml:space="preserve"><value>Active</value></data>
+  <data name="Scheduled" xml:space="preserve"><value>Scheduled</value></data>
+  <data name="Ended" xml:space="preserve"><value>Ended</value></data>
+  <data name="Unknown" xml:space="preserve"><value>Unknown</value></data>
+  <data name="TransponderAdministration" xml:space="preserve"><value>Transponder Administration</value></data>
+  <data name="IdentityRealmRoles" xml:space="preserve"><value>Realm roles (realm_access claim)</value></data>
+  <data name="No options" xml:space="preserve"><value>No options</value></data>
+  <data name="No records" xml:space="preserve"><value>No records</value></data>
+  <data name="First page" xml:space="preserve"><value>First page</value></data>
+  <data name="Last page" xml:space="preserve"><value>Last page</value></data>
+  <data name="Next page" xml:space="preserve"><value>Next page</value></data>
+  <data name="Previous page" xml:space="preserve"><value>Previous page</value></data>
+  <data name="Rows per page" xml:space="preserve"><value>Rows per page</value></data>
+  <data name="Rows per page:" xml:space="preserve"><value>Rows per page:</value></data>
+  <data name="Previous month" xml:space="preserve"><value>Previous month</value></data>
+  <data name="Next month" xml:space="preserve"><value>Next month</value></data>
+  <data name="Previous year" xml:space="preserve"><value>Previous year</value></data>
+  <data name="Next year" xml:space="preserve"><value>Next year</value></data>
+  <data name="Go to today" xml:space="preserve"><value>Go to today</value></data>
+  <data name="Choose date" xml:space="preserve"><value>Choose date</value></data>
+  <data name="Choose time" xml:space="preserve"><value>Choose time</value></data>
+  <data name="Select all" xml:space="preserve"><value>Select all</value></data>
+  <data name="Deselect all" xml:space="preserve"><value>Deselect all</value></data>
+  <data name="No data" xml:space="preserve"><value>No data</value></data>
+  <data name="Loading..." xml:space="preserve"><value>Loading...</value></data>
+  <data name="Clear filter" xml:space="preserve"><value>Clear filter</value></data>
+  <data name="Open filters" xml:space="preserve"><value>Open filters</value></data>
+  <data name="Remove filter" xml:space="preserve"><value>Remove filter</value></data>
+  <data name="Select all rows" xml:space="preserve"><value>Select all rows</value></data>
+  <data name="Select row" xml:space="preserve"><value>Select row</value></data>
+  <data name="Cancel edit" xml:space="preserve"><value>Cancel edit</value></data>
+  <data name="Toggle group" xml:space="preserve"><value>Toggle group</value></data>
+  <data name="StatisticsAdministrationTitle" xml:space="preserve"><value>Statistics Administration</value></data>
+  <data name="Statistics" xml:space="preserve"><value>Statistics</value></data>
+  <data name="Edit" xml:space="preserve"><value>Edit</value></data>
+  <data name="New" xml:space="preserve"><value>New</value></data>
+  <data name="Configuration" xml:space="preserve"><value>configuration</value></data>
+  <data name="Item" xml:space="preserve"><value>item</value></data>
+  <data name="StatisticsItemLabel" xml:space="preserve"><value>Statistics item</value></data>
+  <data name="DistanceMeters" xml:space="preserve"><value>Distance (m)</value></data>
+  <data name="Simple" xml:space="preserve"><value>Simple</value></data>
+  <data name="Multi" xml:space="preserve"><value>Multi</value></data>
+  <data name="CourseLayout" xml:space="preserve"><value>Course layout</value></data>
+  <data name="StartCoursepoint" xml:space="preserve"><value>Start coursepoint</value></data>
+  <data name="EndCoursepoint" xml:space="preserve"><value>End coursepoint</value></data>
+  <data name="SimpleParentConfiguration" xml:space="preserve"><value>Simple parent configuration</value></data>
+  <data name="Repetitions" xml:space="preserve"><value>Repetitions</value></data>
+  <data name="NewConfiguration" xml:space="preserve"><value>New configuration</value></data>
+  <data name="NewItem" xml:space="preserve"><value>New item</value></data>
+  <data name="EditItem" xml:space="preserve"><value>Edit item</value></data>
+  <data name="DeleteItem" xml:space="preserve"><value>Delete item</value></data>
+  <data name="EditConfiguration" xml:space="preserve"><value>Edit configuration</value></data>
+  <data name="DeleteConfiguration" xml:space="preserve"><value>Delete configuration</value></data>
+  <data name="NoStatisticsItems" xml:space="preserve"><value>No statistics items.</value></data>
+  <data name="NoStatisticsConfigurations" xml:space="preserve"><value>No statistics configurations.</value></data>
+  <data name="StatisticsLoadFailed" xml:space="preserve"><value>Statistics could not be loaded. Check your access and try refreshing.</value></data>
+  <data name="ChangesNotSaved" xml:space="preserve"><value>The changes could not be saved. Please try again.</value></data>
+  <data name="DefinitionDeleteFailed" xml:space="preserve"><value>The definition could not be deleted. Please try again.</value></data>
+  <data name="DeleteDefinitionQuestion" xml:space="preserve"><value>Delete definition?</value></data>
+  <data name="DeleteDefinitionConfirm" xml:space="preserve"><value>Deletion is permanent. Definitions with dependencies or recorded results cannot be deleted.</value></data>
+  <data name="Deleted" xml:space="preserve"><value>Deleted.</value></data>
+  <data name="Administration" xml:space="preserve"><value>Administration</value></data>
+  <data name="MissingItem" xml:space="preserve"><value>Missing item ({0})</value></data>
+  <data name="Point" xml:space="preserve"><value>Point {0}</value></data>
+  <data name="LayoutIdLabel" xml:space="preserve"><value>Layout {0}</value></data>
+  <data name="MissingCoursepoint" xml:space="preserve"><value>Missing coursepoint</value></data>
+  <data name="ConnectionTo" xml:space="preserve"><value>{0} to {1}</value></data>
+  <data name="RepetitionsOf" xml:space="preserve"><value>{0} repetitions of {1}</value></data>
+  <data name="MissingParent" xml:space="preserve"><value>missing parent</value></data>
+  <data name="ConflictOccurred" xml:space="preserve"><value>The item has changed or is in use. Refresh and try again.</value></data>
+  <data name="Required" xml:space="preserve"><value>Required</value></data>
+  <data name="Clear" xml:space="preserve"><value>Clear</value></data>
+  <data name="Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Today" xml:space="preserve"><value>Today</value></data>
+  <data name="Ok" xml:space="preserve"><value>OK</value></data>
+  <data name="Apply" xml:space="preserve"><value>Apply</value></data>
+  <data name="Select" xml:space="preserve"><value>Select</value></data>
+  <data name="All" xml:space="preserve"><value>All</value></data>
+  <data name="Filter" xml:space="preserve"><value>Filter</value></data>
+  <data name="Sort" xml:space="preserve"><value>Sort</value></data>
+  <data name="Date" xml:space="preserve"><value>Date</value></data>
+  <data name="Open" xml:space="preserve"><value>Open</value></data>
+  <data name="Remove" xml:space="preserve"><value>Remove</value></data>
+  <data name="DeleteItemQuestion" xml:space="preserve"><value>Delete statistics item?</value></data>
+  <data name="Connection" xml:space="preserve"><value>Connection</value></data>
+  <data name="Coursepoint" xml:space="preserve"><value>Coursepoint</value></data>
+  <data name="Description" xml:space="preserve"><value>Description</value></data>
+  <data name="EditTimingPoint" xml:space="preserve"><value>Edit timing point</value></data>
+  <data name="DeleteTimingPoint" xml:space="preserve"><value>Delete timing point</value></data>
+  <data name="OwnershipOpenEnded" xml:space="preserve"><value>{0} onwards (no expiry)</value></data>
+  <data name="OwnershipDateRange" xml:space="preserve"><value>{0} through {1}</value></data>
+  <data name="UtcSuffix" xml:space="preserve"><value>UTC</value></data>
+  <data name="NoStatisticsProfile" xml:space="preserve"><value>No statistics profile</value></data>
+  <data name="UserUnavailable" xml:space="preserve"><value>User unavailable</value></data>
+  <data name="NameNotSet" xml:space="preserve"><value>Name not set</value></data>
+  <data name="ToggleNavigation" xml:space="preserve"><value>Toggle navigation</value></data>
+  <data name="DismissError" xml:space="preserve"><value>Dismiss error</value></data>
+  <data name="Add filter" xml:space="preserve"><value>Add filter</value></data>
+  <data name="Collapse all groups" xml:space="preserve"><value>Collapse all groups</value></data>
+  <data name="Collapse group" xml:space="preserve"><value>Collapse group</value></data>
+  <data name="Column options" xml:space="preserve"><value>Column options</value></data>
+  <data name="Current page {0}" xml:space="preserve"><value>Current page {0}</value></data>
+  <data name="Edit row" xml:space="preserve"><value>Edit row</value></data>
+  <data name="End date" xml:space="preserve"><value>End date</value></data>
+  <data name="Expand all groups" xml:space="preserve"><value>Expand all groups</value></data>
+  <data name="Expand group" xml:space="preserve"><value>Expand group</value></data>
+  <data name="Filter value" xml:space="preserve"><value>Filter value</value></data>
+  <data name="Hide all" xml:space="preserve"><value>Hide all</value></data>
+  <data name="Not a valid date time" xml:space="preserve"><value>Not a valid date and time</value></data>
+  <data name="Not a valid time span" xml:space="preserve"><value>Not a valid time span</value></data>
+  <data name="Not a value of {0}" xml:space="preserve"><value>Not a value of {0}</value></data>
+  <data name="Page {0}" xml:space="preserve"><value>Page {0}</value></data>
+  <data name="Show all" xml:space="preserve"><value>Show all</value></data>
+  <data name="Start date" xml:space="preserve"><value>Start date</value></data>
+  <data name="Toggle {0}" xml:space="preserve"><value>Toggle {0}</value></data>
+  <data name="Next month {0}" xml:space="preserve"><value>Next month {0}</value></data>
+  <data name="Next year {0}" xml:space="preserve"><value>Next year {0}</value></data>
+  <data name="Previous month {0}" xml:space="preserve"><value>Previous month {0}</value></data>
+  <data name="Previous year {0}" xml:space="preserve"><value>Previous year {0}</value></data>
+  <data name="InstallationEditor" xml:space="preserve"><value>Installation Editor</value></data>
+  <data name="Installation" xml:space="preserve"><value>Installation</value></data>
+  <data name="AgentId" xml:space="preserve"><value>Agent ID</value></data>
+  <data name="TimingSystem" xml:space="preserve"><value>Timing system</value></data>
+  <data name="UnknownSystem" xml:space="preserve"><value>Unknown</value></data>
+  <data name="HardwareSystemId" xml:space="preserve"><value>Hardware system ID</value></data>
+  <data name="SaveInstallation" xml:space="preserve"><value>Save installation</value></data>
+  <data name="BackToInstallations" xml:space="preserve"><value>Back to installations</value></data>
+  <data name="NewTimingPoint" xml:space="preserve"><value>New timing point</value></data>
+  <data name="SaveTimingPoint" xml:space="preserve"><value>Save timing point</value></data>
+  <data name="NoTimingPoints" xml:space="preserve"><value>No timing points.</value></data>
+  <data name="InstallationNotFound" xml:space="preserve"><value>Installation not found.</value></data>
+  <data name="InstallationLoadFailed" xml:space="preserve"><value>The installation could not be loaded. Return to installations and try again.</value></data>
+  <data name="InstallationSaveFailed" xml:space="preserve"><value>The installation could not be saved. Please try again.</value></data>
+  <data name="InstallationSaved" xml:space="preserve"><value>Installation saved.</value></data>
+  <data name="TimingPointSaved" xml:space="preserve"><value>Timing point saved.</value></data>
+  <data name="TimingPointSaveFailed" xml:space="preserve"><value>The timing point could not be saved. Please try again.</value></data>
+  <data name="DeleteTimingPointQuestion" xml:space="preserve"><value>Delete timing point?</value></data>
+  <data name="DeleteTimingPointConfirm" xml:space="preserve"><value>Recorded passings or linked coursepoints will block deletion. Unlink the coursepoint first if necessary.</value></data>
+  <data name="TimingPointDeleted" xml:space="preserve"><value>Timing point deleted.</value></data>
+  <data name="TimingPointDeleteFailed" xml:space="preserve"><value>The timing point could not be deleted. Try again.</value></data>
+  <data name="DiscardTimingPointChanges" xml:space="preserve"><value>Unsaved timing-point changes will be lost.</value></data>
+  <data name="DiscardInstallationChanges" xml:space="preserve"><value>Unsaved installation or timing-point changes will be lost.</value></data>
+  <data name="LayoutSaved" xml:space="preserve"><value>Layout saved.</value></data>
+  <data name="DeleteConfigurationQuestion" xml:space="preserve"><value>Delete statistics configuration?</value></data>
+  <data name="CourseLayoutEditor" xml:space="preserve"><value>Course Layout Editor</value></data>
+  <data name="NewCourseLayout" xml:space="preserve"><value>New course layout</value></data>
+  <data name="Coursepoints" xml:space="preserve"><value>Coursepoints</value></data>
+  <data name="NewPoint" xml:space="preserve"><value>New point</value></data>
+  <data name="ReuseCoursepoint" xml:space="preserve"><value>Reuse coursepoint</value></data>
+  <data name="AddSelectedPoint" xml:space="preserve"><value>Add selected point</value></data>
+  <data name="TimingPoint" xml:space="preserve"><value>Timing point</value></data>
+  <data name="Unlinked" xml:space="preserve"><value>Unlinked</value></data>
+  <data name="RemoveUnusedPoint" xml:space="preserve"><value>Remove unused point</value></data>
+  <data name="NoCoursepoints" xml:space="preserve"><value>No coursepoints.</value></data>
+  <data name="AddSegment" xml:space="preserve"><value>Add segment</value></data>
+  <data name="Order" xml:space="preserve"><value>Order</value></data>
+  <data name="LengthMeters" xml:space="preserve"><value>Length (m)</value></data>
+  <data name="MoveSegmentUp" xml:space="preserve"><value>Move segment up</value></data>
+  <data name="MoveSegmentDown" xml:space="preserve"><value>Move segment down</value></data>
+  <data name="RemoveSegment" xml:space="preserve"><value>Remove segment</value></data>
+  <data name="NoSegments" xml:space="preserve"><value>No segments.</value></data>
+  <data name="SaveLayout" xml:space="preserve"><value>Save layout</value></data>
+  <data name="BackToLayouts" xml:space="preserve"><value>Back to layouts</value></data>
+  <data name="CourseLayoutNotFound" xml:space="preserve"><value>Course layout not found.</value></data>
+  <data name="LayoutLoadFailed" xml:space="preserve"><value>The layout could not be loaded. Return to layouts and try again.</value></data>
+  <data name="AddConnectedSegments" xml:space="preserve"><value>Add connected segments and select their endpoints.</value></data>
+  <data name="UseEveryCoursepoint" xml:space="preserve"><value>Use every coursepoint in a segment, or remove unused points.</value></data>
+  <data name="LayoutSaveFailed" xml:space="preserve"><value>The layout could not be saved. Please try again.</value></data>
+  <data name="DiscardLayoutChanges" xml:space="preserve"><value>Unsaved layout or link changes will be lost.</value></data>
+  <data name="FacilityNotFound" xml:space="preserve"><value>Facility not found.</value></data>
+</root>

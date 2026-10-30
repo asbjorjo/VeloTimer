@@ -53,7 +53,7 @@ internal static class BffEndpoints
         });
 
         api.MapGet("/antiforgery", (HttpContext context, IAntiforgery antiforgery) =>
-            TypedResults.Ok(antiforgery.GetAndStoreTokens(context).RequestToken));
+            TypedResults.Ok(antiforgery.GetAndStoreTokens(context).RequestToken)).AllowAnonymous();
 
         api.MapGet("/facilities", async (IFacilityService service, CancellationToken cancellationToken) =>
             TypedResults.Ok((await service.GetFacilitiesAsync(cancellationToken)).ToArray())).AllowAnonymous();

@@ -1,26 +1,25 @@
 @using VeloTime.Module.Timing.Interface.Data
-@using VeloTime.WebUI.Mud.Client.Services
 @inject ITransponderManagementService Service
 @implements IDisposable
 
-<MudTextField T="string" Value="@Value?.Label" Label="Transponder" ReadOnly="true" Required="true"
-              RequiredError="Select a transponder from the search results." Disabled="Disabled" />
+<MudTextField T="string" Value="@Value?.Label" Label="@L["Transponder"]" ReadOnly="true" Required="true"
+              RequiredError="@L["SelectTransponder"]" Disabled="Disabled" />
 @if (!Disabled)
 {
     <MudTextField T="string" Value="_search" ValueChanged="Search" DebounceInterval="300"
-                  Label="Find transponder by label or system ID" Clearable="true" />
+                  Label="@L["SearchTransponder"]" Clearable="true" />
     @if (_error is not null)
     {
         <MudAlert Severity="Severity.Error">@_error</MudAlert>
-        <MudButton OnClick="Fetch">Retry transponder search</MudButton>
+        <MudButton OnClick="Fetch">@L["RetryTransponderSearch"]</MudButton>
     }
     @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
     @foreach (var item in _items)
     {
         <MudButton @key="item.Id" OnClick="() => ValueChanged.InvokeAsync(item)">@item.Label (@item.SystemId)</MudButton>
     }
-    @if (!_loading && _error is null && _items.Count == 0) { <MudText>No matching transponders.</MudText> }
-    @if (_hasMore) { <MudButton OnClick="More" Disabled="_loading">Load more transponders</MudButton> }
+    @if (!_loading && _error is null && _items.Count == 0) { <MudText>@L["NoMatchingTransponders"]</MudText> }
+    @if (_hasMore) { <MudButton OnClick="More" Disabled="_loading">@L["LoadMoreTransponders"]</MudButton> }
 }
 
 @code {
@@ -67,8 +66,14 @@
             _hasMore = (long)(_page + 1) * 10 < result.TotalCount;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        catch (HttpRequestException exception) { if (version == _version) _error = exception.Message; }
-        catch (Exception) { if (version == _version) _error = "Transponders could not be loaded. Retry the search."; }
+        catch (HttpRequestException exception) { if (version == _version) _error = exception.StatusCode switch
+        {
+            System.Net.HttpStatusCode.Unauthorized => L["SignInRequired"].Value,
+            System.Net.HttpStatusCode.Forbidden => L["TransponderAccessDenied"].Value,
+            System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout => L["ServiceUnavailable"].Value,
+            _ => L["TransponderSearchFailed"].Value
+        }; }
+        catch (Exception) { if (version == _version) _error = L["TransponderSearchFailed"]; }
         finally { if (version == _version) _loading = false; }
     }
 

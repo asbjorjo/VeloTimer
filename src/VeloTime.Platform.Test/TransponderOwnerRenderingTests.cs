@@ -259,7 +259,7 @@ public sealed class TransponderOwnerRenderingTests
                     [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value) }));
             await Grid(component!).ReloadServerData();
             var html = root.ToHtmlString();
-            Assert.Contains("Directory unavailable", html);
+            Assert.Contains("The operation could not be completed.", html);
             Assert.Contains("data is unavailable", html);
             Assert.DoesNotContain("No transponders match", html);
         });
@@ -346,9 +346,12 @@ public sealed class TransponderOwnerRenderingTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddLocalization(options => options.ResourcesPath = "Resources");
         services.AddMudServices(options => options.PopoverOptions.CheckForPopoverProvider = false);
+        services.AddTransient<MudLocalizer, LocalizedMudLocalizer>();
         services.AddSingleton<IJSRuntime, NoJavaScript>();
         services.AddSingleton<NavigationManager, TestNavigation>();
+        services.AddSingleton<UnsavedChangesTracker>();
         return services;
     }
 

@@ -32,6 +32,7 @@ IResourceBuilder<ProjectResource>? bootstrap = null;
 IResourceBuilder<ProjectResource> facilitiesmigrator;
 IResourceBuilder<ProjectResource> statisticsmigrator;
 IResourceBuilder<ProjectResource> timingmigrator;
+IResourceBuilder<ProjectResource> profilesmigrator;
 IResourceBuilder<IResourceWithConnectionString> velotimedb;
 
 var k8s = builder.AddKubernetesEnvironment("k8s");
@@ -96,6 +97,12 @@ var timingapi = builder.AddProject<Projects.VeloTime_Module_Timing_Api>("module-
     .WithReference(velotimedb)
     .WithReference(keycloak)
     .WaitFor(velotimedb);
+var profilesapi = builder.AddProject<Projects.VeloTime_Module_Profiles_Api>("module-profiles-api")
+    .WithHttpEndpoint(name: "http")
+    .WithEnvironment("OIDC_AUDIENCE", oidcAudience)
+    .WithReference(velotimedb)
+    .WithReference(keycloak)
+    .WaitFor(velotimedb);
 
 statisticsapi.WithReference(facilityapi);
 facilityapi.WithReference(timingapi).WithReference(statisticsapi);
@@ -120,6 +127,7 @@ var frontend = builder.AddProject<Projects.VeloTime_WebUI_Mud>("frontend")
     .WithReference(keycloak)
     .WithReference(facilityapi)
     .WithReference(statisticsapi)
+    .WithReference(profilesapi)
     .WithReference(timingapi);
 
 var statsproc = builder.AddProject<Projects.VeloTime_Module_Statistics_Processor>("module-statistics-processor")
@@ -165,10 +173,14 @@ if (migrate)
     timingmigrator = builder.AddProject<Projects.VeloTime_Module_Timing_Migration>("module-timing-migration")
         .WaitFor(velotimedb)
         .WithReference(velotimedb);
+    profilesmigrator = builder.AddProject<Projects.VeloTime_Module_Profiles_Migration>("module-profiles-migration")
+        .WaitFor(velotimedb)
+        .WithReference(velotimedb);
 
     facilityapi.WaitForCompletion(facilitiesmigrator);
     statisticsapi.WaitForCompletion(statisticsmigrator);
     timingapi.WaitForCompletion(timingmigrator);
+    profilesapi.WaitForCompletion(profilesmigrator);
     statsproc.WaitForCompletion(statisticsmigrator);
     timingproc.WaitForCompletion(timingmigrator);
 

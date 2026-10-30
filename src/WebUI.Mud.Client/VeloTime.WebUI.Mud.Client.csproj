@@ -10,6 +10,7 @@
 	  <ContainerRepository>asbjorjo/velotime-webui-client</ContainerRepository>
 	  <ContainerImageTag>$(Version)</ContainerImageTag>
     <IsPublishable>false</IsPublishable>
+    <BlazorWebAssemblyLoadAllGlobalizationData>true</BlazorWebAssemblyLoadAllGlobalizationData>
   </PropertyGroup>
 
   <ItemGroup>

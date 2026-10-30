@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="@documentLanguage">
 
 <head>
     <meta charset="utf-8" />
@@ -14,9 +14,13 @@
 
 <body>
     <Routes @rendermode="PageRenderMode" />
-    <script src="_framework/blazor.web.js"></script>
+    <script src="_framework/blazor.web.js" autostart="false"></script>
     <script src=@Assets["_content/MudBlazor/MudBlazor.min.js"]></script>
     <script src=@Assets["_content/Extensions.MudBlazor.StaticInput/NavigationObserver.js"]></script>
+    <script src="language.js"></script>
+    <script>
+        Blazor.start({ webAssembly: { applicationCulture: document.documentElement.lang } });
+    </script>
 </body>
 
 </html>
@@ -27,4 +31,8 @@
 
     private IComponentRenderMode? PageRenderMode =>
         HttpContext.AcceptsInteractiveRouting() ? InteractiveAuto : null;
+
+    private string documentLanguage =>
+        HttpContext.Features.Get<Microsoft.AspNetCore.Localization.IRequestCultureFeature>()?
+            .RequestCulture.UICulture.Name == "nb-NO" ? "nb-NO" : "en";
 }

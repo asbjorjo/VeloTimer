@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
+using Microsoft.AspNetCore.Components;
 using MudBlazor.Services;
+using MudBlazor;
 using VeloTime.WebUI.Mud.Client.Components;
 using VeloTime.WebUI.Mud.Client.Pages;
 using VeloTime.WebUI.Mud.Client.Services;
@@ -153,8 +155,11 @@ public sealed class StatisticsTableRenderingTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddLocalization(options => options.ResourcesPath = "Resources");
         services.AddMudServices(options => options.PopoverOptions.CheckForPopoverProvider = false);
+        services.AddTransient<MudLocalizer, LocalizedMudLocalizer>();
         services.AddSingleton<IJSRuntime, NoJavaScript>();
+        services.AddSingleton<NavigationManager, TestNavigation>();
         services.AddSingleton(service);
         return services;
     }
@@ -165,6 +170,11 @@ public sealed class StatisticsTableRenderingTests
             throw new JSDisconnectedException("The static renderer has no browser connection.");
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) =>
             throw new JSDisconnectedException("The static renderer has no browser connection.");
+    }
+
+    private sealed class TestNavigation : NavigationManager
+    {
+        public TestNavigation() => Initialize("http://localhost/", "http://localhost/");
     }
 
     private sealed class DeferredStatisticsService(

@@ -1,0 +1,10 @@
+apiVersion: v2
+name: module-profiles-api
+description: Authenticated user language preferences API
+type: application
+version: 0.1.0
+appVersion: "2.1.0-alpha.6"
+dependencies:
+  - name: velotime-library
+    version: 0.1.1
+    repository: "file://../../../velotime-library"

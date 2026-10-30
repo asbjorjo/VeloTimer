@@ -1,11 +1,9 @@
 ﻿@page "/"
-@using VeloTime.WebUI.Mud.Client.Components
-
-<PageTitle>Best times</PageTitle>
+<PageTitle>@L["BestTimes"]</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
-    <MudText Typo="Typo.h4" HtmlTag="h1" Class="mb-2">Best times - last 30 days</MudText>
-    <MudText Class="mb-4">The fastest public result for each statistics item across all facilities.</MudText>
+    <MudText Typo="Typo.h4" HtmlTag="h1" Class="mb-2">@L["BestTimesLast30Days"]</MudText>
+    <MudText Class="mb-4">@L["FastestPublicResult"]</MudText>
     <StatisticsTable From="@_periodEnd.AddDays(-30)" To="@_periodEnd" />
 </MudContainer>
 

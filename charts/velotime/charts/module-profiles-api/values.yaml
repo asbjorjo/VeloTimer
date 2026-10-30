@@ -1,0 +1,21 @@
+existingSecret: ""
+oidcAudience: ""
+replicaCount: 1
+database:
+  host: postgres-service
+  port: 5432
+  user: velotime
+  password: ""
+image:
+  pullPolicy: IfNotPresent
+service:
+  type: ClusterIP
+  port: 80
+global:
+  image:
+    repository: ghcr.io/asbjorjo/
+    tag: 2.1.0-alpha.6
+  oidcAudience: ""
+  oidcAuthority: ""
+  imagePullSecrets:
+    - name: ghcr

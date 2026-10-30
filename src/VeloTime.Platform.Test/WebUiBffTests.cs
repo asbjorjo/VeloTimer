@@ -337,7 +337,6 @@ public sealed partial class WebUiBffTests
     [InlineData("facilities/fa886b15-035b-43fe-984a-04c8ce566122/installations")]
     [InlineData("profile/username")]
     [InlineData("profile/accounts")]
-    [InlineData("antiforgery")]
     [InlineData("admin/statistics/items")]
     [InlineData("admin/statistics/configurations")]
     [InlineData("transponders")]

@@ -5,10 +5,10 @@
     <MudText>@account.DisplayName</MudText>
     @if (!account.IsConnected)
     {
-        <MudLink Href="@("/authentication/addprovider/" + account.ProviderName)">Link</MudLink>
+        <MudLink Href="@("/authentication/addprovider/" + account.ProviderName)">@L["Link"]</MudLink>
     } else
     {
-        <MudButton OnClick="UnLink">Unlink</MudButton>
+        <MudButton OnClick="UnLink">@L["Unlink"]</MudButton>
     }
 </MudCard>
 
