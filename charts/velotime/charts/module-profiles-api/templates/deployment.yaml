@@ -18,13 +18,6 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      initContainers:
-        - name: profiles-migration
-          image: "{{ .Values.global.image.repository }}velotime-module-profiles-migration:{{ .Values.global.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          envFrom:
-            - secretRef:
-                name: {{ .Values.existingSecret | default (include "velotime.fullname" .) | quote }}
       containers:
         - name: module-profiles-api
           image: "{{ .Values.global.image.repository }}velotime-module-profiles-api:{{ .Values.global.image.tag }}"

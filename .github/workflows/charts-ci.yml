@@ -59,3 +59,8 @@ jobs:
           for chart in velotime-library velotime-bootstrap velotime-migration velotime; do
             helm package "charts/$chart" --destination .cr-release
           done
+
+      - name: Migration hook regression tests
+        run: |
+          python3 -m pip install -r charts/tests/requirements.txt
+          python3 -m unittest discover -s charts/tests -v

@@ -89,11 +89,14 @@ Configure `global.oidcAudience` and `global.oidcAuthority` in the application
 chart, as for the other APIs. No additional Keycloak client or user migration is
 required because the API validates the existing user's audience-bound token.
 
-The application chart's Profiles deployment always runs the schema migration
-worker as an init container before serving traffic. Database schema migrations
-belong to the service deployment; the separate `velotime-migration` chart is
-reserved for migrating data from legacy installations and does not run Profiles
-schema migrations.
+The application chart runs the Profiles schema migration worker as a
+`pre-install,pre-upgrade` Job in the same Helm release as the API. Helm waits for
+the Job to complete before creating or updating the ordinary application
+resources; Profiles pods no longer run migrations on restart or scale-out.
+The separate `velotime-migration` chart remains reserved for migrating data from
+legacy installations and does not run Profiles schema migrations.
+Use `module-profiles-api.migration.enabled` or the explicit
+`migrationJobs.domains.profiles.enabled` override to control execution.
 The deployment uses `/health` for database/schema readiness and `/alive` for
 liveness. The Profiles API remains internal to the cluster; WebUI calls it using
 service discovery and delegates the authenticated user's token.
@@ -102,9 +105,16 @@ The existing solution-wide publish workflow discovers the API and migration
 worker without a workflow-specific project list. They publish
 `asbjorjo/velotime-module-profiles-api` and
 `asbjorjo/velotime-module-profiles-migration` with the shared application version.
-Migration init containers currently use the same Secret as the API, following
-the other module chart conventions, so that identity needs migration privileges
-as well as runtime access.
+Migration configuration defaults to the API's database values or `existingSecret`.
+Chart-managed credentials are rendered into a separate migration-only hook Secret;
+the API's Secret remains an ordinary Helm-managed resource. Set
+`migrationJobs.domains.profiles.existingSecret` to a pre-provisioned migration
+Secret to separate schema-changing privileges from runtime privileges.
+Both Secrets use `ConnectionStrings__velotimedb`. See the root
+[Helm schema migration guide](../../README.md#helm-schema-migrations) for
+configuration precedence, hook configuration retention/cleanup, and rollback
+limitations. Existing API pods can remain active during migration, so schema
+changes must remain compatible with the running version.
 
 ## PostgreSQL verification handoff
 

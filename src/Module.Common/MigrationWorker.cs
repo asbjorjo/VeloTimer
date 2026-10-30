@@ -22,9 +22,12 @@ public class MigrationWorker<T>(
             var dbContext = scope.ServiceProvider.GetRequiredService<T>();
 
             await ApplyMigrationsAsync(dbContext, stoppingToken);
+            stoppingToken.ThrowIfCancellationRequested();
         }
         catch (Exception ex)
         {
+            // StopHost can shut down normally after a background-service failure.
+            Environment.ExitCode = 1;
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             activity?.AddException(ex);
             throw;

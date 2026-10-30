@@ -48,5 +48,4 @@ spec:
             memory: 256Mi
           limits:
             memory: 1Gi
-{{ include "velotime.migration" . | indent 6 -}}
 {{- end -}}

@@ -8,6 +8,10 @@ database:
   password: ""
 image:
   pullPolicy: IfNotPresent
+migration:
+  enabled: true
+  image:
+    pullPolicy: IfNotPresent
 service:
   type: ClusterIP
   port: 80

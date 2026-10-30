@@ -8,3 +8,16 @@ global:
     - name: ghcr
 valkey:
   replicaCount: 1
+migrationJobs:
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+  # One Job per domain, enabled when any of its consumers has migration.enabled.
+  # Domain enabled overrides that decision, including an explicit false.
+  # Configuration defaults to the API, even when only a processor requests migration.
+  # Overrides: enabled, existingSecret, database (same shape as API values),
+  # and image.pullPolicy. Set existingSecret: "" to use chart-managed credentials.
+  domains:
+    facilities: {}
+    statistics: {}
+    timing: {}
+    profiles: {}

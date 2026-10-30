@@ -578,6 +578,131 @@ competing-claim tests run concurrently against real PostgreSQL and link mutation
 exercise PostgreSQL transaction locks. The default SQLite test run checks the same
 ownership conflict sequentially.
 
+## Helm schema migrations
+
+Install or upgrade the **application `velotime` chart** to run Facilities,
+Statistics, Timing, and Profiles schema migrations as release-scoped Kubernetes
+Jobs. These Jobs have `pre-install,pre-upgrade` hooks in the same release as the
+application Deployments. Helm waits for each Job to complete before applying the
+ordinary release resources, even without `--wait`. A failed Job or hook timeout
+fails the operation before the Deployment updates. Application pods no longer
+run migration init containers on restart or scale-out.
+
+The four Jobs run sequentially in Facilities, Statistics, Timing, Profiles order.
+All currently use `ConnectionStrings__velotimedb` and their service-owned schemas.
+This hook ordering does not coordinate separate releases, external migration
+runners, or concurrent database clients. Module subcharts are implementation
+details of the application chart; deploy the application chart to obtain its
+migration gate.
+
+### Configuration and credentials
+
+For each domain, `migrationJobs.domains.<domain>` can override:
+
+- `enabled`: explicit true/false takes precedence over consumer settings.
+  Otherwise a Job runs if any API/processor consumer has `migration.enabled: true`.
+  Statistics and Timing each get one Job, not separate API/processor Jobs.
+- `existingSecret`: a pre-provisioned Secret containing
+  `ConnectionStrings__velotimedb`. By default this is the API's `existingSecret`.
+  Set it to `""` to render a migration-only Secret from database values.
+- `database`: partial overrides of the API's `database` values, including optional
+  `name` (default `velotimedb`). Only used when no existing Secret is selected.
+- `image.pullPolicy`: defaults to the API's `migration.image.pullPolicy`.
+
+**API configuration is authoritative by default, even if only the processor
+requests migration.** If the API and processor target different databases, choose
+the intended migration target explicitly; the chart cannot inspect externally
+managed Secret contents or migrate multiple targets from a single domain Job.
+Global image repository/tag and image-pull Secrets apply to migration Jobs too.
+OIDC configuration follows the API/global values, using a migration-only ConfigMap.
+
+For example, separate a migration identity from runtime access:
+
+```yaml
+module-profiles-api:
+  existingSecret: profiles-runtime
+migrationJobs:
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+  domains:
+    profiles:
+      existingSecret: profiles-schema-migration
+```
+
+Both external Secrets must already exist. All four APIs also support
+chart-managed credentials through their existing `database` settings and an empty
+`existingSecret`. Ordinary application Secrets retain normal Helm ownership.
+Migration-only Secrets contain only the database connection string and are
+created before the Jobs using the current operation's values, not the old
+release's configuration.
+
+The database, network access, image-pull credentials, and external Secrets must
+be available **before** install/upgrade starts. A pre-install Job cannot use
+ordinary resources that this same release has not created yet. Do not disable
+hooks (`--no-hooks`) when depending on this migration gate. If a deployment
+controller merely renders chart YAML, verify its own hook execution/ordering
+semantics; annotations alone do not enforce the Helm lifecycle.
+
+### Timeouts, diagnostics, and cleanup
+
+`migrationJobs.backoffLimit` defaults to `1` (zero is supported);
+`migrationJobs.activeDeadlineSeconds` defaults to `600` per Job. Size Helm's
+`--timeout` to accommodate the expected hook duration and the chosen Job
+deadlines/retries; it must not expire before an otherwise healthy migration
+completes. Migration executables exit nonzero on failure, including interrupted
+migrations. Retries must tolerate migrations that were already partially or
+fully applied; execution is not an exactly-once guarantee.
+
+Successful hook Jobs are deleted. Failed Jobs remain for `kubectl logs` and
+`kubectl describe` until the next invocation replaces them. Migration hook
+Secrets/ConfigMaps use `before-hook-creation` only: they remain between runs and
+are replaced before the next enabled hook execution. They must not use
+`hook-succeeded`, which would delete them immediately after creation and before
+the Jobs consume them.
+
+Hook configuration is **not automatically removed by Helm uninstall**. After
+uninstall, remove retained credential/configuration objects explicitly, scoped to
+the namespace and release:
+
+```bash
+kubectl -n <namespace> delete secret,configmap \
+  -l 'app.kubernetes.io/instance=<release>,velotime.io/migration-config=true'
+```
+
+If a domain is disabled or switched to an external Secret, its old hook
+configuration can remain. After ensuring no migration Job is using it, use the
+same selector with `,velotime.io/migration-domain=<domain>` to remove only that
+domain's retained configuration. Cleanup never targets externally managed
+Secrets. Account for this retained credential material in operational procedures.
+
+### Bootstrap, upgrades, and rollback
+
+The separate bootstrap and legacy users-migration releases retain their existing
+behavior and do not automatically gate an application upgrade. Bootstrap still
+runs its configured migration init-container chain before seeding. Operators can
+set the bootstrap chart's existing `migrations: []` option only when schemas are
+guaranteed to exist before its seed step. Do not run independent migration
+releases concurrently and assume application hook weights will coordinate them.
+
+Old application pods remain active during pre-upgrade migrations. Use
+backward-compatible expand/contract schema changes and test the previous
+application version against the new schema. Helm rollback/automatic rollback
+reverts Kubernetes resources, **not database changes**, and hook side effects are
+not transactional with the release. Rolling back to an older chart may restore
+its per-pod init containers against the already-upgraded database.
+
+Chart regression tests exercise rendered install/upgrade resources:
+
+```bash
+python3 -m pip install -r charts/tests/requirements.txt
+python3 -m unittest discover -s charts/tests -v
+```
+
+Run the chart dependency updates from [Charts CI](.github/workflows/charts-ci.yml)
+first. These tests do not replace a disposable-cluster acceptance test: exercise a
+fresh install, no-op/pending upgrade, failed migration, timeout, and retry; confirm
+failed pre-upgrade hooks leave application Deployment image/spec updates unapplied.
+
 ## Roadmap
 
 - [] User authentication
