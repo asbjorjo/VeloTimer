@@ -1,5 +1,6 @@
 ﻿@inherits LayoutComponentBase
 @inject IStringLocalizer<SharedResource> L
+@inject NavigationManager NavigationManager
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -11,7 +12,18 @@
         <MudText Typo="Typo.h5" Class="ml-3">VeloTime</MudText>
         <MudSpacer />
         <LanguageSelector />
-        <MudIconButton Icon="@Icons.Material.Filled.Login" Color="Color.Inherit" Edge="Edge.End" aria-label="@L["Login"]" />
+        <AuthorizeView>
+            <Authorized>
+                <form action="authentication/logout" method="post" class="d-flex align-center">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="ReturnUrl" value="@NavigationManager.ToBaseRelativePath(NavigationManager.Uri)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" Edge="Edge.End" ButtonType="ButtonType.Submit" aria-label="@L["Logout"]" />
+                </form>
+            </Authorized>
+            <NotAuthorized>
+                <MudIconButton Href="authentication/login" Icon="@Icons.Material.Filled.Login" Color="Color.Inherit" Edge="Edge.End" aria-label="@L["Login"]" />
+            </NotAuthorized>
+        </AuthorizeView>
     </MudAppBar>
     <MudDrawer id="nav-drawer" @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
         <NavMenu />

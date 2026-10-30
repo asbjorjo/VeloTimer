@@ -1,7 +1,4 @@
-﻿@implements IDisposable
-@using VeloTime.WebUI.Mud.Client
-
-@inject NavigationManager NavigationManager
+﻿@using VeloTime.WebUI.Mud.Client
 
 <MudNavMenu>
     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">@L["Home"]</MudNavLink>
@@ -30,17 +27,9 @@
                     <MudNavLink Href="admin/statistics/configurations" Match="NavLinkMatch.Prefix">@L["Configurations"]</MudNavLink>
                 </MudNavGroup>
             </AuthorizeView>
-            <form action="authentication/logout" method="post">
-                <AntiforgeryToken />
-                <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                <button type="submit" class="mud-nav-link mud-ripple">
-                    <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Info" Class="mr-3"></MudIcon> @L["Logout"]
-                </button>
-            </form>
         </Authorized>
         <NotAuthorized>
             <MudNavLink Href="Account/Register" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">@L["Register"]</MudNavLink>
-            <MudNavLink Href="authentication/login" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Password">@L["Login"]</MudNavLink>
         </NotAuthorized>
     </AuthorizeView>
     <MudNavGroup Icon="@Icons.Material.Filled.Info" Title="@L["About"]">
@@ -49,25 +38,3 @@
         <MudNavLink Href="about/velotime">@L["AboutVeloTime"]</MudNavLink>
     </MudNavGroup>
 </MudNavMenu>
-
-
-@code {
-    private string? currentUrl;
-
-    protected override void OnInitialized()
-    {
-        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
-        NavigationManager.LocationChanged += OnLocationChanged;
-    }
-
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-    {
-        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
-        StateHasChanged();
-    }
-
-    public void Dispose()
-    {
-        NavigationManager.LocationChanged -= OnLocationChanged;
-    }
-}
