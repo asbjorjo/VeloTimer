@@ -140,6 +140,7 @@ builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IStatisticsAdministrationService, StatisticsAdministrationService>();
 builder.Services.AddScoped<ITransponderManagementService, TransponderManagementService>();
 builder.Services.AddScoped<ITransponderOwnerService, TransponderOwnerService>();
+builder.Services.AddScoped<ITransponderStatusService, TransponderStatusService>();
 builder.Services.AddScoped<IInfrastructureAdministrationService, InfrastructureAdministrationService>();
 builder.Services.AddScoped<ITimingService, TimingService>();
 

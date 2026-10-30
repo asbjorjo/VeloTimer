@@ -35,6 +35,9 @@ public class PassingObservedHandler(IAgentService agentService, InstallationServ
             message.LoopId,
             message.Time,
             message.TransponderType,
+            message.LowBattery,
+            message.LowStrength,
+            message.LowHits,
             cancellationToken
         );
 

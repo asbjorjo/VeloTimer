@@ -13,6 +13,7 @@ VeloTime.Module.Common.AdministrationReferences.AddServices(builder.Services);
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddSingleton(TimeProvider.System);
 
 builder.AddModuleTiming();
 // Schema generation must not start outbox dispatch or connect to a message broker.

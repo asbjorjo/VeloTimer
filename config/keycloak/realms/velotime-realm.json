@@ -48,7 +48,13 @@
       },
       {
         "name": "facilities-admin",
-        "description": "Facilities administrator"
+        "description": "Facilities administrator",
+        "composite": true,
+        "composites": {
+          "client": {
+            "realm-management": ["query-users", "view-users"]
+          }
+        }
       },
       {
         "name": "timing-admin",
@@ -62,7 +68,13 @@
       },
       {
         "name": "statistics-admin",
-        "description": "Statistics definitions administrator"
+        "description": "Statistics definitions administrator",
+        "composite": true,
+        "composites": {
+          "client": {
+            "realm-management": ["query-users", "view-users"]
+          }
+        }
       },
       {
         "name": "velotime-users-migration",

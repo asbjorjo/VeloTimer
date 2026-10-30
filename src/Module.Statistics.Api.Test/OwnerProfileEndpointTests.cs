@@ -42,18 +42,20 @@ public sealed class OwnerProfileEndpointTests(StatisticsApiFactory factory) : IC
     [InlineData("facilities-admin", false)]
     [InlineData("timing-admin", true)]
     [InlineData("velotime-admin", true)]
-    public async Task Admin_RequiresTimingPermissionAndCanResolvePrivateNames(string role, bool allowed)
+    public async Task Admin_SearchRequiresTimingButResolutionAllowsAllAdministrators(string role, bool allowed)
     {
         await Seed(new StatsProfile { UserId = OwnerId, ProfileName = "Private racer", IsPublic = false });
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Test-Role", role);
         var response = await client.PostAsJsonAsync($"{AdminRoot}/resolve", new ResolveOwnerProfilesRequest([OwnerId, OwnerId, Guid.NewGuid()]));
         var search = await client.GetAsync($"{AdminRoot}/search?query=racer&offset=0&pageSize=10");
-        Assert.Equal(allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden, response.StatusCode);
+        var canResolve = role != "user";
+        Assert.Equal(canResolve ? HttpStatusCode.OK : HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal(allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden, search.StatusCode);
+        if (canResolve)
+            Assert.Equal(new OwnerProfileDTO(OwnerId, "Private racer"), Assert.Single((await response.Content.ReadFromJsonAsync<List<OwnerProfileDTO>>())!));
         if (allowed)
         {
-            Assert.Equal(new OwnerProfileDTO(OwnerId, "Private racer"), Assert.Single((await response.Content.ReadFromJsonAsync<List<OwnerProfileDTO>>())!));
             Assert.Equal(OwnerId, Assert.Single((await search.Content.ReadFromJsonAsync<OwnerProfilePage>())!.Profiles).UserId);
         }
     }

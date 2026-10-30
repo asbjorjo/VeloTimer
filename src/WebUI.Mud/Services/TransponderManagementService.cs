@@ -52,7 +52,7 @@ public sealed class TransponderManagementService(ITimingClient client, ITranspon
             var result = administration ? await client.QueryTranspondersAsync(request, cancellationToken)
                 : await client.QueryMyTranspondersAsync(request, cancellationToken);
             return new Contracts.TransponderPage(result.Items.Select(row => new Contracts.TransponderRow(
-                new(row.Transponder.Id, row.Transponder.System, row.Transponder.SystemId, row.Transponder.Label, [], row.Transponder.LastSeen),
+                new(row.Transponder.Id, row.Transponder.System, row.Transponder.SystemId, row.Transponder.Label, [], row.Transponder.LastSeen, row.Transponder.CanViewStatus),
                 row.Ownership is { } owner ? new(owner.Id, owner.TransponderId, owner.OwnerId, owner.OwnedFrom, owner.OwnedTo) : null)).ToList(), result.TotalCount);
         });
 

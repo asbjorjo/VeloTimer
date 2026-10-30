@@ -44,7 +44,8 @@ public sealed class TransponderOwnerService(
     /// <inheritdoc />
     public async Task<IReadOnlyList<TransponderOwnerView>> ResolveAsync(IReadOnlyList<Guid> userIds, CancellationToken cancellationToken = default)
     {
-        await RequireAdministrationAsync();
+        if (!(await authorization.AuthorizeAsync(await GetUserAsync(), null, AdministrationAuthorization.TransponderStatusAdminPolicy)).Succeeded)
+            throw new HttpRequestException("Administrator access is required to resolve owners.", null, HttpStatusCode.Forbidden);
         if (userIds is null || userIds.Count > 100 || userIds.Any(id => id == Guid.Empty))
             throw new HttpRequestException("Provide at most 100 valid owner IDs.", null, HttpStatusCode.BadRequest);
         return await ExecuteAsync<IReadOnlyList<TransponderOwnerView>>(async () =>

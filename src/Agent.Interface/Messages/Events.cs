@@ -2,7 +2,12 @@
 
 public record AgentStartedEvent(DateTime Time, string AgentId);
 
-public record PassingEvent(DateTime Time, string TransponderType, string TransponderId, string LoopId);
+public record PassingEvent(DateTime Time, string TransponderType, string TransponderId, string LoopId)
+{
+    public bool LowBattery { get; init; }
+    public bool LowStrength { get; init; }
+    public bool LowHits { get; init; }
+}
 public record TransponderStatusEvent(DateTime Time, string TransponderType, string TransponderId, bool LowBattery, bool LowStrength);
 public record LoopStatusEvent(DateTime Time, string LoopId, double Noise);
 

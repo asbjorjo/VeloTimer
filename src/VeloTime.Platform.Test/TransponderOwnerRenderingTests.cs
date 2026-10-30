@@ -30,7 +30,7 @@ public sealed class TransponderOwnerRenderingTests
         services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, _) =>
         {
             Assert.Equal(nameof(ITransponderManagementService.GetTranspondersAsync), method.Name);
-            return new TransponderPage([new(new(transponderId, "MyLaps_X2", "106187718", "HT-24422", [], LastSeen),
+            return new TransponderPage([new(new(transponderId, "MyLaps_X2", "106187718", "HT-24422", [], LastSeen, true),
                 new(Guid.NewGuid(), transponderId, OwnerId, DateTimeOffset.UtcNow.AddDays(-1), null))], 1);
         }));
         services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((method, _) => method.Name switch
@@ -59,6 +59,7 @@ public sealed class TransponderOwnerRenderingTests
 
         Assert.Contains(profile ?? "No statistics profile", html);
         Assert.Contains("HT-24422", html);
+        Assert.Contains($"href=\"/transponders/{transponderId}\"", html);
         if (administration)
         {
             Assert.Contains("KeycloakFirst KeycloakLast", html);

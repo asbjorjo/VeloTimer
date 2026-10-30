@@ -8,7 +8,11 @@ namespace VeloTime.Module.Timing.Service;
 
 public class AgentService(InstallationService installationService, HybridCache cache, TimingDbContext storage, Metrics metrics) : IAgentService
 {
-    public async Task<Passing> RegisterPassingAsync(string agentId, string transponderId, string loopId, DateTime time, string transponderType, CancellationToken cancellationToken = default)
+    public Task<Passing> RegisterPassingAsync(string agentId, string transponderId, string loopId, DateTime time, string transponderType, CancellationToken cancellationToken = default) =>
+        RegisterPassingAsync(agentId, transponderId, loopId, time, transponderType, false, false, false, cancellationToken);
+
+    public async Task<Passing> RegisterPassingAsync(string agentId, string transponderId, string loopId, DateTime time,
+        string transponderType, bool lowBattery, bool lowStrength, bool lowHits, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("RegisterPassing");
 
@@ -36,7 +40,11 @@ public class AgentService(InstallationService installationService, HybridCache c
             metrics.PassingProcessed(agentId, activity, true);
         } else
         {
-            passing = new() { Time = time, TimingPointId = timingPoint.Id, TransponderId = transponder.Id };
+            passing = new()
+            {
+                Time = time, TimingPointId = timingPoint.Id, TransponderId = transponder.Id,
+                LowBattery = lowBattery, LowStrength = lowStrength, LowHits = lowHits
+            };
             
             await storage.AddAsync(passing, cancellationToken: cancellationToken);
             await storage.SaveChangesAsync(cancellationToken);

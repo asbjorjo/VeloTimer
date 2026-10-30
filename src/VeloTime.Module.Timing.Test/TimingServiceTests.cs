@@ -111,10 +111,11 @@ public sealed class TimingServiceTests
         await using var database = await TestDatabase.CreateAsync();
         var timestamp = DateTime.UtcNow;
 
-        var first = await database.AgentService.RegisterPassingAsync("agent-4", "106187721", "loop-4", timestamp, "X2");
+        var first = await database.AgentService.RegisterPassingAsync("agent-4", "106187721", "loop-4", timestamp, "X2", true, true, true);
         var duplicate = await database.AgentService.RegisterPassingAsync("agent-4", "106187721", "loop-4", timestamp, "X2");
 
         Assert.Equal(first.Id, duplicate.Id);
+        Assert.True(duplicate.LowBattery && duplicate.LowStrength && duplicate.LowHits);
         Assert.Single(await database.Storage.Set<Passing>().ToListAsync());
     }
 

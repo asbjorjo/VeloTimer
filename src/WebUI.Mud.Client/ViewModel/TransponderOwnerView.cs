@@ -9,7 +9,7 @@ public sealed record OwnTransponderProfile(Guid UserId, string? ProfileName)
     public string DisplayName => string.IsNullOrWhiteSpace(ProfileName) ? "No statistics profile" : ProfileName;
 }
 
-/// <summary>Owner identity details restricted to timing administrators.</summary>
+/// <summary>Owner identity details restricted to administrators.</summary>
 /// <param name="UserId">The stable identifier used for ownership mutations.</param>
 /// <param name="ProfileName">The Statistics profile name, when present.</param>
 /// <param name="FirstName">The Keycloak first name, when present.</param>

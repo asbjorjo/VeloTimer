@@ -35,7 +35,7 @@ public sealed partial class WebUiBffTests
     [InlineData("statistics-admin", false)]
     [InlineData("timing-admin", true)]
     [InlineData("velotime-admin", true)]
-    public async Task OwnerNames_DirectoryRoutesRequireTimingPermission(string role, bool allowed)
+    public async Task OwnerNames_SearchRequiresTimingButResolutionAllowsAllAdministrators(string role, bool allowed)
     {
         var backend = PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((method, _) => method.Name switch
         {
@@ -48,9 +48,10 @@ public sealed partial class WebUiBffTests
         await client.GetAsync($"signin?role={role}");
         Assert.Equal(allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden,
             (await client.GetAsync("api/admin/timing/transponder-owners/search?query=racer&profileOffset=0&keycloakOffset=0")).StatusCode);
-        Assert.Equal(allowed ? HttpStatusCode.OK : HttpStatusCode.Forbidden,
+        var canResolve = role != "user";
+        Assert.Equal(canResolve ? HttpStatusCode.OK : HttpStatusCode.Forbidden,
             (await client.PostAsJsonAsync("api/admin/timing/transponder-owners/resolve", new[] { ResourceId })).StatusCode);
-        Assert.Equal(allowed ? 2 : 0, ((PlatformServiceTests.TestProxy)(object)backend).Calls.Count);
+        Assert.Equal((allowed ? 1 : 0) + (canResolve ? 1 : 0), ((PlatformServiceTests.TestProxy)(object)backend).Calls.Count);
     }
 
     [Fact]

@@ -24,6 +24,7 @@ public static class AdministrationAuthorization
     public const string TimingLinkPolicy = "CoursePointTimingLink.Write";
     public const string ReferencePolicy = "Administration.References";
     public const string OwnershipReadPolicy = "Timing.Ownership.Read";
+    public const string TransponderStatusAdminPolicy = "Transponder.Status.Admin";
 
     public static IServiceCollection AddAdministrationAuthorization(this IServiceCollection services)
     {
@@ -34,6 +35,7 @@ public static class AdministrationAuthorization
             .AddPolicy(StatisticsPolicy, policy => RequireAnyPermission(policy, GlobalPermission, StatisticsPermission))
             .AddPolicy(TimingLinkPolicy, policy => RequireAnyPermission(policy, GlobalPermission, TimingLinkPermission))
             .AddPolicy(ReferencePolicy, policy => RequireAnyPermission(policy, GlobalPermission, ReferencesPermission))
+            .AddPolicy(TransponderStatusAdminPolicy, policy => RequireAnyPermission(policy, GlobalPermission, FacilitiesPermission, TimingPermission, StatisticsPermission))
             .AddPolicy(OwnershipReadPolicy, policy => RequireAnyPermission(policy, GlobalPermission, TimingPermission, OwnershipReadPermission));
         return services;
     }

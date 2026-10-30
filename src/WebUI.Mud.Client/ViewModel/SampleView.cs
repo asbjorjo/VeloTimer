@@ -3,6 +3,7 @@
 public class SampleView
 { 
     public DateTime Time { get; init; }
+    public Guid TransponderId { get; init; }
     public required string TransponderLabel { get; init; }
     public required string StartPoint { get; init; }
     public required string EndPoint { get; init; }

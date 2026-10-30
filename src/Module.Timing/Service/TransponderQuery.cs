@@ -14,7 +14,7 @@ public static class TransponderQuery
     }
 
     public static async Task<TransponderPage> ListAsync(TimingDbContext storage, TransponderPageRequest request,
-        Guid? ownerId, CancellationToken cancellationToken)
+        Guid? ownerId, CancellationToken cancellationToken, bool statusAdministration = false)
     {
         Validate(request.Page, request.PageSize);
         var transponders = Visible(storage, ownerId);
@@ -36,7 +36,9 @@ public static class TransponderQuery
                    from owner in ownerships.DefaultIfEmpty()
                    where request.IncludeHistory || owner == null ||
                        owner.OwnedFrom <= now && (!owner.OwnedTo.HasValue || owner.OwnedTo > now)
-                   select new { Transponder = transponder, Owner = owner };
+                   select new { Transponder = transponder, Owner = owner,
+                       CanViewStatus = statusAdministration || !ownerId.HasValue || transponder.Owners.Any(period => period.OwnerId == ownerId &&
+                           period.OwnedFrom <= now && (!period.OwnedTo.HasValue || period.OwnedTo > now)) };
         var total = await rows.CountAsync(cancellationToken);
         var page = await rows.OrderBy(row => row.Transponder.Label).ThenBy(row => row.Transponder.Id)
             .ThenBy(row => row.Owner == null ? (DateTime?)null : row.Owner.OwnedFrom)
@@ -52,7 +54,7 @@ public static class TransponderQuery
         return new(page.Select(row => new TransponderRow(
             new(row.Transponder.Id, row.Transponder.System.ToString(), row.Transponder.SystemId, row.Transponder.Label, [],
                 lastSeen.TryGetValue(row.Transponder.Id, out var time)
-                    ? new DateTimeOffset(DateTime.SpecifyKind(time, DateTimeKind.Utc)) : null),
+                    ? new DateTimeOffset(DateTime.SpecifyKind(time, DateTimeKind.Utc)) : null, row.CanViewStatus),
             row.Owner is null ? null : TransponderOwnershipService.ToDto(row.Owner))).ToList(), total);
     }
 

@@ -7,8 +7,8 @@ public sealed class TransponderOwnerRealmTests
     [Theory]
     [InlineData("timing-admin", true)]
     [InlineData("velotime-admin", true)]
-    [InlineData("facilities-admin", false)]
-    [InlineData("statistics-admin", false)]
+    [InlineData("facilities-admin", true)]
+    [InlineData("statistics-admin", true)]
     [InlineData("velotime-user", false)]
     public async Task OwnerDirectory_RealmRolesGrantOnlyReadPermissions(string roleName, bool canReadUsers)
     {

@@ -75,7 +75,8 @@ public sealed class WorkerHandlerTests
         await service.SendEventAsync(new VeloTime.Agent.Model.LoopStatus { Time = time, LoopId = "loop-1", Noise = 0.25 });
         await service.SendEventsAsync([new VeloTime.Agent.Model.Passing
         {
-            Id = "passing-1", Time = time, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1"
+            Id = "passing-1", Time = time, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1",
+            LowBattery = true, LowStrength = true, LowHits = true
         }]);
         await service.SendEventsAsync([segment]);
         await service.SendEventsAsync([system]);
@@ -85,9 +86,12 @@ public sealed class WorkerHandlerTests
         Assert.IsAssignableFrom<IEnumerable<VeloTime.Agent.Interface.Messages.Events.LoopConfigEvent>>(recorder.Published[1].Payload);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent>(recorder.Published[2].Payload);
         Assert.IsAssignableFrom<IEnumerable<VeloTime.Agent.Interface.Messages.Events.PassingEvent>>(recorder.Published[3].Payload);
+        var sentPassing = Assert.Single((IEnumerable<VeloTime.Agent.Interface.Messages.Events.PassingEvent>)recorder.Published[3].Payload!);
+        Assert.True(sentPassing.LowBattery && sentPassing.LowStrength && sentPassing.LowHits);
         Assert.IsAssignableFrom<IEnumerable<VeloTime.Agent.Interface.Messages.Events.SegmentConfigEvent>>(recorder.Published[4].Payload);
         Assert.IsAssignableFrom<IEnumerable<VeloTime.Agent.Interface.Messages.Events.SystemConfigEvent>>(recorder.Published[5].Payload);
-        Assert.Single(await storage.Set<VeloTime.Agent.Model.Passing>().ToListAsync());
+        var storedPassing = await storage.Set<VeloTime.Agent.Model.Passing>().SingleAsync();
+        Assert.True(storedPassing.LowBattery && storedPassing.LowStrength && storedPassing.LowHits);
     }
 
     [Fact]
@@ -144,7 +148,8 @@ public sealed class WorkerHandlerTests
         };
 
         await handler.OnHandle(new VeloTime.Agent.Interface.Messages.Events.PassingEvent(
-            DateTime.UtcNow, "X2", "106187718", "loop-1"), CancellationToken.None);
+            DateTime.UtcNow, "X2", "106187718", "loop-1") { LowBattery = true, LowStrength = true, LowHits = true }, CancellationToken.None);
+        Assert.Equal(new object?[] { true, true, true }, agentProxy.PassingArguments![5..8]);
 
         Assert.Collection(recorder.Published,
             call => Assert.IsType<PassingSaved>(call.Payload),
@@ -261,9 +266,11 @@ public sealed class WorkerHandlerTests
     {
         public VeloTime.Module.Timing.Model.Passing Passing { get; set; } = null!;
         public VeloTime.Module.Timing.Model.Sample? Sample { get; set; }
+        public object?[]? PassingArguments { get; private set; }
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
+            if (targetMethod?.Name == nameof(IAgentService.RegisterPassingAsync)) PassingArguments = args;
             return targetMethod?.Name switch
             {
                 nameof(IAgentService.RegisterPassingAsync) => Task.FromResult(Passing),

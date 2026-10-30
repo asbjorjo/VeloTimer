@@ -18,7 +18,7 @@ namespace VeloTime.Agent.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("agent")
-                .HasAnnotation("ProductVersion", "9.0.12")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -37,6 +37,10 @@ namespace VeloTime.Agent.Migrations
                     b.Property<bool>("LowBattery")
                         .HasColumnType("boolean")
                         .HasColumnName("low_battery");
+
+                    b.Property<bool>("LowHits")
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_hits");
 
                     b.Property<bool>("LowStrength")
                         .HasColumnType("boolean")

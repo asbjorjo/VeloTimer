@@ -17,6 +17,7 @@ public static class AdministrationPolicies
     public const string Statistics = "Statistics.Admin";
     public const string TimingLink = "CoursePointTimingLink.Write";
     public const string References = "Administration.References";
+    public const string TransponderStatusAdmin = "Transponder.Status.Admin";
 
     public static void Configure(AuthorizationOptions options)
     {
@@ -25,6 +26,7 @@ public static class AdministrationPolicies
         Add(options, Statistics, GlobalPermission, StatisticsPermission);
         Add(options, TimingLink, GlobalPermission, FacilitiesPermission, TimingPermission);
         Add(options, References, GlobalPermission, FacilitiesPermission, TimingPermission, StatisticsPermission);
+        Add(options, TransponderStatusAdmin, GlobalPermission, FacilitiesPermission, TimingPermission, StatisticsPermission);
     }
 
     private static void Add(AuthorizationOptions options, string policy, params string[] permissions) =>

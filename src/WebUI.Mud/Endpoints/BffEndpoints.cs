@@ -87,6 +87,7 @@ internal static class BffEndpoints
         api.MapStatisticsEndpoints();
         api.MapStatisticsAdministrationEndpoints();
         api.MapTransponderManagementEndpoints();
+        api.MapTransponderStatusEndpoints();
         api.MapTransponderOwnerEndpoints();
         api.MapInfrastructureAdministrationEndpoints();
 

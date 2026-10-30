@@ -1,0 +1,219 @@
+@page "/transponders/{Id:guid}"
+@attribute [Authorize]
+@using System.Net
+@using System.Globalization
+@using VeloTime.Module.Timing.Interface.Data
+@using VeloTime.WebUI.Mud.Client.Services
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@inject ITransponderStatusService Service
+@inject ITransponderOwnerService Owners
+@inject ILogger<TransponderStatus> Logger
+@implements IDisposable
+
+<PageTitle>Transponder status</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudText Typo="Typo.h5" HtmlTag="h1">Transponder status</MudText>
+        <MudButton OnClick="Load" Disabled="_busy" StartIcon="@Icons.Material.Filled.Refresh">Refresh</MudButton>
+    </MudStack>
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">@_error</MudAlert>
+        <MudButton OnClick="Load" Disabled="_busy">Retry status</MudButton>
+    }
+    @if (_busy)
+    {
+        <MudProgressLinear Indeterminate="true" Class="mb-4" />
+    }
+    @if (_view is { } view)
+    {
+        var status = view.Status;
+        <MudPaper Class="pa-4 mb-4" Outlined="true">
+            <MudText Typo="Typo.h6">@status.Label</MudText>
+            <MudText>Code: @status.Code</MudText>
+            <MudText>System ID: @status.SystemId (@status.System)</MudText>
+            <MudText Typo="Typo.caption">Transponder ID: @status.Id</MudText>
+        </MudPaper>
+        @if (view.FacilityError is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4">@view.FacilityError</MudAlert>
+        }
+        <MudText Typo="Typo.h6" HtmlTag="h2">Last seen</MudText>
+        @if (status.LastSeen is { } last)
+        {
+            <MudText Class="mb-4">@Format(last.Time) UTC - @Location(last)</MudText>
+        }
+        else
+        {
+            <MudText Class="mb-4">@(status.Administration ? "No passings recorded." : "No sightings during your ownership periods.")</MudText>
+        }
+        <MudText Typo="Typo.h6" HtmlTag="h2">Warnings reported in the last 7 days</MudText>
+        <MudText Typo="Typo.caption">@Format(status.WarningWindowStart) to @Format(status.WarningWindowEnd) UTC</MudText>
+        <MudStack Row="true" Wrap="Wrap.Wrap" Class="my-3">
+            <MudChip T="string" Color="@(status.LowBattery ? Color.Warning : Color.Default)">Low battery: @(status.LowBattery ? "Reported" : "No reports")</MudChip>
+            <MudChip T="string" Color="@(status.LowStrength ? Color.Warning : Color.Default)">Low signal strength: @(status.LowStrength ? "Reported" : "No reports")</MudChip>
+            <MudChip T="string" Color="@(status.LowHits ? Color.Warning : Color.Default)">Low hit count: @(status.LowHits ? "Reported" : "No reports")</MudChip>
+        </MudStack>
+        @if (status.WarningCount == 0)
+        {
+            <MudText Class="mb-4">No warnings reported in the last 7 days. This is not a guarantee of transponder health.</MudText>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Class="mb-2">
+                <thead><tr><th>Time (UTC)</th><th>Location</th><th>Warnings</th></tr></thead>
+                <tbody>
+                    @foreach (var warning in status.Warnings)
+                    {
+                        <tr><td>@Format(warning.Time)</td><td>@Location(warning)</td><td>@WarningText(warning)</td></tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                <MudButton OnClick="PreviousWarnings" Disabled="@(_busy || _warningPage == 0)">Previous warnings</MudButton>
+                <MudText>Page @(_warningPage + 1) - @status.WarningCount warning occurrence(s)</MudText>
+                <MudButton OnClick="NextWarnings" Disabled="@(_busy || (long)(_warningPage + 1) * PageSize >= status.WarningCount)">Next warnings</MudButton>
+            </MudStack>
+        }
+        <MudText Typo="Typo.h6" HtmlTag="h2">@(status.Administration ? "Owner history" : "Your ownership history")</MudText>
+        @if (_ownerError is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="my-3">@_ownerError</MudAlert>
+            <MudButton OnClick="Load" Disabled="_busy">Retry owner names</MudButton>
+        }
+        @if (status.OwnershipCount == 0)
+        {
+            <MudText>No ownership history recorded.</MudText>
+        }
+        else
+        {
+            <MudSimpleTable Dense="true" Class="my-3">
+                <thead><tr><th>Owner</th><th>From (UTC)</th><th>To (UTC, exclusive)</th></tr></thead>
+                <tbody>
+                    @foreach (var ownership in status.Ownerships)
+                    {
+                        <tr>
+                            <td>
+                                @if (status.Administration)
+                                {
+                                    <MudTooltip Text="@($"User ID: {ownership.OwnerId}")">@OwnerName(ownership.OwnerId)</MudTooltip>
+                                }
+                                else
+                                {
+                                    @OwnerName(ownership.OwnerId)
+                                }
+                            </td>
+                            <td>@Format(ownership.OwnedFrom)</td><td>@(ownership.OwnedTo is { } end ? Format(end) : "No expiry")</td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+            <MudStack Row="true" AlignItems="AlignItems.Center">
+                <MudButton OnClick="PreviousOwners" Disabled="@(_busy || _ownershipPage == 0)">Previous owners</MudButton>
+                <MudText>Page @(_ownershipPage + 1) - @status.OwnershipCount ownership period(s)</MudText>
+                <MudButton OnClick="NextOwners" Disabled="@(_busy || (long)(_ownershipPage + 1) * PageSize >= status.OwnershipCount)">Next owners</MudButton>
+            </MudStack>
+        }
+        @if (!status.Administration)
+        {
+            <MudText Typo="Typo.caption" Class="mt-4">Only sightings during your ownership periods are shown. Status access ends when your current ownership ends.</MudText>
+        }
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+    private const int PageSize = 10;
+    private Guid? _loadedId;
+    private int _ownershipPage;
+    private int _warningPage;
+    private bool _busy;
+    private string? _error;
+    private string? _ownerError;
+    private TransponderStatusView? _view;
+    private readonly Dictionary<Guid, string> _names = [];
+    private CancellationTokenSource? _request;
+
+    protected override Task OnParametersSetAsync()
+    {
+        if (_loadedId == Id) return Task.CompletedTask;
+        _loadedId = Id;
+        _ownershipPage = _warningPage = 0;
+        return Load();
+    }
+
+    private async Task Load()
+    {
+        _request?.Cancel();
+        _request?.Dispose();
+        var request = _request = new CancellationTokenSource();
+        var token = request.Token;
+        _view = null;
+        _names.Clear();
+        _error = _ownerError = null;
+        _busy = true;
+        try
+        {
+            var view = await Service.GetAsync(Id, _ownershipPage, _warningPage, PageSize, token);
+            token.ThrowIfCancellationRequested();
+            _view = view;
+            try
+            {
+                if (view.Status.Administration)
+                {
+                    var names = await Owners.ResolveAsync(view.Status.Ownerships.Select(owner => owner.OwnerId).Distinct().ToArray(), token);
+                    token.ThrowIfCancellationRequested();
+                    foreach (var owner in names) _names[owner.UserId] = owner.DisplayName;
+                }
+                else
+                {
+                    var own = await Owners.GetOwnProfileAsync(token);
+                    token.ThrowIfCancellationRequested();
+                    _names[own.UserId] = own.DisplayName;
+                }
+            }
+            catch (HttpRequestException exception)
+            {
+                token.ThrowIfCancellationRequested();
+                Logger.LogWarning(exception, "Could not load transponder status owner names");
+                _ownerError = "Owner names could not be loaded. Retry to resolve names.";
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (HttpRequestException exception)
+        {
+            if (token.IsCancellationRequested) return;
+            Logger.LogWarning(exception, "Could not load transponder status");
+            _error = exception.StatusCode switch
+            {
+                HttpStatusCode.NotFound => "Transponder not found or not available to your account.",
+                HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden => "Sign in with an account allowed to view this transponder.",
+                _ => "Transponder status could not be loaded. Please retry."
+            };
+        }
+        finally
+        {
+            if (ReferenceEquals(_request, request)) _busy = false;
+        }
+    }
+
+    private string OwnerName(Guid id) => _names.GetValueOrDefault(id, "Owner names unavailable");
+    private string Location(TransponderSighting sighting)
+    {
+        var facility = sighting.FacilityId == Guid.Empty ? "Unassigned facility"
+            : _view!.FacilityNames.GetValueOrDefault(sighting.FacilityId, $"Facility name unavailable ({sighting.FacilityId})");
+        var installation = string.IsNullOrWhiteSpace(sighting.Installation) ? sighting.InstallationId.ToString() : sighting.Installation;
+        var timingPoint = string.IsNullOrWhiteSpace(sighting.TimingPoint) ? sighting.TimingPointId.ToString() : sighting.TimingPoint;
+        return $"{facility} / {installation} / {timingPoint}";
+    }
+
+    private static string Format(DateTimeOffset value) => value.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+    private static string WarningText(TransponderSighting sighting) => string.Join(", ",
+        new[] { sighting.LowBattery ? "Low battery" : null, sighting.LowStrength ? "Low signal strength" : null, sighting.LowHits ? "Low hit count" : null }
+            .Where(warning => warning is not null));
+    private Task PreviousWarnings() { _warningPage--; return Load(); }
+    private Task NextWarnings() { _warningPage++; return Load(); }
+    private Task PreviousOwners() { _ownershipPage--; return Load(); }
+    private Task NextOwners() { _ownershipPage++; return Load(); }
+    public void Dispose() { _request?.Cancel(); _request?.Dispose(); }
+}

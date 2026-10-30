@@ -32,7 +32,16 @@ else
             {
                 <tr>
                     <td>@sample.Time.ToString("u")</td>
-                    <td>@sample.TransponderLabel</td>
+                    <td>
+                        @if (sample.TransponderId != Guid.Empty)
+                        {
+                            <MudLink Href="@($"/transponders/{sample.TransponderId}")">@sample.TransponderLabel</MudLink>
+                        }
+                        else
+                        {
+                            @sample.TransponderLabel
+                        }
+                    </td>
                     <td>@sample.StartPoint</td>
                     <td>@sample.EndPoint</td>
                     <td>@sample.Distance</td>

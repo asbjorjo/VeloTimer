@@ -83,7 +83,16 @@
             <MudTh>From (UTC)</MudTh><MudTh>To (UTC)</MudTh><MudTh>Status</MudTh><MudTh />
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="Transponder">@context.Transponder.Label</MudTd>
+            <MudTd DataLabel="Transponder">
+                @if (Administration || context.Transponder.CanViewStatus)
+                {
+                    <MudLink Href="@($"/transponders/{context.Transponder.Id}")">@context.Transponder.Label</MudLink>
+                }
+                else
+                {
+                    @context.Transponder.Label
+                }
+            </MudTd>
             <MudTd DataLabel="System">@context.Transponder.System</MudTd>
             @if (Administration) { <MudTd DataLabel="Last seen (UTC)">@Format(context.Transponder.LastSeen)</MudTd> }
             <MudTd DataLabel="Owner">

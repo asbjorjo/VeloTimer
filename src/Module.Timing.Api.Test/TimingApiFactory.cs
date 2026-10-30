@@ -21,6 +21,7 @@ public sealed class TimingApiFactory : WebApplicationFactory<Program>
     private readonly SqliteConnection connection = new("Data Source=:memory:");
     public TestReferences References { get; } = new();
     public RecordingOwnershipMessageBus Messages { get; } = RecordingOwnershipMessageBus.Create();
+    public TestClock Clock { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -34,6 +35,8 @@ public sealed class TimingApiFactory : WebApplicationFactory<Program>
         }));
         builder.ConfigureServices(services =>
         {
+            services.RemoveAll<TimeProvider>();
+            services.AddSingleton<TimeProvider>(Clock);
             services.RemoveAll<TimingDbContext>();
             services.RemoveAll<DbContextOptions<TimingDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<TimingDbContext>>();
@@ -84,6 +87,12 @@ public sealed class TimingApiFactory : WebApplicationFactory<Program>
             Unavailable ? throw new ReferenceUnavailableException() : Task.FromResult<EntityReference?>(new(id, id));
         public Task<DependencySummary> GetDependenciesAsync(string module, string kind, Guid id, CancellationToken cancellationToken) =>
             Unavailable ? throw new ReferenceUnavailableException() : Task.FromResult(new DependencySummary(Dependencies, "Coursepoints are still linked to this timing point."));
+    }
+
+    public sealed class TestClock : TimeProvider
+    {
+        public DateTimeOffset UtcNow { get; set; } = DateTimeOffset.UtcNow;
+        public override DateTimeOffset GetUtcNow() => UtcNow;
     }
 
     protected override void Dispose(bool disposing)

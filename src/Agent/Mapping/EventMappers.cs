@@ -12,7 +12,12 @@ public static class EventMappers
             LoopId: passing.LoopId,
             TransponderId: passing.TransponderId,
             TransponderType: passing.TransponderType
-        );
+        )
+        {
+            LowBattery = passing.LowBattery,
+            LowStrength = passing.LowStrength,
+            LowHits = passing.LowHits
+        };
     }
 
     public static LoopStatusEvent ToMessage(this LoopStatus loopStatus)

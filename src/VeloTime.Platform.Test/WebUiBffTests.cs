@@ -342,6 +342,7 @@ public sealed partial class WebUiBffTests
     [InlineData("admin/statistics/configurations")]
     [InlineData("transponders")]
     [InlineData("admin/timing/transponders")]
+    [InlineData("transponder-status/fa886b15-035b-43fe-984a-04c8ce566122")]
     [InlineData("admin/lookups/facilities")]
     [InlineData("admin/lookups/installations")]
     public async Task ProtectedReads_Return401WithoutRedirect(string path)
@@ -609,7 +610,8 @@ public sealed partial class WebUiBffTests
     }
 
     private static async Task<WebApplication> CreateAppAsync(IStatisticsService? statistics = null, IStatisticsAdministrationService? administration = null, IInfrastructureAdministrationService? infrastructure = null, IAuthDebugService? authDebug = null,
-        ITransponderManagementService? transponders = null, ITransponderOwnerService? owners = null)
+        ITransponderManagementService? transponders = null, ITransponderOwnerService? owners = null,
+        ITransponderStatusService? status = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -619,6 +621,8 @@ public sealed partial class WebUiBffTests
         builder.Services.AddTransient<TestCookieEvents>();
         builder.Services.AddAdministrationAuthorization();
         builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+        builder.Services.AddSingleton(status ?? PlatformServiceTests.TestProxy.Create<ITransponderStatusService>((_, _) =>
+            throw new NotSupportedException("Status lookups require an explicit test response.")));
         builder.Services.AddSingleton(owners ?? PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((_, _) =>
             throw new NotSupportedException("Owner lookups require an explicit test response.")));
         builder.Services.AddSingleton(statistics ?? PlatformServiceTests.TestProxy.Create<IStatisticsService>((_, _) => Array.Empty<SampleView>()));

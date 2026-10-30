@@ -14,10 +14,10 @@ internal static class OwnerProfileEndpoints
     {
         endpoints.MapGet("/owner-profiles/me", GetOwnProfile).RequireAuthorization()
             .WithName("GetOwnOwnerProfile").WithSummary("Get the authenticated user's Statistics display name");
-        var admin = endpoints.MapGroup("/admin/owner-profiles").RequireAuthorization(AdministrationAuthorization.TimingPolicy);
-        admin.MapGet("/search", Search).WithName("SearchOwnerProfiles")
+        var admin = endpoints.MapGroup("/admin/owner-profiles");
+        admin.MapGet("/search", Search).RequireAuthorization(AdministrationAuthorization.TimingPolicy).WithName("SearchOwnerProfiles")
             .WithSummary("Search owner profile names for transponder administration");
-        admin.MapPost("/resolve", Resolve).WithName("ResolveOwnerProfiles")
+        admin.MapPost("/resolve", Resolve).RequireAuthorization(AdministrationAuthorization.TransponderStatusAdminPolicy).WithName("ResolveOwnerProfiles")
             .WithSummary("Resolve a bounded batch of owner profile names for transponder administration");
     }
 

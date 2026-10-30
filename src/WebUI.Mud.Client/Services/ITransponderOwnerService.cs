@@ -10,7 +10,7 @@ public interface ITransponderOwnerService
     /// <returns>The authenticated user's profile, including an explicit missing name.</returns>
     Task<OwnTransponderProfile> GetOwnProfileAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Resolves historical owner IDs for timing administrators.</summary>
+    /// <summary>Resolves historical owner IDs for administrators.</summary>
     /// <param name="userIds">At most 100 owner identifiers.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <returns>Display details including unavailable historical accounts.</returns>

@@ -297,7 +297,8 @@ credentials are sent to the browser.
 
 Transponder owner search additionally uses the signed-in administrator's delegated
 access token against the Keycloak Admin API; no service-account secret is needed.
-The development realm makes `timing-admin` and `velotime-admin` composite roles
+The development realm makes `timing-admin`, `facilities-admin`, `statistics-admin`,
+and `velotime-admin` composite roles
 with the **realm-management** client roles `query-users` and `view-users` only.
 For existing/production realms, add those same read-only composite roles. Do not
 grant `manage-users` or broader realm administration for this feature.
@@ -309,6 +310,56 @@ explicitly include these read-only roles. Sign out and sign in after changing
 role/scope assignments. Name lookup failures with 403 indicate that these
 permissions or token scope need checking; the application does not silently
 fall back to raw UUIDs.
+
+### Transponder Status
+
+Click a transponder label in the personal or administrative list, or a transponder
+ID in sample results, to open `/transponders/{id}`. The read-only status page shows
+the editable label separately from the hardware code and system ID, ownership
+history, and the last recorded sighting. Locations identify the facility,
+installation, and timing point; timestamps are UTC. An installation without a
+linked facility is explicitly marked **Unassigned facility**.
+
+All four administrator roles can inspect any transponder and its complete ownership
+history, including Statistics profile and Keycloak owner names. Other signed-in users
+must currently own the transponder. They see only their own ownership periods and
+sightings within those periods, including previous periods when they owned it.
+Ownership starts are inclusive and ends exclusive. Every refresh or page request
+checks access again; former and future owners cannot use this page. Historical-only
+personal list entries remain plain text unless the viewer has administrator access.
+The existing Timing administration pages, owner search, and mutation permissions
+are unchanged. Only bounded read-only owner-name resolution is available to the
+additional administrator roles. Existing Keycloak realms must receive the read-only
+composite-role updates described above, followed by a fresh sign-in.
+
+Battery, signal-strength, and hit-count warnings are separate hardware-reported
+flags. The page lists every flagged passing in the last seven days, newest first,
+with its exact time and location; a passing may have multiple warnings. Summary
+indicators cover the entire visible window, not just the current page. Ownership
+history and warnings have independent pagination. **No warnings reported** is not
+a health guarantee. Older sightings still determine last seen, while future-dated
+sightings do not contribute to current status.
+
+The authenticated Timing endpoint is
+`GET /api/timing/transponder-status/{id}`; the same-origin WebUI BFF route is
+`GET /api/transponder-status/{id}`. Both accept zero-based `ownershipPage`,
+`warningPage`, and `pageSize` (default 10, maximum 100). The Timing response includes
+identity, the latest visible sighting, the warning window, three warning indicators,
+`ownerships`/`ownershipCount`, and `warnings`/`warningCount`. The BFF additionally
+resolves facility names. Private responses are not cached. Missing or inaccessible
+transponders return 404 for signed-in non-admins; invalid user subjects return 403.
+Name lookup failures are explicitly retryable and do not hide already loaded status.
+
+Concrete hardware agents must upgrade their `VeloTime.Agent` dependency and populate
+`LowBattery`, `LowStrength`, and `LowHits` on each passing. Hardware decides what is
+low; no numeric thresholds are introduced here. Forwarding preserves the passing
+timestamp and loop, so warning locations are exact. Apply the new agent
+`AddPassingLowHits` EF migration before using the upgraded agent passing store.
+The Timing database already contains all three flags and needs no new migration.
+The additive event properties preserve the existing passing constructor and
+deconstruction; older event payloads remain readable with absent flags false.
+Previously dropped warnings cannot be backfilled, and the separate
+`TransponderStatusEvent` is not used because it lacks an exact loop and hit warning.
 
 The `velotime-web` client scope is a default scope in the checked-in realm import. It
 adds the application URL audience and user subject required by the domain APIs, as

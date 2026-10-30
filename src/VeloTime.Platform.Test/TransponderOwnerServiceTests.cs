@@ -60,6 +60,20 @@ public sealed class TransponderOwnerServiceTests
         Assert.Equal(HttpStatusCode.Forbidden, resolve.StatusCode);
     }
 
+    [Theory]
+    [InlineData(AdministrationAuthorization.FacilitiesPermission, true)]
+    [InlineData(AdministrationAuthorization.FacilitiesPermission, false)]
+    [InlineData(AdministrationAuthorization.StatisticsPermission, true)]
+    [InlineData(AdministrationAuthorization.StatisticsPermission, false)]
+    public async Task DomainAdministrators_ResolveNamesWithoutGainingSearch(string permission, bool httpRequest)
+    {
+        using var context = new TestContext(
+            Stats((_, _) => new List<OwnerProfileDTO> { new() { UserId = OwnerId, ProfileName = "Rider" } }),
+            Accounts((_, _) => Account(OwnerId, "First", "Last")), httpRequest: httpRequest, permission: permission);
+        Assert.Equal("Rider (First Last)", Assert.Single(await context.Service.ResolveAsync([OwnerId])).DisplayName);
+        Assert.Equal(HttpStatusCode.Forbidden, (await Assert.ThrowsAsync<HttpRequestException>(() => context.Service.SearchAsync("racer"))).StatusCode);
+    }
+
     [Fact]
     public async Task Resolve_DeduplicatesIdsJoinsNamesAndRetainsUnavailableHistory()
     {
@@ -282,11 +296,12 @@ public sealed class TransponderOwnerServiceTests
         private readonly ServiceProvider services;
         internal TransponderOwnerService Service { get; }
 
-        internal TestContext(IStatisticsClient statistics, Directory.IKeycloakAdminClient accounts, bool administration = true, bool httpRequest = true)
+        internal TestContext(IStatisticsClient statistics, Directory.IKeycloakAdminClient accounts, bool administration = true,
+            bool httpRequest = true, string permission = AdministrationAuthorization.TimingPermission)
         {
             var principal = new ClaimsPrincipal(new ClaimsIdentity([
                 new Claim(ClaimTypes.NameIdentifier, OwnerId.ToString()),
-                .. administration ? new[] { new Claim(AdministrationAuthorization.PermissionClaimType, AdministrationAuthorization.TimingPermission) } : []
+                .. administration ? new[] { new Claim(AdministrationAuthorization.PermissionClaimType, permission) } : []
             ], "test"));
             services = new ServiceCollection().AddLogging().AddAdministrationAuthorization().BuildServiceProvider();
             var accessor = new HttpContextAccessor { HttpContext = httpRequest ? new DefaultHttpContext { User = principal } : null };

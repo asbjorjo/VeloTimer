@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using VeloTime.Module.Common;
@@ -50,14 +51,15 @@ internal static class OwnershipEndpoints
     private static Guid? Subject(ClaimsPrincipal user) =>
         Guid.TryParse(user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier), out var id) && id != Guid.Empty ? id : null;
 
-    private static Task<IResult> ListPersonal(ClaimsPrincipal user, TimingDbContext storage, CancellationToken cancellationToken,
+    private static Task<IResult> ListPersonal(ClaimsPrincipal user, IAuthorizationService authorization, TimingDbContext storage, CancellationToken cancellationToken,
         int page = 0, int pageSize = 10, string search = "", bool includeHistory = true) =>
-        QueryPersonal(new(page, pageSize, search, includeHistory), user, storage, cancellationToken);
+        QueryPersonal(new(page, pageSize, search, includeHistory), user, authorization, storage, cancellationToken);
 
-    private static async Task<IResult> QueryPersonal(TransponderPageRequest request, ClaimsPrincipal user, TimingDbContext storage, CancellationToken cancellationToken)
+    private static async Task<IResult> QueryPersonal(TransponderPageRequest request, ClaimsPrincipal user, IAuthorizationService authorization, TimingDbContext storage, CancellationToken cancellationToken)
     {
         if (Subject(user) is not { } ownerId) return Results.Forbid();
-        return await Execute(async () => Results.Ok(await TransponderQuery.ListAsync(storage, request, ownerId, cancellationToken)));
+        var statusAdministration = (await authorization.AuthorizeAsync(user, null, AdministrationAuthorization.TransponderStatusAdminPolicy)).Succeeded;
+        return await Execute(async () => Results.Ok(await TransponderQuery.ListAsync(storage, request, ownerId, cancellationToken, statusAdministration)));
     }
 
     private static async Task<IResult> LookupPersonal(ClaimsPrincipal user, TimingDbContext storage, CancellationToken cancellationToken,

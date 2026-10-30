@@ -9,4 +9,5 @@ public class Passing : IModel
     public required string LoopId { get; init; }
     public bool LowBattery { get; init; }
     public bool LowStrength { get; init; }
+    public bool LowHits { get; init; }
 }

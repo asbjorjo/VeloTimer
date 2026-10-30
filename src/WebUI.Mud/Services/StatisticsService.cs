@@ -54,6 +54,7 @@ public class StatisticsService(
             samples.Add(new SampleView
             {
                 Time = sample.Time.DateTime,
+                TransponderId = sample.TransponderId,
                 TransponderLabel = sample.TransponderId.ToString(),
                 StartPoint = (await cache.GetOrCreateAsync(sample.CoursePointStartId, async (entry) => { return await facitilies.CoursepointAsync(sample.CoursePointStartId, cancellationToken); }))!.Name,
                 EndPoint = (await cache.GetOrCreateAsync(sample.CoursePointEndId, async (entry) => { return await facitilies.CoursepointAsync(sample.CoursePointEndId, cancellationToken); }))!.Name,

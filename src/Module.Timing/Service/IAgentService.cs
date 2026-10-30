@@ -11,6 +11,16 @@ public interface IAgentService
         DateTime time,
         string transponderType,
         CancellationToken cancellationToken = default);
+    Task<Passing> RegisterPassingAsync(
+        string agentId,
+        string transponderId,
+        string loopId,
+        DateTime time,
+        string transponderType,
+        bool lowBattery,
+        bool lowStrength,
+        bool lowHits,
+        CancellationToken cancellationToken = default);
     Task<Sample?> RegisterSampleAsync(
         Passing passing,
         CancellationToken cancellationToken = default);
