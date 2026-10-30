@@ -15,8 +15,12 @@ internal static class TransponderManagementEndpoints
     private static void Map(IEndpointRouteBuilder endpoints, bool administration)
     {
         endpoints.MapGet("/transponders", async (ITransponderManagementService service, CancellationToken cancellationToken,
-            int page = 0, int pageSize = 10, string search = "", bool includeHistory = true) =>
-            Results.Ok(await service.GetTranspondersAsync(administration, page, pageSize, search, includeHistory, cancellationToken)));
+            int page = 0, int pageSize = 10, string search = "", bool includeHistory = true,
+            string? labelFilter = null, string? systemFilter = null, DateOnly? lastSeenFilter = null,
+            string? ownerFilter = null, DateOnly? ownedFromFilter = null, DateOnly? ownedToFilter = null,
+            TransponderOwnershipStatus? statusFilter = null, string? sortBy = null, bool sortDescending = false) =>
+            Results.Ok(await service.GetTranspondersAsync(administration, page, pageSize, search, includeHistory, cancellationToken,
+                new(labelFilter, systemFilter, lastSeenFilter, ownerFilter, ownedFromFilter, ownedToFilter, statusFilter), sortBy, sortDescending)));
         endpoints.MapPost("/transponders", async (ClaimTransponderRequest request, ITransponderManagementService service, CancellationToken cancellationToken) =>
         {
             await service.RegisterAsync(request.Code, administration, cancellationToken);

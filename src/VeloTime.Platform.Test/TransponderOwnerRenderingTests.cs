@@ -60,10 +60,15 @@ public sealed class TransponderOwnerRenderingTests
         Assert.Contains(profile ?? "No statistics profile", html);
         Assert.Contains("HT-24422", html);
         Assert.Contains($"href=\"/transponders/{transponderId}\"", html);
+        Assert.Contains("Filter label", html);
+        Assert.Contains("Filter system", html);
+        Assert.Contains("Filter owner", html);
+        Assert.Contains("Filter status", html);
         if (administration)
         {
             Assert.Contains("KeycloakFirst KeycloakLast", html);
             Assert.Contains("Last seen (UTC)", html);
+            Assert.Contains("Filter date", html);
             Assert.Contains("2026-04-03 02:05", html);
         }
         else

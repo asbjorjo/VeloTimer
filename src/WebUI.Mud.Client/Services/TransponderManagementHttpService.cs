@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using VeloTime.Module.Timing.Interface.Data;
 
 namespace VeloTime.WebUI.Mud.Client.Services;
@@ -8,12 +9,35 @@ public sealed class TransponderManagementHttpService(HttpClient client) : ITrans
     private static string Root(bool administration) => administration ? "api/admin/timing" : "api";
 
     public async Task<TransponderPage> GetTranspondersAsync(bool administration, int page = 0, int pageSize = 10,
-        string search = "", bool includeHistory = true, CancellationToken cancellationToken = default)
+        string search = "", bool includeHistory = true, CancellationToken cancellationToken = default,
+        TransponderColumnFilters? filters = null, string? sortBy = null, bool sortDescending = false)
     {
-        using var response = await client.GetAsync($"{Root(administration)}/transponders?page={page}&pageSize={pageSize}&search={Uri.EscapeDataString(search)}&includeHistory={includeHistory}", cancellationToken);
+        var query = new List<string>
+        {
+            $"page={page}",
+            $"pageSize={pageSize}",
+            $"search={Uri.EscapeDataString(search)}",
+            $"includeHistory={includeHistory}"
+        };
+        AddQuery(query, "labelFilter", filters?.Label);
+        AddQuery(query, "systemFilter", filters?.System);
+        AddQuery(query, "ownerFilter", filters?.Owner);
+        AddQuery(query, "lastSeenFilter", filters?.LastSeen?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        AddQuery(query, "ownedFromFilter", filters?.OwnedFrom?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        AddQuery(query, "ownedToFilter", filters?.OwnedTo?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        AddQuery(query, "statusFilter", filters?.Status?.ToString());
+        AddQuery(query, "sortBy", sortBy);
+        query.Add($"sortDescending={sortDescending}");
+        using var response = await client.GetAsync($"{Root(administration)}/transponders?{string.Join('&', query)}", cancellationToken);
         await EnsureSuccess(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<TransponderPage>(cancellationToken)
             ?? throw new HttpRequestException("The transponder page response was empty.");
+    }
+
+    private static void AddQuery(List<string> query, string name, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+            query.Add($"{name}={Uri.EscapeDataString(value)}");
     }
 
     public async Task<TransponderLookupPage> LookupTranspondersAsync(int page, string search, CancellationToken cancellationToken = default)

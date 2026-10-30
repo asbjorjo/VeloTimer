@@ -18,8 +18,18 @@ public sealed class TransponderPaginationServiceTests
         var id = Guid.NewGuid();
         using var handler = new PageResponseHandler(administration, id);
         using var http = new HttpClient(handler) { BaseAddress = new Uri("http://timing/") };
-        var service = new TransponderManagementService(new Timing.TimingClient(http), NoContentClientCallTests.UnusedOwners());
-        var result = await service.GetTranspondersAsync(administration, 2, 25, "", false);
+        var owners = PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((method, _) => method.Name switch
+        {
+            nameof(ITransponderOwnerService.GetOwnProfileAsync) => new OwnTransponderProfile(Guid.NewGuid(), "Rider"),
+            nameof(ITransponderOwnerService.ResolveAsync) => (IReadOnlyList<TransponderOwnerView>)[],
+            _ => throw new NotSupportedException(method.Name)
+        });
+        var service = new TransponderManagementService(new Timing.TimingClient(http), owners);
+        var date = new DateOnly(2026, 10, 29);
+        var result = await service.GetTranspondersAsync(administration, 2, 25, "", false,
+            filters: new(Label: "generated", System: "X2", LastSeen: date, Owner: "Rider",
+                OwnedFrom: date, OwnedTo: date, Status: Contracts.TransponderOwnershipStatus.Active),
+            sortBy: "status", sortDescending: true);
         Assert.Equal(80, result.TotalCount);
         var row = Assert.Single(result.Items);
         Assert.Equal(id, row.Transponder.Id);
@@ -114,6 +124,40 @@ public sealed class TransponderPaginationServiceTests
     }
 
     [Fact]
+    public async Task OwnerColumnFilter_UsesResolvedNamesAndPassesMatchingOwnerIds()
+    {
+        var transponderId = Guid.NewGuid();
+        var matchingOwnerId = Guid.NewGuid();
+        var otherOwnerId = Guid.NewGuid();
+        var timing = PlatformServiceTests.TestProxy.Create<Timing.ITimingClient>((method, args) =>
+        {
+            if (method.Name == "LookupTranspondersAsync")
+                return new Timing.TransponderLookupPage
+                {
+                    TotalCount = 1,
+                    Items = [new() { Id = transponderId, Label = "Code", SystemId = "123", OwnerIds = [matchingOwnerId, otherOwnerId] }]
+                };
+            Assert.Equal("QueryTranspondersAsync", method.Name);
+            var request = Assert.IsType<Timing.TransponderPageRequest>(args[0]);
+            Assert.Null(request.MatchingTransponderIds);
+            Assert.Equal(matchingOwnerId, Assert.Single(request.MatchingOwnerIds));
+            Assert.Equal("ada", request.Filters.Owner);
+            Assert.Null(request.SortBy);
+            return new Timing.TransponderPage { TotalCount = 1, Items = [] };
+        });
+        var owners = PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((method, args) =>
+        {
+            Assert.Equal(nameof(ITransponderOwnerService.ResolveAsync), method.Name);
+            var ids = Assert.IsAssignableFrom<IReadOnlyList<Guid>>(args[0]);
+            return (IReadOnlyList<TransponderOwnerView>)ids.Select(id =>
+                new TransponderOwnerView(id, null, id == matchingOwnerId ? "Ada" : "Grace", null, true)).ToList();
+        });
+
+        await new TransponderManagementService(timing, owners).GetTranspondersAsync(true,
+            filters: new(Owner: "ada"));
+    }
+
+    [Fact]
     public async Task PersonalSearch_OnlyUsesOwnNameAndPreservesNoMatches()
     {
         var id = Guid.NewGuid();
@@ -172,6 +216,11 @@ public sealed class TransponderPaginationServiceTests
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            if (request.Method == HttpMethod.Get)
+            {
+                Assert.Equal(administration ? "/api/timing/transponders/lookup" : "/api/timing/my/transponders/lookup", request.RequestUri!.AbsolutePath);
+                return new(HttpStatusCode.OK) { Content = JsonContent.Create(new Contracts.TransponderLookupPage([], 0)) };
+            }
             Assert.Equal(HttpMethod.Post, request.Method);
             Assert.Equal(administration ? "/api/timing/transponders/query" : "/api/timing/my/transponders/query", request.RequestUri!.AbsolutePath);
             var body = await request.Content!.ReadFromJsonAsync<Contracts.TransponderPageRequest>(cancellationToken);
@@ -180,6 +229,16 @@ public sealed class TransponderPaginationServiceTests
             Assert.Equal(25, body.PageSize);
             Assert.False(body.IncludeHistory);
             Assert.Null(body.MatchingTransponderIds);
+            var filters = Assert.IsType<Contracts.TransponderColumnFilters>(body.Filters);
+            Assert.Equal("generated", filters.Label);
+            Assert.Equal("X2", filters.System);
+            Assert.Equal(new DateOnly(2026, 10, 29), filters.LastSeen);
+            Assert.Equal("Rider", filters.Owner);
+            Assert.Equal(new DateOnly(2026, 10, 29), filters.OwnedFrom);
+            Assert.Equal(new DateOnly(2026, 10, 29), filters.OwnedTo);
+            Assert.Equal(Contracts.TransponderOwnershipStatus.Active, filters.Status);
+            Assert.Equal("status", body.SortBy);
+            Assert.True(body.SortDescending);
             return new(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(new Contracts.TransponderPage(
@@ -205,12 +264,25 @@ public sealed partial class WebUiBffTests
             Assert.Equal(25, args[2]);
             Assert.Equal("Name & code +", args[3]);
             Assert.Equal(false, args[4]);
+            var filters = Assert.IsType<Contracts.TransponderColumnFilters>(args[6]);
+            Assert.Equal("Label &", filters.Label);
+            Assert.Equal("X2", filters.System);
+            Assert.Equal("Ada +", filters.Owner);
+            Assert.Equal(new DateOnly(2026, 10, 29), filters.LastSeen);
+            Assert.Equal(new DateOnly(2026, 10, 28), filters.OwnedFrom);
+            Assert.Equal(new DateOnly(2026, 10, 30), filters.OwnedTo);
+            Assert.Equal(Contracts.TransponderOwnershipStatus.Scheduled, filters.Status);
+            Assert.Equal("status", args[7]);
+            Assert.Equal(true, args[8]);
             return new Contracts.TransponderPage([], 123);
         });
         await using var app = await CreateAppAsync(transponders: backend);
         using var client = CreateClient(app);
         await client.GetAsync(administration ? "signin?role=timing-admin" : "signin?role=user");
-        var page = await new TransponderManagementHttpService(client).GetTranspondersAsync(administration, 3, 25, "Name & code +", false);
+        var page = await new TransponderManagementHttpService(client).GetTranspondersAsync(administration, 3, 25,
+            "Name & code +", false, filters: new("Label &", "X2", new(2026, 10, 29), "Ada +",
+                new(2026, 10, 28), new(2026, 10, 30), Contracts.TransponderOwnershipStatus.Scheduled),
+            sortBy: "status", sortDescending: true);
         Assert.Empty(page.Items);
         Assert.Equal(123, page.TotalCount);
     }
