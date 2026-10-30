@@ -35,7 +35,7 @@ public sealed class ProfilesApiFactory : WebApplicationFactory<Program>
                 ["OIDC_AUDIENCE"] = "https://build.invalid",
                 ["ConnectionStrings:keycloak"] = "https://issuer.example/realm",
                 // Never used: the API contract tests replace the service, not the database provider.
-                ["ConnectionStrings:profilesdb"] = "Host=127.0.0.1;Port=1;Database=unused;Username=unused"
+                ["ConnectionStrings:velotimedb"] = "Host=127.0.0.1;Port=1;Database=unused;Username=unused"
             }));
         builder.ConfigureTestServices(services =>
         {

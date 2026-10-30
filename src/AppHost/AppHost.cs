@@ -62,7 +62,6 @@ var postgres = builder.AddPostgres("postgres")
 
 var keycloakdb = postgres.AddDatabase("keycloakdb");
 velotimedb = postgres.AddDatabase("velotimedb");
-var profilesdb = postgres.AddDatabase("profilesdb");
 
 var cache = builder
     .AddRedis("cache")
@@ -100,9 +99,9 @@ var timingapi = builder.AddProject<Projects.VeloTime_Module_Timing_Api>("module-
     .WaitFor(velotimedb);
 var profilesapi = builder.AddProject<Projects.VeloTime_Module_Profiles_Api>("module-profiles-api")
     .WithEnvironment("OIDC_AUDIENCE", oidcAudience)
-    .WithReference(profilesdb)
+    .WithReference(velotimedb)
     .WithReference(keycloak)
-    .WaitFor(profilesdb);
+    .WaitFor(velotimedb);
 
 statisticsapi.WithReference(facilityapi);
 facilityapi.WithReference(timingapi).WithReference(statisticsapi);
@@ -174,8 +173,8 @@ if (migrate)
         .WaitFor(velotimedb)
         .WithReference(velotimedb);
     profilesmigrator = builder.AddProject<Projects.VeloTime_Module_Profiles_Migration>("module-profiles-migration")
-        .WaitFor(profilesdb)
-        .WithReference(profilesdb);
+        .WaitFor(velotimedb)
+        .WithReference(velotimedb);
 
     facilityapi.WaitForCompletion(facilitiesmigrator);
     statisticsapi.WaitForCompletion(statisticsmigrator);

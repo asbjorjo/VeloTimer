@@ -122,8 +122,8 @@ default branch, where GitHub evaluates its `workflow_run` trigger.
 ## WebUI Backend for Frontend
 
 The independent Profiles service stores signed-in language preferences in its
-own `profilesdb` PostgreSQL database. It is separate from Statistics display-name
-profiles and Keycloak account linking. Its authenticated API exposes
+own schema in the existing `velotimedb` PostgreSQL database. It is separate from
+Statistics display-name profiles and Keycloak account linking. Its authenticated API exposes
 `GET /api/profiles/me/preferences` and
 `PUT /api/profiles/me/preferences/language`; saved values are exactly `en` or
 `nb-NO`, and a missing preference is returned as `null` without creating a row.

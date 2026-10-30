@@ -24,7 +24,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           envFrom:
             - secretRef:
-                name: {{ required "Profiles existingSecret must contain ConnectionStrings__profilesdb" .Values.existingSecret | quote }}
+                name: {{ .Values.existingSecret | default (include "velotime.fullname" .) | quote }}
       containers:
         - name: module-profiles-api
           image: "{{ .Values.global.image.repository }}velotime-module-profiles-api:{{ .Values.global.image.tag }}"

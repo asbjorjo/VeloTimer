@@ -9,7 +9,7 @@ public static class StartupExtensions
 {
     public static IHostApplicationBuilder AddModuleProfiles(this IHostApplicationBuilder builder)
     {
-        builder.AddModuleStorage<ProfilesDbContext>(connectionName: "profilesdb");
+        builder.AddModuleStorage<ProfilesDbContext>(connectionName: "velotimedb");
         builder.Services.AddScoped<ILanguagePreferenceService, LanguagePreferenceService>();
         return builder;
     }

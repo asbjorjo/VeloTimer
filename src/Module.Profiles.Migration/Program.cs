@@ -5,7 +5,7 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.AddServiceDefaults();
 builder.Services.AddHostedService<MigrationWorker<ProfilesDbContext>>();
-builder.AddModuleStorage<ProfilesDbContext>(connectionName: "profilesdb");
+builder.AddModuleStorage<ProfilesDbContext>(connectionName: "velotimedb");
 
 var host = builder.Build();
 host.Run();

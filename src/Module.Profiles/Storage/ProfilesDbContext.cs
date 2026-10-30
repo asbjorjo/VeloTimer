@@ -34,8 +34,8 @@ public sealed class ProfilesDbContextFactory : IDesignTimeDbContextFactory<Profi
     {
         var options = new DbContextOptionsBuilder<ProfilesDbContext>();
         options.UseNpgsql(
-            Environment.GetEnvironmentVariable("ConnectionStrings__profilesdb")
-                ?? "Host=localhost;Port=25432;Database=profilesdb;Username=velotime",
+            Environment.GetEnvironmentVariable("ConnectionStrings__velotimedb")
+                ?? "Host=localhost;Port=25432;Database=velotimedb;Username=velotime",
             postgres => postgres.MigrationsHistoryTable("__ef_migrations_history", "ef"));
         options.UseSnakeCaseNamingConvention();
         return new ProfilesDbContext(options.Options);

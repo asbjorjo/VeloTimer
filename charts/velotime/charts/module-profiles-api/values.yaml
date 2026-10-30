@@ -1,6 +1,11 @@
-existingSecret: velotime-profiles
+existingSecret: ""
 oidcAudience: ""
 replicaCount: 1
+database:
+  host: postgres-service
+  port: 5432
+  user: velotime
+  password: ""
 image:
   pullPolicy: IfNotPresent
 service:

@@ -1,9 +1,10 @@
 # Profiles persistence
 
-The core owns only the Profiles database. A consuming host registers storage and
-the scoped `ILanguagePreferenceService` with `builder.AddModuleProfiles()`.
-Configure `ConnectionStrings:profilesdb` (environment variable
-`ConnectionStrings__profilesdb`) to a dedicated PostgreSQL database.
+The Profiles core owns its data in the `profiles` schema of the existing
+`velotimedb` PostgreSQL database. A consuming host registers storage and the scoped
+`ILanguagePreferenceService` with `builder.AddModuleProfiles()`. Configure
+`ConnectionStrings:velotimedb` (environment variable
+`ConnectionStrings__velotimedb`) to the shared application database.
 
 ## Service contract
 
@@ -55,33 +56,35 @@ history uses `ef.__ef_migrations_history`, matching shared storage registration.
 There is no seed, backfill, cross-service access, audit history, or outbox event.
 The current common base context does not generate row-history tables.
 
-Provision the dedicated database and provide a migration identity with schema
-and table creation privileges, then run the migration worker before serving
-Profiles requests. Runtime access needs schema usage plus select/insert/update
-on the preference table; runtime hosts do not automatically migrate. No existing
-service database or migration is changed. Rolling back this initial migration
-drops saved preferences; do not roll it back on a populated database without
-an explicit data-loss plan. PostgreSQL's normal B-tree index-entry size limits
+Provide the existing `velotimedb` connection with schema and table creation
+privileges to the migration worker, then run that worker before serving Profiles
+requests. Runtime access needs schema usage plus select/insert/update on the
+preference table; runtime hosts do not automatically migrate. The migration
+creates only the `profiles` schema and its own table in `velotimedb`; it does not
+alter another module's schema or tables. Rolling back this initial migration
+drops saved preferences; do not roll it back on a populated database without an
+explicit data-loss plan. PostgreSQL's normal B-tree index-entry size limits
 apply to very large issuer/subject pairs; validate integration with the actual
 identity provider rather than assuming arbitrarily long identities will fit.
 
 For design-time tooling, the context factory reads
-`ConnectionStrings__profilesdb`; absent that setting, it uses a password-free
-localhost `profilesdb` connection for model/script generation.
+`ConnectionStrings__velotimedb`; absent that setting, it uses a password-free
+localhost `velotimedb` connection for model/script generation.
 
 ### Aspire and Helm
 
-The AppHost provisions `profilesdb` separately from `velotimedb`, passes the
-validated application's `OIDC_AUDIENCE` and Keycloak reference to the Profiles
-API, and waits for the Profiles migration worker before starting that API.
+The AppHost references the existing `velotimedb` for the Profiles API and
+migration worker, passes the validated application's `OIDC_AUDIENCE` and
+Keycloak reference to the Profiles API, and waits for the Profiles migration
+worker before starting that API.
 Only WebUI receives the Profiles API discovery reference; no other domain reads
 the Profiles database. Profiles does not require Redis or a messaging processor.
 
-For Kubernetes, provision a dedicated PostgreSQL database and a Secret named
-`velotime-profiles` containing `ConnectionStrings__profilesdb`. Never point this
-connection at another module's database. The Secret must exist before the
-Profiles API pod starts; it is not generated from chart values. Override its
-name with `module-profiles-api.existingSecret` in the application chart.
+For Kubernetes, configure the Profiles API chart's `database` values for the
+existing PostgreSQL service, or set `module-profiles-api.existingSecret` to a
+Secret containing `ConnectionStrings__velotimedb`. The chart's default Secret
+contains the same `velotimedb` connection fields used by the other service
+charts. Profiles only writes to its own schema.
 Configure `global.oidcAudience` and `global.oidcAuthority` in the application
 chart, as for the other APIs. No additional Keycloak client or user migration is
 required because the API validates the existing user's audience-bound token.
