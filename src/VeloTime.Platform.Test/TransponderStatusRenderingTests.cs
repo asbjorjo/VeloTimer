@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
+using Microsoft.Extensions.Localization;
+using MudBlazor;
 using MudBlazor.Services;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
@@ -68,7 +70,7 @@ public sealed class TransponderStatusRenderingTests
         var view = TransponderStatusTestData.View();
         var html = await Render(view with { FacilityNames = new Dictionary<Guid, string>(), FacilityError = "Facility lookup failed." },
             failOwners: true);
-        Assert.Contains("Facility lookup failed.", html);
+        Assert.Contains("Some facility names could not be loaded. Retry to resolve assigned facilities.", html);
         Assert.Contains("Facility name unavailable", html);
         Assert.Contains("Owner names could not be loaded", html);
         Assert.Contains("Retry owner names", html);
@@ -184,9 +186,12 @@ public sealed class TransponderStatusRenderingTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddLocalization(options => options.ResourcesPath = "Resources");
         services.AddMudServices(options => options.PopoverOptions.CheckForPopoverProvider = false);
+        services.AddTransient<MudLocalizer, LocalizedMudLocalizer>();
         services.AddSingleton<IJSRuntime, NoJavaScript>();
         services.AddSingleton<NavigationManager, TestNavigation>();
+        services.AddSingleton<UnsavedChangesTracker>();
         services.AddSingleton(service);
         services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((_, _) =>
             (IReadOnlyList<TransponderOwnerView>)Array.Empty<TransponderOwnerView>()));
@@ -221,9 +226,12 @@ public sealed class TransponderStatusRenderingTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddLocalization(options => options.ResourcesPath = "Resources");
         services.AddMudServices(options => options.PopoverOptions.CheckForPopoverProvider = false);
+        services.AddTransient<MudLocalizer, LocalizedMudLocalizer>();
         services.AddSingleton<IJSRuntime, NoJavaScript>();
         services.AddSingleton<NavigationManager, TestNavigation>();
+        services.AddSingleton<UnsavedChangesTracker>();
         services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderStatusService>((_, args) =>
         {
             Assert.Equal(view.Status.Id, args[0]);

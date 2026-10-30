@@ -32,7 +32,7 @@ public sealed class BestStatisticsServiceTests
         });
         var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((method, args) =>
         {
-            Assert.Equal(nameof(IFacilitiesClient.FacilityAsync), method.Name);
+            Assert.Equal(nameof(IFacilitiesClient.Facility2Async), method.Name);
             Assert.Equal(facilityId, args[0]);
             return new FacilityDTO { Id = facilityId, Name = "Arena" };
         });

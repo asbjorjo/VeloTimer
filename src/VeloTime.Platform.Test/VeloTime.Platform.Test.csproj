@@ -37,6 +37,9 @@
 
   <ItemGroup>
     <None Include="..\..\config\keycloak\realms\velotime-realm.json" Link="Fixtures\velotime-realm.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\WebUI.Mud.Client\Resources\SharedResource*.resx" Link="Resources\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\WebUI.Mud\Components\App.razor" Link="Fixtures\App.razor" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\WebUI.Mud\wwwroot\language.js" Link="Fixtures\language.js" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

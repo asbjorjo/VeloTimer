@@ -66,12 +66,25 @@ test("invalid or reversed calendar dates are rejected", () => {
     assert.throws(() => dates.period("2026-03-29", "2026-03-28"), /cannot be before/);
 });
 
-test("confirmation describes the inclusive local end and open-ended coverage", () => inTimeZone("Europe/Oslo", () => {
+test("confirmation formats inclusive local coverage in the selected locale", () => inTimeZone("Europe/Oslo", () => {
     const start = "2026-03-28T23:00:00.000Z";
     const end = "2026-03-29T22:00:00.000Z";
-    assert.equal(dates.describe(start, end),
-        `${new Date(start).toLocaleString()} through ${new Date(new Date(end).getTime() - 1).toLocaleString()}`);
-    assert.match(dates.describe(start, null), /no expiry/);
-    assert.throws(() => dates.describe("invalid", null), /start is invalid/);
-    assert.throws(() => dates.describe(start, "invalid"), /end is invalid/);
+    const options = { dateStyle: "short", timeStyle: "medium" };
+    const norwegian = new Intl.DateTimeFormat("nb-NO", options);
+    const described = dates.describe(start, end, "nb-NO");
+    assert.deepEqual(described, {
+        from: norwegian.format(new Date(start)),
+        through: norwegian.format(new Date(new Date(end).getTime() - 1))
+    });
+
+    const english = dates.describe(start, end, "en-US");
+    assert.equal(english.from, new Intl.DateTimeFormat("en-US", options).format(new Date(start)));
+    assert.notEqual(english.from, described.from);
+
+    assert.deepEqual(dates.describe(start, null, "nb-NO"), {
+        from: norwegian.format(new Date(start)),
+        through: null
+    });
+    assert.throws(() => dates.describe("invalid", null, "nb-NO"), /start is invalid/);
+    assert.throws(() => dates.describe(start, "invalid", "nb-NO"), /end is invalid/);
 }));
