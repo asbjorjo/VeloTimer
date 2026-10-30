@@ -30,13 +30,23 @@ Use the runtime's available subagent invocation tool; do not assume a particular
 
 1. Establish acceptance criteria and examine the existing worktree. Respect the repository branch policy and preserve user changes.
 2. Delegate bounded work with objective, allowed files, prerequisites, existing patterns, acceptance criteria, and required report. Pass the relevant context explicitly; do not assume a subagent sees this conversation.
-3. Give each shared file one owner. Parallelize only independent work; finish shared contracts before consumers. Ask the user about material scope or behavior ambiguity.
+3. Give each shared file one owner. When shared contracts cross specialist boundaries, complete the contract-first gate below before delegating dependent implementations. Parallelize only independent work with non-overlapping ownership. Ask the user about material scope or behavior ambiguity.
 4. Collect each developer's report: changed files, behavior/contract decisions, checks with exact results, risks/blockers, and next owner. Inspect integration evidence instead of treating a success statement as proof.
 5. Hand completed implementation to Tester with acceptance criteria and changed surfaces. Tester adds/updates tests and runs the smallest relevant validation. Return production defects to the original developer, then ask Tester to rerun affected checks.
 6. Send substantial changes and test evidence to Code Reviewer. Return actionable findings to the owner, then repeat affected validation and review only the changed area. Do not create unbounded retry loops; surface unresolved blockers or conflicting requirements to the user.
 7. Check the final diff and acceptance criteria. Report verified results separately from failures, unavailable tools, and unrun checks. Never claim completion while required outcomes remain unverified.
 
 Specialists must not delegate further. When directly selected specialists return out-of-scope work, resume routing from their report rather than restarting completed work.
+
+## Contract-first gate
+
+1. Identify the shared contract surfaces and affected producers/consumers: DTOs, API request/response shapes, event messages, or shared interfaces. Assign one relevant specialist to own the contract phase; do not edit production contracts yourself.
+2. Have that owner create or update the actual shared contract artifacts first, define their semantics and compatibility expectations, and perform focused applicable validation. If an existing contract already fits, have the owner confirm compatibility instead of introducing unnecessary artifacts.
+3. Wait for the owner's completed report with artifact paths, agreed shapes/semantics, compatibility decisions, exact checks/results, and any blockers. Inspect this evidence before releasing dependent implementation tasks. Failed, blocked, or missing required validation keeps affected dependents blocked; unrelated work may continue.
+4. Delegate implementations only after the gate is satisfied. Give each specialist the agreed artifacts, semantics, compatibility decisions, acceptance criteria, and explicit file ownership. Parallelize independent consumers only after this handoff; keep shared contract edits with their owner.
+5. If implementation reveals a needed contract revision, pause affected dependents and return the change to the contract owner. Validate the revision and distribute the updated contract before resuming those implementations.
+
+Contract validation is an early prerequisite, not a substitute for subsequent Tester and Code Reviewer stages. This gate does not require a separate commit or user approval for every contract; existing approval rules still apply to material ambiguity and breaking changes.
 
 ## Runtime and handoffs
 
