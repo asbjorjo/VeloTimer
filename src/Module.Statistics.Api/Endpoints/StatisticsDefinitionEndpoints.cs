@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Logging;
 using VeloTime.Module.Common;
 using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Model;
+using VeloTime.Module.Statistics.Service;
 using VeloTime.Module.Statistics.Storage;
 
 namespace VeloTime.Module.Statistics.Api.Endpoints;
@@ -46,12 +48,15 @@ internal static class StatisticsDefinitionEndpoints
     }
 
     private static async Task<Results<Ok<StatisticsItemDTO>, NotFound, ProblemHttpResult>> UpdateItem(
-        Guid id, SaveStatisticsItemRequest request, StatisticsDbContext storage, HybridCache cache, CancellationToken cancellationToken)
+        Guid id, SaveStatisticsItemRequest request, StatisticsDbContext storage, HybridCache cache, ICacheInvalidationOperations invalidation,
+        ILogger<StatisticsDbContext> logger, CancellationToken cancellationToken)
     {
         var item = await storage.Set<StatisticsItem>().FindAsync([id], cancellationToken);
         if (item is null) return TypedResults.NotFound();
         if (ValidateItem(request) is { } error) return Invalid(error);
-        var configIds = storage.Set<StatisticsItemConfig>().Where(config => config.StatisticsItemId == id).Select(config => config.Id);
+        var configs = await storage.Set<StatisticsItemConfig>()
+            .Where(config => config.StatisticsItemId == id).ToListAsync(cancellationToken);
+        var configIds = configs.Select(config => config.Id).ToArray();
         if (item.Distance != request.Distance && await storage.Set<StatisticsEntry>()
             .AnyAsync(entry => entry.StatisticsItemId == id || configIds.Contains(entry.StatisticsItemConfigId), cancellationToken))
         {
@@ -61,9 +66,9 @@ internal static class StatisticsDefinitionEndpoints
         item.Name = request.Name.Trim();
         item.Description = request.Description ?? "";
         item.Distance = request.Distance;
+        var cacheKeys = configs.SelectMany(CacheKeysFor).ToArray();
         await storage.SaveChangesAsync(cancellationToken);
-        var configs = await storage.Set<StatisticsItemConfig>().Where(config => config.StatisticsItemId == id).ToListAsync(cancellationToken);
-        foreach (var config in configs) await Invalidate(config, cache, cancellationToken);
+        await StatisticsCacheInvalidation.InvalidateAsync(cache, logger, cacheKeys, [StatisticsCacheTags.ConfigurationDefinitions], invalidation);
         return TypedResults.Ok(ToDto(item));
     }
 
@@ -112,7 +117,9 @@ internal static class StatisticsDefinitionEndpoints
     }
 
     private static async Task<Results<Created<StatisticsConfigurationDTO>, ProblemHttpResult>> CreateConfiguration(
-        SaveStatisticsConfigurationRequest request, StatisticsDbContext storage, ICoursePointReferences points, HybridCache cache, CancellationToken cancellationToken)
+        SaveStatisticsConfigurationRequest request, StatisticsDbContext storage, ICoursePointReferences points, HybridCache cache,
+        ICacheInvalidationOperations invalidation,
+        ILogger<StatisticsDbContext> logger, CancellationToken cancellationToken)
     {
         if (await ValidateConfiguration(request, storage, points, cancellationToken) is { } error) return Invalid(error);
         StatisticsItemConfig config = request.Type == StatisticsConfigurationType.Simple
@@ -120,14 +127,17 @@ internal static class StatisticsDefinitionEndpoints
             : new MultiStatisticsItemConfig { StatisticsItem = null!, ParentConfig = null!, ParentConfigId = request.ParentConfigId!.Value, Repetitions = request.Repetitions!.Value };
         config.Id = Guid.NewGuid();
         config.StatisticsItemId = request.StatisticsItemId;
+        var cacheKeys = CacheKeysFor(config).ToArray();
         storage.Add(config);
         await storage.SaveChangesAsync(cancellationToken);
-        await Invalidate(config, cache, cancellationToken);
+        await StatisticsCacheInvalidation.InvalidateAsync(cache, logger, cacheKeys, [StatisticsCacheTags.ConfigurationDefinitions], invalidation);
         return TypedResults.Created($"/api/statistics/admin/configurations/{config.Id}", ToDto(config));
     }
 
     private static async Task<Results<Ok<StatisticsConfigurationDTO>, NotFound, ProblemHttpResult>> UpdateConfiguration(
-        Guid id, SaveStatisticsConfigurationRequest request, StatisticsDbContext storage, ICoursePointReferences points, HybridCache cache, CancellationToken cancellationToken)
+        Guid id, SaveStatisticsConfigurationRequest request, StatisticsDbContext storage, ICoursePointReferences points, HybridCache cache,
+        ICacheInvalidationOperations invalidation,
+        ILogger<StatisticsDbContext> logger, CancellationToken cancellationToken)
     {
         var config = await storage.Set<StatisticsItemConfig>().FindAsync([id], cancellationToken);
         if (config is null) return TypedResults.NotFound();
@@ -141,7 +151,7 @@ internal static class StatisticsDefinitionEndpoints
             return Conflict("Recorded results depend on this configuration. Create a new definition instead.");
         }
 
-        await Invalidate(config, cache, cancellationToken);
+        var oldCacheKeys = CacheKeysFor(config).ToArray();
         config.StatisticsItemId = request.StatisticsItemId;
         if (config is SimpleStatisticsItemConfig simple)
         {
@@ -153,36 +163,41 @@ internal static class StatisticsDefinitionEndpoints
             multi.ParentConfigId = request.ParentConfigId!.Value;
             multi.Repetitions = request.Repetitions!.Value;
         }
+        var newCacheKeys = CacheKeysFor(config).ToArray();
         await storage.SaveChangesAsync(cancellationToken);
-        await Invalidate(config, cache, cancellationToken);
+        await StatisticsCacheInvalidation.InvalidateAsync(cache, logger,
+            oldCacheKeys.Concat(newCacheKeys), [StatisticsCacheTags.ConfigurationDefinitions], invalidation);
         return TypedResults.Ok(ToDto(config));
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteConfiguration(
-        Guid id, StatisticsDbContext storage, HybridCache cache, CancellationToken cancellationToken)
+        Guid id, StatisticsDbContext storage, HybridCache cache, ICacheInvalidationOperations invalidation,
+        ILogger<StatisticsDbContext> logger, CancellationToken cancellationToken)
     {
         var config = await storage.Set<StatisticsItemConfig>().FindAsync([id], cancellationToken);
         if (config is null) return TypedResults.NotFound();
         var children = await storage.Set<MultiStatisticsItemConfig>().CountAsync(child => child.ParentConfigId == id, cancellationToken);
         var results = await storage.Set<StatisticsEntry>().CountAsync(entry => entry.StatisticsItemConfigId == id, cancellationToken);
         if (children > 0 || results > 0) return Conflict($"This configuration is referenced by {children} child configuration(s) and {results} result(s).");
+        var cacheKeys = CacheKeysFor(config).ToArray();
         storage.Remove(config);
         await storage.SaveChangesAsync(cancellationToken);
-        await Invalidate(config, cache, cancellationToken);
+        await StatisticsCacheInvalidation.InvalidateAsync(cache, logger, cacheKeys, [StatisticsCacheTags.ConfigurationDefinitions], invalidation);
         return TypedResults.NoContent();
     }
 
-    private static async Task Invalidate(StatisticsItemConfig config, HybridCache cache, CancellationToken cancellationToken)
+    private static IEnumerable<string> CacheKeysFor(StatisticsItemConfig config)
     {
         if (config is SimpleStatisticsItemConfig simple)
         {
-            await cache.RemoveAsync($"StatisticsItemConfig_End_{simple.CoursePointEnd}", cancellationToken);
-            await cache.RemoveAsync($"MultiStatisticsItemConfig_{simple.Id}", cancellationToken);
+            return new SimpleStatisticsCacheIdentity(simple.Id, simple.CoursePointEnd).Keys;
         }
         else if (config is MultiStatisticsItemConfig multi)
         {
-            await cache.RemoveAsync($"MultiStatisticsItemConfig_{multi.ParentConfigId}", cancellationToken);
+            return [new MultiStatisticsCacheIdentity(multi.ParentConfigId).Key];
         }
+
+        throw new InvalidOperationException("Unknown statistics configuration type.");
     }
 
     private static StatisticsItemDTO ToDto(StatisticsItem item) => new(item.Id, item.Name, item.Description, item.Distance);

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Storage;
 using VeloTime.Module.Timing.Interface.Data;
+using VeloTime.Module.Timing.Service;
 
 namespace VeloTime.Module.Timing.Api.Test;
 
@@ -85,15 +86,41 @@ public sealed partial class TimingEndpointTests(TimingApiFactory factory) : ICla
     {
         using var client = factory.CreateClient();
         var request = new SaveInstallationRequest(Guid.NewGuid(), "new-agent", "MyLaps_X2", "Finish installation");
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            Assert.Null(await scope.ServiceProvider.GetRequiredService<InstallationService>()
+                .GetInstallationForAgent(request.AgentId));
+        }
         var created = await client.PostAsJsonAsync("/api/timing/admin/installations", request);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var installation = (await created.Content.ReadFromJsonAsync<InstallationDTO>())!;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            Assert.Equal(installation.Id, (await scope.ServiceProvider.GetRequiredService<InstallationService>()
+                .GetInstallationForAgent(request.AgentId))?.Id);
+        }
         var root = $"/api/timing/admin/installations/{installation.Id}";
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var service = scope.ServiceProvider.GetRequiredService<InstallationService>();
+            Assert.Null(await service.GetTimingPoint(new Installation { Id = installation.Id, AgentId = request.AgentId }, "loop-1"));
+        }
         var pointResponse = await client.PostAsJsonAsync($"{root}/points", new SaveTimingPointRequest("loop-1", "Finish"));
         Assert.Equal(HttpStatusCode.OK, pointResponse.StatusCode);
         var point = (await pointResponse.Content.ReadFromJsonAsync<TimingPointDTO>())!;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var service = scope.ServiceProvider.GetRequiredService<InstallationService>();
+            Assert.Equal(point.Id, (await service.GetTimingPoint(new Installation { Id = installation.Id, AgentId = request.AgentId }, "loop-1"))?.Id);
+            Assert.Equal(installation.Id, (await service.GetInstallionForTimingPoint(point.Id)).Id);
+        }
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync($"{root}/points", new SaveTimingPointRequest("loop-1", "Duplicate"))).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"{root}/points/{point.Id}", new SaveTimingPointRequest("loop-1", "Updated"))).StatusCode);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var service = scope.ServiceProvider.GetRequiredService<InstallationService>();
+            Assert.Equal("Updated", (await service.GetTimingPoint(new Installation { Id = installation.Id, AgentId = request.AgentId }, "loop-1"))?.Description);
+        }
         Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync(root)).StatusCode);
         factory.References.Dependencies = 1;
         Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync($"{root}/points/{point.Id}")).StatusCode);
@@ -103,8 +130,20 @@ public sealed partial class TimingEndpointTests(TimingApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.DeleteAsync($"{root}/points/{point.Id}")).StatusCode);
         factory.References.Unavailable = false;
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"{root}/points/{point.Id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync(root, request with { Description = "Updated" })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync(root, request with { AgentId = "renamed-agent", Description = "Updated" })).StatusCode);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var service = scope.ServiceProvider.GetRequiredService<InstallationService>();
+            Assert.Null(await service.GetInstallationForAgent(request.AgentId));
+            Assert.Equal(installation.Id, (await service.GetInstallationForAgent("renamed-agent"))?.Id);
+        }
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync(root)).StatusCode);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var service = scope.ServiceProvider.GetRequiredService<InstallationService>();
+            Assert.Null(await service.GetInstallationForAgent("renamed-agent"));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.GetInstallionForTimingPoint(point.Id));
+        }
     }
 
     [Theory]

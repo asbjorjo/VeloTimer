@@ -13,13 +13,13 @@ internal static class CoursePointEndpoints
     {
         var coursePoints = endpoints.MapGroup("coursepoint");
         
-        coursePoints.MapGet("{id}", GetCoursePointById).CacheOutput(policy => policy.Tag("Facilities.Relationships"));
-        coursePoints.MapGet("{id}/facility", GetFacilityByCoursePointId).CacheOutput(policy => policy.Tag("Facilities.Relationships"));
-        coursePoints.MapGet("{start}/distance/{end}", DistanceBetweenCoursePoints).CacheOutput(policy => policy.Tag("Facilities.Relationships"));
+        coursePoints.MapGet("{id}", GetCoursePointById).CacheOutput(FacilitiesOutputCache.PolicyName);
+        coursePoints.MapGet("{id}/facility", GetFacilityByCoursePointId).CacheOutput(FacilitiesOutputCache.PolicyName);
+        coursePoints.MapGet("{start}/distance/{end}", DistanceBetweenCoursePoints).CacheOutput(FacilitiesOutputCache.PolicyName);
 
         var timingPoints = endpoints.MapGroup("timingpoint");
-        timingPoints.MapGet("{id}", GetCoursePointByTimingPoint).CacheOutput(policy => policy.Tag("Facilities.Relationships"));
-        timingPoints.MapGet("{start:guid}/distance/{end:guid}", DistanceBetweenTimingPoints).CacheOutput(policy => policy.Tag("Facilities.Relationships"));
+        timingPoints.MapGet("{id}", GetCoursePointByTimingPoint).CacheOutput(FacilitiesOutputCache.PolicyName);
+        timingPoints.MapGet("{start:guid}/distance/{end:guid}", DistanceBetweenTimingPoints).CacheOutput(FacilitiesOutputCache.PolicyName);
     }
 
     static async Task<Results<Ok<FacilityDTO>, NotFound>> GetFacilityByCoursePointId(Guid id, FacilitiesService facilities)

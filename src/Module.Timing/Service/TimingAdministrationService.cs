@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using VeloTime.Module.Common;
 using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.Module.Timing.Model;
@@ -7,8 +9,11 @@ using VeloTime.Module.Timing.Storage;
 
 namespace VeloTime.Module.Timing.Service;
 
-public sealed class TimingAdministrationService(TimingDbContext storage, IAdministrationReferences references, HybridCache cache)
+public sealed class TimingAdministrationService(TimingDbContext storage, IAdministrationReferences references, HybridCache cache,
+    ILogger<TimingAdministrationService>? logger = null, ICacheInvalidationOperations? evictionOperations = null)
 {
+    private readonly ILogger _logger = logger ?? NullLogger<TimingAdministrationService>.Instance;
+
     public async Task<TimingSystem> ValidateInstallationAsync(Guid? id, SaveInstallationRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.AgentId)) throw new ArgumentException("Agent ID is required.");
@@ -24,6 +29,7 @@ public sealed class TimingAdministrationService(TimingDbContext storage, IAdmini
     {
         var installation = id.HasValue ? await storage.Set<Installation>().Include(installation => installation.TimingPoints)
             .SingleOrDefaultAsync(installation => installation.Id == id.Value, cancellationToken) ?? throw new KeyNotFoundException() : null;
+        var oldIdentity = installation is null ? null : TimingInstallationCacheIdentity.Capture(installation);
         var system = await ValidateInstallationAsync(id, request, cancellationToken);
         var facilityId = request.FacilityId ?? Guid.Empty;
         if (installation is not null)
@@ -40,7 +46,6 @@ public sealed class TimingAdministrationService(TimingDbContext storage, IAdmini
                     if (dependencies.Count > 0) throw new AdministrationConflictException(dependencies.Description);
                 }
             }
-            await InvalidateInstallation(installation, cancellationToken);
         }
         else
         {
@@ -51,19 +56,24 @@ public sealed class TimingAdministrationService(TimingDbContext storage, IAdmini
         installation.TimingSystem = system;
         installation.Facility = facilityId;
         installation.Description = request.Description?.Trim() ?? "";
+        var newIdentity = TimingInstallationCacheIdentity.Capture(installation);
         await storage.SaveChangesAsync(cancellationToken);
-        await InvalidateInstallation(installation, cancellationToken);
+        await TimingCacheInvalidation.InvalidateAsync(cache, _logger,
+            (oldIdentity?.Keys ?? []).Concat(newIdentity.Keys),
+            (oldIdentity?.Tags ?? []).Concat(newIdentity.Tags), evictionOperations);
         return installation;
     }
 
     public async Task DeleteInstallationAsync(Guid id, CancellationToken cancellationToken)
     {
-        var installation = await storage.Set<Installation>().FindAsync([id], cancellationToken) ?? throw new KeyNotFoundException();
+        var installation = await storage.Set<Installation>().Include(item => item.TimingPoints)
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken) ?? throw new KeyNotFoundException();
+        var identity = TimingInstallationCacheIdentity.Capture(installation);
         var count = await storage.Set<TimingPoint>().CountAsync(point => point.InstallationId == id, cancellationToken);
         if (count > 0) throw new AdministrationConflictException($"This installation still has {count} timing point(s). Remove them first.");
         storage.Remove(installation);
         await storage.SaveChangesAsync(cancellationToken);
-        await InvalidateInstallation(installation, cancellationToken);
+        await TimingCacheInvalidation.InvalidateAsync(cache, _logger, identity.Keys, identity.Tags, evictionOperations);
     }
 
     public async Task<TimingPoint> SavePointAsync(Guid installationId, Guid? id, SaveTimingPointRequest request, CancellationToken cancellationToken)
@@ -74,11 +84,13 @@ public sealed class TimingAdministrationService(TimingDbContext storage, IAdmini
             throw new AdministrationConflictException("A timing point in this installation already uses that hardware system ID.");
         var point = id.HasValue ? await storage.Set<TimingPoint>().SingleOrDefaultAsync(point => point.Id == id && point.InstallationId == installationId, cancellationToken)
             ?? throw new KeyNotFoundException() : null;
+        var oldPointIdentity = point is null
+            ? (TimingPointCacheIdentity?)null
+            : new TimingPointCacheIdentity(point.InstallationId, point.Id, point.SystemId);
         if (point is not null)
         {
             if (point.SystemId != request.SystemId.Trim() && await storage.Set<Passing>().AnyAsync(passing => passing.TimingPointId == point.Id, cancellationToken))
                 throw new AdministrationConflictException("Recorded passings depend on this hardware system ID. Create a new timing point instead.");
-            await cache.RemoveAsync($"timingpoint_{installationId}_{point.SystemId}", cancellationToken);
         }
         else
         {
@@ -87,9 +99,13 @@ public sealed class TimingAdministrationService(TimingDbContext storage, IAdmini
         }
         point.SystemId = request.SystemId.Trim();
         point.Description = request.Description?.Trim() ?? "";
+        var newPointIdentity = new TimingPointCacheIdentity(point.InstallationId, point.Id, point.SystemId);
+        var keys = (oldPointIdentity is { } oldPoint ? new[] { oldPoint.CompositeKey, oldPoint.InstallationKey } : [])
+            .Concat([newPointIdentity.CompositeKey, newPointIdentity.InstallationKey]);
         await storage.SaveChangesAsync(cancellationToken);
-        await cache.RemoveAsync($"timingpoint_{installationId}_{point.SystemId}", cancellationToken);
-        await InvalidateInstallation(installation, cancellationToken);
+        var tags = (oldPointIdentity is { } prior ? prior.Tags : [])
+            .Concat(newPointIdentity.Tags);
+        await TimingCacheInvalidation.InvalidateAsync(cache, _logger, keys, tags, evictionOperations);
         return point;
     }
 
@@ -97,21 +113,14 @@ public sealed class TimingAdministrationService(TimingDbContext storage, IAdmini
     {
         var point = await storage.Set<TimingPoint>().Include(point => point.Installation)
             .SingleOrDefaultAsync(point => point.Id == id && point.InstallationId == installationId, cancellationToken) ?? throw new KeyNotFoundException();
+        var identity = new TimingPointCacheIdentity(point.InstallationId, point.Id, point.SystemId);
         var count = await storage.Set<Passing>().CountAsync(passing => passing.TimingPointId == id, cancellationToken);
         if (count > 0) throw new AdministrationConflictException($"This timing point has {count} recorded passing(s).");
         var dependencies = await references.GetDependenciesAsync("facilities", "timingpoints", id, cancellationToken);
         if (dependencies.Count > 0) throw new AdministrationConflictException(dependencies.Description);
         storage.Remove(point);
         await storage.SaveChangesAsync(cancellationToken);
-        await cache.RemoveAsync($"timingpoint_{installationId}_{point.SystemId}", cancellationToken);
-        await cache.RemoveAsync($"timingpoint_{id}", cancellationToken);
-        await InvalidateInstallation(point.Installation, cancellationToken);
-    }
-
-    private async Task InvalidateInstallation(Installation installation, CancellationToken cancellationToken)
-    {
-        await cache.RemoveAsync($"installation_{installation.AgentId}", cancellationToken);
-        foreach (var point in installation.TimingPoints)
-            await cache.RemoveAsync($"timingpoint_{point.Id}", cancellationToken);
+        await TimingCacheInvalidation.InvalidateAsync(cache, _logger,
+            [identity.CompositeKey, identity.InstallationKey], identity.Tags, evictionOperations);
     }
 }

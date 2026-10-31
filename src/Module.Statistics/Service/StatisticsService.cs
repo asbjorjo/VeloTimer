@@ -99,8 +99,9 @@ public class StatisticsService(
             .OrderByDescending(s => s.Repetitions);
 
         return await cache.GetOrCreateAsync(
-            $"MultiStatisticsItemConfig_{parentConfigId}",
+            StatisticsCacheKeys.MultiConfigurationsByParent(parentConfigId),
             async cancel => await itemQuery.ToListAsync(cancellationToken: cancel),
+            tags: [StatisticsCacheTags.ConfigurationDefinitions],
             cancellationToken: cancellationToken
             );
     }
@@ -111,8 +112,9 @@ public class StatisticsService(
             .Where(s => s.CoursePointEnd == coursePointId)
             .Include(s => s.StatisticsItem);
         return await cache.GetOrCreateAsync(
-            $"StatisticsItemConfig_End_{coursePointId}",
+            StatisticsCacheKeys.ConfigurationsByEndCoursePoint(coursePointId),
             async cancel => await itemQuery.ToListAsync(cancellationToken: cancel),
+            tags: [StatisticsCacheTags.ConfigurationDefinitions],
             cancellationToken: cancellationToken
             );
     }

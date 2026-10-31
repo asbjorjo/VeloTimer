@@ -7,7 +7,7 @@ using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.Module.Timing.Mapping;
 using VeloTime.Module.Timing.Service;
 using VeloTime.Module.Common;
-using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Logging;
 
 namespace VeloTime.Module.Timing.Api.Endpoints;
 
@@ -32,7 +32,8 @@ internal static class TransponderEndpoints
         InstallationService installationService,
         [FromQuery] string? SystemId,
         [FromQuery] string? SystemLabel,
-        [FromQuery] string Type)
+        [FromQuery] string Type,
+        CancellationToken cancellationToken)
     {
         List<string> errors = new List<string>();
 
@@ -68,7 +69,7 @@ internal static class TransponderEndpoints
             var result = await installationService.RegisterTransponder(new MylapsX2Transponder
             {
                 SystemId = id.ToString(),
-            });
+            }, cancellationToken);
 
             return TypedResults.Ok(result.Id);
         } else
@@ -126,21 +127,27 @@ internal static class TransponderEndpoints
     }
 
     private static async Task<Results<Ok<TransponderDTO>, NotFound>> UpdateTransponder(Guid id, SaveTransponderRequest request,
-        TimingDbContext storage, HybridCache cache, CancellationToken cancellationToken)
+        TimingDbContext storage, Microsoft.Extensions.Caching.Hybrid.HybridCache cache, ICacheInvalidationOperations invalidation,
+        ILogger<TimingDbContext> logger, CancellationToken cancellationToken)
     {
         var transponder = await storage.Set<Transponder>().Include(transponder => transponder.Owners).SingleOrDefaultAsync(transponder => transponder.Id == id, cancellationToken);
         if (transponder is null) return TypedResults.NotFound();
+        var oldIdentity = new TimingTransponderCacheIdentity(transponder.System, transponder.SystemId);
         transponder.Label = request.Label?.Trim() ?? "";
         await storage.SaveChangesAsync(cancellationToken);
-        await cache.RemoveAsync($"transponder_{transponder.System}_{transponder.SystemId}", cancellationToken);
+        var newIdentity = new TimingTransponderCacheIdentity(transponder.System, transponder.SystemId);
+        await TimingCacheInvalidation.InvalidateAsync(cache, logger,
+            [oldIdentity.Key, newIdentity.Key], [oldIdentity.Tag, newIdentity.Tag], invalidation);
         return TypedResults.Ok(TransponderOwnershipService.ToDto(transponder));
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteTransponder(Guid id,
-        TimingDbContext storage, IAdministrationReferences references, HybridCache cache, CancellationToken cancellationToken)
+        TimingDbContext storage, IAdministrationReferences references, Microsoft.Extensions.Caching.Hybrid.HybridCache cache,
+        ICacheInvalidationOperations invalidation, ILogger<TimingDbContext> logger, CancellationToken cancellationToken)
     {
         var transponder = await storage.Set<Transponder>().FindAsync([id], cancellationToken);
         if (transponder is null) return TypedResults.NotFound();
+        var identity = new TimingTransponderCacheIdentity(transponder.System, transponder.SystemId);
         var owners = await storage.Set<TransponderOwner>().CountAsync(owner => owner.TransponderId == id, cancellationToken);
         var passings = await storage.Set<Passing>().CountAsync(passing => passing.TransponderId == id, cancellationToken);
         if (owners > 0 || passings > 0) return TypedResults.Problem(detail: $"This transponder has {owners} ownership period(s) and {passings} recorded passing(s).", statusCode: 409);
@@ -148,7 +155,7 @@ internal static class TransponderEndpoints
         if (dependencies.Count > 0) return TypedResults.Problem(detail: dependencies.Description, statusCode: 409);
         storage.Remove(transponder);
         await storage.SaveChangesAsync(cancellationToken);
-        await cache.RemoveAsync($"transponder_{transponder.System}_{transponder.SystemId}", cancellationToken);
+        await TimingCacheInvalidation.InvalidateAsync(cache, logger, [identity.Key], [identity.Tag], invalidation);
         return TypedResults.NoContent();
     }
 }

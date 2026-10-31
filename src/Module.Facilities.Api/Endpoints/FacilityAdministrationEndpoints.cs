@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Logging;
 using VeloTime.Module.Common;
 using VeloTime.Module.Facilities.Interface.Data;
 using VeloTime.Module.Facilities.Model;
@@ -39,22 +40,24 @@ internal static class FacilityAdministrationEndpoints
     }
 
     private static async Task<Results<Created<CourseLayoutDTO>, NotFound, ProblemHttpResult>> CreateLayout(Guid facilityId, SaveCourseLayoutRequest request,
-        FacilityDbContext storage, IAdministrationReferences references, HybridCache cache, IOutputCacheStore output, CancellationToken cancellationToken)
+        FacilityDbContext storage, IAdministrationReferences references, HybridCache cache, IOutputCacheStore output,
+        ICacheInvalidationOperations invalidation, ILogger<FacilityDbContext> logger, CancellationToken cancellationToken)
     {
         if (!await storage.Set<Facility>().AnyAsync(facility => facility.Id == facilityId, cancellationToken)) return TypedResults.NotFound();
         var layout = new CourseLayout { Id = Guid.NewGuid(), FacilityId = facilityId };
         if (await SaveLayout(layout, request, storage, references, true, cancellationToken) is { } error) return error;
-        await Invalidate(cache, output, cancellationToken);
+        await FacilitiesOutputCache.InvalidateRelationshipsWithOperationsAsync(cache, output, logger, invalidation);
         return TypedResults.Created($"/api/facilities/layouts/{layout.Id}", ToDto(layout));
     }
 
     private static async Task<Results<Ok<CourseLayoutDTO>, NotFound, ProblemHttpResult>> UpdateLayout(Guid facilityId, Guid id, SaveCourseLayoutRequest request,
-        FacilityDbContext storage, IAdministrationReferences references, HybridCache cache, IOutputCacheStore output, CancellationToken cancellationToken)
+        FacilityDbContext storage, IAdministrationReferences references, HybridCache cache, IOutputCacheStore output,
+        ICacheInvalidationOperations invalidation, ILogger<FacilityDbContext> logger, CancellationToken cancellationToken)
     {
         var layout = await Layouts(storage).SingleOrDefaultAsync(layout => layout.Id == id && layout.FacilityId == facilityId, cancellationToken);
         if (layout is null) return TypedResults.NotFound();
         if (await SaveLayout(layout, request, storage, references, false, cancellationToken) is { } error) return error;
-        await Invalidate(cache, output, cancellationToken);
+        await FacilitiesOutputCache.InvalidateRelationshipsWithOperationsAsync(cache, output, logger, invalidation);
         return TypedResults.Ok(ToDto(layout));
     }
 
@@ -140,7 +143,8 @@ internal static class FacilityAdministrationEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteLayout(Guid facilityId, Guid id, FacilityDbContext storage,
-        IAdministrationReferences references, HybridCache cache, IOutputCacheStore output, CancellationToken cancellationToken)
+        IAdministrationReferences references, HybridCache cache, IOutputCacheStore output,
+        ICacheInvalidationOperations invalidation, ILogger<FacilityDbContext> logger, CancellationToken cancellationToken)
     {
         var layout = await Layouts(storage).SingleOrDefaultAsync(layout => layout.Id == id && layout.FacilityId == facilityId, cancellationToken);
         if (layout is null) return TypedResults.NotFound();
@@ -160,12 +164,13 @@ internal static class FacilityAdministrationEndpoints
         storage.Remove(layout);
         storage.RemoveRange(orphanPoints);
         await storage.SaveChangesAsync(cancellationToken);
-        await Invalidate(cache, output, cancellationToken);
+        await FacilitiesOutputCache.InvalidateRelationshipsWithOperationsAsync(cache, output, logger, invalidation);
         return TypedResults.NoContent();
     }
 
     private static async Task<Results<Ok<CoursePointDTO>, NotFound, ProblemHttpResult>> SetTimingLink(Guid id, SetCoursePointTimingLinkRequest request,
-        FacilityDbContext storage, IAdministrationReferences references, HybridCache cache, IOutputCacheStore output, CancellationToken cancellationToken)
+        FacilityDbContext storage, IAdministrationReferences references, HybridCache cache, IOutputCacheStore output,
+        ICacheInvalidationOperations invalidation, ILogger<FacilityDbContext> logger, CancellationToken cancellationToken)
     {
         await using var transaction = await storage.Database.BeginTransactionAsync(cancellationToken);
         if (storage.Database.IsNpgsql())
@@ -185,7 +190,7 @@ internal static class FacilityAdministrationEndpoints
         point.TimingPoint = request.TimingPointId;
         await storage.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        await Invalidate(cache, output, cancellationToken);
+        await FacilitiesOutputCache.InvalidateRelationshipsWithOperationsAsync(cache, output, logger, invalidation);
         return TypedResults.Ok(new CoursePointDTO { Id = point.Id, Name = point.Name ?? "", TimingPointId = point.TimingPoint });
     }
 
@@ -196,11 +201,6 @@ internal static class FacilityAdministrationEndpoints
         .AnyAsync(segment => segment.CourseLayoutId != layoutId && (segment.Start.Id == pointId || segment.End.Id == pointId), cancellationToken);
     private static Task<Guid?> PointFacility(FacilityDbContext storage, Guid id, CancellationToken cancellationToken) => storage.Set<CourseSegment>()
         .Where(segment => segment.Start.Id == id || segment.End.Id == id).Select(segment => (Guid?)segment.CourseLayout.FacilityId).Distinct().SingleOrDefaultAsync(cancellationToken);
-    private static async Task Invalidate(HybridCache cache, IOutputCacheStore output, CancellationToken cancellationToken)
-    {
-        await cache.RemoveByTagAsync("Facilities.Relationships", cancellationToken);
-        await output.EvictByTagAsync("Facilities.Relationships", cancellationToken);
-    }
     private static CourseLayoutDTO ToDto(CourseLayout layout) => new()
     {
         Id = layout.Id, FacilityId = layout.FacilityId,

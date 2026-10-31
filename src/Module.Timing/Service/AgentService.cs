@@ -1,13 +1,19 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Diagnostics;
+using VeloTime.Module.Common;
 using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Storage;
 
 namespace VeloTime.Module.Timing.Service;
 
-public class AgentService(InstallationService installationService, HybridCache cache, TimingDbContext storage, Metrics metrics) : IAgentService
+public class AgentService(InstallationService installationService, HybridCache cache, TimingDbContext storage, Metrics metrics,
+    ILogger<AgentService>? logger = null, ICacheInvalidationOperations? evictionOperations = null) : IAgentService
 {
+    private readonly ILogger _logger = logger ?? NullLogger<AgentService>.Instance;
+
     public Task<Passing> RegisterPassingAsync(string agentId, string transponderId, string loopId, DateTime time, string transponderType, CancellationToken cancellationToken = default) =>
         RegisterPassingAsync(agentId, transponderId, loopId, time, transponderType, false, false, false, cancellationToken);
 
@@ -48,6 +54,11 @@ public class AgentService(InstallationService installationService, HybridCache c
             
             await storage.AddAsync(passing, cancellationToken: cancellationToken);
             await storage.SaveChangesAsync(cancellationToken);
+            await TimingCacheInvalidation.InvalidateAsync(cache, _logger,
+                [
+                    TimingCacheKeys.LastPassing(timingPoint.InstallationId, transponder.Id),
+                    TimingCacheKeys.LegacyLastPassing(transponder.Id)
+                ], [TimingCacheTags.LastPassing(timingPoint.InstallationId, transponder.Id)], evictionOperations);
             metrics.PassingProcessed(agentId, activity, false);
         }
 
@@ -100,17 +111,16 @@ public class AgentService(InstallationService installationService, HybridCache c
         await storage.AddAsync(sample, cancellationToken: cancellationToken);
         await storage.SaveChangesAsync(cancellationToken);
 
-        await cache.SetAsync($"LastPassing_{passing.TransponderId}", passing, cancellationToken: cancellationToken);
-
         return sample;
     }
 
     private async Task<Passing?> GetPreviousPassing(Passing passing, CancellationToken cancellationToken = default)
     {
         var installation = await installationService.GetInstallionForTimingPoint(passing.TimingPointId, cancellationToken);
+        var cacheKey = TimingCacheKeys.LastPassing(installation.Id, passing.TransponderId);
 
         var value = await cache.GetOrCreateAsync(
-            $"LastPassing_{passing.TransponderId}",
+            cacheKey,
             async cancel => await storage
                     .Set<Passing>()
                     .Include(p => p.TimingPoint)
@@ -118,17 +128,12 @@ public class AgentService(InstallationService installationService, HybridCache c
                     .OrderByDescending(p => p.Time)
                     .FirstOrDefaultAsync(p =>
                         p.TransponderId == passing.TransponderId
-                        && p.TimingPoint.InstallationId == installation.Id
-                        && p.Time < passing.Time, cancellationToken: cancel),
+                        && p.TimingPoint.InstallationId == installation.Id, cancellationToken: cancel),
+            tags: [TimingCacheTags.LastPassing(installation.Id, passing.TransponderId)],
             cancellationToken: cancellationToken);
 
-        if (value is null)
+        if (value is not null && value.Time >= passing.Time)
         {
-            await cache.RemoveAsync($"LastPassing_{passing.TransponderId}", cancellationToken);
-        }
-        else if (value.Time >= passing.Time)
-        {
-            await cache.RemoveAsync($"LastPassing_{passing.TransponderId}", cancellationToken);
             value = await storage.Set<Passing>()
                 .Include(p => p.TimingPoint)
                 .AsNoTracking()

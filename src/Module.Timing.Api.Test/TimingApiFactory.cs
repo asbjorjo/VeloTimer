@@ -11,8 +11,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using SlimMessageBus;
+using Npgsql;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using VeloTime.Module.Timing.Storage;
 using VeloTime.Module.Common;
+using ZiggyCreatures.Caching.Fusion;
+using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
 
 namespace VeloTime.Module.Timing.Api.Test;
 
@@ -22,6 +27,10 @@ public sealed class TimingApiFactory : WebApplicationFactory<Program>
     public TestReferences References { get; } = new();
     public RecordingOwnershipMessageBus Messages { get; } = RecordingOwnershipMessageBus.Create();
     public TestClock Clock { get; } = new();
+    private string? postgresAdminConnectionString;
+    private string? postgresTestConnectionString;
+    private string? postgresTestDatabase;
+    private bool postgresSchemaCreated;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -40,11 +49,10 @@ public sealed class TimingApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<TimingDbContext>();
             services.RemoveAll<DbContextOptions<TimingDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<TimingDbContext>>();
-            var postgres = Environment.GetEnvironmentVariable("VELOTIME_TEST_POSTGRES");
             services.AddDbContext<TimingDbContext>(options =>
             {
-                if (string.IsNullOrWhiteSpace(postgres)) options.UseSqlite(connection);
-                else options.UseNpgsql(postgres);
+                if (postgresTestConnectionString is null) options.UseSqlite(connection);
+                else options.UseNpgsql(postgresTestConnectionString);
             });
 
             foreach (var descriptor in services.Where(descriptor => descriptor.ServiceType == typeof(IHostedService)
@@ -57,7 +65,12 @@ public sealed class TimingApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<HybridCache>();
             services.RemoveAll<IDistributedCache>();
             services.AddDistributedMemoryCache();
-            services.AddHybridCache();
+            services.AddFusionCache()
+                .WithSerializer(new FusionCacheSystemTextJsonSerializer(new JsonSerializerOptions
+                {
+                    ReferenceHandler = ReferenceHandler.Preserve
+                }))
+                .AsHybridCache();
             services.AddSingleton<IAdministrationReferences>(References);
             services.AddAuthentication(options =>
             {
@@ -73,11 +86,67 @@ public sealed class TimingApiFactory : WebApplicationFactory<Program>
         References.Dependencies = 0;
         References.Unavailable = false;
         Messages.Reset();
+        var postgres = Environment.GetEnvironmentVariable("VELOTIME_TEST_POSTGRES");
+        if (!string.IsNullOrWhiteSpace(postgres) && postgresTestDatabase is null)
+        {
+            postgresAdminConnectionString = postgres;
+            postgresTestDatabase = $"vt_timing_api_{Guid.NewGuid():N}";
+            await using var admin = new NpgsqlConnection(postgresAdminConnectionString);
+            await admin.OpenAsync();
+            await using (var create = new NpgsqlCommand($"CREATE DATABASE \"{postgresTestDatabase}\"", admin))
+                await create.ExecuteNonQueryAsync();
+            postgresTestConnectionString = new NpgsqlConnectionStringBuilder(postgresAdminConnectionString)
+            {
+                Database = postgresTestDatabase
+            }.ConnectionString;
+        }
+
         await using var scope = Services.CreateAsyncScope();
         var storage = scope.ServiceProvider.GetRequiredService<TimingDbContext>();
-        await storage.Database.EnsureDeletedAsync();
-        await storage.Database.EnsureCreatedAsync();
+        if (postgresTestConnectionString is null)
+        {
+            await storage.Database.EnsureDeletedAsync();
+            await storage.Database.EnsureCreatedAsync();
+        }
+        else if (!postgresSchemaCreated)
+        {
+            await storage.Database.EnsureCreatedAsync();
+            postgresSchemaCreated = true;
+        }
+        else
+        {
+            await TruncateOwnedSchemaAsync(storage, "timing");
+        }
     }
+
+    private static async Task TruncateOwnedSchemaAsync(TimingDbContext storage, string schema)
+    {
+        await storage.Database.OpenConnectionAsync();
+        var connection = (NpgsqlConnection)storage.Database.GetDbConnection();
+        var tableNames = new List<string>();
+        await using (var command = new NpgsqlCommand(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = @schema AND table_type = 'BASE TABLE' AND table_name <> '__EFMigrationsHistory'",
+            connection))
+        {
+            command.Parameters.AddWithValue("schema", schema);
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+                tableNames.Add(reader.GetString(0));
+        }
+
+        if (tableNames.Count > 0)
+        {
+            var qualifiedNames = tableNames.Select(name =>
+                $"{QuoteIdentifier(schema)}.{QuoteIdentifier(name)}");
+            await using var truncate = new NpgsqlCommand(
+                $"TRUNCATE TABLE {string.Join(", ", qualifiedNames)} RESTART IDENTITY CASCADE",
+                connection);
+            await truncate.ExecuteNonQueryAsync();
+        }
+        await storage.Database.CloseConnectionAsync();
+    }
+
+    private static string QuoteIdentifier(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
 
     public sealed class TestReferences : IAdministrationReferences
     {
@@ -101,6 +170,15 @@ public sealed class TimingApiFactory : WebApplicationFactory<Program>
         if (disposing)
         {
             connection.Dispose();
+            if (postgresTestDatabase is not null && postgresTestConnectionString is not null && postgresAdminConnectionString is not null)
+            {
+                using var pooledConnection = new NpgsqlConnection(postgresTestConnectionString);
+                NpgsqlConnection.ClearPool(pooledConnection);
+                using var admin = new NpgsqlConnection(postgresAdminConnectionString);
+                admin.Open();
+                using var drop = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{postgresTestDatabase}\" WITH (FORCE)", admin);
+                drop.ExecuteNonQuery();
+            }
         }
     }
 }

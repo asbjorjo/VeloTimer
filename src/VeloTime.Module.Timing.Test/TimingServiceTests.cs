@@ -194,6 +194,91 @@ public sealed class TimingServiceTests
     }
 
     [Fact]
+    public async Task AgentService_PreviousPassingIsScopedToInstallation()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = "106187723" };
+        var firstInstallation = new Installation
+        {
+            Id = Guid.NewGuid(), AgentId = "passing-installation-a", TimingSystem = TimingSystem.MyLaps_X2
+        };
+        var secondInstallation = new Installation
+        {
+            Id = Guid.NewGuid(), AgentId = "passing-installation-b", TimingSystem = TimingSystem.MyLaps_X2
+        };
+        var firstPoint = new TimingPoint
+        {
+            Id = Guid.NewGuid(), SystemId = "loop-a", Installation = firstInstallation, Description = "A"
+        };
+        var secondPoint = new TimingPoint
+        {
+            Id = Guid.NewGuid(), SystemId = "loop-b", Installation = secondInstallation, Description = "B"
+        };
+        database.Storage.AddRange(firstInstallation, secondInstallation, firstPoint, secondPoint, transponder);
+        database.Storage.Add(new Passing
+        {
+            Id = Guid.NewGuid(), Time = DateTime.UtcNow.AddMinutes(-2),
+            TransponderId = transponder.Id, Transponder = transponder,
+            TimingPointId = firstPoint.Id, TimingPoint = firstPoint
+        });
+        await database.Storage.SaveChangesAsync();
+        database.Storage.ChangeTracker.Clear();
+
+        var current = await database.AgentService.RegisterPassingAsync(
+            secondInstallation.AgentId, transponder.SystemId, secondPoint.SystemId,
+            DateTime.UtcNow, "X2");
+
+        Assert.Null(await database.AgentService.RegisterSampleAsync(current));
+        Assert.Empty(await database.Storage.Set<Sample>().ToListAsync());
+    }
+
+    [Fact]
+    public async Task AgentService_OutOfOrderPassingsUseStrictlyEarlierPriorAndRemainIdempotent()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var installation = new Installation
+        {
+            Id = Guid.NewGuid(), AgentId = "out-of-order-agent", TimingSystem = TimingSystem.MyLaps_X2
+        };
+        var point = new TimingPoint { Id = Guid.NewGuid(), SystemId = "finish", Description = "Finish", Installation = installation };
+        var transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = "106187724" };
+        var startTime = new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
+        var earlier = new Passing
+        {
+            Id = Guid.NewGuid(), Time = startTime, Transponder = transponder, TransponderId = transponder.Id,
+            TimingPoint = point, TimingPointId = point.Id
+        };
+        var middle = new Passing
+        {
+            Id = Guid.NewGuid(), Time = startTime.AddSeconds(10), Transponder = transponder, TransponderId = transponder.Id,
+            TimingPoint = point, TimingPointId = point.Id
+        };
+        var latest = new Passing
+        {
+            Id = Guid.NewGuid(), Time = startTime.AddSeconds(20), Transponder = transponder, TransponderId = transponder.Id,
+            TimingPoint = point, TimingPointId = point.Id
+        };
+        database.Storage.AddRange(installation, point, transponder, earlier, middle, latest);
+        await database.Storage.SaveChangesAsync();
+        database.Storage.ChangeTracker.Clear();
+
+        var latestSample = await database.AgentService.RegisterSampleAsync(latest);
+        Assert.NotNull(latestSample);
+        Assert.Equal(middle.Id, latestSample.StartId);
+        Assert.Equal(latest.Id, latestSample.EndId);
+        database.Storage.ChangeTracker.Clear();
+
+        var middleSample = await database.AgentService.RegisterSampleAsync(middle);
+        var repeatedMiddleSample = await database.AgentService.RegisterSampleAsync(middle);
+
+        Assert.NotNull(middleSample);
+        Assert.Equal(earlier.Id, middleSample.StartId);
+        Assert.Equal(middle.Id, middleSample.EndId);
+        Assert.Equal(middleSample.Id, repeatedMiddleSample?.Id);
+        Assert.Equal(2, await database.Storage.Set<Sample>().CountAsync());
+    }
+
+    [Fact]
     public async Task AgentService_RegisterSampleCreatesOneSampleForConsecutivePassings()
     {
         await using var database = await TestDatabase.CreateAsync();

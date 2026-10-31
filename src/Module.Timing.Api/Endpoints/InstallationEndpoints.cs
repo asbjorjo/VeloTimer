@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Logging;
 using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Storage;
 using VeloTime.Module.Timing.Interface.Data;
@@ -50,7 +52,9 @@ internal static class InstallationEndpoints
         return TypedResults.Ok(installationData);
     }
 
-    static async Task<Results<Created<InstallationDTO>, NotFound>> CreateInstallation(InstallationDTO installationData, TimingDbContext storage, TimingAdministrationService administration, CancellationToken cancellationToken)
+    static async Task<Results<Created<InstallationDTO>, NotFound>> CreateInstallation(InstallationDTO installationData, TimingDbContext storage,
+        TimingAdministrationService administration, HybridCache cache, ICacheInvalidationOperations invalidation,
+        ILogger<TimingDbContext> logger, CancellationToken cancellationToken)
     {
         var system = await administration.ValidateInstallationAsync(null, new(installationData.FacilityId == Guid.Empty ? null : installationData.FacilityId,
             installationData.AgentId, installationData.TimingSystem?.Name ?? "", installationData.Description), cancellationToken);
@@ -73,9 +77,11 @@ internal static class InstallationEndpoints
             Description = tp.Description,
         }).ToList();
         installation.TimingPoints.AddRange(timingPoints);
+        var identity = TimingInstallationCacheIdentity.Capture(installation);
         await storage.AddAsync(installation);
 
-        await storage.SaveChangesAsync();
+        await storage.SaveChangesAsync(cancellationToken);
+        await TimingCacheInvalidation.InvalidateAsync(cache, logger, identity.Keys, identity.Tags, invalidation);
 
         return TypedResults.Created($"/api/timing/installations/{installationData.Id}", installation.ToDto());
     }
