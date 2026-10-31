@@ -3,5 +3,6 @@ kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-{{ .Chart.Name }}
 data:
+  services__module-facilities-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "facilities")}}
   OIDC_AUDIENCE: {{ .Values.oidcAudience | default .Values.global.oidcAudience | quote }}
   {{- include "velotime.oidcConfig" . | nindent 2 }}
