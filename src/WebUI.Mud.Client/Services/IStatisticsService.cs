@@ -4,14 +4,10 @@ namespace VeloTime.WebUI.Mud.Client.Services;
 
 public interface IStatisticsService
 {
-    // Contract-first gate: explicit failure until both transports implement these methods.
-    // Default bodies preserve existing implementers without returning success-shaped empty data.
-    Task<PublicStatisticsDiscoveryDTO> GetPublicDiscoveryAsync(CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException("Public statistics discovery transport is not implemented yet.");
+    Task<PublicStatisticsDiscoveryDTO> GetPublicDiscoveryAsync(CancellationToken cancellationToken = default);
 
     Task<PublicStatisticsResultsPageDTO> GetPublicResultsAsync(GetPublicStatisticsResultsRequest request,
-        CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException("Public statistics results transport is not implemented yet.");
+        CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<BestStatisticsResultView>> GetBestResultsAsync(Guid? facilityId = null, DateTimeOffset? from = null,
         DateTimeOffset? to = null, CancellationToken cancellationToken = default);
