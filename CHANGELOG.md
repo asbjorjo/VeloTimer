@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. See [versio
 
 ### Bug Fixes
 
+* **webui:** stop the public statistics page from redirecting back to its previous selection, which blocked leaving the page and changing facility.
 * **timing:** return transponders instead of installations from transponder queries and persist custom transponder labels.
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.

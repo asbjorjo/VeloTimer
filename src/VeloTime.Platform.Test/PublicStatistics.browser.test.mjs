@@ -47,11 +47,22 @@ test('real Results router restores refresh/history and server-backed paging/filt
     assert.equal(await input('Facility').inputValue(), id(1));
     assert.equal(await input('Statistics item').inputValue(), id(3));
     assert.equal(await input('Configuration').inputValue(), id(4));
-    assert.deepEqual(await page.locator('thead th').allTextContents(), ['Profile', 'Duration', 'Average speed (km/h)']);
-    assert.deepEqual(await page.locator('tbody tr').first().locator('td').allTextContents(), ['00:01:00.000', '96.000']);
+    assert.deepEqual(await page.locator('thead th').allTextContents(), ['Profile', 'Duration', 'Speed (km/h)']);
+    assert.deepEqual(await page.locator('tbody tr').first().locator('td').allTextContents(), ['00:01:00.000', '96.000 km/h']);
     assert.equal(await previous().isDisabled(), true);
     const navigation = page.locator('a[href="statistics"]');
     assert.equal(await navigation.count(), 1, 'real public navigation link');
+    // A clean, freshly loaded page must never hold the user or pull them back; only edited drafts may prompt.
+    await page.locator('a[href=""]').click();
+    await page.waitForURL(baseUrl + '/', { timeout: 10_000 });
+    assert.equal(await page.getByRole('dialog').count(), 0, 'clean page must not prompt on leave');
+    await page.getByRole('heading', { level: 1 }).filter({ hasText: 'Public statistics results' }).waitFor({ state: 'detached' });
+    await page.waitForTimeout(1_000);
+    assert.equal(new URL(page.url()).pathname, '/', 'leaving statistics must not bounce back');
+    assert.equal(await page.getByRole('heading', { level: 1 }).filter({ hasText: 'Public statistics results' }).count(), 0);
+    await navigation.click();
+    await page.waitForURL(`${baseUrl}${canonical}`);
+    await waitForName('Rider 60 Group A');
     await next().click();
     await waitForName('Rider 35 Group B');
     const nextUrl = page.url();
@@ -235,9 +246,9 @@ test('real Results router restores refresh/history and server-backed paging/filt
       await translated.getByRole('heading', { name: 'Offentlige statistikkresultater', exact: true }).waitFor();
       await translated.locator('tbody th[scope="row"]').first().waitFor();
       assert.deepEqual(await translated.locator('thead th').allTextContents(),
-        ['Profil', 'Varighet', 'Gjennomsnittshastighet (km/t)']);
+        ['Profil', 'Varighet', 'Hastighet (km/h)']);
       assert.deepEqual(await translated.locator('tbody tr').first().locator('td').allTextContents(),
-        ['00:01:00.000', '96,000']);
+        ['00:01:00.000', '96,000 km/h']);
       assert.equal(await translated.getByRole('button', { name: 'Neste resultater', exact: true }).count(), 1);
     } finally {
       await norwegian.close();

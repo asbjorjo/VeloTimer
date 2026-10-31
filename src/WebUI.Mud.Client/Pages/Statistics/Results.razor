@@ -161,6 +161,7 @@
 </MudContainer>
 
 @code {
+    // Route parameters only bind the template; the selection itself is read from Navigation.Uri.
     [Parameter] public string? FacilityId { get; set; }
     [Parameter] public string? ItemId { get; set; }
     [Parameter] public string? ConfigurationId { get; set; }
@@ -236,6 +237,11 @@
         var uri = Navigation.Uri;
         if (string.Equals(uri, _lastHandledUri, StringComparison.Ordinal))
             return;
+        // A cascading-value refresh can re-run this mid-navigation with the previous route parameters
+        // while Navigation.Uri already points elsewhere. The URI is therefore the only selection source,
+        // and URIs outside this page are ignored instead of being "corrected" back to the old selection.
+        if (!TryGetRouteSelection(uri, out var routeSelection))
+            return;
         _lastHandledUri = uri;
 
         if (_discovery is null && _discoveryError is null && !_discoveryLoading)
@@ -251,7 +257,27 @@
             return;
         }
 
-        await ProcessCurrentUriAsync(uri);
+        await ProcessCurrentUriAsync(uri, routeSelection);
+    }
+
+    private readonly record struct RouteSelection(string? FacilityId, string? ItemId, string? ConfigurationId)
+    {
+        public bool Provided => FacilityId is not null || ItemId is not null || ConfigurationId is not null;
+    }
+
+    private bool TryGetRouteSelection(string uri, out RouteSelection selection)
+    {
+        selection = default;
+        var absolute = Navigation.ToAbsoluteUri(uri);
+        if (!absolute.AbsoluteUri.StartsWith(Navigation.BaseUri, StringComparison.Ordinal))
+            return false;
+        var segments = Navigation.ToBaseRelativePath(absolute.GetLeftPart(UriPartial.Path))
+            .Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length is not (1 or 4) || !string.Equals(segments[0], "statistics", StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (segments.Length == 4)
+            selection = new RouteSelection(Uri.UnescapeDataString(segments[1]), Uri.UnescapeDataString(segments[2]), Uri.UnescapeDataString(segments[3]));
+        return true;
     }
 
     private async Task LoadDiscoveryAsync()
@@ -305,7 +331,7 @@
         _resultsError = null;
     }
 
-    private async Task ProcessCurrentUriAsync(string uri)
+    private async Task ProcessCurrentUriAsync(string uri, RouteSelection routeSelection)
     {
         CancelResults();
         _activeRequest = null;
@@ -332,16 +358,15 @@
         }
         CopyQueryToForm(query);
 
-        var routeSelectionProvided = FacilityId is not null || ItemId is not null || ConfigurationId is not null;
         Guid facilityId;
         Guid itemId;
         Guid configurationId;
 
-        if (routeSelectionProvided)
+        if (routeSelection.Provided)
         {
-            if (!Guid.TryParseExact(FacilityId, "D", out facilityId) ||
-                !Guid.TryParseExact(ItemId, "D", out itemId) ||
-                !Guid.TryParseExact(ConfigurationId, "D", out configurationId))
+            if (!Guid.TryParseExact(routeSelection.FacilityId, "D", out facilityId) ||
+                !Guid.TryParseExact(routeSelection.ItemId, "D", out itemId) ||
+                !Guid.TryParseExact(routeSelection.ConfigurationId, "D", out configurationId))
             {
                 _selectionError = L["PublicStatisticsInvalidSelection"].Value;
                 return;
