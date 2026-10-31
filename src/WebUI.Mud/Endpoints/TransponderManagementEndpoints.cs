@@ -18,9 +18,26 @@ internal static class TransponderManagementEndpoints
             int page = 0, int pageSize = 10, string search = "", bool includeHistory = true,
             string? labelFilter = null, string? systemFilter = null, DateOnly? lastSeenFilter = null,
             string? ownerFilter = null, DateOnly? ownedFromFilter = null, DateOnly? ownedToFilter = null,
-            TransponderOwnershipStatus? statusFilter = null, string? sortBy = null, bool sortDescending = false) =>
-            Results.Ok(await service.GetTranspondersAsync(administration, page, pageSize, search, includeHistory, cancellationToken,
-                new(labelFilter, systemFilter, lastSeenFilter, ownerFilter, ownedFromFilter, ownedToFilter, statusFilter), sortBy, sortDescending)));
+            TransponderOwnershipStatus? statusFilter = null, string? sortBy = null, bool sortDescending = false,
+            DateTimeOffset? lastSeenUtcStart = null, DateTimeOffset? lastSeenUtcEnd = null,
+            DateTimeOffset? ownedFromUtcStart = null, DateTimeOffset? ownedFromUtcEnd = null,
+            DateTimeOffset? ownedToUtcStart = null, DateTimeOffset? ownedToUtcEnd = null) =>
+        {
+            if (!TryCreateRange(lastSeenUtcStart, lastSeenUtcEnd, lastSeenFilter, "lastSeen", out var lastSeenRange, out var error) ||
+                !TryCreateRange(ownedFromUtcStart, ownedFromUtcEnd, ownedFromFilter, "ownedFrom", out var ownedFromRange, out error) ||
+                !TryCreateRange(ownedToUtcStart, ownedToUtcEnd, ownedToFilter, "ownedTo", out var ownedToRange, out error))
+                return Results.Problem(detail: error, statusCode: StatusCodes.Status400BadRequest);
+
+            var filters = new TransponderColumnFilters(labelFilter, systemFilter, lastSeenFilter, ownerFilter,
+                ownedFromFilter, ownedToFilter, statusFilter)
+            {
+                LastSeenUtcRange = lastSeenRange,
+                OwnedFromUtcRange = ownedFromRange,
+                OwnedToUtcRange = ownedToRange
+            };
+            return Results.Ok(await service.GetTranspondersAsync(administration, page, pageSize, search, includeHistory,
+                cancellationToken, filters, sortBy, sortDescending));
+        });
         endpoints.MapPost("/transponders", async (ClaimTransponderRequest request, ITransponderManagementService service, CancellationToken cancellationToken) =>
         {
             await service.RegisterAsync(request.Code, administration, cancellationToken);
@@ -63,4 +80,35 @@ internal static class TransponderManagementEndpoints
             return Results.NoContent();
         });
     }
+
+    private static bool TryCreateRange(DateTimeOffset? start, DateTimeOffset? end, DateOnly? legacyDate,
+        string field, out UtcInstantRange? range, out string? error)
+    {
+        range = null;
+        error = null;
+        if (start is null && end is null) return true;
+        if (start is null || end is null)
+        {
+            error = $"Both {field}UtcStart and {field}UtcEnd must be provided.";
+            return false;
+        }
+        if (start.Value.Offset != TimeSpan.Zero || end.Value.Offset != TimeSpan.Zero)
+        {
+            error = $"The {field} UTC range must use UTC (zero offset).";
+            return false;
+        }
+        if (start.Value >= end.Value)
+        {
+            error = $"The {field} UTC range start must precede its end.";
+            return false;
+        }
+        if (legacyDate.HasValue)
+        {
+            error = $"The {field} UTC range cannot be combined with its legacy date filter.";
+            return false;
+        }
+        range = new UtcInstantRange(start.Value, end.Value);
+        return true;
+    }
+
 }

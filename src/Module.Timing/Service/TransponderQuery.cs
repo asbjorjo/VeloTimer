@@ -21,6 +21,9 @@ public static class TransponderQuery
         var filters = request.Filters ?? new TransponderColumnFilters();
         if (filters.Status.HasValue && !Enum.IsDefined(filters.Status.Value))
             throw new ArgumentException("The transponder status filter is invalid.");
+        ValidateUtcRange(filters.LastSeenUtcRange, filters.LastSeen.HasValue, "LastSeen");
+        ValidateUtcRange(filters.OwnedFromUtcRange, filters.OwnedFrom.HasValue, "OwnedFrom");
+        ValidateUtcRange(filters.OwnedToUtcRange, filters.OwnedTo.HasValue, "OwnedTo");
 
         var transponders = Visible(storage, ownerId);
         if (request.MatchingTransponderIds is { } ids)
@@ -70,6 +73,13 @@ public static class TransponderQuery
         if (ownedToStart.HasValue)
             rows = rows.Where(row => row.Owner != null && row.Owner.OwnedTo >= ownedToStart &&
                 row.Owner.OwnedTo < ownedToStart.Value.AddDays(1));
+        if (filters.OwnedFromUtcRange is { } ownedFromRange)
+            rows = rows.Where(row => row.Owner != null &&
+                row.Owner.OwnedFrom >= ownedFromRange.StartInclusive.UtcDateTime &&
+                row.Owner.OwnedFrom < ownedFromRange.EndExclusive.UtcDateTime);
+        if (filters.OwnedToUtcRange is { } ownedToRange)
+            rows = rows.Where(row => row.Owner != null && row.Owner.OwnedTo >= ownedToRange.StartInclusive.UtcDateTime &&
+                row.Owner.OwnedTo < ownedToRange.EndExclusive.UtcDateTime);
         if (filters.Status is { } status)
             rows = status switch
             {
@@ -91,6 +101,12 @@ public static class TransponderQuery
                 storage.Set<Passing>().Where(passing => passing.TransponderId == row.Transponder.Id)
                     .Select(passing => (DateTime?)passing.Time).Max() < end);
         }
+        if (filters.LastSeenUtcRange is { } lastSeenRange)
+            rows = rows.Where(row => storage.Set<Passing>().Where(passing =>
+                    passing.TransponderId == row.Transponder.Id)
+                .Select(passing => (DateTime?)passing.Time).Max() >= lastSeenRange.StartInclusive.UtcDateTime &&
+                storage.Set<Passing>().Where(passing => passing.TransponderId == row.Transponder.Id)
+                    .Select(passing => (DateTime?)passing.Time).Max() < lastSeenRange.EndExclusive.UtcDateTime);
 
         var total = await rows.CountAsync(cancellationToken);
         var orderedRows = (request.SortBy, request.SortDescending) switch
@@ -172,6 +188,21 @@ public static class TransponderQuery
     private static IQueryable<Transponder> Visible(TimingDbContext storage, Guid? ownerId) =>
         storage.Set<Transponder>().AsNoTracking()
             .Where(transponder => !ownerId.HasValue || transponder.Owners.Any(owner => owner.OwnerId == ownerId));
+
+    private static void ValidateUtcRange(UtcInstantRange? range, bool hasLegacyDate, string field)
+    {
+        if (range is null)
+            return;
+
+        if (hasLegacyDate)
+            throw new ArgumentException($"{field} cannot be filtered by both a UTC instant range and a calendar day.");
+        if (range.StartInclusive == default || range.EndExclusive == default)
+            throw new ArgumentException($"The {field} UTC instant range must include both bounds.");
+        if (range.StartInclusive.Offset != TimeSpan.Zero || range.EndExclusive.Offset != TimeSpan.Zero)
+            throw new ArgumentException($"Both {field} UTC instant range bounds must have a zero UTC offset.");
+        if (range.StartInclusive >= range.EndExclusive)
+            throw new ArgumentException($"The {field} UTC instant range start must precede its exclusive end.");
+    }
 
     private static void ValidateSort(string? sortBy)
     {

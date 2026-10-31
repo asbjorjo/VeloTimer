@@ -66,7 +66,10 @@ public sealed class TransponderManagementService(ITimingClient client, ITranspon
                 Owner = filters.Owner,
                 OwnedFrom = filters.OwnedFrom?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
                 OwnedTo = filters.OwnedTo?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
-                Status = filters.Status.HasValue ? (int)filters.Status.Value : null
+                Status = filters.Status.HasValue ? (int)filters.Status.Value : null,
+                LastSeenUtcRange = ToClientRange(filters.LastSeenUtcRange),
+                OwnedFromUtcRange = ToClientRange(filters.OwnedFromUtcRange),
+                OwnedToUtcRange = ToClientRange(filters.OwnedToUtcRange)
             };
             var request = new TransponderPageRequest
             {
@@ -80,6 +83,13 @@ public sealed class TransponderManagementService(ITimingClient client, ITranspon
                 new(row.Transponder.Id, row.Transponder.System, row.Transponder.SystemId, row.Transponder.Label, [], row.Transponder.LastSeen, row.Transponder.CanViewStatus),
                 row.Ownership is { } owner ? new(owner.Id, owner.TransponderId, owner.OwnerId, owner.OwnedFrom, owner.OwnedTo) : null)).ToList(), result.TotalCount);
         });
+
+    private static VeloTime.Module.Timing.Client.UtcInstantRange? ToClientRange(Contracts.UtcInstantRange? range) =>
+        range is null ? null : new VeloTime.Module.Timing.Client.UtcInstantRange
+        {
+            StartInclusive = range.StartInclusive,
+            EndExclusive = range.EndExclusive
+        };
 
     public Task<Contracts.TransponderLookupPage> LookupTranspondersAsync(int page, string search, CancellationToken cancellationToken = default) =>
         Execute(async () =>
