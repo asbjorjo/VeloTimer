@@ -1,0 +1,120 @@
+@inherits PresentationComponentBase
+@using VeloTime.Module.Profiles.Interface.Data
+@inject DisplayPreferenceState Preferences
+@inject IDisplayPreferenceService Service
+@inject UnsavedChangesTracker UnsavedChanges
+@inject IDialogService Dialogs
+@implements IDisposable
+
+<NavigationLock ConfirmExternalNavigation="_dirty" OnBeforeInternalNavigation="ConfirmNavigation" />
+<MudPaper Class="pa-4 my-4" Outlined="true">
+    <MudText Typo="Typo.h6">@L["DisplaySettings"]</MudText>
+    <MudText Class="mb-3">@L["DisplaySettingsHelp"]</MudText>
+    <MudText Typo="Typo.caption">@L["EffectiveTimeZone", Display.ZoneLabel]</MudText>
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" role="alert">@L[_error]</MudAlert>
+        <MudButton OnClick="Retry" Disabled="_busy">@L["Retry"]</MudButton>
+    }
+    @if (_pending) { <MudAlert Severity="Severity.Warning" role="status">@L["DisplaySettingsPending"]</MudAlert> }
+    @if (_saved) { <MudAlert Severity="Severity.Success" role="status">@L["DisplaySettingsSaved"]</MudAlert> }
+    @if (_busy) { <MudProgressLinear Indeterminate="true" /> }
+    <MudGrid>
+        <MudItem xs="12" sm="6">
+            <MudSelect T="string" @bind-Value="_distance" @bind-Value:after="Changed" Label="@L["DistanceUnit"]" Disabled="_busy">
+                <MudSelectItem Value="@("m")">@L["Metres"] (m)</MudSelectItem>
+                <MudSelectItem Value="@("ft")">@L["Feet"] (ft)</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect T="string" @bind-Value="_speed" @bind-Value:after="Changed" Label="@L["SpeedUnit"]" Disabled="_busy">
+                <MudSelectItem Value="@("km/h")">km/h</MudSelectItem>
+                <MudSelectItem Value="@("mph")">mph</MudSelectItem>
+                <MudSelectItem Value="@("m/s")">m/s</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect T="string" @bind-Value="_mode" @bind-Value:after="ModeChanged" Label="@L["TimeDisplay"]" Disabled="_busy">
+                <MudSelectItem Value="@("browser")">@L["BrowserTime"]</MudSelectItem>
+                <MudSelectItem Value="@("utc")">UTC</MudSelectItem>
+                <MudSelectItem Value="@("timeZone")">@L["NamedTimeZone"]</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        @if (_mode == "timeZone")
+        {
+            <MudItem xs="12" sm="6">
+                <MudAutocomplete T="TimeZoneOptionDTO" @bind-Value="_zone" @bind-Value:after="Changed" SearchFunc="SearchZones" ToStringFunc="ZoneLabel"
+                                 Label="@L["SearchTimeZones"]" Disabled="@(_busy || _zones is null)" Clearable="true" CoerceText="true" ResetValueOnEmptyText="true" />
+                @if (_zones is { Count: 0 }) { <MudText role="status">@L["NoTimeZones"]</MudText> }
+            </MudItem>
+        }
+    </MudGrid>
+    <MudStack Row="true" Class="mt-4">
+        <MudButton OnClick="Save" Disabled="@(_busy || !_dirty)" Color="Color.Primary" Variant="Variant.Filled">@L["Save"]</MudButton>
+        <MudButton OnClick="Discard" Disabled="@(_busy || !_dirty)">@L["DiscardChanges"]</MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private IDisposable? _registration;
+    private Func<bool> _draftCheck = default!;
+    private List<TimeZoneOptionDTO>? _zones;
+    private string _distance = "m", _speed = "km/h", _mode = "browser";
+    private TimeZoneOptionDTO? _zone;
+    private string? _error;
+    private bool _dirty, _busy, _saved, _pending, _saveFailed;
+    protected override void OnInitialized()
+    {
+        _draftCheck = () => _dirty;
+        _registration = UnsavedChanges.Register(_draftCheck);
+        ResetDraft();
+    }
+    private void ResetDraft()
+    {
+        var snapshot = Preferences.Effective.Preference;
+        _distance = snapshot.DistanceUnit; _speed = snapshot.SpeedUnit; _mode = snapshot.TimeMode;
+        _zone = snapshot.TimeZoneId is { } id ? _zones?.FirstOrDefault(zone => zone.Id == id) ?? new(id, id) : null;
+        _dirty = _pending = _saved = _saveFailed = false; _error = null;
+    }
+    protected override Task OnAfterRenderAsync(bool firstRender) => firstRender ? LoadZones() : Task.CompletedTask;
+    private async Task LoadZones()
+    {
+        _busy = true; _error = null;
+        try { _zones = (await Service.GetTimeZonesAsync(_lifetime.Token)).ToList(); if (_zone is not null) _zone = _zones.FirstOrDefault(zone => zone.Id == _zone.Id); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (HttpRequestException exception) { _error = ErrorFor(exception, "TimeZonesLoadFailed"); }
+        catch (Exception) { _error = "TimeZonesLoadFailed"; }
+        finally { _busy = false; if (!_lifetime.IsCancellationRequested) StateHasChanged(); }
+    }
+    private string ZoneLabel(TimeZoneOptionDTO? zone) => zone is null ? "" : $"{zone.Id} — {zone.DisplayName}";
+    private Task<IEnumerable<TimeZoneOptionDTO>> SearchZones(string text, CancellationToken token) =>
+        Task.FromResult((_zones ?? []).Where(zone => string.IsNullOrWhiteSpace(text) || ZoneLabel(zone).Contains(text, StringComparison.CurrentCultureIgnoreCase)));
+    private void Changed() { _dirty = true; _saved = false; _pending = false; }
+    private void ModeChanged() { if (_mode != "timeZone") _zone = null; Changed(); }
+    private async Task Save()
+    {
+        if (_busy) return;
+        if (_mode == "timeZone" && (_zone is null || _zones?.Any(zone => zone.Id == _zone.Id) != true)) { _error = "SelectTimeZone"; return; }
+        if (UnsavedChanges.HasUnsavedChangesExcept(_draftCheck)) { _pending = true; return; }
+        _busy = true; _error = null; _pending = false;
+        try
+        {
+            await Preferences.SaveAsync(new(_distance, _speed, _mode, _mode == "timeZone" ? _zone!.Id : null), _lifetime.Token);
+            _dirty = _saveFailed = false; _saved = true;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (PresentationValidationException exception) { _error = exception.ResourceKey; }
+        catch (Exception exception) when (exception is TimeZoneNotFoundException or InvalidTimeZoneException) { _error = "DisplaySettingsInvalid"; }
+        catch (HttpRequestException exception) { _error = ErrorFor(exception, "DisplaySettingsSaveFailed"); _saveFailed = true; }
+        catch (Exception) { _error = "DisplaySettingsSaveFailed"; _saveFailed = true; }
+        finally { _busy = false; }
+    }
+    private Task Retry() => _saveFailed ? Save() : LoadZones();
+    private async Task Discard() { if (await ConfirmDiscard()) ResetDraft(); }
+    private async Task<bool> ConfirmDiscard() => !_dirty || await Dialogs.ShowMessageBoxAsync(L["DiscardChanges"], L["UnsavedChangesLost"], yesText: L["DiscardChanges"], cancelText: L["KeepEditingAction"]) == true;
+    private async Task ConfirmNavigation(LocationChangingContext context) { if (!await ConfirmDiscard()) context.PreventNavigation(); }
+    private static string ErrorFor(HttpRequestException exception, string fallback) => exception.StatusCode switch
+    { System.Net.HttpStatusCode.Unauthorized => "SignInRequired", System.Net.HttpStatusCode.Forbidden => "NoPermission", System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.UnprocessableEntity => "DisplaySettingsInvalid", _ => fallback };
+    public void Dispose() { _registration?.Dispose(); _lifetime.Cancel(); _lifetime.Dispose(); }
+}

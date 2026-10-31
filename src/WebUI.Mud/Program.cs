@@ -144,6 +144,8 @@ builder.Services
     .AddUserAccessTokenHandler();
 
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<IDisplayPreferenceService, DisplayPreferenceService>();
+builder.Services.AddScoped<DisplayPreferenceState>();
 builder.Services.AddScoped<IAuthDebugService, AuthDebugService>();
 builder.Services.AddScoped<IFacilityService, FacilityService>();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();

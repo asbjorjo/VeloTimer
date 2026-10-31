@@ -42,6 +42,43 @@ introduce explicit transactions (e.g. serializable transactions can require
 whole-transaction retries). Writes use SQL directly rather than tracked
 entities; service reads are always no-tracking.
 
+## Display preference service
+
+Namespace: `VeloTime.Module.Profiles.Service`
+
+```csharp
+Task<DisplayPreferenceDTO> GetAsync(
+    string issuer, string subject, CancellationToken cancellationToken = default);
+
+Task<DisplayPreferenceDTO> SetAsync(
+    string issuer, string subject, UpdateDisplayPreferenceRequest request,
+    CancellationToken cancellationToken = default);
+```
+
+`DisplayPreferenceService` is registered as a scoped concrete service by
+`AddModuleProfiles()`. Identity inputs must come from the validated token. Reads
+are no-tracking and return `m` / `km/h` / `browser` / null when no row exists;
+this default is not persisted. Writes replace the complete snapshot and return
+that submitted value without rereading. They do not update language preferences.
+
+Distance codes are exactly `m` or `ft`; speed codes are exactly `km/h`, `mph`,
+or `m/s`; time modes are exactly `browser`, `utc`, or `timeZone`. Browser and
+UTC modes require a null time-zone ID. Named mode requires a nonblank ID exactly
+matching the IANA zone catalogue derived from
+`TimeZoneInfo.GetSystemTimeZones()` on the running .NET host.
+This prevents Windows aliases, case folding, whitespace normalization, and UTC
+fallback from silently changing the requested zone. Validation completes before
+opening the database connection. Invalid input throws
+`DisplayPreferenceValidationException`, an `ArgumentException` with a stable
+`ErrorCode` from `ProfilePreferenceErrorCodes` and an identifying `ParamName`.
+The API maps those codes to its contract problem response.
+
+Persistence uses a parameterized PostgreSQL `INSERT ... ON CONFLICT DO UPDATE`
+against the separate display table. The composite issuer/subject primary key
+arbitrates concurrent first writes. SQL write responses do not reread, so
+concurrent writes are last-write-wins in database execution order. The new table
+has no data backfill and does not change the existing language table.
+
 ## Migration and deployment
 
 Following the existing modules, generated migrations and the model snapshot live
@@ -51,20 +88,25 @@ worker using the shared `MigrationWorker<ProfilesDbContext>`.
 The initial migration `20261030153543_profiles_initial` creates
 `profiles.language_preference`, with non-null issuer, subject, and language,
 a composite primary key, PostgreSQL `C` collation for exact comparisons, and
-a check constraint accepting only the two canonical languages. EF migration
-history uses `ef.__ef_migrations_history`, matching shared storage registration.
-There is no seed, backfill, cross-service access, audit history, or outbox event.
+a check constraint accepting only the two canonical languages. The following
+`20261031115140_display_preference` migration creates
+`profiles.display_preference` with exact-collation issuer/subject keys,
+supported-code checks, and a time-mode / time-zone nullability check. It performs
+no backfill and leaves the language table untouched. EF migration history uses `ef.__ef_migrations_history`, matching shared storage
+registration. There is no seed, backfill, cross-service access, audit history, or
+outbox event.
 The current common base context does not generate row-history tables.
 
 Provide the existing `velotimedb` connection with schema and table creation
 privileges to the migration worker, then run that worker before serving Profiles
-requests. Runtime access needs schema usage plus select/insert/update on the
-preference table; runtime hosts do not automatically migrate. The migration
-creates only the `profiles` schema and its own table in `velotimedb`; it does not
-alter another module's schema or tables. Rolling back this initial migration
-drops saved preferences; do not roll it back on a populated database without an
-explicit data-loss plan. PostgreSQL's normal B-tree index-entry size limits
-apply to very large issuer/subject pairs; validate integration with the actual
+requests. Runtime access needs schema usage plus select/insert/update on both
+preference tables; runtime hosts do not automatically migrate. The migrations
+create only the `profiles` schema and Profiles-owned tables in `velotimedb`; they
+do not alter another module's schema or tables. Rolling back the
+display-preference migration drops saved display preferences; rolling back the
+initial migration also drops language preferences. Do not roll back either
+migration on a populated database without an explicit data-loss plan.
+PostgreSQL's normal B-tree index-entry size limits apply to very large issuer/subject pairs; validate integration with the actual
 identity provider rather than assuming arbitrarily long identities will fit.
 
 For design-time tooling, the context factory reads

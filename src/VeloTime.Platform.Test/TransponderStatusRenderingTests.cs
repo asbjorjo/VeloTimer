@@ -28,7 +28,7 @@ public sealed class TransponderStatusRenderingTests
         Assert.Contains("HT-24422", html);
         Assert.Contains("106187718", html);
         Assert.Contains("Arena / Track installation / Finish", html);
-        Assert.Contains("2026-10-30 12:00:00", html);
+        Assert.Matches(@"10/30/2026 12:00:00\sPM \+00:00 \[UTC\]", System.Net.WebUtility.HtmlDecode(html));
         Assert.Contains("Low battery", html);
         Assert.Contains("Low signal strength", html);
         Assert.Contains("Low hit count", html);
@@ -89,7 +89,7 @@ public sealed class TransponderStatusRenderingTests
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         var html = await renderer.Dispatcher.InvokeAsync(async () =>
-            (await renderer.RenderComponentAsync<VeloTime.WebUI.Mud.Client.Pages.Statistics.Samples>()).ToHtmlString());
+            (await renderer.RenderComponentAsync<CascadingValue<EffectiveDisplaySettings>>(DisplayTestRendering.Parameters<VeloTime.WebUI.Mud.Client.Pages.Statistics.Samples>())).ToHtmlString());
         Assert.Contains($"href=\"/transponders/{id}\"", html);
     }
 
@@ -208,9 +208,15 @@ public sealed class TransponderStatusRenderingTests
         public void Navigate(Guid id) { _id = id; StateHasChanged(); }
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
-            builder.OpenComponent<StatusPage>(0);
-            builder.AddAttribute(1, nameof(StatusPage.Id), _id);
-            builder.AddComponentReferenceCapture(2, component => Page = (StatusPage)component);
+            builder.OpenComponent<CascadingValue<EffectiveDisplaySettings>>(0);
+            builder.AddAttribute(1, nameof(CascadingValue<EffectiveDisplaySettings>.Value), DisplayTestRendering.Utc);
+            builder.AddAttribute(2, nameof(CascadingValue<EffectiveDisplaySettings>.ChildContent), (RenderFragment)(child =>
+            {
+                child.OpenComponent<StatusPage>(0);
+                child.AddAttribute(1, nameof(StatusPage.Id), _id);
+                child.AddComponentReferenceCapture(2, component => Page = (StatusPage)component);
+                child.CloseComponent();
+            }));
             builder.CloseComponent();
         }
     }
@@ -256,8 +262,8 @@ public sealed class TransponderStatusRenderingTests
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         return await renderer.Dispatcher.InvokeAsync(async () =>
-            (await renderer.RenderComponentAsync<StatusPage>(ParameterView.FromDictionary(
-                new Dictionary<string, object?> { [nameof(StatusPage.Id)] = view.Status.Id }))).ToHtmlString());
+            (await renderer.RenderComponentAsync<CascadingValue<EffectiveDisplaySettings>>(DisplayTestRendering.Parameters<StatusPage>(ParameterView.FromDictionary(
+                new Dictionary<string, object?> { [nameof(StatusPage.Id)] = view.Status.Id })))).ToHtmlString());
     }
 
     private sealed class TestNavigation : NavigationManager

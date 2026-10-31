@@ -1,3 +1,4 @@
+@inherits PresentationComponentBase
 @page "/debug/auth"
 
 @using System.Security.Claims
@@ -45,7 +46,7 @@ else
                         <tr><td>@L["Issuer"]</td><td>@tokenInfo.Issuer</td></tr>
                         <tr><td>@L["AuthorizedParty"]</td><td>@tokenInfo.AuthorizedParty</td></tr>
                         <tr><td>@L["Scope"]</td><td>@tokenInfo.Scope</td></tr>
-                        <tr><td>@L["Expires"]</td><td>@tokenInfo.ExpiresAt?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)</td></tr>
+                        <tr><td>@L["Expires"]</td><td>@Display.Timestamp(tokenInfo.ExpiresAt)</td></tr>
                     </tbody>
                 </MudSimpleTable>
             }

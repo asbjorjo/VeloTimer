@@ -53,11 +53,15 @@ public sealed class ProductionHealthTests
             Assert.Equal(HttpStatusCode.OK, alive.StatusCode);
 
             await using var context = database.CreateContext();
+            await context.Database.MigrateAsync("20261030153543_profiles_initial");
+            using var partial = await client.GetAsync("/health");
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, partial.StatusCode);
             await context.Database.MigrateAsync();
             using var ready = await client.GetAsync("/health");
             Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
             Assert.Equal("Healthy", await ready.Content.ReadAsStringAsync());
             Assert.False(await context.LanguagePreferences.AnyAsync());
+            Assert.False(await context.DisplayPreferences.AnyAsync());
             Assert.Empty(root.Preferences.Calls);
         }
         finally

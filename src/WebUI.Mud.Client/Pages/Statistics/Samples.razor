@@ -1,20 +1,29 @@
-﻿@page "/statistcs/samples"
+@inherits PresentationComponentBase
+@page "/statistcs/samples"
 @using Microsoft.AspNetCore.Authorization
 @using System.Globalization
 @using VeloTime.WebUI.Mud.Client.ViewModel
 @* @rendermode InteractiveWebAssembly *@
 @inject IStatisticsService Client
+@implements IDisposable
 
 @* @attribute [Authorize] *@
 
 <PageTitle>@L["SamplesTitle"]</PageTitle>
 
-@if (samples is null)
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error" role="alert">@L[_error]</MudAlert>
+    <MudButton OnClick="Load">@L["Retry"]</MudButton>
+}
+else if (samples is null)
 {
     <p><em>@L["Loading"]</em></p>
 }
+else if (!samples.Any()) { <MudText role="status">@L["NoSamples"]</MudText> }
 else
 {
+    <div role="region" aria-label="@L["SamplesTitle"]" tabindex="0" style="overflow-x:auto">
     <table class="table">
         <thead>
             <tr>
@@ -31,7 +40,7 @@ else
             @foreach (var sample in samples)
             {
                 <tr>
-                    <td>@sample.Time.ToString("G", CultureInfo.CurrentCulture) @L["UtcSuffix"]</td>
+                    <td>@Display.Timestamp(sample.Time)</td>
                     <td>
                         @if (sample.TransponderId != Guid.Empty)
                         {
@@ -44,13 +53,14 @@ else
                     </td>
                     <td>@sample.StartPoint</td>
                     <td>@sample.EndPoint</td>
-                    <td>@sample.Distance</td>
+                    <td>@Display.Distance(sample.Distance)</td>
                     <td>@sample.Duration.TotalSeconds.ToString(CultureInfo.CurrentCulture)</td>
-                    <td>@sample.Speed</td>
+                    <td>@Display.StatisticsSpeed(sample.Speed)</td>
                 </tr>
             }
         </tbody>
     </table>
+    </div>
 }
 
 
@@ -65,8 +75,35 @@ else
     [SupplyParameterFromQuery]
     public bool? IsNextPage { get; set; }
 
-    protected override async Task OnInitializedAsync()
+    private CancellationTokenSource? _request;
+    private (DateTime?, bool?)? _selection;
+    private bool _disposed;
+    private string? _error;
+    protected override Task OnParametersSetAsync()
     {
-        samples = await Client.GetSamplesAsync(Cursor, IsNextPage ?? false, PageSize);
+        var selection = (Cursor, IsNextPage);
+        if (_selection == selection) return Task.CompletedTask;
+        _selection = selection;
+        return Load();
     }
+    private async Task Load()
+    {
+        _request?.Cancel();
+        using var request = new CancellationTokenSource();
+        _request = request; _error = null; samples = null;
+        try
+        {
+            var result = await Client.GetSamplesAsync(Cursor, IsNextPage ?? false, PageSize, request.Token);
+            if (!_disposed && !request.IsCancellationRequested && ReferenceEquals(_request, request)) samples = result.ToList();
+        }
+        catch (OperationCanceledException) when (request.IsCancellationRequested) { }
+        catch (HttpRequestException exception)
+        {
+            if (!_disposed && ReferenceEquals(_request, request)) _error = exception.StatusCode switch
+            { System.Net.HttpStatusCode.Unauthorized => "SignInRequired", System.Net.HttpStatusCode.Forbidden => "NoPermission", _ => "SamplesLoadFailed" };
+        }
+        catch (Exception) { if (!_disposed && ReferenceEquals(_request, request)) _error = "SamplesLoadFailed"; }
+        finally { if (ReferenceEquals(_request, request)) _request = null; }
+    }
+    public void Dispose() { _disposed = true; _request?.Cancel(); }
 }

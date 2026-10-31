@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics.Metrics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Service;
 using VeloTime.Module.Timing.Storage;
@@ -81,6 +82,79 @@ public sealed class TimingServiceTests
 
         var persisted = await database.Storage.Set<Installation>().SingleAsync(item => item.Id == installation.Id);
         Assert.Equal(newerTimestamp, persisted.LastSeen);
+    }
+
+    [Fact]
+    public async Task TransponderQuery_SortsByObservationWithMissingLastAndPrioritizesCurrentPersonalOwnership()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var ownerId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var activeRecent = CreateTransponder("Active recent");
+        var activeOld = CreateTransponder("Active old");
+        var activeUnseen = CreateTransponder("Active unseen");
+        var endedRecent = CreateTransponder("Ended recent");
+        var endedUnseen = CreateTransponder("Ended unseen");
+        var transponders = new[] { activeRecent, activeOld, activeUnseen, endedRecent, endedUnseen };
+
+        foreach (var transponder in transponders)
+        {
+            var ended = transponder == endedRecent || transponder == endedUnseen;
+            transponder.Owners.Add(new TransponderOwner
+            {
+                Id = Guid.NewGuid(),
+                TransponderId = transponder.Id,
+                OwnerId = ownerId,
+                Transponder = transponder,
+                OwnedFrom = now.AddDays(-30),
+                OwnedTo = ended ? now.AddDays(-1) : null
+            });
+        }
+
+        var installation = new Installation { Id = Guid.NewGuid(), AgentId = "sort-test", TimingSystem = TimingSystem.MyLaps_X2 };
+        var timingPoint = new TimingPoint
+        {
+            Id = Guid.NewGuid(),
+            SystemId = "sort-test",
+            Description = "Sort test",
+            Installation = installation,
+            InstallationId = installation.Id
+        };
+        database.Storage.AddRange(installation, timingPoint);
+        database.Storage.Set<Transponder>().AddRange(transponders);
+        AddPassing(activeRecent, now.AddMinutes(-5));
+        AddPassing(activeOld, now.AddDays(-10));
+        AddPassing(endedRecent, now.AddMinutes(-1));
+        await database.Storage.SaveChangesAsync();
+
+        var adminPage = await TransponderQuery.ListAsync(database.Storage,
+            new TransponderPageRequest(0, 20, "", true, SortBy: "lastSeen", SortDescending: true),
+            null, CancellationToken.None, statusAdministration: true);
+        var personalPage = await TransponderQuery.ListAsync(database.Storage,
+            new TransponderPageRequest(0, 20, "", true, SortBy: "ownedLastSeen", SortDescending: true),
+            ownerId, CancellationToken.None);
+
+        Assert.Equal(new[] { "Ended recent", "Active recent", "Active old", "Active unseen", "Ended unseen" },
+            adminPage.Items.Select(row => row.Transponder.Label));
+        Assert.Equal(new[] { "Active recent", "Active old", "Active unseen", "Ended recent", "Ended unseen" },
+            personalPage.Items.Select(row => row.Transponder.Label));
+
+        void AddPassing(Transponder transponder, DateTime time) => database.Storage.Add(new Passing
+        {
+            Id = Guid.NewGuid(),
+            Time = time,
+            TransponderId = transponder.Id,
+            Transponder = transponder,
+            TimingPointId = timingPoint.Id,
+            TimingPoint = timingPoint
+        });
+
+        static MylapsX2Transponder CreateTransponder(string label) => new()
+        {
+            Id = Guid.NewGuid(),
+            SystemId = Guid.NewGuid().ToString("N"),
+            Label = label
+        };
     }
 
     [Fact]

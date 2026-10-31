@@ -11,6 +11,8 @@ public sealed class UnsavedChangesTracker
         return new Registration(() => _checks.Remove(id));
     }
 
+    public bool HasUnsavedChangesExcept(Func<bool> excluded) => _checks.Values.Any(check => check != excluded && check());
+
     public bool HasUnsavedChanges => _checks.Values.Any(check => check());
 
     private sealed class Registration(Action dispose) : IDisposable

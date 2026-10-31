@@ -610,9 +610,10 @@ public sealed partial class WebUiBffTests
 
     private static async Task<WebApplication> CreateAppAsync(IStatisticsService? statistics = null, IStatisticsAdministrationService? administration = null, IInfrastructureAdministrationService? infrastructure = null, IAuthDebugService? authDebug = null,
         ITransponderManagementService? transponders = null, ITransponderOwnerService? owners = null,
-        ITransponderStatusService? status = null)
+        ITransponderStatusService? status = null, VeloTime.Module.Profiles.Client.IProfilesClient? profiles = null)
     {
         var builder = WebApplication.CreateBuilder();
+        builder.Services.AddSingleton(profiles ?? PlatformServiceTests.TestProxy.Create<VeloTime.Module.Profiles.Client.IProfilesClient>((_, _) => throw new NotSupportedException("Profiles calls require an explicit response.")));
         builder.WebHost.UseTestServer();
         builder.Logging.SetMinimumLevel(LogLevel.Critical);
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

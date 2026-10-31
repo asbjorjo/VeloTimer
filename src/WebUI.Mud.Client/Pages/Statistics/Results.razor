@@ -1,3 +1,4 @@
+@inherits PresentationComponentBase
 @page "/statistics"
 @page "/statistics/{FacilityId}/{ItemId}/{ConfigurationId}"
 @using System.Globalization
@@ -10,9 +11,12 @@
 @inject IFacilityService FacilityService
 @inject NavigationManager Navigation
 @inject ILogger<Results> Logger
+@inject UnsavedChangesTracker UnsavedChanges
+@inject IDialogService Dialogs
 @implements IDisposable
 
 <PageTitle>@L["PublicStatisticsTitle"]</PageTitle>
+<NavigationLock ConfirmExternalNavigation="_draftDirty" OnBeforeInternalNavigation="ConfirmDraftNavigation" />
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
     <MudText Typo="Typo.h4" HtmlTag="h1" Class="mb-2">@L["PublicStatisticsTitle"]</MudText>
@@ -77,19 +81,19 @@
                 }
                 <MudGrid Spacing="3">
                     <MudItem xs="12" md="6">
-                        <MudTextField T="string" InputId="public-statistics-name" @bind-Value="_nameFilter" Immediate="true" Label="@L["PublicStatisticsNameSearch"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudTextField T="string" InputId="public-statistics-name" @bind-Value="_nameFilter" @bind-Value:after="DraftChanged" Immediate="true" Label="@L["PublicStatisticsNameSearch"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudTextField T="string" InputId="public-statistics-min-time" @bind-Value="_minimumDuration" Immediate="true" Label="@L["MinimumDuration"]" Placeholder="hh:mm:ss.fff" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudTextField T="string" InputId="public-statistics-min-time" @bind-Value="_minimumDuration" @bind-Value:after="DraftChanged" Immediate="true" Label="@L["MinimumDuration"]" Placeholder="hh:mm:ss.fff" Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudTextField T="string" InputId="public-statistics-max-time" @bind-Value="_maximumDuration" Immediate="true" Label="@L["MaximumDuration"]" Placeholder="hh:mm:ss.fff" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudTextField T="string" InputId="public-statistics-max-time" @bind-Value="_maximumDuration" @bind-Value:after="DraftChanged" Immediate="true" Label="@L["MaximumDuration"]" Placeholder="hh:mm:ss.fff" Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudTextField T="string" InputId="public-statistics-min-speed" @bind-Value="_minimumSpeed" Immediate="true" Label="@L["MinimumSpeedKmh"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudTextField T="string" InputId="public-statistics-min-speed" @bind-Value="_minimumSpeed" @bind-Value:after="DraftChanged" Immediate="true" Label="@L["MinimumSpeedInUnit", (_speedFormSettings ?? Display).SpeedUnit]" Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        <MudTextField T="string" InputId="public-statistics-max-speed" @bind-Value="_maximumSpeed" Immediate="true" Label="@L["MaximumSpeedKmh"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudTextField T="string" InputId="public-statistics-max-speed" @bind-Value="_maximumSpeed" @bind-Value:after="DraftChanged" Immediate="true" Label="@L["MaximumSpeedInUnit", (_speedFormSettings ?? Display).SpeedUnit]" Variant="Variant.Outlined" Margin="Margin.Dense" />
                     </MudItem>
                     <MudItem xs="12" md="6">
                         <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
@@ -98,7 +102,7 @@
                         </div>
                     </MudItem>
                 </MudGrid>
-                <MudText Typo="Typo.caption" Class="mt-2">@L["PublicStatisticsFilterHelp"]</MudText>
+                <MudText Typo="Typo.caption" Class="mt-2">@L["PreferredStatisticsFilterHelp"]</MudText>
             </form>
         </section>
 
@@ -128,7 +132,7 @@
                                 <tr>
                                     <th scope="col" style="padding:0.75rem; text-align:left; border-bottom:1px solid var(--mud-palette-divider);">@L["Profile"]</th>
                                     <th scope="col" style="padding:0.75rem; text-align:right; border-bottom:1px solid var(--mud-palette-divider);">@L["Duration"]</th>
-                                    <th scope="col" style="padding:0.75rem; text-align:right; border-bottom:1px solid var(--mud-palette-divider);">@L["SpeedKmh"]</th>
+                                    <th scope="col" style="padding:0.75rem; text-align:right; border-bottom:1px solid var(--mud-palette-divider);">@L["SpeedInUnit", Display.SpeedUnit]</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -137,7 +141,7 @@
                                     <tr>
                                         <th scope="row" style="padding:0.75rem; text-align:left; border-bottom:1px solid var(--mud-palette-divider);">@result.ProfileName</th>
                                         <td style="padding:0.75rem; text-align:right; white-space:nowrap; border-bottom:1px solid var(--mud-palette-divider);">@FormatResultDuration(result.Duration)</td>
-                                        <td style="padding:0.75rem; text-align:right; white-space:nowrap; border-bottom:1px solid var(--mud-palette-divider);">@result.SpeedKmh.ToString("N3", CultureInfo.CurrentCulture)</td>
+                                        <td style="padding:0.75rem; text-align:right; white-space:nowrap; border-bottom:1px solid var(--mud-palette-divider);">@Display.StatisticsSpeed(result.SpeedKmh)</td>
                                     </tr>
                                 }
                             </tbody>
@@ -186,7 +190,11 @@
     private bool _defaultUnavailable;
     private bool _disposed;
 
-    protected override void OnInitialized() => Navigation.LocationChanged += LocationChanged;
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += LocationChanged;
+        _unsavedRegistration = UnsavedChanges.Register(() => _draftDirty);
+    }
 
     // Query-only history/navigation must reload even when no route parameter changes.
     // Path changes are left to the Router so its route parameters are already current.
@@ -215,6 +223,13 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        if (_activeRequest is not null && _speedFormSettings != Display && !_draftDirty)
+        {
+            // Presentation changes alone neither navigate nor reload the result selection.
+            _minimumSpeed = Display.SpeedDraft(_activeRequest.MinSpeedKmh);
+            _maximumSpeed = Display.SpeedDraft(_activeRequest.MaxSpeedKmh);
+            _speedFormSettings = Display;
+        }
         if (_disposed)
             return;
 
@@ -485,13 +500,24 @@
             ? L["PublicStatisticsUnauthorized"].Value
             : L["PublicStatisticsLoadFailed"].Value;
 
+    private IDisposable? _unsavedRegistration;
+    private bool _draftDirty;
+    private void DraftChanged() => _draftDirty = true;
+    private async Task ConfirmDraftNavigation(LocationChangingContext context)
+    {
+        if (_draftDirty && await Dialogs.ShowMessageBoxAsync(L["DiscardChanges"], L["UnsavedChangesLost"], yesText: L["DiscardChanges"], cancelText: L["KeepEditingAction"]) != true)
+            context.PreventNavigation();
+    }
+    private EffectiveDisplaySettings? _speedFormSettings;
     private void CopyRequestToForm(GetPublicStatisticsResultsRequest request)
     {
+        _draftDirty = false;
+        _speedFormSettings = Display;
         _nameFilter = request.Name ?? string.Empty;
         _minimumDuration = request.MinDuration is { } minDuration ? PublicStatisticsQuery.FormatDuration(minDuration) : string.Empty;
         _maximumDuration = request.MaxDuration is { } maxDuration ? PublicStatisticsQuery.FormatDuration(maxDuration) : string.Empty;
-        _minimumSpeed = request.MinSpeedKmh?.ToString("R", CultureInfo.InvariantCulture) ?? string.Empty;
-        _maximumSpeed = request.MaxSpeedKmh?.ToString("R", CultureInfo.InvariantCulture) ?? string.Empty;
+        _minimumSpeed = Display.SpeedDraft(request.MinSpeedKmh);
+        _maximumSpeed = Display.SpeedDraft(request.MaxSpeedKmh);
     }
 
     private void CopyQueryToForm(IReadOnlyDictionary<string, string?> query)
@@ -499,9 +525,12 @@
         _nameFilter = query.TryGetValue("name", out var name) ? name ?? string.Empty : string.Empty;
         _minimumDuration = query.TryGetValue("minTime", out var minDuration) ? minDuration ?? string.Empty : string.Empty;
         _maximumDuration = query.TryGetValue("maxTime", out var maxDuration) ? maxDuration ?? string.Empty : string.Empty;
-        _minimumSpeed = query.TryGetValue("minSpeed", out var minSpeed) ? minSpeed ?? string.Empty : string.Empty;
-        _maximumSpeed = query.TryGetValue("maxSpeed", out var maxSpeed) ? maxSpeed ?? string.Empty : string.Empty;
+        _minimumSpeed = query.TryGetValue("minSpeed", out var minSpeed) ? CanonicalSpeedDraft(minSpeed) : string.Empty;
+        _maximumSpeed = query.TryGetValue("maxSpeed", out var maxSpeed) ? CanonicalSpeedDraft(maxSpeed) : string.Empty;
     }
+
+    private string CanonicalSpeedDraft(string? value) => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var kmh) && double.IsFinite(kmh) && kmh >= 0
+        ? Display.SpeedDraft(kmh) : value ?? "";
 
     private async Task ApplyFiltersAsync()
     {
@@ -513,8 +542,13 @@
             query["name"] = _nameFilter;
         AddOptionalQuery(query, "minTime", _minimumDuration);
         AddOptionalQuery(query, "maxTime", _maximumDuration);
-        AddOptionalQuery(query, "minSpeed", _minimumSpeed);
-        AddOptionalQuery(query, "maxSpeed", _maximumSpeed);
+        if (!(_speedFormSettings ?? Display).TrySpeedDraft(_minimumSpeed, out var minKmh) || !(_speedFormSettings ?? Display).TrySpeedDraft(_maximumSpeed, out var maxKmh))
+        { _draftError = L["PublicStatisticsInvalidFilters"]; return; }
+        // Untouched drafts reuse canonical bounds exactly, avoiding round-trip float drift.
+        if (_activeRequest is not null && _minimumSpeed == (_speedFormSettings ?? Display).SpeedDraft(_activeRequest.MinSpeedKmh)) minKmh = _activeRequest.MinSpeedKmh;
+        if (_activeRequest is not null && _maximumSpeed == (_speedFormSettings ?? Display).SpeedDraft(_activeRequest.MaxSpeedKmh)) maxKmh = _activeRequest.MaxSpeedKmh;
+        AddOptionalQuery(query, "minSpeed", minKmh?.ToString("R", CultureInfo.InvariantCulture) ?? "");
+        AddOptionalQuery(query, "maxSpeed", maxKmh?.ToString("R", CultureInfo.InvariantCulture) ?? "");
 
         if (!PublicStatisticsQuery.TryParse(query, out var request, out var errors))
         {
@@ -523,12 +557,13 @@
             return;
         }
 
-        _draftError = null;
+        _draftError = null; _draftDirty = false;
         await NavigateToRequestAsync(request!);
     }
 
     private async Task ClearFiltersAsync()
     {
+        _draftDirty = false; _speedFormSettings = Display;
         _draftError = null;
         _nameFilter = string.Empty;
         _minimumDuration = string.Empty;
@@ -679,6 +714,7 @@
     public void Dispose()
     {
         _disposed = true;
+        _unsavedRegistration?.Dispose();
         Navigation.LocationChanged -= LocationChanged;
         _discoveryRequest?.Cancel();
         _discoveryRequest = null;

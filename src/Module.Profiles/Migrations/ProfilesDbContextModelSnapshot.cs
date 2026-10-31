@@ -22,6 +22,56 @@ namespace VeloTime.Module.Profiles.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("VeloTime.Module.Profiles.Model.DisplayPreference", b =>
+                {
+                    b.Property<string>("Issuer")
+                        .HasColumnType("text")
+                        .HasColumnName("issuer")
+                        .UseCollation("C");
+
+                    b.Property<string>("Subject")
+                        .HasColumnType("text")
+                        .HasColumnName("subject")
+                        .UseCollation("C");
+
+                    b.Property<string>("DistanceUnit")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("distance_unit")
+                        .UseCollation("C");
+
+                    b.Property<string>("SpeedUnit")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("speed_unit")
+                        .UseCollation("C");
+
+                    b.Property<string>("TimeMode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("time_mode")
+                        .UseCollation("C");
+
+                    b.Property<string>("TimeZoneId")
+                        .HasColumnType("text")
+                        .HasColumnName("time_zone_id")
+                        .UseCollation("C");
+
+                    b.HasKey("Issuer", "Subject")
+                        .HasName("pk_display_preference");
+
+                    b.ToTable("display_preference", "profiles", t =>
+                        {
+                            t.HasCheckConstraint("ck_display_preference_distance_unit", "distance_unit IN ('m', 'ft')");
+
+                            t.HasCheckConstraint("ck_display_preference_speed_unit", "speed_unit IN ('km/h', 'mph', 'm/s')");
+
+                            t.HasCheckConstraint("ck_display_preference_time_mode", "time_mode IN ('browser', 'utc', 'timeZone')");
+
+                            t.HasCheckConstraint("ck_display_preference_time_mode_zone", "(time_mode = 'timeZone' AND time_zone_id IS NOT NULL) OR (time_mode IN ('browser', 'utc') AND time_zone_id IS NULL)");
+                        });
+                });
+
             modelBuilder.Entity("VeloTime.Module.Profiles.Model.LanguagePreference", b =>
                 {
                     b.Property<string>("Issuer")

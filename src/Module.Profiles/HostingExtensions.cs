@@ -11,6 +11,7 @@ public static class StartupExtensions
     {
         builder.AddModuleStorage<ProfilesDbContext>(connectionName: "velotimedb");
         builder.Services.AddScoped<ILanguagePreferenceService, LanguagePreferenceService>();
+        builder.Services.AddScoped<DisplayPreferenceService>();
         return builder;
     }
 }

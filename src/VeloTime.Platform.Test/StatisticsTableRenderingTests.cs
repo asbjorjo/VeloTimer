@@ -29,7 +29,7 @@ public sealed class StatisticsTableRenderingTests
         Assert.Matches("<th[^>]*class=\"[^\"]*text-right[^\"]*\"[^>]*>Average speed", html);
         Assert.Matches("<th[^>]*class=\"[^\"]*text-right[^\"]*\"[^>]*>Time", html);
         Assert.Matches("<td[^>]*class=\"[^\"]*text-right[^\"]*\"[^>]*>" +
-            System.Text.RegularExpressions.Regex.Escape(row.Speed.ToString("N3")) + "</td>", html);
+            System.Text.RegularExpressions.Regex.Escape(row.Speed.ToString("N3", System.Globalization.CultureInfo.InvariantCulture) + " km/h") + "</td>", html);
         Assert.Matches("<td[^>]*class=\"[^\"]*text-right[^\"]*\"[^>]*>1.02:03:04.567</td>", html);
         Assert.DoesNotContain(row.Id.ToString(), html);
     }
@@ -139,6 +139,18 @@ public sealed class StatisticsTableRenderingTests
         await renderer.DisposeAsync();
         Assert.True(token.IsCancellationRequested);
         pending.SetResult([]);
+    }
+
+    [Theory] [InlineData("mph", "22.369 mph")] [InlineData("m/s", "10.000 m/s")]
+    public async Task Table_UsesCascadedDisplayUnits_FromCanonicalStatisticsSpeed(string unit, string expected)
+    {
+        var row = new BestStatisticsResultView(Guid.NewGuid(), "Lap", "Rider", "Arena", TimeSpan.FromSeconds(20), 36);
+        await using var provider = Services(CreateService([row])).BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        var display = EffectiveDisplaySettings.Create(new("ft", unit, "utc", null), "Europe/Oslo", "en-US");
+        var parameters = ParameterView.FromDictionary(new Dictionary<string, object?> { [nameof(CascadingValue<EffectiveDisplaySettings>.Value)] = display, [nameof(CascadingValue<EffectiveDisplaySettings>.ChildContent)] = (RenderFragment)(b => { b.OpenComponent<StatisticsTable>(0); b.CloseComponent(); }) });
+        var html = await renderer.Dispatcher.InvokeAsync(async () => (await renderer.RenderComponentAsync<CascadingValue<EffectiveDisplaySettings>>(parameters)).ToHtmlString());
+        Assert.Contains("Average speed (" + unit + ")", html); Assert.Contains(expected, html); Assert.DoesNotContain("36.000 km/h", html); Assert.Equal(36, row.Speed);
     }
 
     private static IStatisticsService CreateService(IReadOnlyList<BestStatisticsResultView> rows) =>

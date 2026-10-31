@@ -306,6 +306,14 @@ public sealed class LanguageSelectionEndpointTests
 
     private sealed class RecordingProfilesClient : IProfilesClient
     {
+        // Language tests must fail if they accidentally call the independent display contract.
+        public Task<DisplayPreferenceDTO> GetCurrentDisplayPreferenceAsync() => throw new NotSupportedException();
+        public Task<DisplayPreferenceDTO> GetCurrentDisplayPreferenceAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<DisplayPreferenceDTO> UpdateDisplayPreferenceAsync(UpdateDisplayPreferenceRequest body) => throw new NotSupportedException();
+        public Task<DisplayPreferenceDTO> UpdateDisplayPreferenceAsync(UpdateDisplayPreferenceRequest body, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ICollection<TimeZoneOptionDTO>> GetSupportedTimeZonesAsync() => throw new NotSupportedException();
+        public Task<ICollection<TimeZoneOptionDTO>> GetSupportedTimeZonesAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public string? Language { get; set; }
         public Exception? ReadFailure { get; set; }
         public Exception? WriteFailure { get; init; }

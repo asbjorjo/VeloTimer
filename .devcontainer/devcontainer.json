@@ -7,12 +7,14 @@
 	"features": {
 		"ghcr.io/daniellindemann/dev-container-features/dotnet-usersecrets-persistence:0": {},
 		"ghcr.io/devcontainers/features/docker-in-docker:4": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {},
 		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
 			"version": "1.35",
 			"minikube": "none",
 			"helm": "latest"
 		},
 		"ghcr.io/devcontainers-extra/features/yamllint:2": {},
+		"ghcr.io/helpers4/devcontainer/playwright-dev:1": {},
 		"ghcr.io/jsburckhardt/devcontainer-features/actionlint:1": {},
 		"ghcr.io/microsoft/aspire-devcontainer-feature/aspire:3": {}
 	},

@@ -22,7 +22,24 @@ public sealed record TransponderColumnFilters(
     string? Owner = null,
     DateOnly? OwnedFrom = null,
     DateOnly? OwnedTo = null,
-    TransponderOwnershipStatus? Status = null);
+    TransponderOwnershipStatus? Status = null)
+{
+    /// <summary>Optional UTC instant range for LastSeen, start-inclusive and end-exclusive.</summary>
+    /// <remarks>Both bounds must be UTC, start must precede end, and this cannot be combined with LastSeen.</remarks>
+    public UtcInstantRange? LastSeenUtcRange { get; init; }
+
+    /// <summary>Optional UTC instant range for OwnedFrom, start-inclusive and end-exclusive.</summary>
+    /// <remarks>Both bounds must be UTC, start must precede end, and this cannot be combined with OwnedFrom.</remarks>
+    public UtcInstantRange? OwnedFromUtcRange { get; init; }
+
+    /// <summary>Optional UTC instant range for OwnedTo, start-inclusive and end-exclusive.</summary>
+    /// <remarks>Both bounds must be UTC, start must precede end, and this cannot be combined with OwnedTo.</remarks>
+    public UtcInstantRange? OwnedToUtcRange { get; init; }
+}
+
+/// <summary>A UTC instant interval with inclusive start and exclusive end.</summary>
+/// <remarks>Both DateTimeOffset values must have a zero UTC offset and StartInclusive must precede EndExclusive.</remarks>
+public sealed record UtcInstantRange(DateTimeOffset StartInclusive, DateTimeOffset EndExclusive);
 
 public sealed record TransponderPageRequest(int Page, int PageSize, string Search, bool IncludeHistory,
     IReadOnlyList<Guid>? MatchingTransponderIds = null,
