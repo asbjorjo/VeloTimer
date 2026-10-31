@@ -10,11 +10,17 @@ public static class FacilitiesCache
     public const string RelationshipsTag = FacilitiesCacheTags.Relationships;
     private static readonly TimeSpan PostCommitTimeout = TimeSpan.FromSeconds(5);
 
-    public static string FacilityByCoursePoint(Guid coursePointId) => $"FacilityByCoursePoint_{coursePointId}";
-    public static string CoursePointById(Guid coursePointId) => $"CoursePointById_{coursePointId}";
-    public static string SegmentsBetweenCoursePoints(Guid startId, Guid endId) => $"SegmentsBetweenCoursePoints_{startId}_{endId}";
-    public static string DistanceBetweenCoursePoints(Guid startId, Guid endId) => $"DistanceBetweenCoursePoints_{startId}_{endId}";
-    public static string CoursePointByTimingPoint(Guid timingPointId) => $"CoursePointByTimingPoint_{timingPointId}";
+    public static string FacilityByCoursePoint(Guid coursePointId) => $"velotime:facilities:facility-by-course-point:v1:{coursePointId}";
+    public static string CoursePointById(Guid coursePointId) => $"velotime:facilities:course-point-by-id:v1:{coursePointId}";
+    public static string SegmentsBetweenCoursePoints(Guid startId, Guid endId) => $"velotime:facilities:segments-between-course-points:v1:{startId}:{endId}";
+    public static string DistanceBetweenCoursePoints(Guid startId, Guid endId) => $"velotime:facilities:distance-between-course-points:v1:{startId}:{endId}";
+    public static string CoursePointByTimingPoint(Guid timingPointId) => $"velotime:facilities:course-point-by-timing-point:v1:{timingPointId}";
+
+    public static HybridCacheEntryOptions NewEntryOptions() => new()
+    {
+        Expiration = TimeSpan.FromSeconds(30),
+        LocalCacheExpiration = TimeSpan.FromSeconds(30)
+    };
 
     public static async Task InvalidateRelationshipsAsync(HybridCache cache, ILogger logger, ICacheInvalidationOperations? operations = null)
     {

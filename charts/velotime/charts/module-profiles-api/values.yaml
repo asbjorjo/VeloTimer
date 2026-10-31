@@ -1,6 +1,11 @@
 existingSecret: ""
 oidcAudience: ""
 replicaCount: 1
+cache:
+  host: cache-service
+  port: 6379
+  user: default
+  password: ""
 database:
   host: postgres-service
   port: 5432

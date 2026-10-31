@@ -8,6 +8,24 @@ global:
     - name: ghcr
 valkey:
   replicaCount: 1
+  fullnameOverride: cache-service
+module-facilities-api:
+  cache: &sharedCache
+    host: cache-service
+    port: 6379
+    user: default
+module-statistics-api:
+  cache: *sharedCache
+module-timing-api:
+  cache: *sharedCache
+module-profiles-api:
+  cache: *sharedCache
+module-statistics-processor:
+  cache: *sharedCache
+module-timing-processor:
+  cache: *sharedCache
+webui:
+  cache: *sharedCache
 migrationJobs:
   backoffLimit: 1
   activeDeadlineSeconds: 600

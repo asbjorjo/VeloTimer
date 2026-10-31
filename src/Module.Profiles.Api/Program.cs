@@ -4,10 +4,12 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using VeloTime.Module.Profiles;
 using VeloTime.Module.Profiles.Api.Endpoints;
 using VeloTime.Module.Profiles.Api.Health;
+using VeloTime.Module.Common;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddModuleCache();
 
 builder.AddModuleAuthentication();
 builder.Services.Configure<JwtBearerOptions>(

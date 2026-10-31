@@ -100,6 +100,7 @@ var timingapi = builder.AddProject<Projects.VeloTime_Module_Timing_Api>("module-
 var profilesapi = builder.AddProject<Projects.VeloTime_Module_Profiles_Api>("module-profiles-api")
     .WithHttpEndpoint(name: "http")
     .WithEnvironment("OIDC_AUDIENCE", oidcAudience)
+    .WithReference(cache)
     .WithReference(velotimedb)
     .WithReference(keycloak)
     .WaitFor(velotimedb);

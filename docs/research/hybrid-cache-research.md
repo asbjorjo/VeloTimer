@@ -1,6 +1,6 @@
 # Hybrid cache research and implementation handoff
 
-Research snapshot: **2026-10-31**. Status: **phase-two eligible UI caching implemented and targeted validation passed**.
+Research snapshot: **2026-10-31**. Status: **phase-two WebUI caching and phase-three versioned module caching implemented; focused validation passed**.
 
 ## Executive summary
 
@@ -32,6 +32,17 @@ Interactive browser/WASM execution and solution-wide build/tests were **not run*
 Timing installation/timing-point configuration caching is explicitly excluded from this eligible slice: current GET responses are not protected configuration-only contracts and contain live `LastSeen`. They remain freshly fetched rather than caching the complete payload or introducing a protected API contract in this change. Separately cacheable facility-name composition is covered. A future stable-only timing cache needs its own approved read/authorization contract.
 
 The read-only review confirmed no personal/admin or warm-cache authorization defect in inspected paths; its scope note is addressed by the explicit timing exclusion above. Review was implementation/test based, not an independently executed build/test run. The remaining sections retain the original research snapshot and proposed broader validation matrix; this update is the current implementation/verification status.
+
+### Phase-three implementation update: versioned module caching
+
+Phase three now aligns eligible module-owned cache entries with WebUI's namespaced, value-shape-specific key strategy:
+
+- Timing, Facilities, and Statistics lookup keys now use `velotime:{module}:{operation}:vN:{identity}` namespaces. Cached lookup entries explicitly expire after 30 seconds in both local and distributed caches. Existing dependency tags and post-commit invalidation paths are retained; public Statistics discovery/result payloads remain uncached.
+- Profiles API language and display preference reads use separate `persisted-v1` keys derived from a length-prefixed SHA-256 hash of the exact validated issuer/subject pair. Authentication and nonblank `iss`/`sub` checks happen before each lookup. Successful writes strictly evict only that identity/kind key using a bounded cancellation-independent token; invalidation failures are logged and surfaced. Time-zone catalogue remains process-static.
+- Profiles API now receives the shared cache in Aspire and Helm. Rendered Helm output confirms the Valkey Service is `cache-service` on port 6379 and all seven cache consumers use that endpoint. The root and Profiles subchart versions were updated to 0.2.1.
+- Focused validation: Timing **31 passed, 4 skipped**; Facilities **8 passed**; Statistics **8 passed**; Profiles API **125 passed, 25 PostgreSQL-dependent tests skipped**. The five skipped Profiles API tests now cover display-preference cache hits, exact-identity isolation, successful-write invalidation/reload, rejected-write behavior, and visible invalidation failure. Release AppHost and Profiles API builds passed. Helm dependency refresh/render passed and verified the shared endpoint. PostgreSQL was not configured; no live multi-host Redis propagation or expiry experiment was run for this phase.
+
+This change preserves bounded cache lifetimes but does not promise strict read-your-writes across replicas after transport failure or protect against an old in-flight factory repopulating a key after eviction. Existing strict eviction failures remain visible; durable invalidation/outbox recovery and cross-host characterization remain separate follow-up work.
 
 ### Post-deployment fix: validated issuer missing from sign-in tickets
 
@@ -241,10 +252,11 @@ AppHost wires Redis `cache` to domain APIs/processors/WebUI, not Profiles API. I
 
 ## 9. Phased continuation
 
-1. **Correct existing behavior:** recheck/fix layout invalidation, capture old/new keys, explicitly apply Facilities output policy and add regressions.
-2. **WebUI phase two (implemented; validation pending):** migrate course-point caching and add the approved typed preference/lookup snapshots; prove cache isolation, write invalidation, and cross-host propagation before declaring this phase validated.
-3. **Scale eligible response caches:** evaluate supported distributed output storage if deployment needs it; expand only visibility-independent lookup coverage.
-4. **Strengthen recovery if required:** design durable invalidation and specify bounded staleness versus strict read-your-writes.
+1. **Correct existing behavior:** post-commit layout invalidation, old/new identity eviction, and the explicitly named Facilities output policy are present in the current implementation.
+2. **WebUI phase two (implemented and validated):** typed preference and stable lookup snapshots with caller isolation and write invalidation.
+3. **Versioned module caching (implemented; focused tests/builds passed):** migrate eligible Timing/Facilities/Statistics lookup keys and add exact-identity Profiles API preference reads, retaining live visibility and authorization boundaries.
+4. **Scale eligible response caches:** separately evaluate supported distributed output storage if deployment needs it; expand only visibility-independent lookup coverage.
+5. **Strengthen recovery if required:** design durable invalidation and specify bounded staleness versus strict read-your-writes.
 
 ## Confidence and limitations
 
