@@ -1,0 +1,72 @@
+﻿@page "/statistcs/samples"
+@using Microsoft.AspNetCore.Authorization
+@using System.Globalization
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@* @rendermode InteractiveWebAssembly *@
+@inject IStatisticsService Client
+
+@* @attribute [Authorize] *@
+
+<PageTitle>@L["SamplesTitle"]</PageTitle>
+
+@if (samples is null)
+{
+    <p><em>@L["Loading"]</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>@L["Time"]</th>
+                <th>@L["Transponder"]</th>
+                <th>@L["Start"]</th>
+                <th>@L["End"]</th>
+                <th>@L["Distance"]</th>
+                <th>@L["Duration"]</th>
+                <th>@L["Speed"]</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var sample in samples)
+            {
+                <tr>
+                    <td>@sample.Time.ToString("G", CultureInfo.CurrentCulture) @L["UtcSuffix"]</td>
+                    <td>
+                        @if (sample.TransponderId != Guid.Empty)
+                        {
+                            <MudLink Href="@($"/transponders/{sample.TransponderId}")">@sample.TransponderLabel</MudLink>
+                        }
+                        else
+                        {
+                            @sample.TransponderLabel
+                        }
+                    </td>
+                    <td>@sample.StartPoint</td>
+                    <td>@sample.EndPoint</td>
+                    <td>@sample.Distance</td>
+                    <td>@sample.Duration.TotalSeconds.ToString(CultureInfo.CurrentCulture)</td>
+                    <td>@sample.Speed</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+
+@code {
+    private IEnumerable<SampleView>? samples;
+
+    const int PageSize = 10;
+
+    [SupplyParameterFromQuery]
+    public DateTime? Cursor { get; set; }
+
+    [SupplyParameterFromQuery]
+    public bool? IsNextPage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        samples = await Client.GetSamplesAsync(Cursor, IsNextPage ?? false, PageSize);
+    }
+}

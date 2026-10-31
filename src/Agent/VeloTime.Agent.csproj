@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	<LangVersion>latest</LangVersion>
+	<Version>2.1.0-alpha.16</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity" />
+    <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+	<PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+	<PackageReference Include="Npgsql.OpenTelemetry" />
+	<PackageReference Include="OpenTelemetry.Exporter.Console" />
+    <PackageReference Include="Serilog.Extensions.Hosting" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Settings.Configuration" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Sinks.OpenTelemetry" />
+    <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" />
+    <PackageReference Include="SlimMessageBus.Host.Outbox.PostgreSql.DbContext" />
+	<PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Agent.Interface\VeloTime.Agent.Interface.csproj" />
+    <ProjectReference Include="..\Module.Timing.Interface\VeloTime.Module.Timing.Interface.csproj" />
+    <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

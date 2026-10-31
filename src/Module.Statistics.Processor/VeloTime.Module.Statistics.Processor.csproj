@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-Module.Statistics.Processor-fe78a4ff-8c89-4ba6-a953-609c23e7b0c3</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>..\..</DockerfileContext>
+    <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+    <IsPublishable>True</IsPublishable>
+    <EnableSdkContainerSupport>True</EnableSdkContainerSupport>
+	<Version>2.1.0-alpha.16</Version>
+	<ContainerRepository>asbjorjo/velotime-module-statistics-processor</ContainerRepository>
+	<ContainerImageTag>$(Version)</ContainerImageTag>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Module.Facilities.Client\VeloTime.Module.Facilities.Client.csproj" />
+    <ProjectReference Include="..\Module.Statistics\VeloTime.Module.Statistics.csproj" />
+    <ProjectReference Include="..\Module.Timing.Client\VeloTime.Module.Timing.Client.csproj" />
+    <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,190 @@
+@page "/admin/timing/installations/new"
+@page "/admin/timing/installations/{InstallationId:guid}"
+@page "/admin/installations/{InstallationId:guid}"
+@attribute [Authorize(Policy = AdministrationPolicies.Timing)]
+@using VeloTime.Module.Timing.Interface.Data
+@using CoursePoint = VeloTime.Module.Facilities.Interface.Data.CoursePointDTO
+@using Facility = VeloTime.Module.Facilities.Interface.Data.FacilityDTO
+@inject IInfrastructureAdministrationService Service
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject UnsavedChangesTracker UnsavedChanges
+@implements IDisposable
+
+<PageTitle>@L["InstallationEditor"]</PageTitle>
+<NavigationLock ConfirmExternalNavigation="@(_dirty || _pointEditing)" OnBeforeInternalNavigation="ConfirmNavigation" />
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+    <MudBreadcrumbs Items="@(new List<BreadcrumbItem> { new(L["Installations"].Value, "/admin/timing/installations"), new(_installation?.AgentId ?? L["NewInstallation"].Value, null, true) })" />
+    <MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">@(_installation?.AgentId ?? L["NewInstallation"])</MudText>
+    @if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-4">@_error</MudAlert> }
+    @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
+    else if (_found)
+    {
+        <MudForm @ref="_installationForm">
+            <MudGrid>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_agentId" @bind-Value:after="MarkDirty" Label="@L["AgentId"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || _pointEditing || _installation?.LastSeen is not null)" /></MudItem>
+                <MudItem xs="12" md="6"><MudSelect T="string" @bind-Value="_system" @bind-Value:after="MarkDirty" Label="@L["TimingSystem"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || _pointEditing || _installation?.LastSeen is not null)">
+                    <MudSelectItem Value="@("Unknown")">@L["UnknownSystem"]</MudSelectItem><MudSelectItem Value="@("MyLaps_X2")">MyLaps X2</MudSelectItem>
+                </MudSelect></MudItem>
+                <MudItem xs="12" md="6"><MudSelect T="Guid?" @bind-Value="_facilityId" @bind-Value:after="MarkDirty" Label="@L["Facility"]" Clearable="true" Disabled="@(_busy || _pointEditing)">
+                    @foreach (var facility in _facilities) { <MudSelectItem T="Guid?" Value="@((Guid?)facility.Id)">@facility.Name</MudSelectItem> }
+                </MudSelect></MudItem>
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_description" @bind-Value:after="MarkDirty" Label="@L["Description"]" Disabled="@(_busy || _pointEditing)" /></MudItem>
+            </MudGrid>
+            <MudStack Row="true" Spacing="3" Class="my-5">
+                <MudButton StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveInstallation" Disabled="@(_busy || _pointEditing || !_dirty)">@L["SaveInstallation"]</MudButton>
+                <MudButton Href="/admin/timing/installations" Disabled="_busy">@L["BackToInstallations"]</MudButton>
+            </MudStack>
+        </MudForm>
+        @if (_installation is not null)
+        {
+            <MudDivider Class="my-6" />
+            <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-4">
+                <MudText Typo="Typo.h6">@L["TimingPoints"]</MudText><MudSpacer />
+                <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditPoint(null)" Disabled="@(_busy || _dirty || _pointEditing)">@L["NewTimingPoint"]</MudButton>
+            </MudStack>
+            @if (_pointEditing)
+            {
+                <MudForm @ref="_pointForm" Class="mb-6">
+                    <MudGrid>
+                        <MudItem xs="12" md="4"><MudTextField @bind-Value="_pointSystemId" Label="@L["HardwareSystemId"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12" md="4"><MudTextField @bind-Value="_pointDescription" Label="@L["Description"]" Disabled="_busy" /></MudItem>
+                        <MudItem xs="12" md="4"><MudSelect T="Guid?" @bind-Value="_coursePointId" Label="@L["Coursepoint"]" Clearable="true" Disabled="_busy">
+                            @foreach (var point in _coursePoints.Where(point => !point.TimingPointId.HasValue || point.TimingPointId == _pointId))
+                            { <MudSelectItem T="Guid?" Value="@((Guid?)point.Id)">@point.Name</MudSelectItem> }
+                        </MudSelect></MudItem>
+                    </MudGrid>
+                    <MudStack Row="true" Class="mt-4" Spacing="3">
+                        <MudButton StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary" Variant="Variant.Filled" OnClick="SavePoint" Disabled="_busy">@L["SaveTimingPoint"]</MudButton>
+                        <MudButton OnClick="CancelPoint" Disabled="_busy">@L["Cancel"]</MudButton>
+                    </MudStack>
+                </MudForm>
+            }
+            <MudTable T="TimingPointDTO" Items="_installation.TimingPoints" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent><MudTh>@L["SystemId"]</MudTh><MudTh>@L["Description"]</MudTh><MudTh>@L["Coursepoint"]</MudTh><MudTh /></HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="@L["SystemId"]">@context.SystemId</MudTd><MudTd DataLabel="@L["Description"]">@context.Description</MudTd>
+                    <MudTd DataLabel="@L["Coursepoint"]">@(_coursePoints.FirstOrDefault(point => point.TimingPointId == context.Id)?.Name ?? L["Unlinked"])</MudTd>
+                    <MudTd DataLabel="@L["Actions"]">
+                        <MudTooltip Text="@L["EditTimingPoint"]"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditPoint(context)" Disabled="@(_busy || _dirty || _pointEditing)" aria-label="@L["EditTimingPoint"]" /></MudTooltip>
+                        <MudTooltip Text="@L["DeleteTimingPoint"]"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => DeletePoint(context)" Disabled="@(_busy || _dirty || _pointEditing)" aria-label="@L["DeleteTimingPoint"]" /></MudTooltip>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent><MudText>@L["NoTimingPoints"]</MudText></NoRecordsContent>
+            </MudTable>
+        }
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public Guid? InstallationId { get; set; }
+    private readonly CancellationTokenSource _lifetime = new();
+    private IDisposable? _unsavedRegistration;
+    private IReadOnlyList<Facility> _facilities = [];
+    private List<CoursePoint> _coursePoints = [];
+    private InstallationDTO? _installation;
+    private MudForm? _installationForm, _pointForm;
+    private string _agentId = "", _system = "Unknown", _description = "", _pointSystemId = "", _pointDescription = "";
+    private Guid? _facilityId, _pointId, _coursePointId, _originalCoursePointId;
+    private bool _loading = true, _busy, _dirty, _pointEditing, _found;
+    private string? _error;
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        InstallationId = parameters.TryGetValue<Guid?>(nameof(InstallationId), out var id) ? id : null;
+        return base.SetParametersAsync(parameters);
+    }
+    protected override Task OnParametersSetAsync()
+    {
+        _unsavedRegistration ??= UnsavedChanges.Register(() => _dirty || _pointEditing);
+        return Load();
+    }
+    private async Task Load()
+    {
+        _loading = true; _error = null; _found = false;
+        try
+        {
+            _facilities = await Service.GetFacilitiesAsync(_lifetime.Token);
+            _installation = InstallationId.HasValue ? (await Service.GetInstallationsAsync(_lifetime.Token)).FirstOrDefault(installation => installation.Id == InstallationId) : null;
+            if (InstallationId.HasValue && _installation is null) { _error = L["InstallationNotFound"]; return; }
+            _agentId = _installation?.AgentId ?? ""; _system = _installation?.TimingSystem.Name ?? "Unknown"; _description = _installation?.Description ?? "";
+            _facilityId = _installation is { FacilityId: var facilityId } && facilityId != Guid.Empty ? facilityId : null;
+            _coursePoints = _facilityId.HasValue ? (await Service.GetLayoutsAsync(_facilityId.Value, _lifetime.Token)).SelectMany(layout => layout.Segments)
+                .SelectMany(segment => new[] { segment.Start, segment.End }).DistinctBy(point => point.Id).ToList() : [];
+            _dirty = !InstallationId.HasValue; _pointEditing = false; _found = true;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception) { _error = L["InstallationLoadFailed"]; }
+        finally { _loading = false; }
+    }
+    private void MarkDirty() => _dirty = true;
+    private async Task SaveInstallation()
+    {
+        await _installationForm!.ValidateAsync();
+        if (!_installationForm.IsValid || _busy) return;
+        _busy = true; _error = null;
+        try
+        {
+            var saved = await Service.SaveInstallationAsync(_installation?.Id, new(_facilityId, _agentId, _system, _description), _lifetime.Token);
+            _dirty = false; Snackbar.Add(L["InstallationSaved"], Severity.Success);
+            if (!InstallationId.HasValue) Navigation.NavigateTo($"/admin/timing/installations/{saved.Id}");
+            else await Load();
+        }
+        catch (HttpRequestException exception) { _error = ErrorFor(exception); }
+        catch (Exception) { _error = L["InstallationSaveFailed"]; }
+        finally { _busy = false; }
+    }
+    private void EditPoint(TimingPointDTO? point)
+    {
+        _pointId = point?.Id; _pointSystemId = point?.SystemId ?? ""; _pointDescription = point?.Description ?? "";
+        _coursePointId = point is null ? null : _coursePoints.FirstOrDefault(coursePoint => coursePoint.TimingPointId == point.Id)?.Id;
+        _originalCoursePointId = _coursePointId; _pointEditing = true; _error = null;
+    }
+    private async Task SavePoint()
+    {
+        await _pointForm!.ValidateAsync();
+        if (!_pointForm.IsValid || _busy) return;
+        _busy = true; _error = null; var pointSaved = false;
+        try
+        {
+            var saved = await Service.SaveTimingPointAsync(_installation!.Id, _pointId, new(_pointSystemId, _pointDescription), _lifetime.Token);
+            _pointId = saved.Id; pointSaved = true;
+            if (_originalCoursePointId != _coursePointId)
+            {
+                if (_originalCoursePointId.HasValue) { await Service.SetTimingLinkAsync(_originalCoursePointId.Value, null, _lifetime.Token); _originalCoursePointId = null; }
+                if (_coursePointId.HasValue) { await Service.SetTimingLinkAsync(_coursePointId.Value, saved.Id, _lifetime.Token); _originalCoursePointId = _coursePointId; }
+            }
+            _pointEditing = false; Snackbar.Add(L["TimingPointSaved"], Severity.Success); await Load();
+        }
+        catch (HttpRequestException exception) { _error = pointSaved ? L["PartialTimingPointLink"] : ErrorFor(exception); }
+        catch (Exception) { _error = pointSaved ? L["PartialTimingPointLink"] : L["TimingPointSaveFailed"]; }
+        finally { _busy = false; }
+    }
+    private async Task DeletePoint(TimingPointDTO point)
+    {
+        if (await Dialogs.ShowMessageBoxAsync(L["DeleteTimingPointQuestion"], L["DeleteTimingPointConfirm"], yesText: L["Delete"], cancelText: L["Cancel"]) != true) return;
+        _busy = true;
+        try { await Service.DeleteTimingPointAsync(_installation!.Id, point.Id, _lifetime.Token); Snackbar.Add(L["TimingPointDeleted"], Severity.Success); await Load(); }
+        catch (HttpRequestException exception) { _error = ErrorFor(exception); }
+        catch (Exception) { _error = L["TimingPointDeleteFailed"]; }
+        finally { _busy = false; }
+    }
+    private async Task CancelPoint()
+    {
+        if (await Dialogs.ShowMessageBoxAsync(L["DiscardChanges"], L["DiscardTimingPointChanges"], yesText: L["Delete"], cancelText: L["KeepEditingAction"]) == true) { _pointEditing = false; _error = null; await Load(); }
+    }
+    private async Task ConfirmNavigation(LocationChangingContext context)
+    {
+        if ((_dirty || _pointEditing) && await Dialogs.ShowMessageBoxAsync(L["DiscardChanges"], L["DiscardInstallationChanges"], yesText: L["Delete"], cancelText: L["KeepEditingAction"]) != true) context.PreventNavigation();
+    }
+    private string ErrorFor(HttpRequestException exception) => exception.StatusCode switch
+    {
+        System.Net.HttpStatusCode.Unauthorized => L["SignInRequired"].Value,
+        System.Net.HttpStatusCode.Forbidden => L["NoPermission"].Value,
+        System.Net.HttpStatusCode.Conflict => L["ConflictOccurred"].Value,
+        System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.UnprocessableEntity => L["RequestRejected"].Value,
+        System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout => L["ServiceUnavailable"].Value,
+        _ => L["RequestFailed"].Value
+    };
+    public void Dispose() { _unsavedRegistration?.Dispose(); _lifetime.Cancel(); _lifetime.Dispose(); }
+}

@@ -1,0 +1,90 @@
+@using System.Globalization
+@inject IStatisticsService Service
+@inject ILogger<StatisticsTable> Logger
+@implements IDisposable
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" aria-label="@L["LoadingBestTimes"]" />
+}
+else if (_error)
+{
+    <MudAlert Severity="Severity.Error">@L["BestTimesLoadFailed"]</MudAlert>
+    <MudButton OnClick="LoadAsync" Class="mt-2">@L["Retry"]</MudButton>
+}
+else
+{
+    <MudTable T="BestStatisticsResultView" Items="_results" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0">
+        <HeaderContent>
+            <MudTh>@L["StatisticsItem"]</MudTh>
+            <MudTh>@L["Profile"]</MudTh>
+            <MudTh Class="text-right">@L["AverageSpeed"]</MudTh>
+            <MudTh Class="text-right">@L["Time"]</MudTh>
+            <MudTh>@L["Facility"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="@L["StatisticsItem"]">@context.StatisticsItemName</MudTd>
+            <MudTd DataLabel="@L["Profile"]">@context.ProfileName</MudTd>
+            <MudTd DataLabel="@L["AverageSpeed"]" Class="text-right">@context.Speed.ToString("N3", CultureInfo.CurrentCulture)</MudTd>
+            <MudTd DataLabel="@L["Time"]" Class="text-right">@context.Duration.ToString(context.Duration.Days == 0 ? @"hh\:mm\:ss\.fff" : @"d\.hh\:mm\:ss\.fff", CultureInfo.CurrentCulture)</MudTd>
+            <MudTd DataLabel="@L["Facility"]">@context.FacilityName</MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>@L["NoPublicBestTimes"]</MudText>
+        </NoRecordsContent>
+    </MudTable>
+}
+
+@code {
+    [Parameter] public Guid? FacilityId { get; set; }
+    [Parameter] public DateTimeOffset? From { get; set; }
+    [Parameter] public DateTimeOffset? To { get; set; }
+
+    private IReadOnlyList<BestStatisticsResultView> _results = [];
+    private CancellationTokenSource? _request;
+    private bool _loading;
+    private bool _error;
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _request?.Cancel();
+        _request?.Dispose();
+        using var request = new CancellationTokenSource();
+        _request = request;
+        _loading = true;
+        _error = false;
+        _results = [];
+        try
+        {
+            var results = await Service.GetBestResultsAsync(FacilityId, From, To, request.Token);
+            if (!request.IsCancellationRequested)
+                _results = results;
+        }
+        catch (OperationCanceledException) when (request.IsCancellationRequested) { }
+        catch (Exception exception) when (exception is HttpRequestException or System.Text.Json.JsonException or OperationCanceledException)
+        {
+            if (!request.IsCancellationRequested)
+            {
+                Logger.LogWarning(exception, "Could not load public best statistics results");
+                _error = true;
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_request, request))
+            {
+                _loading = false;
+                _request = null;
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _request?.Cancel();
+        _request?.Dispose();
+        _request = null;
+    }
+}

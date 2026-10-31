@@ -1,0 +1,35 @@
+﻿@page "/profile"
+@attribute [Authorize]
+
+@inject NavigationManager Navigation
+@inject IProfileService Profile
+
+<PageTitle>@L["Profile"]</PageTitle>
+<MudText Typo="Typo.h4" Class="mb-4">@L["Profile"]</MudText>
+<LanguageSelector />
+
+@foreach (var linkedAccount in linkedAccounts)
+{
+    <Account account="@linkedAccount" />
+}
+
+<MudButton Href="/authentication/changepass">@L["ChangePassword"]</MudButton>
+
+@code {
+    IEnumerable<LinkedAccountView> linkedAccounts = Enumerable.Empty<LinkedAccountView>();
+
+    private void ChangePassword()
+    {
+        // AuthenticationProperties properties = new()
+        // {
+        //     RedirectUri = Navigation.Uri
+        // };
+        // properties.SetParameter("kc_action", "UPDATE_PASSWORD");
+
+    }
+
+    protected async override Task OnInitializedAsync()
+    {
+        linkedAccounts = await Profile.GetLinkedAccountsAsync();
+    }
+}

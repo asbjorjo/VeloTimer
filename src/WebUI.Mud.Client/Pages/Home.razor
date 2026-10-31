@@ -1,0 +1,12 @@
+﻿@page "/"
+<PageTitle>@L["BestTimes"]</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    <MudText Typo="Typo.h4" HtmlTag="h1" Class="mb-2">@L["BestTimesLast30Days"]</MudText>
+    <MudText Class="mb-4">@L["FastestPublicResult"]</MudText>
+    <StatisticsTable From="@_periodEnd.AddDays(-30)" To="@_periodEnd" />
+</MudContainer>
+
+@code {
+    private readonly DateTimeOffset _periodEnd = DateTimeOffset.UtcNow;
+}

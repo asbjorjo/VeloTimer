@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["migrationJobs"],
+  "properties": {
+    "migrationJobs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backoffLimit", "activeDeadlineSeconds", "domains"],
+      "properties": {
+        "backoffLimit": { "type": "integer", "minimum": 0 },
+        "activeDeadlineSeconds": { "type": "integer", "minimum": 1 },
+        "domains": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "facilities": { "$ref": "#/definitions/domain" },
+            "statistics": { "$ref": "#/definitions/domain" },
+            "timing": { "$ref": "#/definitions/domain" },
+            "profiles": { "$ref": "#/definitions/domain" }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "existingSecret": { "type": "string" },
+        "database": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "host": { "type": "string", "minLength": 1 },
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "user": { "type": "string", "minLength": 1 },
+            "password": { "type": "string" },
+            "name": { "type": "string", "minLength": 1 }
+          }
+        },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+          }
+        }
+      }
+    }
+  }
+}

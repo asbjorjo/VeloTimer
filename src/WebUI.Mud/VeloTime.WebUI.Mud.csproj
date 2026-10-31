@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>aspnet-VeloTime.WebUI.Mud-30af8936-e923-4ebe-91d6-ca4269c5aae6</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>..\..</DockerfileContext>
+    <EnableSdkContainerDebugging>True</EnableSdkContainerDebugging>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
+	  <Version>2.1.0-alpha.16</Version>
+	  <ContainerRepository>asbjorjo/velotime-webui</ContainerRepository>
+	  <ContainerImageTag>$(Version)</ContainerImageTag>
+	  <BlazorWebAssemblyLoadAllGlobalizationData>true</BlazorWebAssemblyLoadAllGlobalizationData>
+  </PropertyGroup>
+  <ItemGroup>
+	  <PackageReference Include="Aspire.Keycloak.Authentication" />
+	  <PackageReference Include="Duende.AccessTokenManagement.OpenIdConnect" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" />
+    <PackageReference Include="Microsoft.Extensions.ServiceDiscovery.Yarp" />
+    <PackageReference Include="Extensions.MudBlazor.StaticInput" />
+    <PackageReference Include="Microsoft.Kiota.Bundle" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="NSwag.ApiDescription.Client">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Module.Common\VeloTime.Module.Common.csproj" />
+    <ProjectReference Include="..\Module.Facilities.Interface\VeloTime.Module.Facilities.Interface.csproj" />
+    <ProjectReference Include="..\Module.Statistics.Interface\VeloTime.Module.Statistics.Interface.csproj" />
+    <ProjectReference Include="..\Module.Timing.Interface\VeloTime.Module.Timing.Interface.csproj" />
+    <ProjectReference Include="..\Module.Facilities.Client\VeloTime.Module.Facilities.Client.csproj" />
+	  <ProjectReference Include="..\Module.Statistics.Client\VeloTime.Module.Statistics.Client.csproj" />
+	  <ProjectReference Include="..\Module.Timing.Client\VeloTime.Module.Timing.Client.csproj" />
+	  <ProjectReference Include="..\Module.Profiles.Client\VeloTime.Module.Profiles.Client.csproj" />
+	  <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\WebUI.Mud.Client\VeloTime.WebUI.Mud.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ContainerPort Include="8081" />
+  </ItemGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>VeloTime.Platform.Test</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+  <ItemGroup>
+    <OpenApiReference Include="..\..\api\keycloak.yaml" CodeGenerator="NSwagCSharp" Namespace="VeloTime.WebUI.Keycloak" ClassName="KeycloakClient">
+      <Options>/UseBaseUrl:false /GenerateClientInterfaces:true</Options>
+    </OpenApiReference>
+    <OpenApiReference Include="..\..\api\keycloak-admin.yaml" CodeGenerator="NSwagCSharp" Namespace="VeloTime.WebUI.KeycloakAdmin" ClassName="KeycloakAdminClient">
+      <NSwagGenerateExceptionClasses>true</NSwagGenerateExceptionClasses>
+      <Options>/UseBaseUrl:false /GenerateClientInterfaces:true</Options>
+    </OpenApiReference>
+  </ItemGroup>
+</Project>

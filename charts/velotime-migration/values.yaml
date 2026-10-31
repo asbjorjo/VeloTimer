@@ -1,0 +1,9 @@
+global:
+  image:
+    repository: ghcr.io/asbjorjo/
+    tag: 2.1.0-alpha.16
+  oidcAuthority: ""
+  imagePullSecrets:
+    - name: ghcr
+velotime-users-migration:
+  existingSecret: velotime-users-migration
