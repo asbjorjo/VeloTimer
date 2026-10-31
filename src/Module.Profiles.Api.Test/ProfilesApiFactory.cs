@@ -40,7 +40,8 @@ public sealed class ProfilesApiFactory : WebApplicationFactory<Program>
                 ["ConnectionStrings:keycloak"] = "https://issuer.example/realm",
                 // Never used: the API contract tests replace the service, not the database provider.
                 ["ConnectionStrings:velotimedb"] = "Host=127.0.0.1;Port=1;Database=unused;Username=unused",
-                ["ConnectionStrings:cache"] = "localhost:6379"
+                ["ConnectionStrings:cache"] = "localhost:6379",
+                ["Aspire:StackExchange:Redis:DisableHealthChecks"] = "true"
             }));
         builder.ConfigureTestServices(services =>
         {
