@@ -84,13 +84,18 @@ and average speed in **km/h**. Private profiles and entries without a linked pro
 are excluded in the Statistics database on every request; result responses are no-store.
 Simple configurations resolve their two coursepoints to the same facility; Multi
 configurations inherit their Simple parent's points. Discovery does not require results.
+Each results request validates only its selected configuration/item and, for Multi,
+the Simple parent and its item. It resolves each distinct selected endpoint's facility
+once, without fetching coursepoint names or depending on unrelated discovery options.
 Unavailable defaults, invalid explicit selections, legacy references and upstream failures
 are explicit states rather than silent fallback.
 
 Name search is a trimmed, case-insensitive **literal substring**. Optional minimum/
 maximum duration and speed bounds are inclusive, nonnegative and ordered. Duration
 filters use invariant `hh:mm:ss.fff`, or `d.hh:mm:ss.fff` beyond 24 hours; speed bounds
-use finite invariant km/h numbers. Filtering, newest-first sorting and composite
+use finite invariant km/h numbers. Speed bounds compare against the same unrounded
+`stored speed * 3.6` km/h value returned in each row, so round-tripped result speeds
+remain included at either equal bound. Filtering, newest-first sorting and composite
 completion-timestamp/UUID keyset paging execute in PostgreSQL. Pages contain 25 results,
 Previous/Next cursors and no total count; no numbered offsets or client-side table paging.
 

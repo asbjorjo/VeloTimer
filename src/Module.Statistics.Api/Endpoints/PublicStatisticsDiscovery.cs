@@ -28,13 +28,61 @@ internal sealed class PublicCoursePointNames(HttpClient client) : IPublicCourseP
     private sealed record PointName(Guid Id, string Name);
 }
 
-/// <summary>Per-request discovery; no result-table or cross-service database access.</summary>
+/// <summary>Per-request discovery and targeted selection validation; no result-table or cross-service database access.</summary>
 internal sealed class PublicStatisticsDiscovery(
     StatisticsDbContext storage,
     ICoursePointReferences points,
     IPublicCoursePointNames names,
     ILogger<PublicStatisticsDiscovery> logger)
 {
+    public async Task<bool> IsSelectionAvailableAsync(
+        GetPublicStatisticsResultsRequest request, CancellationToken cancellationToken)
+    {
+        var config = await storage.Set<StatisticsItemConfig>().AsNoTracking()
+            .SingleOrDefaultAsync(config => config.Id == request.StatisticsItemConfigId, cancellationToken);
+        if (config is null || config.StatisticsItemId != request.StatisticsItemId)
+        {
+            logger.LogWarning("Public statistics selection {ConfigurationId} does not match an existing configuration/item.",
+                request.StatisticsItemConfigId);
+            return false;
+        }
+
+        var parent = config is MultiStatisticsItemConfig multi
+            ? await storage.Set<StatisticsItemConfig>().AsNoTracking().OfType<SimpleStatisticsItemConfig>()
+                .SingleOrDefaultAsync(simple => simple.Id == multi.ParentConfigId, cancellationToken)
+            : null;
+        var selectedItemIds = parent is null
+            ? new[] { config.StatisticsItemId }
+            : new[] { config.StatisticsItemId, parent.StatisticsItemId };
+        var itemIds = (await storage.Set<StatisticsItem>().AsNoTracking()
+            .Where(item => selectedItemIds.Contains(item.Id)).Select(item => item.Id)
+            .ToListAsync(cancellationToken)).ToHashSet();
+        var reason = ValidateDefinition(config, parent, itemIds, out var endpoints);
+        if (reason is not null)
+        {
+            LogUnavailable(config, reason.Value);
+            return false;
+        }
+
+        // Only selected endpoint membership is needed for results, never display names.
+        var resolvedFacilities = new Dictionary<Guid, Guid?>();
+        var start = await ResolveFacilityAsync(endpoints!.CoursePointStart, resolvedFacilities, cancellationToken);
+        var end = await ResolveFacilityAsync(endpoints.CoursePointEnd, resolvedFacilities, cancellationToken);
+        reason = ValidateFacilities(start, end);
+        if (reason is not null)
+        {
+            LogUnavailable(config, reason.Value);
+            return false;
+        }
+        if (start != request.FacilityId)
+        {
+            logger.LogWarning("Public statistics selection {ConfigurationId} does not match facility {FacilityId}.",
+                config.Id, request.FacilityId);
+            return false;
+        }
+        return true;
+    }
+
     public async Task<PublicStatisticsDiscoveryDTO> GetAsync(CancellationToken cancellationToken)
     {
         var items = await storage.Set<StatisticsItem>().AsNoTracking()
@@ -44,6 +92,7 @@ internal sealed class PublicStatisticsDiscovery(
             .ToListAsync(cancellationToken);
         var itemIds = items.Select(item => item.Id).ToHashSet();
         var simpleParents = definitions.OfType<SimpleStatisticsItemConfig>().ToDictionary(config => config.Id);
+        var resolvedFacilities = new Dictionary<Guid, Guid?>();
         var resolvedPoints = new Dictionary<Guid, (Guid? Facility, string? Name)>();
         var available = new List<PublicStatisticsConfigurationDTO>();
         var unavailable = new List<UnavailablePublicStatisticsConfigurationDTO>();
@@ -51,8 +100,7 @@ internal sealed class PublicStatisticsDiscovery(
         async Task<(Guid? Facility, string? Name)> ResolvePoint(Guid id)
         {
             if (resolvedPoints.TryGetValue(id, out var cached)) return cached;
-            var facility = await points.GetFacilityAsync(id, cancellationToken);
-            if (facility == Guid.Empty) throw new HttpRequestException("Facilities returned an invalid facility ID.");
+            var facility = await ResolveFacilityAsync(id, resolvedFacilities, cancellationToken);
             var name = await names.GetNameAsync(id, cancellationToken);
             var result = (facility, name);
             resolvedPoints.Add(id, result);
@@ -62,77 +110,35 @@ internal sealed class PublicStatisticsDiscovery(
         void Unavailable(StatisticsItemConfig config, PublicStatisticsConfigurationUnavailableReason reason)
         {
             unavailable.Add(new UnavailablePublicStatisticsConfigurationDTO(ToDto(config), reason));
-            logger.LogWarning("Public statistics configuration {ConfigurationId} unavailable: {Reason}", config.Id, reason);
+            LogUnavailable(config, reason);
         }
 
         foreach (var config in definitions)
         {
-            if (config.Id == Guid.Empty || config.StatisticsItemId == Guid.Empty)
+            var parent = config is MultiStatisticsItemConfig multi
+                ? simpleParents.GetValueOrDefault(multi.ParentConfigId) : null;
+            var reason = ValidateDefinition(config, parent, itemIds, out var simple);
+            if (reason is not null)
             {
-                Unavailable(config, PublicStatisticsConfigurationUnavailableReason.InvalidDefinition);
+                Unavailable(config, reason.Value);
                 continue;
             }
-            if (!itemIds.Contains(config.StatisticsItemId))
-            {
-                Unavailable(config, PublicStatisticsConfigurationUnavailableReason.MissingItem);
-                continue;
-            }
-            SimpleStatisticsItemConfig simple;
-            if (config is SimpleStatisticsItemConfig direct) simple = direct;
-            else if (config is MultiStatisticsItemConfig multi)
-            {
-                if (multi.ParentConfigId == Guid.Empty || multi.Repetitions <= 0)
-                {
-                    Unavailable(config, PublicStatisticsConfigurationUnavailableReason.InvalidDefinition);
-                    continue;
-                }
-                if (!simpleParents.TryGetValue(multi.ParentConfigId, out var parent))
-                {
-                    Unavailable(config, PublicStatisticsConfigurationUnavailableReason.MissingSimpleParent);
-                    continue;
-                }
-                if (parent.StatisticsItemId == Guid.Empty)
-                {
-                    Unavailable(config, PublicStatisticsConfigurationUnavailableReason.InvalidDefinition);
-                    continue;
-                }
-                if (!itemIds.Contains(parent.StatisticsItemId))
-                {
-                    Unavailable(config, PublicStatisticsConfigurationUnavailableReason.MissingItem);
-                    continue;
-                }
-                simple = parent;
-            }
-            else
-            {
-                Unavailable(config, PublicStatisticsConfigurationUnavailableReason.InvalidDefinition);
-                continue;
-            }
-            if (simple.CoursePointStart == Guid.Empty || simple.CoursePointEnd == Guid.Empty)
-            {
-                Unavailable(config, PublicStatisticsConfigurationUnavailableReason.InvalidDefinition);
-                continue;
-            }
-            var start = await ResolvePoint(simple.CoursePointStart);
+            var start = await ResolvePoint(simple!.CoursePointStart);
             var end = await ResolvePoint(simple.CoursePointEnd);
             if (start.Name is null || end.Name is null)
             {
                 Unavailable(config, PublicStatisticsConfigurationUnavailableReason.MissingCoursePoint);
                 continue;
             }
-            if (start.Facility is null || end.Facility is null)
+            reason = ValidateFacilities(start.Facility, end.Facility);
+            if (reason is not null)
             {
-                Unavailable(config, PublicStatisticsConfigurationUnavailableReason.MissingFacility);
-                continue;
-            }
-            if (start.Facility != end.Facility)
-            {
-                Unavailable(config, PublicStatisticsConfigurationUnavailableReason.DifferentFacilities);
+                Unavailable(config, reason.Value);
                 continue;
             }
             var dto = ToDto(config);
             available.Add(new PublicStatisticsConfigurationDTO(config.Id, config.StatisticsItemId,
-                start.Facility.Value, dto.Type, simple.CoursePointStart, start.Name, simple.CoursePointEnd,
+                start.Facility!.Value, dto.Type, simple.CoursePointStart, start.Name, simple.CoursePointEnd,
                 end.Name, dto.ParentConfigId, dto.Repetitions));
         }
 
@@ -142,6 +148,50 @@ internal sealed class PublicStatisticsDiscovery(
                 .ThenBy(item => item.Id.ToString("D"), StringComparer.Ordinal).ToList(),
             available, unavailable);
     }
+
+    private static PublicStatisticsConfigurationUnavailableReason? ValidateDefinition(
+        StatisticsItemConfig config, SimpleStatisticsItemConfig? parent, IReadOnlySet<Guid> itemIds,
+        out SimpleStatisticsItemConfig? endpoints)
+    {
+        endpoints = null;
+        if (config.Id == Guid.Empty || config.StatisticsItemId == Guid.Empty)
+            return PublicStatisticsConfigurationUnavailableReason.InvalidDefinition;
+        if (!itemIds.Contains(config.StatisticsItemId))
+            return PublicStatisticsConfigurationUnavailableReason.MissingItem;
+        if (config is SimpleStatisticsItemConfig simple) endpoints = simple;
+        else if (config is MultiStatisticsItemConfig multi)
+        {
+            if (multi.ParentConfigId == Guid.Empty || multi.Repetitions <= 0)
+                return PublicStatisticsConfigurationUnavailableReason.InvalidDefinition;
+            if (parent is null)
+                return PublicStatisticsConfigurationUnavailableReason.MissingSimpleParent;
+            if (parent.StatisticsItemId == Guid.Empty)
+                return PublicStatisticsConfigurationUnavailableReason.InvalidDefinition;
+            if (!itemIds.Contains(parent.StatisticsItemId))
+                return PublicStatisticsConfigurationUnavailableReason.MissingItem;
+            endpoints = parent;
+        }
+        else return PublicStatisticsConfigurationUnavailableReason.InvalidDefinition;
+        return endpoints.CoursePointStart == Guid.Empty || endpoints.CoursePointEnd == Guid.Empty
+            ? PublicStatisticsConfigurationUnavailableReason.InvalidDefinition : null;
+    }
+
+    private async Task<Guid?> ResolveFacilityAsync(
+        Guid id, Dictionary<Guid, Guid?> resolvedFacilities, CancellationToken cancellationToken)
+    {
+        if (resolvedFacilities.TryGetValue(id, out var cached)) return cached;
+        var facility = await points.GetFacilityAsync(id, cancellationToken);
+        if (facility == Guid.Empty) throw new HttpRequestException("Facilities returned an invalid facility ID.");
+        resolvedFacilities.Add(id, facility);
+        return facility;
+    }
+
+    private static PublicStatisticsConfigurationUnavailableReason? ValidateFacilities(Guid? start, Guid? end) =>
+        start is null || end is null ? PublicStatisticsConfigurationUnavailableReason.MissingFacility :
+        start != end ? PublicStatisticsConfigurationUnavailableReason.DifferentFacilities : null;
+
+    private void LogUnavailable(StatisticsItemConfig config, PublicStatisticsConfigurationUnavailableReason reason) =>
+        logger.LogWarning("Public statistics configuration {ConfigurationId} unavailable: {Reason}", config.Id, reason);
 
     private static StatisticsConfigurationDTO ToDto(StatisticsItemConfig config) => config switch
     {

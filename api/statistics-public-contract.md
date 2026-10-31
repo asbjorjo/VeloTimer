@@ -63,6 +63,19 @@ Do not expose coursepoint timing-point IDs. Empty endpoint names remain explicit
 names for localized unnamed-point presentation, not raw IDs as primary labels.
 Missing membership/point/parent is unavailable; non-404 upstream failures are errors.
 
+Results use `PublicStatisticsDiscovery.IsSelectionAvailableAsync`, not full
+`GetAsync` discovery. Fetch only the selected configuration, its Simple parent when
+Multi, and existence of their referenced items. Reuse the discovery definition and
+facility validation rules. Resolve only the distinct selected start/end coursepoints'
+facility references (at most two membership HTTP calls per request, one if identical).
+Do not fetch names or unrelated catalogue definitions/items/coursepoints; unrelated
+invalid options or failing name/catalogue dependencies must not block a valid selection.
+Missing membership makes the selection unavailable without a separate name lookup.
+Invalid/mismatched selections return 400 and are logged; selected membership dependency
+failures retain explicit 502/503 handling and caller cancellation propagation.
+Full UI discovery still resolves names and reports unavailable options. Neither path
+caches result visibility; every results page queries current public-profile membership.
+
 UI labels use Simple start/end names, or Multi repetitions plus its Simple-parent label.
 Use configuration ID only as a stable secondary discriminator for ambiguous labels.
 Return items ordered by name ordinal then native UUID ascending; configurations by
@@ -106,7 +119,7 @@ explicit strings above, not enum numbers.
 and applies shared typed validation; `Normalize`, `Validate`, `ToQuery`,
 `TryParseDuration`, `FormatDuration`, `TryParseCursor`, `FormatCursor` are reusable.
 Surfaces must reject duplicate query keys before parsing. Unknown keys (including
-pageSize/count/offset) are rejected. Selection consistency requires discovery validation
+pageSize/count/offset) are rejected. Selection consistency requires targeted discovery validation
 on the server and is deliberately not a contract-helper database concern.
 Use FormUrlEncodedContent/equivalent escaping (especially `+`, `|`, `%`, `&`, and spaces).
 For `/statistics/{facilityId}/{itemId}/{configurationId}`, merge path IDs into the
@@ -132,7 +145,8 @@ Current physical relations: `statistics.statistics_entry` (`duration` interval,
 `speed` double precision m/s, `time_end` timestamptz, `id` uuid) and
 `statistics.stats_profile` (`user_id` uuid, `profile_name` text, `is_public` boolean).
 
-Validate discovery selection **before** executing entries queries. Build an
+Validate the selected configuration/item/facility **before** executing entries queries,
+without loading full discovery. Build an
 AsNoTracking IQueryable, applying only supplied optional predicates (do not implement
 `@param IS NULL OR ...` catch-all predicates). The logical parameterized SQL is:
 
@@ -149,15 +163,18 @@ WHERE p.is_public = TRUE
   AND p.profile_name ILIKE @escaped_contains_pattern ESCAPE '\'
   AND e.duration >= @min_duration::interval
   AND e.duration <= @max_duration::interval
-  AND e.speed >= @min_speed_mps::double precision
-  AND e.speed <= @max_speed_mps::double precision
+  AND e.speed * 3.6::double precision >= @min_speed_kmh::double precision
+  AND e.speed * 3.6::double precision <= @max_speed_kmh::double precision
   -- Next only; omit for initial page:
   AND (e.time_end, e.id) < (@cursor_time::timestamptz, @cursor_id::uuid)
 ORDER BY e.time_end DESC, e.id DESC
 LIMIT 26;
 ```
 
-Convert validated speed bounds once in .NET using `kmh / 3.6d`, without rounding.
+Compare validated km/h bounds directly against `entry.Speed * 3.6d` in the EF
+IQueryable, the same double-precision expression used for projected `SpeedKmh`.
+Do not divide bounds by 3.6 or round either operand: multiply/divide floating-point
+round trips can exclude an exact returned speed at an inclusive bound.
 Escape name `\` → `\\`, `%` → `\%`, `_` → `\_` in that order, then surround
 with `%`; parameterize the resulting pattern. Case insensitivity is PostgreSQL ILIKE
 under the database collation, not an in-memory .NET comparison. Literal substring
@@ -224,6 +241,18 @@ Simple/Multi and explicit unavailable discovery without results; selection misma
 25/26 boundaries and equal-timestamp native UUID order; Previous/Next round trips and
 deleted/private anchors; no identifiers; current privacy and all predicates/limits in
 SQL. Also verify both transports forward all units/cancellation and preserve URL state.
+For results selection, verify Simple and Multi fetch only selected definitions/items,
+deduplicate identical endpoints, perform no name lookups, and ignore unrelated
+definitions and unrelated failing dependencies. Cover missing/invalid selected item,
+parent and endpoints, missing/different facilities, malformed/failed selected membership
+responses and logging. Full discovery's names/unavailable behavior must remain unchanged.
+Update captured SQL assertions to expect multiplication by double-precision 3.6
+in both inclusive speed predicates, in the row projection and in filtered side-existence
+queries, with km/h bound parameters (no pre-divided m/s bounds). Seed stored speeds
+computed as `250d / 19.1d` and `250d / 10.449d`; obtain each returned `SpeedKmh`,
+round-trip it through query formatting/parsing, and verify inclusion at the exact
+maximum and minimum respectively (and both equal bounds). All optional predicates,
+sort, keyset tuples, limits and privacy checks must still execute in PostgreSQL.
 Server transport dependency timeouts (cancellation without caller cancellation) map
 to explicit 503; caller cancellation continues to propagate unchanged. Include both
 cases, and empty legacy IDs/nonpositive Multi repetitions, in regression coverage.

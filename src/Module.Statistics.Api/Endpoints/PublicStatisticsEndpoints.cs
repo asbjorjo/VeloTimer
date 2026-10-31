@@ -54,9 +54,7 @@ internal static class PublicStatisticsEndpoints
 
         try
         {
-            var options = await discovery.GetAsync(cancellationToken);
-            if (!options.Configurations.Any(config => config.Id == request!.StatisticsItemConfigId &&
-                    config.StatisticsItemId == request.StatisticsItemId && config.FacilityId == request.FacilityId))
+            if (!await discovery.IsSelectionAvailableAsync(request!, cancellationToken))
                 return TypedResults.Problem("Select an available configuration matching the item and facility.", statusCode: 400);
         }
         catch (Exception exception) when (IsDependencyFailure(exception, cancellationToken))
@@ -83,13 +81,11 @@ internal static class PublicStatisticsEndpoints
         if (request.MaxDuration is { } maxDuration) filtered = filtered.Where(entry => entry.Duration <= maxDuration);
         if (request.MinSpeedKmh is { } minSpeed)
         {
-            var bound = minSpeed / 3.6d;
-            filtered = filtered.Where(entry => entry.Speed >= bound);
+            filtered = filtered.Where(entry => entry.Speed * 3.6d >= minSpeed);
         }
         if (request.MaxSpeedKmh is { } maxSpeed)
         {
-            var bound = maxSpeed / 3.6d;
-            filtered = filtered.Where(entry => entry.Speed <= bound);
+            filtered = filtered.Where(entry => entry.Speed * 3.6d <= maxSpeed);
         }
 
         var previousDirection = request.Direction == PublicStatisticsPageDirection.Previous;
