@@ -126,6 +126,24 @@ public sealed class DisplaySettingsBrowserHostTests
         }
     }
 
+    [Fact]
+    public async Task Evidence_ResetAndOwnershipMutation_CompleteConcurrently()
+    {
+        var store = new HarnessStore();
+        var service = new FakeTransponderManagementService(store);
+        using var start = new Barrier(3);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var tasks = new[]
+        {
+            Task.Run(() => { start.SignalAndWait(timeout.Token); for (var i = 0; i < 200; i++) { timeout.Token.ThrowIfCancellationRequested(); store.Evidence(); } }),
+            Task.Run(async () => { start.SignalAndWait(timeout.Token); for (var i = 0; i < 200; i++) { timeout.Token.ThrowIfCancellationRequested(); await service.RegisterOwnershipAsync(new("TEST", DateTimeOffset.UtcNow, null, null), false); } }),
+            Task.Run(() => { start.SignalAndWait(timeout.Token); for (var i = 0; i < 200; i++) { timeout.Token.ThrowIfCancellationRequested(); store.Reset(); } })
+        };
+        await Task.WhenAll(tasks).WaitAsync(timeout.Token);
+        store.Reset();
+        lock (store.Transponders) Assert.Equal(2, store.Transponders.Count);
+    }
+
     public sealed class HostDocument : ComponentBase
     {
         [CascadingParameter] public HttpContext? Context { get; set; }
@@ -211,6 +229,7 @@ public sealed class DisplaySettingsBrowserHostTests
 
         public void Reset()
         {
+            lock (Transponders)
             lock (_gate)
             {
                 Current = Default; _submitted.Clear(); _reads.Clear(); _ownershipSubmissions.Clear(); _zoneCatalogueReads = 0; FailNext.Clear();
@@ -262,6 +281,8 @@ public sealed class DisplaySettingsBrowserHostTests
         public void RecordOwnership(OwnershipSubmission submission) { lock (_gate) _ownershipSubmissions.Add(submission); }
         public object Evidence()
         {
+            // Mutation records evidence while holding Transponders: always take that lock first.
+            lock (Transponders)
             lock (_gate)
             {
                 return new

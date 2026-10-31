@@ -30,50 +30,7 @@ public sealed class PublicStatisticsBrowserHarnessTests
     public async Task RealInteractivePage_RestoresRefreshHistoryFiltersSelectionsAndCursorNavigation()
     {
         var repository = FindRepository();
-        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
-        {
-            EnvironmentName = "Development", ContentRootPath = repository
-        });
-        builder.WebHost.UseKestrel().UseUrls("http://127.0.0.1:0");
-        builder.Services.AddRazorComponents().AddInteractiveServerComponents();
-        builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
-        builder.Services.Configure<RequestLocalizationOptions>(options =>
-            options.SetDefaultCulture("en").AddSupportedCultures("en", "nb-NO").AddSupportedUICultures("en", "nb-NO"));
-        builder.Services.AddMudServices();
-        builder.Services.AddTransient<MudLocalizer, LocalizedMudLocalizer>();
-        builder.Services.AddAuthorization();
-        builder.Services.AddCascadingAuthenticationState();
-        builder.Services.AddScoped<AuthenticationStateProvider, AnonymousState>();
-        builder.Services.AddScoped<UnsavedChangesTracker>();
-        var state = new HarnessState();
-        builder.Services.AddSingleton(CreateStatistics(state));
-        builder.Services.AddSingleton(PlatformServiceTests.TestProxy.Create<IFacilityService>((method, _) =>
-            method.Name == nameof(IFacilityService.GetFacilitiesAsync)
-                ? state.Mode == "no-facilities" ? Array.Empty<FacilityView>()
-                    : new[] { new FacilityView { Id = Id(2), Name = "Zulu" },
-                        new FacilityView { Id = Id(14), Name = "Arena" }, new FacilityView { Id = Id(1), Name = "Arena" } }
-                : throw new NotSupportedException(method.Name)));
-        await using var app = builder.Build();
-        app.UseRequestLocalization();
-        app.UseAntiforgery();
-        app.MapPost("/__test/scenario/{mode}", (string mode) =>
-        {
-            if (!new[] { "normal", "no-facilities", "no-lap", "no-configurations", "discovery-error",
-                "results-error", "denied", "delayed" }.Contains(mode)) return Results.BadRequest();
-            state.Mode = mode;
-            return Results.Ok();
-        });
-        app.MapGet("/__test/evidence", () => Results.Json(new
-        {
-            state.Requests, state.Cancelled, state.CompletedDelayed
-        }));
-        // Serve locally cached package assets, never remote fonts/CDNs.
-        MapPackageAsset(app, "MudBlazor", "MudBlazor.min.js");
-        MapPackageAsset(app, "MudBlazor", "MudBlazor.min.css");
-        MapPackageAsset(app, "Microsoft.AspNetCore.App.Internal.Assets", "blazor.web.js", "/_framework/blazor.web.js");
-        app.MapRazorComponents<HarnessDocument>().AddInteractiveServerRenderMode()
-            .AddAdditionalAssemblies(typeof(Routes).Assembly);
-        await app.StartAsync();
+        await using var app = await CreateAppAsync();
         try
         {
             var address = app.Services.GetRequiredService<IServer>().Features
@@ -108,12 +65,110 @@ public sealed class PublicStatisticsBrowserHarnessTests
         }
         finally
         {
-            await app.StopAsync();
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await app.StopAsync(stop.Token);
         }
+    }
+
+    [Fact]
+    public async Task HarnessHttp_ServesStatisticsAndDisplayPreferenceModuleWithoutBrowser()
+    {
+        await using var app = await CreateAppAsync();
+        try
+        {
+            using var scope = app.Services.CreateScope();
+            var state = scope.ServiceProvider.GetRequiredService<DisplayPreferenceState>();
+            Assert.Same(state, scope.ServiceProvider.GetRequiredService<DisplayPreferenceState>());
+            var preferences = scope.ServiceProvider.GetRequiredService<IDisplayPreferenceService>();
+            Assert.Equal("browser", (await preferences.GetAsync()).TimeMode);
+            Assert.NotEmpty(await preferences.GetTimeZonesAsync());
+            var address = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
+            using var client = new HttpClient { BaseAddress = new Uri(address), Timeout = TimeSpan.FromSeconds(10) };
+            foreach (var route in new[] { "/statistics", "/statistics?__test_prerender=true", "/registrationDates.js", "/_framework/blazor.web.js", "/_content/MudBlazor/MudBlazor.min.js", "/_content/MudBlazor/MudBlazor.min.css" })
+            {
+                using var response = await client.GetAsync(route);
+                Assert.True(response.IsSuccessStatusCode, $"{route}: {(int)response.StatusCode}");
+                var body = await response.Content.ReadAsStringAsync();
+                Assert.NotEmpty(body);
+                if (route.Contains("__test_prerender"))
+                {
+                    // Exercise actual MainLayout injection; plain interactive-shell HTTP cannot detect missing DI.
+                    Assert.Contains("Display settings", body, StringComparison.OrdinalIgnoreCase);
+                    Assert.Contains("VeloTime", body);
+                }
+                if (route == "/registrationDates.js")
+                {
+                    Assert.Equal("text/javascript", response.Content.Headers.ContentType!.MediaType);
+                    Assert.Contains("browserPresentation", body);
+                    Assert.Equal(await File.ReadAllTextAsync(Path.Combine(FindRepository(), "src", "WebUI.Mud.Client", "wwwroot", "registrationDates.js")), body);
+                }
+            }
+        }
+        finally
+        {
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await app.StopAsync(stop.Token);
+        }
+    }
+
+    private static async Task<WebApplication> CreateAppAsync()
+    {
+        var repository = FindRepository();
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            EnvironmentName = "Development", ContentRootPath = repository
+        });
+        builder.WebHost.UseKestrel().UseUrls("http://127.0.0.1:0");
+        builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+        builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+        builder.Services.Configure<RequestLocalizationOptions>(options =>
+            options.SetDefaultCulture("en").AddSupportedCultures("en", "nb-NO").AddSupportedUICultures("en", "nb-NO"));
+        builder.Services.AddMudServices();
+        builder.Services.AddTransient<MudLocalizer, LocalizedMudLocalizer>();
+        builder.Services.AddAuthorization();
+        builder.Services.AddCascadingAuthenticationState();
+        builder.Services.AddScoped<AuthenticationStateProvider, AnonymousState>();
+        builder.Services.AddScoped<UnsavedChangesTracker>();
+        builder.Services.AddScoped<DisplayPreferenceState>();
+        builder.Services.AddScoped<IDisplayPreferenceService, DisplaySettingsBrowserHostTests.FakeDisplayPreferenceService>();
+        builder.Services.AddSingleton<DisplaySettingsBrowserHostTests.HarnessStore>();
+        var state = new HarnessState();
+        builder.Services.AddSingleton(CreateStatistics(state));
+        builder.Services.AddSingleton(PlatformServiceTests.TestProxy.Create<IFacilityService>((method, _) =>
+            method.Name == nameof(IFacilityService.GetFacilitiesAsync)
+                ? state.Mode == "no-facilities" ? Array.Empty<FacilityView>()
+                    : new[] { new FacilityView { Id = Id(2), Name = "Zulu" },
+                        new FacilityView { Id = Id(14), Name = "Arena" }, new FacilityView { Id = Id(1), Name = "Arena" } }
+                : throw new NotSupportedException(method.Name)));
+        var app = builder.Build();
+        app.UseRequestLocalization();
+        app.UseAntiforgery();
+        app.MapPost("/__test/scenario/{mode}", (string mode) =>
+        {
+            if (!new[] { "normal", "no-facilities", "no-lap", "no-configurations", "discovery-error",
+                "results-error", "denied", "delayed" }.Contains(mode)) return Results.BadRequest();
+            state.Mode = mode;
+            return Results.Ok();
+        });
+        app.MapGet("/__test/evidence", () => Results.Json(new
+        {
+            state.Requests, state.Cancelled, state.CompletedDelayed
+        }));
+        app.MapGet("/registrationDates.js", () => Results.File(
+            Path.Combine(repository, "src", "WebUI.Mud.Client", "wwwroot", "registrationDates.js"), "text/javascript"));
+        // Serve locally cached package assets, never remote fonts/CDNs.
+        MapPackageAsset(app, "MudBlazor", "MudBlazor.min.js");
+        MapPackageAsset(app, "MudBlazor", "MudBlazor.min.css");
+        MapPackageAsset(app, "Microsoft.AspNetCore.App.Internal.Assets", "blazor.web.js", "/_framework/blazor.web.js");
+        app.MapRazorComponents<HarnessDocument>().AddInteractiveServerRenderMode()
+            .AddAdditionalAssemblies(typeof(Routes).Assembly);
+        await app.StartAsync();
+        return app;
     }
 
     public sealed class HarnessDocument : ComponentBase
     {
+        [CascadingParameter] public HttpContext? Context { get; set; }
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
             builder.OpenElement(0, "html");
@@ -126,7 +181,7 @@ public sealed class PublicStatisticsBrowserHarnessTests
             builder.CloseElement();
             builder.OpenElement(4, "body");
             builder.OpenComponent<Routes>(5);
-            builder.AddComponentRenderMode(new InteractiveServerRenderMode(prerender: false));
+            builder.AddComponentRenderMode(new InteractiveServerRenderMode(prerender: Context?.Request.Query.ContainsKey("__test_prerender") == true));
             builder.CloseComponent();
             builder.AddMarkupContent(6, """
                 <script>window.velotimeLanguage={state:()=>({language:"en",preferenceUnavailable:false})};</script>
