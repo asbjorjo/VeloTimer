@@ -19,6 +19,14 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.21"></a>
+## [2.1.0-alpha.21](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.21) (2026-10-31)
+
+### Bug Fixes
+
+* **webui:** merge login issuer correction into v2 ([f613190](https://www.github.com/asbjorjo/VeloTimer/commit/f613190d7574a83e8a5e79b46c463cbda365c58f))
+* **webui:** preserve validated issuer in login tickets ([936b0cb](https://www.github.com/asbjorjo/VeloTimer/commit/936b0cbbdf7724294e661d8cb4e7a78d0578f91f))
+
 <a name="2.1.0-alpha.20"></a>
 ## [2.1.0-alpha.20](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.20) (2026-10-31)
 
