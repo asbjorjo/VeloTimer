@@ -180,6 +180,11 @@ public sealed class StatisticsTableRenderingTests
     private sealed class DeferredStatisticsService(
         Func<Guid?, DateTimeOffset?, DateTimeOffset?, CancellationToken, Task<IReadOnlyList<BestStatisticsResultView>>> get) : IStatisticsService
     {
+        public Task<VeloTime.Module.Statistics.Interface.Data.PublicStatisticsDiscoveryDTO> GetPublicDiscoveryAsync(
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
+        public Task<VeloTime.Module.Statistics.Interface.Data.PublicStatisticsResultsPageDTO> GetPublicResultsAsync(
+            VeloTime.Module.Statistics.Interface.Data.GetPublicStatisticsResultsRequest request,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<IReadOnlyList<BestStatisticsResultView>> GetBestResultsAsync(Guid? facilityId = null, DateTimeOffset? from = null,
             DateTimeOffset? to = null, CancellationToken cancellationToken = default) => get(facilityId, from, to, cancellationToken);
         public Task<IEnumerable<SampleView>> GetSamplesAsync(DateTime? cursor, bool isNextPage, int pageSize, CancellationToken cancellationToken = default) =>

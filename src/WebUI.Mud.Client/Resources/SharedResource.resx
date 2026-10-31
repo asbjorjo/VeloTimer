@@ -264,6 +264,38 @@
   <data name="Toggle group" xml:space="preserve"><value>Toggle group</value></data>
   <data name="StatisticsAdministrationTitle" xml:space="preserve"><value>Statistics Administration</value></data>
   <data name="Statistics" xml:space="preserve"><value>Statistics</value></data>
+  <data name="PublicStatisticsNav" xml:space="preserve"><value>Public results</value></data>
+  <data name="PublicStatisticsTitle" xml:space="preserve"><value>Public statistics results</value></data>
+  <data name="PublicStatisticsDescription" xml:space="preserve"><value>Browse individual results from profiles that are currently public.</value></data>
+  <data name="LoadingPublicStatistics" xml:space="preserve"><value>Loading public results</value></data>
+  <data name="PublicStatisticsFilters" xml:space="preserve"><value>Public result filters</value></data>
+  <data name="StatisticsConfiguration" xml:space="preserve"><value>Configuration</value></data>
+  <data name="PublicStatisticsNameSearch" xml:space="preserve"><value>Profile name contains</value></data>
+  <data name="MinimumDuration" xml:space="preserve"><value>Minimum duration (hh:mm:ss.fff)</value></data>
+  <data name="MaximumDuration" xml:space="preserve"><value>Maximum duration (hh:mm:ss.fff)</value></data>
+  <data name="MinimumSpeedKmh" xml:space="preserve"><value>Minimum speed (km/h)</value></data>
+  <data name="MaximumSpeedKmh" xml:space="preserve"><value>Maximum speed (km/h)</value></data>
+  <data name="ApplyFilters" xml:space="preserve"><value>Apply filters</value></data>
+  <data name="ClearFilters" xml:space="preserve"><value>Clear filters</value></data>
+  <data name="PublicStatisticsFilterHelp" xml:space="preserve"><value>Duration filters use invariant hh:mm:ss.fff; use d.hh:mm:ss.fff for durations of a day or longer. Speed values use an invariant decimal point. Bounds are inclusive.</value></data>
+  <data name="PublicStatisticsDefaultsUnavailable" xml:space="preserve"><value>The default public-results selection is unavailable: a facility, the Lap item, or an eligible configuration could not be found.</value></data>
+  <data name="PublicStatisticsInvalidSelection" xml:space="preserve"><value>This facility, item, or configuration selection is invalid or unavailable. Choose a valid selection above.</value></data>
+  <data name="PublicStatisticsNoConfigurations" xml:space="preserve"><value>No configuration is available for this facility and statistics item. Choose another facility or item.</value></data>
+  <data name="PublicStatisticsInvalidQuery" xml:space="preserve"><value>The URL filters are invalid or unsupported. Correct the values and apply the filters again.</value></data>
+  <data name="PublicStatisticsInvalidFilters" xml:space="preserve"><value>The filters are invalid. Use the documented duration and decimal formats, nonnegative bounds, and a minimum no greater than the maximum.</value></data>
+  <data name="PublicStatisticsDuplicateQuery" xml:space="preserve"><value>The URL contains a repeated query parameter and cannot be loaded.</value></data>
+  <data name="PublicStatisticsUnauthorized" xml:space="preserve"><value>Public results are temporarily unavailable because access was denied. Please retry later.</value></data>
+  <data name="PublicStatisticsLoadFailed" xml:space="preserve"><value>Public results could not be loaded. Check your connection and retry.</value></data>
+  <data name="NoPublicStatisticsResults" xml:space="preserve"><value>No public results match these selections and filters.</value></data>
+  <data name="PublicStatisticsResultsCaption" xml:space="preserve"><value>Individual public statistics results, newest first</value></data>
+  <data name="PublicStatisticsPagination" xml:space="preserve"><value>Public results pages</value></data>
+  <data name="PreviousResults" xml:space="preserve"><value>Previous results</value></data>
+  <data name="NextResults" xml:space="preserve"><value>Next results</value></data>
+  <data name="SpeedKmh" xml:space="preserve"><value>Average speed (km/h)</value></data>
+  <data name="UnnamedCoursePoint" xml:space="preserve"><value>Unnamed point</value></data>
+  <data name="SimpleConfigurationLabel" xml:space="preserve"><value>{0} – {1}</value></data>
+  <data name="MultiConfigurationLabel" xml:space="preserve"><value>{0} repetitions: {1}</value></data>
+  <data name="ConfigurationLabelWithId" xml:space="preserve"><value>{0} ({1})</value></data>
   <data name="Edit" xml:space="preserve"><value>Edit</value></data>
   <data name="New" xml:space="preserve"><value>New</value></data>
   <data name="Configuration" xml:space="preserve"><value>configuration</value></data>

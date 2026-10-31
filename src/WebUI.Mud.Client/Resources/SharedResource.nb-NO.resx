@@ -265,6 +265,38 @@
   <data name="Toggle group" xml:space="preserve"><value>Vis eller skjul gruppen</value></data>
   <data name="StatisticsAdministrationTitle" xml:space="preserve"><value>Statistikkadministrasjon</value></data>
   <data name="Statistics" xml:space="preserve"><value>Statistikk</value></data>
+  <data name="PublicStatisticsNav" xml:space="preserve"><value>Offentlige resultater</value></data>
+  <data name="PublicStatisticsTitle" xml:space="preserve"><value>Offentlige statistikkresultater</value></data>
+  <data name="PublicStatisticsDescription" xml:space="preserve"><value>Vis individuelle resultater fra profiler som for øyeblikket er offentlige.</value></data>
+  <data name="LoadingPublicStatistics" xml:space="preserve"><value>Laster inn offentlige resultater</value></data>
+  <data name="PublicStatisticsFilters" xml:space="preserve"><value>Filtre for offentlige resultater</value></data>
+  <data name="StatisticsConfiguration" xml:space="preserve"><value>Konfigurasjon</value></data>
+  <data name="PublicStatisticsNameSearch" xml:space="preserve"><value>Profilnavn inneholder</value></data>
+  <data name="MinimumDuration" xml:space="preserve"><value>Minste varighet (hh:mm:ss.fff)</value></data>
+  <data name="MaximumDuration" xml:space="preserve"><value>Største varighet (hh:mm:ss.fff)</value></data>
+  <data name="MinimumSpeedKmh" xml:space="preserve"><value>Minste hastighet (km/t)</value></data>
+  <data name="MaximumSpeedKmh" xml:space="preserve"><value>Største hastighet (km/t)</value></data>
+  <data name="ApplyFilters" xml:space="preserve"><value>Bruk filtre</value></data>
+  <data name="ClearFilters" xml:space="preserve"><value>Fjern filtre</value></data>
+  <data name="PublicStatisticsFilterHelp" xml:space="preserve"><value>Varighetsfiltre bruker invariant hh:mm:ss.fff; bruk d.hh:mm:ss.fff for varigheter på én dag eller mer. Hastighet bruker invariant desimalpunktum. Grensene er inklusive.</value></data>
+  <data name="PublicStatisticsDefaultsUnavailable" xml:space="preserve"><value>Standardvalget for offentlige resultater er utilgjengelig: et anlegg, elementet Lap eller en gyldig konfigurasjon ble ikke funnet.</value></data>
+  <data name="PublicStatisticsInvalidSelection" xml:space="preserve"><value>Valget av anlegg, element eller konfigurasjon er ugyldig eller utilgjengelig. Velg et gyldig alternativ ovenfor.</value></data>
+  <data name="PublicStatisticsNoConfigurations" xml:space="preserve"><value>Ingen konfigurasjon er tilgjengelig for dette anlegget og statistikkelementet. Velg et annet anlegg eller element.</value></data>
+  <data name="PublicStatisticsInvalidQuery" xml:space="preserve"><value>URL-filtrene er ugyldige eller støttes ikke. Rett verdiene og bruk filtrene på nytt.</value></data>
+  <data name="PublicStatisticsInvalidFilters" xml:space="preserve"><value>Filtrene er ugyldige. Bruk de oppgitte varighets- og desimalformatene, ikke-negative grenser og en minsteverdi som ikke er større enn størsteverdien.</value></data>
+  <data name="PublicStatisticsDuplicateQuery" xml:space="preserve"><value>URL-en inneholder en gjentatt spørringsparameter og kan ikke lastes inn.</value></data>
+  <data name="PublicStatisticsUnauthorized" xml:space="preserve"><value>Offentlige resultater er midlertidig utilgjengelige fordi tilgangen ble avvist. Prøv igjen senere.</value></data>
+  <data name="PublicStatisticsLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn offentlige resultater. Kontroller tilkoblingen og prøv igjen.</value></data>
+  <data name="NoPublicStatisticsResults" xml:space="preserve"><value>Ingen offentlige resultater samsvarer med valgene og filtrene.</value></data>
+  <data name="PublicStatisticsResultsCaption" xml:space="preserve"><value>Individuelle offentlige statistikkresultater, nyeste først</value></data>
+  <data name="PublicStatisticsPagination" xml:space="preserve"><value>Sider med offentlige resultater</value></data>
+  <data name="PreviousResults" xml:space="preserve"><value>Forrige resultater</value></data>
+  <data name="NextResults" xml:space="preserve"><value>Neste resultater</value></data>
+  <data name="SpeedKmh" xml:space="preserve"><value>Gjennomsnittshastighet (km/t)</value></data>
+  <data name="UnnamedCoursePoint" xml:space="preserve"><value>Punkt uten navn</value></data>
+  <data name="SimpleConfigurationLabel" xml:space="preserve"><value>{0} – {1}</value></data>
+  <data name="MultiConfigurationLabel" xml:space="preserve"><value>{0} repetisjoner: {1}</value></data>
+  <data name="ConfigurationLabelWithId" xml:space="preserve"><value>{0} ({1})</value></data>
   <data name="Edit" xml:space="preserve"><value>Rediger</value></data>
   <data name="New" xml:space="preserve"><value>Ny</value></data>
   <data name="Configuration" xml:space="preserve"><value>konfigurasjon</value></data>

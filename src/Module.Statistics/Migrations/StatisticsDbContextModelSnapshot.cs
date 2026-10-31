@@ -18,9 +18,10 @@ namespace VeloTime.Module.Statistics.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("statistics")
-                .HasAnnotation("ProductVersion", "10.0.3")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "public", "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.Sample", b =>
@@ -127,6 +128,11 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.HasIndex("StatisticsItemId", "TransponderId", "TimeStart", "TimeEnd")
                         .HasDatabaseName("ix_statistics_entry_statistics_item_id_transponder_id_time_sta");
 
+                    b.HasIndex("FacilityId", "StatisticsItemId", "StatisticsItemConfigId", "TimeEnd", "Id")
+                        .IsDescending(false, false, false, true, true)
+                        .HasDatabaseName("ix_statistics_entry_facility_item_config_time_end_id")
+                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+
                     b.ToTable("statistics_entry", "statistics");
                 });
 
@@ -202,6 +208,14 @@ namespace VeloTime.Module.Statistics.Migrations
 
                     b.HasKey("UserId")
                         .HasName("pk_stats_profile");
+
+                    b.HasIndex("ProfileName")
+                        .HasDatabaseName("ix_stats_profile_public_name_trgm")
+                        .HasFilter("is_public = TRUE")
+                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("ProfileName"), "gin");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("ProfileName"), new[] { "gin_trgm_ops" });
 
                     b.ToTable("stats_profile", "statistics");
                 });

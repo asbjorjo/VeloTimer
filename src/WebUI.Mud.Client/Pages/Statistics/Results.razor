@@ -1,0 +1,688 @@
+@page "/statistics"
+@page "/statistics/{FacilityId}/{ItemId}/{ConfigurationId}"
+@using System.Globalization
+@using System.Net
+@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.Extensions.Primitives
+@using VeloTime.Module.Statistics.Interface.Data
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@inject IStatisticsService Statistics
+@inject IFacilityService FacilityService
+@inject NavigationManager Navigation
+@inject ILogger<Results> Logger
+@implements IDisposable
+
+<PageTitle>@L["PublicStatisticsTitle"]</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    <MudText Typo="Typo.h4" HtmlTag="h1" Class="mb-2">@L["PublicStatisticsTitle"]</MudText>
+    <MudText Class="mb-4">@L["PublicStatisticsDescription"]</MudText>
+
+    @if (_discoveryLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" aria-label="@L["LoadingPublicStatistics"]" />
+    }
+    else if (_discoveryError is not null)
+    {
+        <div role="alert"><MudAlert Severity="Severity.Error">@_discoveryError</MudAlert></div>
+        <MudButton OnClick="RetryDiscoveryAsync" Class="mt-2">@L["Retry"]</MudButton>
+    }
+    else if (_discovery is not null)
+    {
+        @if (_defaultUnavailable)
+        {
+            <div role="status"><MudAlert Severity="Severity.Warning">@L["PublicStatisticsDefaultsUnavailable"]</MudAlert></div>
+        }
+        @if (_selectionError is not null)
+        {
+            <div role="alert"><MudAlert Severity="Severity.Warning">@_selectionError</MudAlert></div>
+        }
+        @if (_queryError is not null)
+        {
+            <div role="alert"><MudAlert Severity="Severity.Warning">@_queryError</MudAlert></div>
+        }
+
+        <section aria-label="@L["PublicStatisticsFilters"]">
+            <MudGrid Spacing="3" Class="mb-3">
+                <MudItem xs="12" md="4">
+                    <MudSelect T="Guid" Strict="true" InputId="public-statistics-facility" Value="_selectedFacilityId" ValueChanged="FacilityChangedAsync" Label="@L["Facility"]" Disabled="@(_facilities.Count == 0)">
+                        @foreach (var facility in _facilities)
+                        {
+                            <MudSelectItem T="Guid" Value="@facility.Id">@facility.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="Guid" Strict="true" InputId="public-statistics-item" Value="_selectedItemId" ValueChanged="ItemChangedAsync" Label="@L["StatisticsItem"]" Disabled="@(_discovery.Items.Count == 0)">
+                        @foreach (var item in _discovery.Items.OrderBy(item => item.Name, StringComparer.Ordinal).ThenBy(item => item.Id.ToString("D"), StringComparer.Ordinal))
+                        {
+                            <MudSelectItem T="Guid" Value="@item.Id">@item.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="Guid" Strict="true" InputId="public-statistics-configuration" Value="_selectedConfigurationId" ValueChanged="ConfigurationChangedAsync" Label="@L["StatisticsConfiguration"]" Disabled="@(CurrentConfigurations.Count == 0)">
+                        @foreach (var option in CurrentConfigurations)
+                        {
+                            <MudSelectItem T="Guid" Value="@option.Id">@ConfigurationLabel(option, CurrentConfigurations)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <form @onsubmit="ApplyFiltersAsync" @onsubmit:preventDefault>
+                @if (_draftError is not null)
+                {
+                    <div role="alert"><MudAlert Severity="Severity.Warning">@_draftError</MudAlert></div>
+                }
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" md="6">
+                        <MudTextField T="string" InputId="public-statistics-name" @bind-Value="_nameFilter" Immediate="true" Label="@L["PublicStatisticsNameSearch"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" InputId="public-statistics-min-time" @bind-Value="_minimumDuration" Immediate="true" Label="@L["MinimumDuration"]" Placeholder="hh:mm:ss.fff" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" InputId="public-statistics-max-time" @bind-Value="_maximumDuration" Immediate="true" Label="@L["MaximumDuration"]" Placeholder="hh:mm:ss.fff" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" InputId="public-statistics-min-speed" @bind-Value="_minimumSpeed" Immediate="true" Label="@L["MinimumSpeedKmh"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="string" InputId="public-statistics-max-speed" @bind-Value="_maximumSpeed" Immediate="true" Label="@L["MaximumSpeedKmh"]" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+                            <MudButton id="public-statistics-apply" ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">@L["ApplyFilters"]</MudButton>
+                            <MudButton id="public-statistics-clear" ButtonType="ButtonType.Button" Variant="Variant.Outlined" OnClick="ClearFiltersAsync">@L["ClearFilters"]</MudButton>
+                        </div>
+                    </MudItem>
+                </MudGrid>
+                <MudText Typo="Typo.caption" Class="mt-2">@L["PublicStatisticsFilterHelp"]</MudText>
+            </form>
+        </section>
+
+        @if (_selectionError is null && _queryError is null && _activeRequest is not null)
+        {
+            @if (_resultsLoading)
+            {
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" aria-label="@L["LoadingPublicStatistics"]" />
+            }
+            else if (_resultsError is not null)
+            {
+                <div role="alert"><MudAlert Severity="Severity.Error">@_resultsError</MudAlert></div>
+                <MudButton OnClick="RetryResultsAsync" Class="mt-2">@L["Retry"]</MudButton>
+            }
+            else if (_results is not null)
+            {
+                @if (_results.Items.Count == 0)
+                {
+                    <div role="status"><MudAlert Severity="Severity.Info" Class="mt-4">@L["NoPublicStatisticsResults"]</MudAlert></div>
+                }
+                else
+                {
+                    <div class="mt-4" role="region" aria-label="@L["PublicStatisticsResultsCaption"]" tabindex="0" style="overflow-x:auto; width:100%;">
+                        <table style="width:100%; border-collapse:collapse;">
+                            <caption style="caption-side:top; text-align:left; padding:0.5rem;">@L["PublicStatisticsResultsCaption"]</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col" style="padding:0.75rem; text-align:left; border-bottom:1px solid var(--mud-palette-divider);">@L["Profile"]</th>
+                                    <th scope="col" style="padding:0.75rem; text-align:right; border-bottom:1px solid var(--mud-palette-divider);">@L["Duration"]</th>
+                                    <th scope="col" style="padding:0.75rem; text-align:right; border-bottom:1px solid var(--mud-palette-divider);">@L["SpeedKmh"]</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var result in _results.Items)
+                                {
+                                    <tr>
+                                        <th scope="row" style="padding:0.75rem; text-align:left; border-bottom:1px solid var(--mud-palette-divider);">@result.ProfileName</th>
+                                        <td style="padding:0.75rem; text-align:right; white-space:nowrap; border-bottom:1px solid var(--mud-palette-divider);">@FormatResultDuration(result.Duration)</td>
+                                        <td style="padding:0.75rem; text-align:right; white-space:nowrap; border-bottom:1px solid var(--mud-palette-divider);">@result.SpeedKmh.ToString("N3", CultureInfo.CurrentCulture)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                <nav aria-label="@L["PublicStatisticsPagination"]">
+                    <div class="mt-3" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+                        <MudButton id="public-statistics-previous" Variant="Variant.Outlined" Disabled="@(_results.Previous is null)" OnClick="LoadPreviousAsync">@L["PreviousResults"]</MudButton>
+                        <MudButton id="public-statistics-next" Variant="Variant.Outlined" Disabled="@(_results.Next is null)" OnClick="LoadNextAsync">@L["NextResults"]</MudButton>
+                    </div>
+                </nav>
+            }
+        }
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public string? FacilityId { get; set; }
+    [Parameter] public string? ItemId { get; set; }
+    [Parameter] public string? ConfigurationId { get; set; }
+
+    private PublicStatisticsDiscoveryDTO? _discovery;
+    private IReadOnlyList<FacilityView> _facilities = [];
+    private PublicStatisticsResultsPageDTO? _results;
+    private GetPublicStatisticsResultsRequest? _activeRequest;
+    private CancellationTokenSource? _discoveryRequest;
+    private CancellationTokenSource? _resultsRequest;
+    private string? _lastHandledUri;
+    private string? _discoveryError;
+    private string? _resultsError;
+    private string? _selectionError;
+    private string? _queryError;
+    private string? _draftError;
+    private string _nameFilter = string.Empty;
+    private string _minimumDuration = string.Empty;
+    private string _maximumDuration = string.Empty;
+    private string _minimumSpeed = string.Empty;
+    private string _maximumSpeed = string.Empty;
+    private Guid _selectedFacilityId;
+    private Guid _selectedItemId;
+    private Guid _selectedConfigurationId;
+    private bool _discoveryLoading;
+    private bool _resultsLoading;
+    private bool _defaultUnavailable;
+    private bool _disposed;
+
+    protected override void OnInitialized() => Navigation.LocationChanged += LocationChanged;
+
+    // Query-only history/navigation must reload even when no route parameter changes.
+    // Path changes are left to the Router so its route parameters are already current.
+    private void LocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        if (_disposed || _lastHandledUri is null ||
+            Navigation.ToAbsoluteUri(_lastHandledUri).AbsolutePath != Navigation.ToAbsoluteUri(args.Location).AbsolutePath)
+            return;
+
+        _ = InvokeAsync(async () =>
+        {
+            if (_disposed)
+                return;
+            await OnParametersSetAsync();
+            if (!_disposed)
+                StateHasChanged();
+        });
+    }
+
+    private IReadOnlyList<PublicStatisticsConfigurationDTO> CurrentConfigurations =>
+        _discovery?.Configurations
+            .Where(configuration => configuration.FacilityId == _selectedFacilityId &&
+                                    configuration.StatisticsItemId == _selectedItemId)
+            .OrderBy(configuration => configuration.Id.ToString("D"), StringComparer.Ordinal)
+            .ToArray() ?? [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_disposed)
+            return;
+
+        var uri = Navigation.Uri;
+        if (string.Equals(uri, _lastHandledUri, StringComparison.Ordinal))
+            return;
+        _lastHandledUri = uri;
+
+        if (_discovery is null && _discoveryError is null && !_discoveryLoading)
+            await LoadDiscoveryAsync();
+
+        if (_disposed || _discovery is null || _discoveryError is not null)
+            return;
+
+        if (!string.Equals(uri, Navigation.Uri, StringComparison.Ordinal))
+        {
+            _lastHandledUri = null;
+            await OnParametersSetAsync();
+            return;
+        }
+
+        await ProcessCurrentUriAsync(uri);
+    }
+
+    private async Task LoadDiscoveryAsync()
+    {
+        _discoveryRequest?.Cancel();
+        using var request = new CancellationTokenSource();
+        _discoveryRequest = request;
+        _discoveryLoading = true;
+        _discoveryError = null;
+        _defaultUnavailable = false;
+
+        try
+        {
+            var discoveryTask = Statistics.GetPublicDiscoveryAsync(request.Token);
+            var facilitiesTask = FacilityService.GetFacilitiesAsync(request.Token);
+            await Task.WhenAll(discoveryTask, facilitiesTask);
+            if (_disposed || request.IsCancellationRequested || !ReferenceEquals(_discoveryRequest, request))
+                return;
+
+            _discovery = await discoveryTask;
+            _facilities = (await facilitiesTask)
+                .OrderBy(facility => facility.Name, StringComparer.CurrentCulture)
+                .ThenBy(facility => facility.Id.ToString("D"), StringComparer.Ordinal)
+                .ToArray();
+        }
+        catch (OperationCanceledException) when (request.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            if (!_disposed && !request.IsCancellationRequested && ReferenceEquals(_discoveryRequest, request))
+            {
+                Logger.LogWarning(exception, "Could not load public statistics discovery");
+                _discoveryError = ErrorMessage(exception);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_discoveryRequest, request))
+            {
+                _discoveryLoading = false;
+                _discoveryRequest = null;
+            }
+        }
+    }
+
+    private void CancelResults()
+    {
+        _resultsRequest?.Cancel();
+        _resultsRequest = null;
+        _resultsLoading = false;
+        _results = null;
+        _resultsError = null;
+    }
+
+    private async Task ProcessCurrentUriAsync(string uri)
+    {
+        CancelResults();
+        _activeRequest = null;
+        _selectionError = null;
+        _queryError = null;
+        _draftError = null;
+        _defaultUnavailable = false;
+        _selectedFacilityId = Guid.Empty;
+        _selectedItemId = Guid.Empty;
+        _selectedConfigurationId = Guid.Empty;
+
+        var parsedUri = Navigation.ToAbsoluteUri(uri);
+        var rawQuery = QueryHelpers.ParseQuery(parsedUri.Query);
+        var query = new Dictionary<string, string?>(StringComparer.Ordinal);
+        CopyQueryToForm(query);
+        foreach (var pair in rawQuery)
+        {
+            StringValues values = pair.Value;
+            if (values.Count != 1)
+            {
+                _queryError = L["PublicStatisticsDuplicateQuery"].Value;
+            }
+            query[pair.Key] = values.Count > 0 ? values[0] : null;
+        }
+        CopyQueryToForm(query);
+
+        var routeSelectionProvided = FacilityId is not null || ItemId is not null || ConfigurationId is not null;
+        Guid facilityId;
+        Guid itemId;
+        Guid configurationId;
+
+        if (routeSelectionProvided)
+        {
+            if (!Guid.TryParseExact(FacilityId, "D", out facilityId) ||
+                !Guid.TryParseExact(ItemId, "D", out itemId) ||
+                !Guid.TryParseExact(ConfigurationId, "D", out configurationId))
+            {
+                _selectionError = L["PublicStatisticsInvalidSelection"].Value;
+                return;
+            }
+
+            if (!ValidateAndMergePathId(query, "facilityId", facilityId) ||
+                !ValidateAndMergePathId(query, "itemId", itemId) ||
+                !ValidateAndMergePathId(query, "configurationId", configurationId))
+            {
+                _selectionError = L["PublicStatisticsInvalidSelection"].Value;
+                return;
+            }
+        }
+        else
+        {
+            var anyQuerySelection = query.ContainsKey("facilityId") || query.ContainsKey("itemId") || query.ContainsKey("configurationId");
+            if (anyQuerySelection)
+            {
+                if (!query.TryGetValue("facilityId", out var facilityText) ||
+                    !Guid.TryParseExact(facilityText, "D", out facilityId) ||
+                    !query.TryGetValue("itemId", out var itemText) ||
+                    !Guid.TryParseExact(itemText, "D", out itemId) ||
+                    !query.TryGetValue("configurationId", out var configText) ||
+                    !Guid.TryParseExact(configText, "D", out configurationId))
+                {
+                    _selectionError = L["PublicStatisticsInvalidSelection"].Value;
+                    return;
+                }
+            }
+            else if (!TryResolveDefaults(out facilityId, out itemId, out configurationId))
+            {
+                _defaultUnavailable = true;
+                return;
+            }
+        }
+
+        query["facilityId"] = facilityId.ToString("D");
+        query["itemId"] = itemId.ToString("D");
+        query["configurationId"] = configurationId.ToString("D");
+
+        if (!TrySelectionIsAvailable(facilityId, itemId, configurationId))
+        {
+            _selectedFacilityId = facilityId;
+            _selectedItemId = itemId;
+            _selectedConfigurationId = configurationId;
+            _selectionError = _facilities.Any(facility => facility.Id == facilityId) &&
+                              _discovery!.Items.Any(item => item.Id == itemId) &&
+                              CurrentConfigurations.Count == 0
+                ? L["PublicStatisticsNoConfigurations"].Value
+                : L["PublicStatisticsInvalidSelection"].Value;
+            return;
+        }
+
+        _selectedFacilityId = facilityId;
+        _selectedItemId = itemId;
+        _selectedConfigurationId = configurationId;
+        CopyQueryToForm(query);
+        if (_queryError is not null)
+            return;
+        if (!PublicStatisticsQuery.TryParse(query, out var request, out var errors))
+        {
+            Logger.LogInformation("Invalid public statistics URL query keys: {Keys}", string.Join(", ", errors.Keys));
+            _queryError = L["PublicStatisticsInvalidQuery"].Value;
+            return;
+        }
+
+        _activeRequest = request;
+        CopyRequestToForm(request!);
+
+        var canonicalUri = await BuildUriAsync(request!);
+        if (!string.Equals(canonicalUri, parsedUri.PathAndQuery, StringComparison.Ordinal))
+        {
+            Navigation.NavigateTo(canonicalUri, replace: true);
+            return;
+        }
+
+        await LoadResultsAsync(request!);
+    }
+
+    private bool ValidateAndMergePathId(IDictionary<string, string?> query, string key, Guid pathId)
+    {
+        if (query.TryGetValue(key, out var queryId) &&
+            (!Guid.TryParseExact(queryId, "D", out var parsedId) || parsedId != pathId))
+            return false;
+        query[key] = pathId.ToString("D");
+        return true;
+    }
+
+    private bool TryResolveDefaults(out Guid facilityId, out Guid itemId, out Guid configurationId)
+    {
+        facilityId = _facilities.FirstOrDefault()?.Id ?? Guid.Empty;
+        itemId = _discovery!.Items
+            .Where(item => string.Equals(item.Name, "Lap", StringComparison.Ordinal))
+            .OrderBy(item => item.Id.ToString("D"), StringComparer.Ordinal)
+            .Select(item => item.Id)
+            .FirstOrDefault();
+        var selectedFacilityId = facilityId;
+        var selectedItemId = itemId;
+        configurationId = _discovery.Configurations
+            .Where(configuration => configuration.FacilityId == selectedFacilityId && configuration.StatisticsItemId == selectedItemId)
+            .OrderBy(configuration => configuration.Id.ToString("D"), StringComparer.Ordinal)
+            .Select(configuration => configuration.Id)
+            .FirstOrDefault();
+
+        _selectedFacilityId = facilityId;
+        _selectedItemId = itemId;
+        _selectedConfigurationId = configurationId;
+        return facilityId != Guid.Empty && itemId != Guid.Empty && configurationId != Guid.Empty;
+    }
+
+    private bool TrySelectionIsAvailable(Guid facilityId, Guid itemId, Guid configurationId) =>
+        _facilities.Any(facility => facility.Id == facilityId) &&
+        _discovery!.Items.Any(item => item.Id == itemId) &&
+        _discovery.Configurations.Any(configuration =>
+            configuration.Id == configurationId &&
+            configuration.FacilityId == facilityId &&
+            configuration.StatisticsItemId == itemId);
+
+    private async Task LoadResultsAsync(GetPublicStatisticsResultsRequest request)
+    {
+        _resultsRequest?.Cancel();
+        using var currentRequest = new CancellationTokenSource();
+        _resultsRequest = currentRequest;
+        _resultsLoading = true;
+        _resultsError = null;
+        _results = null;
+        StateHasChanged();
+
+        try
+        {
+            var results = await Statistics.GetPublicResultsAsync(request, currentRequest.Token);
+            if (!_disposed && !currentRequest.IsCancellationRequested && ReferenceEquals(_resultsRequest, currentRequest))
+                _results = results;
+        }
+        catch (OperationCanceledException) when (currentRequest.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            if (!_disposed && !currentRequest.IsCancellationRequested && ReferenceEquals(_resultsRequest, currentRequest))
+            {
+                Logger.LogWarning(exception, "Could not load public statistics results");
+                _resultsError = ErrorMessage(exception);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_resultsRequest, currentRequest))
+            {
+                _resultsLoading = false;
+                _resultsRequest = null;
+            }
+        }
+    }
+
+    private string ErrorMessage(Exception exception) =>
+        exception is HttpRequestException { StatusCode: HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden }
+            ? L["PublicStatisticsUnauthorized"].Value
+            : L["PublicStatisticsLoadFailed"].Value;
+
+    private void CopyRequestToForm(GetPublicStatisticsResultsRequest request)
+    {
+        _nameFilter = request.Name ?? string.Empty;
+        _minimumDuration = request.MinDuration is { } minDuration ? PublicStatisticsQuery.FormatDuration(minDuration) : string.Empty;
+        _maximumDuration = request.MaxDuration is { } maxDuration ? PublicStatisticsQuery.FormatDuration(maxDuration) : string.Empty;
+        _minimumSpeed = request.MinSpeedKmh?.ToString("R", CultureInfo.InvariantCulture) ?? string.Empty;
+        _maximumSpeed = request.MaxSpeedKmh?.ToString("R", CultureInfo.InvariantCulture) ?? string.Empty;
+    }
+
+    private void CopyQueryToForm(IReadOnlyDictionary<string, string?> query)
+    {
+        _nameFilter = query.TryGetValue("name", out var name) ? name ?? string.Empty : string.Empty;
+        _minimumDuration = query.TryGetValue("minTime", out var minDuration) ? minDuration ?? string.Empty : string.Empty;
+        _maximumDuration = query.TryGetValue("maxTime", out var maxDuration) ? maxDuration ?? string.Empty : string.Empty;
+        _minimumSpeed = query.TryGetValue("minSpeed", out var minSpeed) ? minSpeed ?? string.Empty : string.Empty;
+        _maximumSpeed = query.TryGetValue("maxSpeed", out var maxSpeed) ? maxSpeed ?? string.Empty : string.Empty;
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        if (_selectedFacilityId == Guid.Empty || _selectedItemId == Guid.Empty || _selectedConfigurationId == Guid.Empty)
+            return;
+
+        var query = NewSelectionQuery(_selectedFacilityId, _selectedItemId, _selectedConfigurationId);
+        if (!string.IsNullOrWhiteSpace(_nameFilter))
+            query["name"] = _nameFilter;
+        AddOptionalQuery(query, "minTime", _minimumDuration);
+        AddOptionalQuery(query, "maxTime", _maximumDuration);
+        AddOptionalQuery(query, "minSpeed", _minimumSpeed);
+        AddOptionalQuery(query, "maxSpeed", _maximumSpeed);
+
+        if (!PublicStatisticsQuery.TryParse(query, out var request, out var errors))
+        {
+            Logger.LogInformation("Rejected invalid public statistics form keys: {Keys}", string.Join(", ", errors.Keys));
+            _draftError = L["PublicStatisticsInvalidFilters"].Value;
+            return;
+        }
+
+        _draftError = null;
+        await NavigateToRequestAsync(request!);
+    }
+
+    private async Task ClearFiltersAsync()
+    {
+        _draftError = null;
+        _nameFilter = string.Empty;
+        _minimumDuration = string.Empty;
+        _maximumDuration = string.Empty;
+        _minimumSpeed = string.Empty;
+        _maximumSpeed = string.Empty;
+        if (_selectedFacilityId == Guid.Empty || _selectedItemId == Guid.Empty || _selectedConfigurationId == Guid.Empty)
+            return;
+        await NavigateToRequestAsync(new GetPublicStatisticsResultsRequest(
+            _selectedFacilityId, _selectedItemId, _selectedConfigurationId));
+    }
+
+    private static void AddOptionalQuery(IDictionary<string, string?> query, string key, string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+            query[key] = value;
+    }
+
+    private static Dictionary<string, string?> NewSelectionQuery(Guid facilityId, Guid itemId, Guid configurationId) =>
+        new(StringComparer.Ordinal)
+        {
+            ["facilityId"] = facilityId.ToString("D"),
+            ["itemId"] = itemId.ToString("D"),
+            ["configurationId"] = configurationId.ToString("D")
+        };
+
+    private async Task NavigateToRequestAsync(GetPublicStatisticsResultsRequest request)
+    {
+        var url = await BuildUriAsync(request);
+        var currentPathAndQuery = Navigation.ToAbsoluteUri(Navigation.Uri).PathAndQuery;
+        if (!string.Equals(url, currentPathAndQuery, StringComparison.Ordinal))
+            Navigation.NavigateTo(url);
+    }
+
+    private async Task<string> BuildUriAsync(GetPublicStatisticsResultsRequest request)
+    {
+        var values = PublicStatisticsQuery.ToQuery(request);
+        values.Remove("facilityId");
+        values.Remove("itemId");
+        values.Remove("configurationId");
+        using var form = new FormUrlEncodedContent(values);
+        var queryString = await form.ReadAsStringAsync();
+        var path = $"/statistics/{request.FacilityId:D}/{request.StatisticsItemId:D}/{request.StatisticsItemConfigId:D}";
+        return string.IsNullOrEmpty(queryString) ? path : $"{path}?{queryString}";
+    }
+
+    private async Task FacilityChangedAsync(Guid facilityId)
+    {
+        if (facilityId == Guid.Empty || facilityId == _selectedFacilityId)
+            return;
+        var firstConfiguration = FirstConfiguration(facilityId, _selectedItemId);
+        await NavigateToSelectionAsync(facilityId, _selectedItemId, firstConfiguration);
+    }
+
+    private async Task ItemChangedAsync(Guid itemId)
+    {
+        if (itemId == Guid.Empty || itemId == _selectedItemId)
+            return;
+        var firstConfiguration = FirstConfiguration(_selectedFacilityId, itemId);
+        await NavigateToSelectionAsync(_selectedFacilityId, itemId, firstConfiguration);
+    }
+
+    private async Task ConfigurationChangedAsync(Guid configurationId)
+    {
+        if (configurationId == Guid.Empty || configurationId == _selectedConfigurationId ||
+            !CurrentConfigurations.Any(configuration => configuration.Id == configurationId))
+            return;
+        await NavigateToSelectionAsync(_selectedFacilityId, _selectedItemId, configurationId);
+    }
+
+    private Guid FirstConfiguration(Guid facilityId, Guid itemId) =>
+        _discovery!.Configurations
+            .Where(configuration => configuration.FacilityId == facilityId && configuration.StatisticsItemId == itemId)
+            .OrderBy(configuration => configuration.Id.ToString("D"), StringComparer.Ordinal)
+            .Select(configuration => configuration.Id)
+            .FirstOrDefault();
+
+    private async Task NavigateToSelectionAsync(Guid facilityId, Guid itemId, Guid configurationId)
+    {
+        var request = _activeRequest is null
+            ? new GetPublicStatisticsResultsRequest(facilityId, itemId, configurationId)
+            : _activeRequest with
+            {
+                FacilityId = facilityId,
+                StatisticsItemId = itemId,
+                StatisticsItemConfigId = configurationId,
+                Cursor = null,
+                Direction = null
+            };
+
+        if (configurationId == Guid.Empty)
+        {
+            var path = $"/statistics/{facilityId:D}/{itemId:D}/{configurationId:D}";
+            Navigation.NavigateTo(path);
+            return;
+        }
+        await NavigateToRequestAsync(request);
+    }
+
+    private async Task LoadPreviousAsync() => await NavigateToCursorAsync(_results?.Previous, PublicStatisticsPageDirection.Previous);
+    private async Task LoadNextAsync() => await NavigateToCursorAsync(_results?.Next, PublicStatisticsPageDirection.Next);
+
+    private async Task NavigateToCursorAsync(PublicStatisticsCursorDTO? cursor, PublicStatisticsPageDirection direction)
+    {
+        if (cursor is null || _activeRequest is null)
+            return;
+        await NavigateToRequestAsync(_activeRequest with { Cursor = cursor, Direction = direction });
+    }
+
+    private Task RetryResultsAsync() => _activeRequest is null ? Task.CompletedTask : LoadResultsAsync(_activeRequest);
+
+    private async Task RetryDiscoveryAsync()
+    {
+        _lastHandledUri = null;
+        await LoadDiscoveryAsync();
+        if (_discovery is not null && _discoveryError is null)
+            await OnParametersSetAsync();
+    }
+
+    private string ConfigurationLabel(PublicStatisticsConfigurationDTO configuration,
+        IReadOnlyList<PublicStatisticsConfigurationDTO> candidates)
+    {
+        var label = ConfigurationBaseLabel(configuration);
+        var ambiguous = candidates.Count(candidate => string.Equals(ConfigurationBaseLabel(candidate), label, StringComparison.Ordinal)) > 1;
+        return ambiguous
+            ? string.Format(CultureInfo.CurrentCulture, L["ConfigurationLabelWithId"].Value, label, configuration.Id.ToString("D"))
+            : label;
+    }
+
+    private string ConfigurationBaseLabel(PublicStatisticsConfigurationDTO configuration)
+    {
+        var startName = string.IsNullOrWhiteSpace(configuration.CoursePointStartName)
+            ? L["UnnamedCoursePoint"].Value
+            : configuration.CoursePointStartName;
+        var endName = string.IsNullOrWhiteSpace(configuration.CoursePointEndName)
+            ? L["UnnamedCoursePoint"].Value
+            : configuration.CoursePointEndName;
+        var simpleLabel = string.Format(CultureInfo.CurrentCulture, L["SimpleConfigurationLabel"].Value, startName, endName);
+        return configuration.Type == StatisticsConfigurationType.Multi
+            ? string.Format(CultureInfo.CurrentCulture, L["MultiConfigurationLabel"].Value,
+                configuration.Repetitions ?? 0, simpleLabel)
+            : simpleLabel;
+    }
+
+    private static string FormatResultDuration(TimeSpan duration) =>
+        duration.ToString(duration.Days == 0 ? @"hh\:mm\:ss\.fff" : @"d\.hh\:mm\:ss\.fff", CultureInfo.CurrentCulture);
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Navigation.LocationChanged -= LocationChanged;
+        _discoveryRequest?.Cancel();
+        _discoveryRequest = null;
+        _resultsRequest?.Cancel();
+        _resultsRequest = null;
+    }
+}

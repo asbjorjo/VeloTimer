@@ -85,6 +85,11 @@ public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
             base.OnModelCreating(modelBuilder);
             // SQLite cannot order TimeSpan values natively.
             modelBuilder.Entity<Model.StatisticsEntry>().Property(entry => entry.Duration).HasConversion<long>();
+            // The production partial trigram index uses PostgreSQL's snake-case column.
+            // This existing SQLite discovery fixture has CLR column names; PostgreSQL
+            // result/index semantics are exercised separately against the real provider.
+            modelBuilder.Entity<Model.StatsProfile>().HasIndex(profile => profile.ProfileName)
+                .HasFilter("\"IsPublic\" = 1");
         }
     }
 

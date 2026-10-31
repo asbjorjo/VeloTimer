@@ -14,6 +14,11 @@ public class StatisticsDbContext : BaseDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("statistics");
+        if (Database.IsNpgsql())
+        {
+            // PostgreSQL literal substring searches on public profile names use gin_trgm_ops.
+            modelBuilder.HasPostgresExtension("public", "pg_trgm");
+        }
 
         modelBuilder.Entity<Sample>();
         modelBuilder.Entity<StatisticsItem>();
@@ -46,10 +51,30 @@ public class StatisticsDbContext : BaseDbContext
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
             e.HasIndex(s => new { s.StatisticsItemId, s.TransponderId, s.TimeStart, s.TimeEnd });
+            e.HasIndex(s => new
+                {
+                    s.FacilityId,
+                    s.StatisticsItemId,
+                    s.StatisticsItemConfigId,
+                    s.TimeEnd,
+                    s.Id
+                })
+                .IsDescending(false, false, false, true, true)
+                .IsCreatedConcurrently()
+                .HasDatabaseName("ix_statistics_entry_facility_item_config_time_end_id");
         });
         modelBuilder.Entity<StatsProfile>(p =>
         {
             p.HasKey(k => k.UserId);
+            if (Database.IsNpgsql())
+            {
+                p.HasIndex(k => k.ProfileName)
+                    .HasMethod("gin")
+                    .HasOperators("gin_trgm_ops")
+                    .HasFilter("is_public = TRUE")
+                    .IsCreatedConcurrently()
+                    .HasDatabaseName("ix_stats_profile_public_name_trgm");
+            }
         });
 
         base.OnModelCreating(modelBuilder);

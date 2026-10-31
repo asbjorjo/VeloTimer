@@ -68,7 +68,10 @@ public sealed class BootstrapWorkerTests
 
             var timingOptions = new DbContextOptionsBuilder<TimingDbContext>().UseSqlite(timingConnection).Options;
             var facilityOptions = new DbContextOptionsBuilder<FacilityDbContext>().UseSqlite(facilityConnection).Options;
-            var statisticsOptions = new DbContextOptionsBuilder<StatisticsDbContext>().UseSqlite(statisticsConnection).Options;
+            // Match the production column naming used by the public-profile partial index.
+            // This bootstrap fixture still tests seeding only, not PostgreSQL query behavior.
+            var statisticsOptions = new DbContextOptionsBuilder<StatisticsDbContext>()
+                .UseSqlite(statisticsConnection).UseSnakeCaseNamingConvention().Options;
 
             await using (var context = new TimingDbContext(timingOptions)) await context.Database.EnsureCreatedAsync();
             await using (var context = new FacilityDbContext(facilityOptions)) await context.Database.EnsureCreatedAsync();
@@ -77,7 +80,8 @@ public sealed class BootstrapWorkerTests
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddDbContext<TimingDbContext>(options => options.UseSqlite(timingConnection));
             serviceCollection.AddDbContext<FacilityDbContext>(options => options.UseSqlite(facilityConnection));
-            serviceCollection.AddDbContext<StatisticsDbContext>(options => options.UseSqlite(statisticsConnection));
+            serviceCollection.AddDbContext<StatisticsDbContext>(options =>
+                options.UseSqlite(statisticsConnection).UseSnakeCaseNamingConvention());
 
             return new BootstrapDatabase(timingConnection, facilityConnection, statisticsConnection, serviceCollection.BuildServiceProvider());
         }

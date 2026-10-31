@@ -26,7 +26,10 @@ internal sealed class CoursePointReferences(HttpClient client, IHttpContextAcces
         }
 
         response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<FacilityReference>(cancellationToken))?.Id;
+        var facility = await response.Content.ReadFromJsonAsync<FacilityReference>(cancellationToken);
+        if (facility is null || facility.Id == Guid.Empty)
+            throw new HttpRequestException("Facilities returned an invalid facility reference.");
+        return facility.Id;
     }
 
     private sealed record FacilityReference(Guid Id);
