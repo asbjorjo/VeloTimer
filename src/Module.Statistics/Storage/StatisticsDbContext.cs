@@ -14,8 +14,11 @@ public class StatisticsDbContext : BaseDbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("statistics");
-        // PostgreSQL literal substring searches on public profile names use gin_trgm_ops.
-        modelBuilder.HasPostgresExtension("public", "pg_trgm");
+        if (Database.IsNpgsql())
+        {
+            // PostgreSQL literal substring searches on public profile names use gin_trgm_ops.
+            modelBuilder.HasPostgresExtension("public", "pg_trgm");
+        }
 
         modelBuilder.Entity<Sample>();
         modelBuilder.Entity<StatisticsItem>();
@@ -63,12 +66,15 @@ public class StatisticsDbContext : BaseDbContext
         modelBuilder.Entity<StatsProfile>(p =>
         {
             p.HasKey(k => k.UserId);
-            p.HasIndex(k => k.ProfileName)
-                .HasMethod("gin")
-                .HasOperators("gin_trgm_ops")
-                .HasFilter("is_public = TRUE")
-                .IsCreatedConcurrently()
-                .HasDatabaseName("ix_stats_profile_public_name_trgm");
+            if (Database.IsNpgsql())
+            {
+                p.HasIndex(k => k.ProfileName)
+                    .HasMethod("gin")
+                    .HasOperators("gin_trgm_ops")
+                    .HasFilter("is_public = TRUE")
+                    .IsCreatedConcurrently()
+                    .HasDatabaseName("ix_stats_profile_public_name_trgm");
+            }
         });
 
         base.OnModelCreating(modelBuilder);
