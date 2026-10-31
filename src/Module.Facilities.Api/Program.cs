@@ -21,9 +21,9 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddOutputCache(options =>
 {
-    options.AddPolicy("Default", policy =>
+    options.AddPolicy(FacilitiesOutputCache.PolicyName, policy =>
     {
-        policy.Expire(TimeSpan.FromSeconds(30));
+        policy.Expire(FacilitiesOutputCache.Duration).Tag(FacilitiesOutputCache.Tag);
     });
 });
 

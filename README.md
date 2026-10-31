@@ -54,6 +54,7 @@
       <a href="#about-the-project">About The Project</a>
       <ul>
         <li><a href="#built-with">Built With</a></li>
+        <li><a href="#backend-cache-consistency">Backend cache consistency</a></li>
       </ul>
     </li>
     <li><a href="#roadmap">Roadmap</a></li>
@@ -173,6 +174,108 @@ trigram searches. This is **not a production performance guarantee**: short/broa
 terms may bypass GIN, and duration/speed bounds remain residual filters. Real writer
 load, cancellation and replication behavior require deployment-specific validation.
 Integrated API/browser verification remains a separate gate, not implied by compilation.
+
+### Backend cache consistency
+
+Timing, Facilities, and Statistics use the existing `HybridCache` infrastructure
+(FusionCache with Redis distributed storage and its packaged backplane). Cache keys,
+dependency tags, and old/new identity snapshots are owned by their domain modules;
+existing cached value types and lookup-key formats remain unchanged except for
+Timing's `LastPassing_v2` key. That correction scopes previous-passing values by
+installation and deliberately does not interpret entries stored under the legacy
+transponder-only key.
+
+Writers persist first, then invalidate affected dependency tags before exact keys.
+This ordering prevents a factory that started with pre-write data from leaving a
+persistently stale entry after invalidation; an already-running caller may still
+receive the value it read before the commit. Post-commit invalidation uses its own
+bounded five-second token, independent of request cancellation. Failures are logged
+and propagated because the database write may already have committed; callers must
+not treat such an error as proof of rollback. Crash recovery of missed invalidations
+and strict cross-replica read-your-writes are not provided.
+
+For the production FusionCache adapter, invalidation uses operation-scoped options:
+distributed-cache and backplane operations are awaited synchronously (not launched
+in the background), and their exceptions are rethrown. Open distributed-cache or
+backplane circuit breakers are surfaced as invalidation failures rather than
+successful no-ops. These options apply only to eviction; normal cache reads and
+global FusionCache entry/read defaults are unchanged. FusionCache synchronous event
+handler execution is enabled so the breaker-state event is observed before the
+eviction call can return after a provider skip; the observer callback only performs
+atomic state updates and does no I/O, waits, or lock acquisition. This setting
+establishes event ordering, not a different read-cache policy. The breaker observer
+is registered as a lazy FusionCache plugin, so API startup and build-time OpenAPI
+generation do not open a Redis connection. If a durable write has committed and
+invalidation fails, the write may already be visible in the database even though
+the request reports an error.
+
+Timing writes that update installations now use independent writable snapshots
+loaded by persisted ID. Their cached read object is not mutated; the snapshots have
+no aliased installation/timing-point navigations, and a missing persisted ID fails
+explicitly. Timing-point creation returns an independently reloaded point whether
+it was newly created or already existed. Layout processing creates all
+requested points before applying fill-only metadata from persisted state, then
+save metadata and invalidate the captured identity union once.
+
+Facilities applies its named `Relationships` output-cache policy, tagged
+`Facilities.Relationships`, with a 30-second expiry to the same five existing
+coursepoint/timingpoint lookup and distance GET routes. Facilities API mutations
+evict both its HybridCache relationship tag and HTTP output-cache tag. These are
+separate stores: the current output-cache store is process-local, so tag eviction
+does not reach other API replicas. Its 30-second expiry is not a total freshness
+bound when a response is refilled from a nested application cache. The real-Redis
+two-host fixture verified the distinction: a remote host can serve its warm output
+until its local 30-second entry expires, after which the nested Redis-backed
+relationship lookup observes the remote invalidation; a restarted host also reads
+the updated value after the notification window. In the separate missed-backplane
+notification characterization, exact-key eviction was observed to fall back to
+approximately 60-second memory expiry; reconnecting alone did not refresh the warm
+host. Tag invalidation returned current values in three observed runs. This does
+not establish a missed-notification guarantee for tags; restart of the stale host
+immediately restored a fresh read. The output-cache 30-second setting is therefore
+not a bound on nested-cache freshness or on recovery from a missed notification.
+
+Public Statistics visibility is still checked against current database state for
+each request, and public results remain `no-store`; these caches do not cache public
+discovery or result responses. The WebUI course-point metadata cache migration,
+distributed HTTP output storage, durable invalidation recovery, and stronger
+cross-replica consistency guarantees remain deferred.
+
+#### Redis propagation characterization
+
+The Timing test project includes a two-host characterization using the production
+`AddModuleCache` registration and independent PostgreSQL/Redis resources. To run it,
+provide connection strings for disposable test services (the PostgreSQL test creates
+and drops its own uniquely named table; Redis keys use unique test namespaces):
+
+```sh
+VELOTIME_TEST_REDIS='localhost:6379' \
+VELOTIME_TEST_POSTGRES='Host=localhost;Database=velotime_test;Username=test;Password=test' \
+dotnet test src/VeloTime.Module.Timing.Test/VeloTime.Module.Timing.Test.csproj \
+  --filter FullyQualifiedName~ModuleCacheRedisCharacterizationTests --logger "trx"
+```
+
+In the initial propagation baseline, 384 samples had zero failures and a maximum
+observed commit-to-correct-read interval of 18.65 ms. The characterization uses a
+fixed 250 ms regression deadline, chosen with headroom over that baseline; it is a
+test threshold, **not a production freshness SLA**. The production Timing
+late-factory regression passed: an in-flight call may return its old value, but a
+normal lookup after tag-first/exact-key invalidation returns current data.
+
+The final Tester run reports these results against the current production changes:
+real-provider Facilities failure propagation passed in 3/3 repeated runs (distributed
+and backplane failures returned HTTP 500 after the database write, while both cache
+stores were attempted); an open-breaker case returned HTTP 500 without calling the
+provider and still attempted output-store eviction; Timing alias scenarios passed
+6/6; layout-handler scenarios 6/6; Facilities output-cache eligibility 5/5; and
+Statistics writer-boundary scenarios 3/3. The full Release build completed with
+zero errors. Current Release validation reports
+Timing API 112 passed and 4 PostgreSQL ownership-event precision cases unchanged
+from baseline, Facilities API 21/21, Statistics API 160/160, Workers 110/110, and
+domain suites Timing 33/33, Facilities 6/6, Statistics 6/6. The four PostgreSQL
+ownership-event differences remain a pre-existing, baseline-identical timestamp
+precision issue outside this cache change. These results validate tested fixtures,
+not a deployment-wide freshness guarantee.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 

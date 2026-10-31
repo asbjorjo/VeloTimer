@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.AspNetCore.Routing;
 using VeloTime.Module.Facilities.Model;
 using VeloTime.Module.Facilities.Storage;
 using VeloTime.Module.Facilities.Interface.Data;
@@ -57,6 +59,76 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         Assert.Equal(newId, (await client.GetFromJsonAsync<CoursePointDTO>($"/api/facilities/coursepoint/{graph.Start.Id}"))!.TimingPointId);
         Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"/api/facilities/facility/{graph.Facility.Id}", new SaveFacilityRequest("Renamed facility"))).StatusCode);
         Assert.Equal("Renamed facility", (await client.GetFromJsonAsync<FacilityDTO>($"/api/facilities/coursepoint/{graph.Start.Id}/facility"))!.Name);
+        Assert.True(factory.OutputCache.EvictionCalls >= 2);
+    }
+
+    [Fact]
+    public async Task RelationshipOutputPolicy_CachesOnlySuccessfulResponsesForThirtySecondsOnAllFiveRoutes()
+    {
+        var graph = await SeedFacilityAsync();
+        factory.OutputCache.Reset();
+        using var client = factory.CreateClient();
+        Assert.Same(factory.OutputCache, factory.Services.GetRequiredService<IOutputCacheStore>());
+        var relationshipPolicyCount = factory.Services.GetServices<EndpointDataSource>()
+            .SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains("GET") == true)
+            .Select(endpoint => endpoint.Metadata.FirstOrDefault(item => item.GetType().Name == "NamedPolicy"))
+            .Count(policy => policy is not null);
+        Assert.Equal(5, relationshipPolicyCount);
+        var routes = new[]
+        {
+            $"/api/facilities/coursepoint/{graph.Start.Id}",
+            $"/api/facilities/coursepoint/{graph.Start.Id}/facility",
+            $"/api/facilities/coursepoint/{graph.Start.Id}/distance/{graph.End.Id}",
+            $"/api/facilities/timingpoint/{graph.Start.TimingPoint}",
+            $"/api/facilities/timingpoint/{graph.Start.TimingPoint}/distance/{graph.End.TimingPoint}"
+        };
+
+        var responseDetails = new List<string>();
+        foreach (var route in routes)
+        {
+            var response = await GetAnonymouslyAsync(client, route);
+            responseDetails.Add($"{route}: status={(int)response.StatusCode}; cache-control={response.Headers.CacheControl}; set-cookie={response.Headers.Contains("Set-Cookie")}; age={response.Headers.Age}");
+            Assert.True(response.StatusCode == HttpStatusCode.OK,
+                $"GET {route} returned {(int)response.StatusCode}; cache-control={response.Headers.CacheControl}, set-cookie={response.Headers.Contains("Set-Cookie")}.");
+        }
+
+        var firstStoredResponses = factory.OutputCache.Stored;
+        Assert.True(firstStoredResponses.Count == 5,
+            $"Expected all five successful relationship GETs to be cached; store calls={factory.OutputCache.SetCalls}, hits/reads={factory.OutputCache.GetCalls}, tagged responses={firstStoredResponses.Count}; policy routes={relationshipPolicyCount}; responses: {string.Join(" | ", responseDetails)}.");
+        Assert.All(firstStoredResponses, stored =>
+        {
+            Assert.Contains("Facilities.Relationships", stored.Tags);
+            Assert.InRange(stored.ValidFor, TimeSpan.FromSeconds(29), TimeSpan.FromSeconds(30));
+        });
+        Assert.Equal(5, factory.OutputCache.SetCalls);
+
+        foreach (var route in routes)
+        {
+            Assert.Equal(HttpStatusCode.OK, (await GetAnonymouslyAsync(client, route)).StatusCode);
+        }
+        Assert.Equal(5, factory.OutputCache.Stored.Count);
+        Assert.Equal(10, factory.OutputCache.GetCalls);
+        Assert.Equal(5, factory.OutputCache.SetCalls);
+
+        factory.OutputCache.AdvanceBy(TimeSpan.FromSeconds(31));
+        foreach (var route in routes)
+        {
+            Assert.Equal(HttpStatusCode.OK, (await GetAnonymouslyAsync(client, route)).StatusCode);
+        }
+        Assert.Equal(10, factory.OutputCache.Stored.Count);
+        Assert.Equal(15, factory.OutputCache.GetCalls);
+        Assert.Equal(10, factory.OutputCache.SetCalls);
+
+        var countBeforeMiss = factory.OutputCache.Stored.Count;
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await GetAnonymouslyAsync(client, $"/api/facilities/coursepoint/{Guid.NewGuid()}")).StatusCode);
+        Assert.Equal(countBeforeMiss, factory.OutputCache.Stored.Count);
+
+        Assert.Equal(HttpStatusCode.Created,
+            (await client.PostAsJsonAsync("/api/facilities/facility", new SaveFacilityRequest("Not output cached"))).StatusCode);
+        Assert.Equal(countBeforeMiss, factory.OutputCache.Stored.Count);
     }
 
     [Fact]
@@ -196,6 +268,13 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         storage.Add(facility);
         await storage.SaveChangesAsync();
         return new FacilityGraph(facility, layout, start, end);
+    }
+
+    private static async Task<HttpResponseMessage> GetAnonymouslyAsync(HttpClient client, string path)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        request.Headers.Add("X-Test-Anonymous", "true");
+        return await client.SendAsync(request);
     }
 
     private sealed record FacilityGraph(Facility Facility, CourseLayout Layout, CoursePoint Start, CoursePoint End);

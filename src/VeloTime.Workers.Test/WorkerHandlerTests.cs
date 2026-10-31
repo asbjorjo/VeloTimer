@@ -1,5 +1,8 @@
 using System.Reflection;
 using System.Diagnostics.Metrics;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Azure.Messaging.ServiceBus;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +10,7 @@ using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using SlimMessageBus;
+using SlimMessageBus.Host.AzureServiceBus;
 using VeloTime.Agent.Handler;
 using VeloTime.Agent.Interface.Messages.Control;
 using VeloTime.Agent.Service;
@@ -24,6 +28,10 @@ using VeloTime.Module.Timing.Interface.Messages;
 using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Service;
 using VeloTime.Module.Timing.Storage;
+using VeloTime.Module.Common;
+using VeloTime.Agent.Interface.Messages.Events;
+using ZiggyCreatures.Caching.Fusion;
+using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
 
 namespace VeloTime.Workers.Test;
 
@@ -117,6 +125,116 @@ public sealed class WorkerHandlerTests
         await handler.OnHandle(new VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent(seenAt, "loop-1", 0.1), CancellationToken.None);
 
         Assert.Equal(seenAt, (await database.Storage.Set<Installation>().SingleAsync()).LastSeen);
+    }
+
+    [Fact]
+    public async Task InstallationLayoutHandler_InvalidatesUnloadedExistingAndIntermediateCreatedPointIdentities()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        var installation = new Installation
+        {
+            Id = Guid.NewGuid(), AgentId = "layout-agent", Description = "", TimingSystem = TimingSystem.Unknown
+        };
+        var existing = new TimingPoint
+        {
+            Id = Guid.NewGuid(), InstallationId = installation.Id, Installation = installation,
+            SystemId = "existing-loop", Description = ""
+        };
+        database.Storage.AddRange(installation, existing);
+        await database.Storage.SaveChangesAsync();
+        database.Storage.ChangeTracker.Clear();
+
+        var cachedInstallation = await database.InstallationService.GetInstallationForAgent("layout-agent");
+        Assert.NotNull(cachedInstallation);
+        Assert.Empty(cachedInstallation.TimingPoints);
+        Assert.Equal(installation.Id, (await database.InstallationService.GetInstallionForTimingPoint(existing.Id)).Id);
+        Assert.Equal(existing.Id, (await database.InstallationService.GetTimingPoint(cachedInstallation, existing.SystemId))?.Id);
+
+        var context = TestConsumerContext.Create(new Dictionary<string, object> { ["AgentId"] = "layout-agent" });
+        Assert.Equal("layout-agent", context.GetTransportMessage().ApplicationProperties["AgentId"]);
+        var handler = new InstallationLayoutHandler(
+            database.InstallationService, database.Storage, NullLogger<InstallationLayoutHandler>.Instance,
+            database.ServiceProvider.GetRequiredService<HybridCache>(), database.Operations)
+        {
+            Context = context
+        };
+        var layout = new InstallationLayoutEvent(
+            [new SystemConfigEvent("system-1", "cycling", "Installed system", true)],
+            [
+                new LoopConfigEvent(existing.SystemId, "Existing loop description", 1, "system-1"),
+                new LoopConfigEvent("new-loop", "New loop description", 2, "system-1")
+            ],
+            []);
+
+        await handler.OnHandle(layout, CancellationToken.None);
+
+        database.Storage.ChangeTracker.Clear();
+        var refreshedInstallation = await database.InstallationService.GetInstallationForAgent("layout-agent");
+        Assert.NotNull(refreshedInstallation);
+        Assert.Equal("Installed system", refreshedInstallation.Description);
+        Assert.Equal(TimingSystem.MyLaps_X2, refreshedInstallation.TimingSystem);
+        Assert.Equal("Existing loop description",
+            (await database.InstallationService.GetTimingPoint(refreshedInstallation, "existing-loop"))?.Description);
+        Assert.Equal("New loop description",
+            (await database.InstallationService.GetTimingPoint(refreshedInstallation, "new-loop"))?.Description);
+        Assert.Equal(installation.Id,
+            (await database.InstallationService.GetInstallionForTimingPoint(existing.Id)).Id);
+        var createdPoint = await database.Storage.Set<TimingPoint>().SingleAsync(point => point.SystemId == "new-loop");
+        Assert.Equal(installation.Id,
+            (await database.InstallationService.GetInstallionForTimingPoint(createdPoint.Id)).Id);
+
+        await handler.OnHandle(layout with
+        {
+            Systems = [new SystemConfigEvent("system-1", "cycling", "Do not replace filled description", true)],
+            TimingLoops =
+            [
+                new LoopConfigEvent(existing.SystemId, "Do not replace filled loop", 1, "system-1"),
+                new LoopConfigEvent("new-loop", "Do not replace filled loop", 2, "system-1")
+            ]
+        }, CancellationToken.None);
+
+        database.Storage.ChangeTracker.Clear();
+        refreshedInstallation = await database.InstallationService.GetInstallationForAgent("layout-agent");
+        Assert.Equal("Installed system", refreshedInstallation!.Description);
+        Assert.Equal("Existing loop description",
+            (await database.InstallationService.GetTimingPoint(refreshedInstallation, "existing-loop"))?.Description);
+        Assert.Equal("New loop description",
+            (await database.InstallationService.GetTimingPoint(refreshedInstallation, "new-loop"))?.Description);
+        Assert.Equal(2, await database.Storage.Set<TimingPoint>().CountAsync());
+    }
+
+    [Fact]
+    public async Task InstallationLayoutHandler_CanceledBeforeDatabaseReadDoesNotApplyLayout()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        database.Storage.Add(new Installation
+        {
+            Id = Guid.NewGuid(), AgentId = "layout-cancel-agent", Description = "", TimingSystem = TimingSystem.Unknown
+        });
+        await database.Storage.SaveChangesAsync();
+
+        var context = TestConsumerContext.Create(new Dictionary<string, object> { ["AgentId"] = "layout-cancel-agent" });
+        Assert.Equal("layout-cancel-agent", context.GetTransportMessage().ApplicationProperties["AgentId"]);
+        var handler = new InstallationLayoutHandler(
+            database.InstallationService, database.Storage, NullLogger<InstallationLayoutHandler>.Instance,
+            database.ServiceProvider.GetRequiredService<HybridCache>(), database.Operations)
+        {
+            Context = context
+        };
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => handler.OnHandle(
+            new InstallationLayoutEvent(
+                [new SystemConfigEvent("system-1", "cycling", "Cancelled", true)],
+                [new LoopConfigEvent("new-loop", "Cancelled", 1, "system-1")],
+                []),
+            cancellation.Token));
+
+        Assert.Empty(await database.Storage.Set<TimingPoint>().ToListAsync());
+        var persisted = await database.Storage.Set<Installation>().SingleAsync();
+        Assert.Equal("", persisted.Description);
+        Assert.Equal(TimingSystem.Unknown, persisted.TimingSystem);
     }
 
     [Fact]
@@ -295,16 +413,31 @@ public sealed class WorkerHandlerTests
     public class TestConsumerContext : DispatchProxy
     {
         private IDictionary<string, object> headers = new Dictionary<string, object>();
+        private IDictionary<string, object> properties = new Dictionary<string, object>();
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            return targetMethod?.Name == "get_Headers" ? headers : null;
+            return targetMethod?.Name switch
+            {
+                "get_Headers" => headers,
+                "get_Properties" => properties,
+                _ => null
+            };
         }
 
         public static IConsumerContext Create(IDictionary<string, object> headers)
         {
             var context = DispatchProxy.Create<IConsumerContext, TestConsumerContext>();
-            ((TestConsumerContext)(object)context).headers = headers;
+            var proxy = (TestConsumerContext)(object)context;
+            proxy.headers = headers;
+            var message = ServiceBusModelFactory.ServiceBusReceivedMessage(
+                properties: new Dictionary<string, object>(headers));
+            proxy.properties["transportMessage"] = message;
+            proxy.properties["TransportMessage"] = message;
+            proxy.properties["ServiceBusReceivedMessage"] = message;
+            proxy.properties["ServiceBus_Message"] = message;
+            proxy.headers["transportMessage"] = message;
+            proxy.headers["TransportMessage"] = message;
             return context;
         }
     }
@@ -321,10 +454,14 @@ public sealed class WorkerHandlerTests
             this.connection = connection;
             this.serviceProvider = serviceProvider;
             Storage = storage;
-            InstallationService = new InstallationService(storage, serviceProvider.GetRequiredService<HybridCache>());
+            Operations = new FusionCacheInvalidationOperations(serviceProvider.GetRequiredService<IFusionCache>(), new FusionCacheCircuitBreakerState());
+            InstallationService = new InstallationService(storage, serviceProvider.GetRequiredService<HybridCache>(), null, Operations);
         }
 
+        public ICacheInvalidationOperations Operations { get; }
+
         public TimingDbContext Storage { get; }
+        public ServiceProvider ServiceProvider => serviceProvider;
         public InstallationService InstallationService { get; }
 
         public static async Task<TimingTestDatabase> CreateAsync()
@@ -335,7 +472,12 @@ public sealed class WorkerHandlerTests
             var storage = new TimingDbContext(options);
             await storage.Database.EnsureCreatedAsync();
             var services = new ServiceCollection();
-            services.AddHybridCache();
+            services.AddFusionCache()
+                .WithSerializer(new FusionCacheSystemTextJsonSerializer(new JsonSerializerOptions
+                {
+                    ReferenceHandler = ReferenceHandler.Preserve
+                }))
+                .AsHybridCache();
             return new TimingTestDatabase(connection, storage, services.BuildServiceProvider());
         }
 

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using VeloTime.Module.Statistics.Api.Endpoints;
 using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Model;
+using VeloTime.Module.Statistics.Service;
 using VeloTime.Module.Statistics.Storage;
 
 namespace VeloTime.Module.Statistics.Api.Test;
@@ -68,6 +69,104 @@ public sealed class StatisticsEndpointTests(StatisticsApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/statistics/admin/configurations/{multi.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/statistics/admin/configurations/{simple.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/statistics/admin/items/{item.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdatingStatisticsItemInvalidatesCachedSimpleAndMultiDefinitionsWithEmbeddedItemValues()
+    {
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-Role", "statistics-admin");
+        var itemResponse = await client.PostAsJsonAsync(
+            "/api/statistics/admin/items", new SaveStatisticsItemRequest("Original lap", "Original description", 250));
+        Assert.Equal(HttpStatusCode.Created, itemResponse.StatusCode);
+        var item = (await itemResponse.Content.ReadFromJsonAsync<StatisticsItemDTO>())!;
+        var start = Guid.NewGuid();
+        var end = Guid.NewGuid();
+        var simpleResponse = await client.PostAsJsonAsync(
+            "/api/statistics/admin/configurations",
+            new SaveStatisticsConfigurationRequest(item.Id, StatisticsConfigurationType.Simple, start, end, null, null));
+        Assert.Equal(HttpStatusCode.Created, simpleResponse.StatusCode);
+        var simple = (await simpleResponse.Content.ReadFromJsonAsync<StatisticsConfigurationDTO>())!;
+        var multiResponse = await client.PostAsJsonAsync(
+            "/api/statistics/admin/configurations",
+            new SaveStatisticsConfigurationRequest(item.Id, StatisticsConfigurationType.Multi, null, null, simple.Id, 3));
+        Assert.Equal(HttpStatusCode.Created, multiResponse.StatusCode);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var service = scope.ServiceProvider.GetRequiredService<StatisticsService>();
+            Assert.Equal("Original lap",
+                Assert.Single(await service.GetStatisticsItemConfigByEndCoursePoint(end)).StatisticsItem.Name);
+            Assert.Equal("Original lap",
+                Assert.Single(await service.GetMultiStatisticsItemConfigs(simple.Id)).StatisticsItem.Name);
+        }
+
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync(
+            $"/api/statistics/admin/items/{item.Id}",
+            new SaveStatisticsItemRequest("Updated lap", "Updated embedded description", 250))).StatusCode);
+
+        await using var refreshed = factory.Services.CreateAsyncScope();
+        var refreshedService = refreshed.ServiceProvider.GetRequiredService<StatisticsService>();
+        var updatedSimple = Assert.Single(await refreshedService.GetStatisticsItemConfigByEndCoursePoint(end));
+        var updatedMulti = Assert.Single(await refreshedService.GetMultiStatisticsItemConfigs(simple.Id));
+        Assert.Equal("Updated lap", updatedSimple.StatisticsItem.Name);
+        Assert.Equal("Updated embedded description", updatedSimple.StatisticsItem.Description);
+        Assert.Equal("Updated lap", updatedMulti.StatisticsItem.Name);
+        Assert.Equal("Updated embedded description", updatedMulti.StatisticsItem.Description);
+    }
+
+    [Fact]
+    public async Task ConfigurationRelinksInvalidateOldAndNewSimpleEndAndMultiParentMemberships()
+    {
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-Role", "statistics-admin");
+        var item = (await (await client.PostAsJsonAsync(
+            "/api/statistics/admin/items", new SaveStatisticsItemRequest("Relink", "", 100)))
+            .Content.ReadFromJsonAsync<StatisticsItemDTO>())!;
+        var firstEnd = Guid.NewGuid();
+        var secondEnd = Guid.NewGuid();
+        async Task<StatisticsConfigurationDTO> CreateSimple(Guid end) =>
+            (await (await client.PostAsJsonAsync(
+                "/api/statistics/admin/configurations",
+                new SaveStatisticsConfigurationRequest(item.Id, StatisticsConfigurationType.Simple, Guid.NewGuid(), end, null, null)))
+                .Content.ReadFromJsonAsync<StatisticsConfigurationDTO>())!;
+
+        var firstParent = await CreateSimple(firstEnd);
+        var secondParent = await CreateSimple(secondEnd);
+        var multi = (await (await client.PostAsJsonAsync(
+            "/api/statistics/admin/configurations",
+            new SaveStatisticsConfigurationRequest(item.Id, StatisticsConfigurationType.Multi, null, null, firstParent.Id, 2)))
+            .Content.ReadFromJsonAsync<StatisticsConfigurationDTO>())!;
+
+        async Task<(int SimpleA, int SimpleB, int MultiA, int MultiB)> ReadMembershipsAsync()
+        {
+            await using var scope = factory.Services.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<StatisticsService>();
+            return (
+                (await service.GetStatisticsItemConfigByEndCoursePoint(firstEnd)).Count(),
+                (await service.GetStatisticsItemConfigByEndCoursePoint(secondEnd)).Count(),
+                (await service.GetMultiStatisticsItemConfigs(firstParent.Id)).Count(),
+                (await service.GetMultiStatisticsItemConfigs(secondParent.Id)).Count());
+        }
+
+        var initial = await ReadMembershipsAsync();
+        Assert.Equal((1, 1, 1, 0), initial);
+
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync(
+            $"/api/statistics/admin/configurations/{firstParent.Id}",
+            new SaveStatisticsConfigurationRequest(item.Id, StatisticsConfigurationType.Simple, Guid.NewGuid(), secondEnd, null, null))).StatusCode);
+        var movedSimple = await ReadMembershipsAsync();
+        Assert.Equal((0, 2, 1, 0), movedSimple);
+
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync(
+            $"/api/statistics/admin/configurations/{multi.Id}",
+            new SaveStatisticsConfigurationRequest(item.Id, StatisticsConfigurationType.Multi, null, null, secondParent.Id, 2))).StatusCode);
+        var movedMulti = await ReadMembershipsAsync();
+        Assert.Equal((0, 2, 0, 1), movedMulti);
+
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await client.DeleteAsync($"/api/statistics/admin/configurations/{multi.Id}")).StatusCode);
+        Assert.Equal((0, 2, 0, 0), await ReadMembershipsAsync());
     }
 
     [Fact]

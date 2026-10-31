@@ -84,6 +84,11 @@ public static class HostingExtensions
         services.AddMemoryCache();
 
         services.AddFusionCache()
+            // The breaker observer is deliberately synchronous: strict evictions must
+            // see a just-opened breaker before FusionCache can skip the provider call.
+            // This changes event ordering only; entry defaults and cache read behavior
+            // remain unchanged. The observer performs only atomic state updates.
+            .WithOptions(options => options.EnableSyncEventHandlersExecution = true)
             .WithDefaultEntryOptions(new FusionCacheEntryOptions
             {
                 Duration = TimeSpan.FromMinutes(5),
@@ -104,7 +109,10 @@ public static class HostingExtensions
                 };
                 return new RedisBackplane(redisConfig, logger);
             })
+            .WithPlugin(sp => new FusionCacheCircuitBreakerPlugin(sp.GetRequiredService<FusionCacheCircuitBreakerState>()))
             .AsHybridCache();
+        services.AddSingleton<FusionCacheCircuitBreakerState>();
+        services.AddSingleton<ICacheInvalidationOperations, FusionCacheInvalidationOperations>();
         services.AddOpenTelemetry()
             .WithTracing(tracing =>
             {

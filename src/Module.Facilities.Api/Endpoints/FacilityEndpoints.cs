@@ -6,6 +6,7 @@ using VeloTime.Module.Facilities.Storage;
 using VeloTime.Module.Common;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.Extensions.Logging;
 
 namespace VeloTime.Module.Facilities.Api.Endpoints;
 
@@ -98,15 +99,16 @@ internal static class FacilityEndpoints
         return TypedResults.Created($"/api/facilities/facility/{facility.Id}", new FacilityDTO { Id = facility.Id, Name = facility.Name, Layouts = [] });
     }
 
-    private static async Task<Results<Ok<FacilityDTO>, NotFound, ProblemHttpResult>> UpdateFacility(Guid id, SaveFacilityRequest request, FacilityDbContext storage, HybridCache cache, IOutputCacheStore output, CancellationToken cancellationToken)
+    private static async Task<Results<Ok<FacilityDTO>, NotFound, ProblemHttpResult>> UpdateFacility(Guid id, SaveFacilityRequest request,
+        FacilityDbContext storage, HybridCache cache, IOutputCacheStore output, ICacheInvalidationOperations invalidation,
+        ILogger<FacilityDbContext> logger, CancellationToken cancellationToken)
     {
         var facility = await storage.Set<Facility>().Include(facility => facility.Layouts).SingleOrDefaultAsync(facility => facility.Id == id, cancellationToken);
         if (facility is null) return TypedResults.NotFound();
         if (string.IsNullOrWhiteSpace(request.Name)) return TypedResults.Problem(detail: "Facility name is required.", statusCode: 400);
         facility.Name = request.Name.Trim();
         await storage.SaveChangesAsync(cancellationToken);
-        await cache.RemoveByTagAsync("Facilities.Relationships", cancellationToken);
-        await output.EvictByTagAsync("Facilities.Relationships", cancellationToken);
+        await FacilitiesOutputCache.InvalidateRelationshipsWithOperationsAsync(cache, output, logger, invalidation);
         return TypedResults.Ok(new FacilityDTO { Id = facility.Id, Name = facility.Name, Layouts = facility.Layouts.Select(layout => layout.Id).ToList() });
     }
 
