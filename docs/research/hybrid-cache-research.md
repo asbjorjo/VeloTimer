@@ -33,6 +33,12 @@ Timing installation/timing-point configuration caching is explicitly excluded fr
 
 The read-only review confirmed no personal/admin or warm-cache authorization defect in inspected paths; its scope note is addressed by the explicit timing exclusion above. Review was implementation/test based, not an independently executed build/test run. The remaining sections retain the original research snapshot and proposed broader validation matrix; this update is the current implementation/verification status.
 
+### Post-deployment fix: validated issuer missing from sign-in tickets
+
+After deployment, signed-in `GET /api/profile/preferences/display` returned 403. Root cause: the WebUI cache keys personal data on the validated `iss`/`sub` claims and deliberately refuses (403) when either is missing, but ASP.NET Core 10.0.12 `OpenIdConnectOptions` installs a default `ClaimActions.DeleteClaim("iss")`. Those actions run after the id_token is validated and `TokenValidated` fires, but before the ticket is persisted. Persisted principals therefore kept `sub`/`sid` but never `iss`. `sid` is not deleted by default.
+
+[CookieOidcServiceCollectionExtensions.cs](../../src/WebUI.Mud/CookieOidcServiceCollectionExtensions.cs) now removes only that default `iss` delete action. No action maps `iss` from userinfo, so the persisted `iss` is the one the token handler validated; a userinfo `iss` value is ignored. Cache issuer validation is unchanged; there is no subject-only or authority-claim fallback and no unvalidated-token parsing. Sessions created before this fix lack `iss` and keep getting 403 on personal cached reads. Those users must sign out and sign in again after deployment; the token store is keyed by `sub`/`sid` and is unaffected.
+
 ## Research snapshot provenance
 
 The original research was recorded from a shared checkout and its source references/line numbers are historical, not pinned to a verified commit SHA. This implementation was subsequently performed only in the requested isolated worktree on `fix/ui-hybrid-cache-phase-two`; no shared checkout was edited and no commit was created. Validation status is summarized above.
