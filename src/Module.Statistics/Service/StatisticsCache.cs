@@ -6,8 +6,14 @@ namespace VeloTime.Module.Statistics.Service;
 
 public static class StatisticsCacheKeys
 {
-    public static string ConfigurationsByEndCoursePoint(Guid coursePointId) => $"StatisticsItemConfig_End_{coursePointId}";
-    public static string MultiConfigurationsByParent(Guid parentConfigId) => $"MultiStatisticsItemConfig_{parentConfigId}";
+    public static string ConfigurationsByEndCoursePoint(Guid coursePointId) => $"velotime:statistics:configurations-by-end-course-point:v1:{coursePointId}";
+    public static string MultiConfigurationsByParent(Guid parentConfigId) => $"velotime:statistics:multi-configurations-by-parent:v1:{parentConfigId}";
+
+    public static HybridCacheEntryOptions NewEntryOptions() => new()
+    {
+        Expiration = TimeSpan.FromSeconds(30),
+        LocalCacheExpiration = TimeSpan.FromSeconds(30)
+    };
 }
 
 public static class StatisticsCacheTags

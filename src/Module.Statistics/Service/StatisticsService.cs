@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Storage;
@@ -22,9 +22,9 @@ public class StatisticsService(
             foreach (var statsItem in statsItems)
             {
                 var start = await storage.Set<Sample>()
-                    .Where(s => 
-                        s.TransponderId == transponderId 
-                        && s.CoursePointStartId == startPoint 
+                    .Where(s =>
+                        s.TransponderId == transponderId
+                        && s.CoursePointStartId == startPoint
                         && s.TimeEnd < startTime)
                     .OrderByDescending(s => s.TimeEnd)
                     .FirstOrDefaultAsync(cancellationToken);
@@ -56,9 +56,9 @@ public class StatisticsService(
     {
         using var activity = Instrumentation.Source.StartActivity("ProcessEntryAsync");
         IEnumerable<StatisticsEntry> entries = new List<StatisticsEntry>();
-        
+
         var multiItems = await GetMultiStatisticsItemConfigs(configId, cancellationToken: cancellationToken);
-            
+
         if (multiItems.Any())
         {
             var maxRepetitions = multiItems.First().Repetitions;
@@ -68,7 +68,8 @@ public class StatisticsService(
                 .Take(maxRepetitions)
                 .ToListAsync(cancellationToken);
 
-            foreach (var multiItem in multiItems.Where(i => i.Repetitions <= allEntries.Count)) {
+            foreach (var multiItem in multiItems.Where(i => i.Repetitions <= allEntries.Count))
+            {
                 var relevantEntries = allEntries.Take(multiItem.Repetitions);
                 StatisticsEntry entry = new()
                 {
@@ -101,6 +102,7 @@ public class StatisticsService(
         return await cache.GetOrCreateAsync(
             StatisticsCacheKeys.MultiConfigurationsByParent(parentConfigId),
             async cancel => await itemQuery.ToListAsync(cancellationToken: cancel),
+            options: StatisticsCacheKeys.NewEntryOptions(),
             tags: [StatisticsCacheTags.ConfigurationDefinitions],
             cancellationToken: cancellationToken
             );
@@ -114,6 +116,7 @@ public class StatisticsService(
         return await cache.GetOrCreateAsync(
             StatisticsCacheKeys.ConfigurationsByEndCoursePoint(coursePointId),
             async cancel => await itemQuery.ToListAsync(cancellationToken: cancel),
+            options: StatisticsCacheKeys.NewEntryOptions(),
             tags: [StatisticsCacheTags.ConfigurationDefinitions],
             cancellationToken: cancellationToken
             );

@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Microsoft.Extensions.Caching.Hybrid;
+using VeloTime.Module.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -50,6 +52,7 @@ internal static class ProfilePreferenceEndpoints
     private static async Task<Results<Ok<LanguagePreferenceDTO>, ProblemHttpResult>> GetCurrentLanguagePreference(
         ClaimsPrincipal user,
         ILanguagePreferenceService preferences,
+        HybridCache cache,
         CancellationToken cancellationToken)
     {
         if (!TryGetIdentity(user, out var issuer, out var subject))
@@ -57,7 +60,11 @@ internal static class ProfilePreferenceEndpoints
             return InvalidIdentity();
         }
 
-        var preference = await preferences.GetAsync(issuer, subject, cancellationToken);
+        var preference = await cache.GetOrCreateAsync(
+            ProfilePreferenceCache.LanguagePreferenceKey(issuer, subject),
+            async token => await preferences.GetAsync(issuer, subject, token),
+            ProfilePreferenceCache.NewEntryOptions(),
+            cancellationToken: cancellationToken);
         return TypedResults.Ok(preference);
     }
 
@@ -65,6 +72,9 @@ internal static class ProfilePreferenceEndpoints
         ClaimsPrincipal user,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] UpdateLanguagePreferenceRequest? request,
         ILanguagePreferenceService preferences,
+        HybridCache cache,
+        ICacheInvalidationOperations invalidation,
+        ILogger<Program> logger,
         CancellationToken cancellationToken)
     {
         if (!TryGetIdentity(user, out var issuer, out var subject))
@@ -81,12 +91,16 @@ internal static class ProfilePreferenceEndpoints
         }
 
         var preference = await preferences.UpdateAsync(issuer, subject, request!.Language, cancellationToken);
+        await ProfilePreferenceCache.InvalidateAsync(
+            cache, invalidation, logger, ProfilePreferenceCache.LanguagePreferenceKey(issuer, subject),
+            nameof(UpdateLanguagePreference));
         return TypedResults.Ok(preference);
     }
 
     private static async Task<Results<Ok<DisplayPreferenceDTO>, ProblemHttpResult>> GetCurrentDisplayPreference(
         ClaimsPrincipal user,
         DisplayPreferenceService preferences,
+        HybridCache cache,
         CancellationToken cancellationToken)
     {
         if (!TryGetIdentity(user, out var issuer, out var subject))
@@ -94,13 +108,21 @@ internal static class ProfilePreferenceEndpoints
             return InvalidIdentity<DisplayPreferenceDTO>();
         }
 
-        return TypedResults.Ok(await preferences.GetAsync(issuer, subject, cancellationToken));
+        var preference = await cache.GetOrCreateAsync(
+            ProfilePreferenceCache.DisplayPreferenceKey(issuer, subject),
+            async token => await preferences.GetAsync(issuer, subject, token),
+            ProfilePreferenceCache.NewEntryOptions(),
+            cancellationToken: cancellationToken);
+        return TypedResults.Ok(preference);
     }
 
     private static async Task<Results<Ok<DisplayPreferenceDTO>, ProblemHttpResult>> UpdateDisplayPreference(
         ClaimsPrincipal user,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] UpdateDisplayPreferenceRequest? request,
         DisplayPreferenceService preferences,
+        HybridCache cache,
+        ICacheInvalidationOperations invalidation,
+        ILogger<Program> logger,
         CancellationToken cancellationToken)
     {
         if (!TryGetIdentity(user, out var issuer, out var subject))
@@ -114,14 +136,20 @@ internal static class ProfilePreferenceEndpoints
             return problem;
         }
 
+        DisplayPreferenceDTO preference;
         try
         {
-            return TypedResults.Ok(await preferences.SetAsync(issuer, subject, request!, cancellationToken));
+            preference = await preferences.SetAsync(issuer, subject, request!, cancellationToken);
         }
         catch (DisplayPreferenceValidationException exception)
         {
             return PreferenceProblem("Invalid display preference", exception.Message, exception.ErrorCode);
         }
+
+        await ProfilePreferenceCache.InvalidateAsync(
+            cache, invalidation, logger, ProfilePreferenceCache.DisplayPreferenceKey(issuer, subject),
+            nameof(UpdateDisplayPreference));
+        return TypedResults.Ok(preference);
     }
 
     private static Ok<IReadOnlyList<TimeZoneOptionDTO>> GetTimeZones() => TypedResults.Ok(TimeZones);

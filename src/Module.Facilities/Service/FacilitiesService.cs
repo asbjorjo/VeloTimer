@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using VeloTime.Module.Common;
@@ -36,6 +36,7 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
                 .Select(s => s.CourseLayout.Facility)
                 .Distinct()
                 .SingleOrDefaultAsync(cancellationToken: cancel),
+            options: FacilitiesCache.NewEntryOptions(),
             tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
         activity?.SetTag("FacilityId", facility?.Id);
         activity?.SetStatus(ActivityStatusCode.Ok);
@@ -50,6 +51,7 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
             FacilitiesCache.CoursePointById(CoursePointId),
             async cancel => await storage.Set<CoursePoint>()
                 .SingleOrDefaultAsync(p => p.Id == CoursePointId, cancellationToken: cancel),
+            options: FacilitiesCache.NewEntryOptions(),
             tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
         activity?.SetStatus(ActivityStatusCode.Ok);
         return coursePoint;
@@ -62,7 +64,7 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
         return await cache.GetOrCreateAsync(
             FacilitiesCache.SegmentsBetweenCoursePoints(start.Id, end.Id),
             async cancel => await storage.Set<CourseLayout>()
-                .Include(l => l.Segments)                
+                .Include(l => l.Segments)
                     .ThenInclude(s => s.Start)
                 .Include(l => l.Segments)
                     .ThenInclude(s => s.End)
@@ -70,6 +72,7 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
                 .SelectMany(l => l.Segments)
                 .OrderBy(s => s.Order)
                 .ToListAsync(),
+            options: FacilitiesCache.NewEntryOptions(),
             tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
     }
 
@@ -110,6 +113,7 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
         var distance = await cache.GetOrCreateAsync(
             FacilitiesCache.DistanceBetweenCoursePoints(Start.Id, End.Id),
             async cancel => await CalculateDistanceBetweenCoursePoints(Start, End, cancel),
+            options: FacilitiesCache.NewEntryOptions(),
             tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
 
         activity?.SetTag("Distance", distance);
@@ -120,7 +124,7 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
     {
         using var activity = Instrumentation.Source.StartActivity("DistanceBetweenTimingPoints");
 
-        try 
+        try
         {
             activity?.SetTag("StartTimingPointId", Start);
             activity?.SetTag("EndTimingPointId", End);
@@ -147,7 +151,8 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
                 FacilitiesCache.CoursePointByTimingPoint(TimingPoint),
                 async cancel => await storage.Set<CoursePoint>()
                     .SingleAsync(p => p.TimingPoint == TimingPoint, cancellationToken: cancel),
-                tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
+                options: FacilitiesCache.NewEntryOptions(),
+            tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
             activity?.SetTag("CoursePointId", timingPoint.Id);
             activity?.SetStatus(ActivityStatusCode.Ok);
             return timingPoint;

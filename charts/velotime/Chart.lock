@@ -10,7 +10,7 @@ dependencies:
   version: 0.2.0
 - name: module-profiles-api
   repository: file://charts/module-profiles-api
-  version: 0.2.0
+  version: 0.2.1
 - name: module-statistics-processor
   repository: file://charts/module-statistics-processor
   version: 0.2.0
@@ -26,5 +26,5 @@ dependencies:
 - name: velotime-library
   repository: file://../velotime-library
   version: 0.2.0
-digest: sha256:65b3aac132d76910b1db6efe946b9bc3f5c38067df9ae721cf566b3c00d9bc22
-generated: "2026-10-30T21:37:43.018928205Z"
+digest: sha256:bdcd2fad707aacc71359f367eb2f9be5351f8f7705cdfee8920916134124d524
+generated: "2026-10-31T22:25:54.837469524Z"

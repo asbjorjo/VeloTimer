@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -44,14 +44,19 @@ public class AgentService(InstallationService installationService, HybridCache c
             activity?.SetTag("Duplicate", true);
             activity?.SetStatus(ActivityStatusCode.Ok, "Duplicate passing detected");
             metrics.PassingProcessed(agentId, activity, true);
-        } else
+        }
+        else
         {
             passing = new()
             {
-                Time = time, TimingPointId = timingPoint.Id, TransponderId = transponder.Id,
-                LowBattery = lowBattery, LowStrength = lowStrength, LowHits = lowHits
+                Time = time,
+                TimingPointId = timingPoint.Id,
+                TransponderId = transponder.Id,
+                LowBattery = lowBattery,
+                LowStrength = lowStrength,
+                LowHits = lowHits
             };
-            
+
             await storage.AddAsync(passing, cancellationToken: cancellationToken);
             await storage.SaveChangesAsync(cancellationToken);
             await TimingCacheInvalidation.InvalidateAsync(cache, _logger,
@@ -129,6 +134,7 @@ public class AgentService(InstallationService installationService, HybridCache c
                     .FirstOrDefaultAsync(p =>
                         p.TransponderId == passing.TransponderId
                         && p.TimingPoint.InstallationId == installation.Id, cancellationToken: cancel),
+            options: TimingCacheKeys.NewEntryOptions(),
             tags: [TimingCacheTags.LastPassing(installation.Id, passing.TransponderId)],
             cancellationToken: cancellationToken);
 

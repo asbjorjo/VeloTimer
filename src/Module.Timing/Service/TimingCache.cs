@@ -8,16 +8,22 @@ namespace VeloTime.Module.Timing.Service;
 
 public static class TimingCacheKeys
 {
-    public static string Installation(string agentId) => $"installation_{agentId}";
-    public static string TimingPoint(Guid installationId, string systemId) => $"timingpoint_{installationId}_{systemId}";
+    public static string Installation(string agentId) => $"velotime:timing:installation:v1:{agentId}";
+    public static string TimingPoint(Guid installationId, string systemId) => $"velotime:timing:timing-point:v1:{installationId}:{systemId}";
 
     // This existing key stores an Installation value, not a TimingPoint.
-    public static string InstallationForTimingPoint(Guid timingPointId) => $"timingpoint_{timingPointId}";
+    public static string InstallationForTimingPoint(Guid timingPointId) => $"velotime:timing:installation-for-timing-point:v1:{timingPointId}";
 
-    public static string Transponder(TimingSystem system, string systemId) => $"transponder_{system}_{systemId}";
+    public static string Transponder(TimingSystem system, string systemId) => $"velotime:timing:transponder:v1:{system}:{systemId}";
     // v2 stores the installation-scoped latest passing; never interpret the legacy threshold-scoped value.
-    public static string LastPassing(Guid installationId, Guid transponderId) => $"LastPassing_v2_{installationId}_{transponderId}";
+    public static string LastPassing(Guid installationId, Guid transponderId) => $"velotime:timing:last-passing:v2:{installationId}:{transponderId}";
     public static string LegacyLastPassing(Guid transponderId) => $"LastPassing_{transponderId}";
+
+    public static HybridCacheEntryOptions NewEntryOptions() => new()
+    {
+        Expiration = TimeSpan.FromSeconds(30),
+        LocalCacheExpiration = TimeSpan.FromSeconds(30)
+    };
 }
 
 public static class TimingCacheTags

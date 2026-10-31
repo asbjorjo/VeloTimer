@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -10,7 +10,7 @@ using VeloTime.Module.Timing.Storage;
 
 namespace VeloTime.Module.Timing.Service;
 
-public class InstallationService (TimingDbContext storage, HybridCache cache, ILogger<InstallationService>? logger = null,
+public class InstallationService(TimingDbContext storage, HybridCache cache, ILogger<InstallationService>? logger = null,
     ICacheInvalidationOperations? evictionOperations = null)
 {
     private static readonly SemaphoreSlim installationSemaphore = new(1, 1);
@@ -70,7 +70,7 @@ public class InstallationService (TimingDbContext storage, HybridCache cache, IL
         activity?.SetTag("loopId", loopId);
 
         await timingPointSemaphore.WaitAsync();
-        
+
         try
         {
             var trackedInstallation = storage.Set<Installation>().Local.FirstOrDefault(item => item.Id == installation.Id);
@@ -122,9 +122,10 @@ public class InstallationService (TimingDbContext storage, HybridCache cache, IL
     {
         return await cache.GetOrCreateAsync(
             TimingCacheKeys.Installation(agentId),
-            async cancel =>  await storage.Set<Installation>()
+            async cancel => await storage.Set<Installation>()
                 .AsNoTracking()
                 .SingleOrDefaultAsync(i => i.AgentId == agentId, cancellationToken: cancel),
+            options: TimingCacheKeys.NewEntryOptions(),
             tags: [TimingCacheTags.InstallationAgent(agentId)],
             cancellationToken: cancellationToken
             );
@@ -139,6 +140,7 @@ public class InstallationService (TimingDbContext storage, HybridCache cache, IL
                 .Where(tp => tp.Id == timingPoint)
                 .Select(tp => tp.Installation)
                 .SingleOrDefaultAsync(cancellationToken: cancel),
+            options: TimingCacheKeys.NewEntryOptions(),
             tags: [TimingCacheTags.TimingPointId(timingPoint)],
             cancellationToken: cancellationToken
         ) ?? throw new InvalidOperationException($"No installation found for timing point {timingPoint}");
@@ -151,6 +153,7 @@ public class InstallationService (TimingDbContext storage, HybridCache cache, IL
             async cancel => await storage.Set<TimingPoint>()
                 .AsNoTracking()
                 .SingleOrDefaultAsync(tp => tp.Installation == installation && tp.SystemId == loopSystemId, cancellationToken: cancel),
+            options: TimingCacheKeys.NewEntryOptions(),
             tags:
             [
                 TimingCacheTags.Installation(installation.Id),
@@ -170,6 +173,7 @@ public class InstallationService (TimingDbContext storage, HybridCache cache, IL
             TimingCacheKeys.Transponder(timingSystem, systemId),
             async cancel => await storage.Set<Transponder>()
                 .SingleOrDefaultAsync(t => t.System == timingSystem && t.SystemId == systemId, cancellationToken: cancel),
+            options: TimingCacheKeys.NewEntryOptions(),
             tags: [TimingCacheTags.Transponder(timingSystem, systemId)],
             cancellationToken: cancellationToken
         );
@@ -182,7 +186,7 @@ public class InstallationService (TimingDbContext storage, HybridCache cache, IL
         await transponderSemaphore.WaitAsync(cancellationToken: cancellationToken);
 
         try
-        {        
+        {
             var transponderEntry = await GetTransponder(transponder.SystemId, transponder.System, cancellationToken);
 
             if (transponderEntry is null)
