@@ -94,7 +94,8 @@
             <PropertyColumn Property="row => row.System" Title="@L["System"]" FilterOperators="@ContainsFilterOperators" />
             @if (Administration)
             {
-                <PropertyColumn Property="row => row.LastSeenDate" Title="@L["LastSeenUTC"]" FilterOperators="@DateFilterOperators">
+                <PropertyColumn Property="row => row.LastSeenDate" Title="@L["LastSeenUTC"]" FilterOperators="@DateFilterOperators"
+                                InitialDirection="SortDirection.Descending">
                     <CellTemplate Context="cell">@Format(cell.Item.Row.Transponder.LastSeen)</CellTemplate>
                 </PropertyColumn>
             }
@@ -212,9 +213,9 @@
         {
             var filters = GetFilters(state.FilterDefinitions);
             var sort = state.SortDefinitions.OrderBy(definition => definition.Index).FirstOrDefault();
-            var sortBy = sort is null ? null : GetSortKey(sort.SortBy);
+            var sortBy = sort is null ? Administration ? "lastSeen" : "ownedLastSeen" : GetSortKey(sort.SortBy);
             var result = await Service.GetTranspondersAsync(Administration, state.Page, state.PageSize, _search, _showHistory,
-                token, filters, sortBy, sort?.Descending ?? false);
+                token, filters, sortBy, sort?.Descending ?? true);
             token.ThrowIfCancellationRequested();
             if (result.Items.Count == 0 && state.Page > 0)
             {
@@ -222,7 +223,7 @@
                 if (_grid is not null) _grid.CurrentPage = _page;
                 if (version != _version) return await _pageLoad;
                 result = await Service.GetTranspondersAsync(Administration, _page, state.PageSize, _search, _showHistory,
-                    token, filters, sortBy, sort?.Descending ?? false);
+                    token, filters, sortBy, sort?.Descending ?? true);
             }
             if (result.TotalCount == 0) _page = 0;
             var names = new Dictionary<Guid, TransponderOwnerView>();

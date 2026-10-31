@@ -98,9 +98,21 @@ public static class TransponderQuery
             ("system", false) => rows.OrderBy(row => row.Transponder.System).ThenBy(row => row.Transponder.SystemId),
             ("system", true) => rows.OrderByDescending(row => row.Transponder.System).ThenByDescending(row => row.Transponder.SystemId),
             ("lastSeen", false) => rows.OrderBy(row => storage.Set<Passing>().Where(passing => passing.TransponderId == row.Transponder.Id)
-                .Select(passing => (DateTime?)passing.Time).Max()),
-            ("lastSeen", true) => rows.OrderByDescending(row => storage.Set<Passing>().Where(passing => passing.TransponderId == row.Transponder.Id)
-                .Select(passing => (DateTime?)passing.Time).Max()),
+                    .Select(passing => (DateTime?)passing.Time).Max() == null)
+                .ThenBy(row => storage.Set<Passing>().Where(passing => passing.TransponderId == row.Transponder.Id)
+                    .Select(passing => (DateTime?)passing.Time).Max()),
+            ("lastSeen", true) => rows.OrderBy(row => storage.Set<Passing>().Where(passing => passing.TransponderId == row.Transponder.Id)
+                    .Select(passing => (DateTime?)passing.Time).Max() == null)
+                .ThenByDescending(row => storage.Set<Passing>().Where(passing => passing.TransponderId == row.Transponder.Id)
+                    .Select(passing => (DateTime?)passing.Time).Max()),
+            ("ownedLastSeen", _) => rows
+                .OrderByDescending(row => ownerId.HasValue && row.Transponder.Owners.Any(owner =>
+                    owner.OwnerId == ownerId.Value && owner.OwnedFrom <= now &&
+                    (!owner.OwnedTo.HasValue || owner.OwnedTo > now)))
+                .ThenBy(row => storage.Set<Passing>().Where(passing => passing.TransponderId == row.Transponder.Id)
+                    .Select(passing => (DateTime?)passing.Time).Max() == null)
+                .ThenByDescending(row => storage.Set<Passing>().Where(passing => passing.TransponderId == row.Transponder.Id)
+                    .Select(passing => (DateTime?)passing.Time).Max()),
             ("ownedFrom", false) => rows.OrderBy(row => row.Owner == null ? (DateTime?)null : row.Owner.OwnedFrom),
             ("ownedFrom", true) => rows.OrderByDescending(row => row.Owner == null ? (DateTime?)null : row.Owner.OwnedFrom),
             ("ownedTo", false) => rows.OrderBy(row => row.Owner == null ? (DateTime?)null : row.Owner.OwnedTo),
@@ -163,7 +175,7 @@ public static class TransponderQuery
 
     private static void ValidateSort(string? sortBy)
     {
-        if (sortBy is not (null or "" or "label" or "system" or "lastSeen" or "ownedFrom" or "ownedTo" or "status"))
+        if (sortBy is not (null or "" or "label" or "system" or "lastSeen" or "ownedLastSeen" or "ownedFrom" or "ownedTo" or "status"))
             throw new ArgumentException("The transponder sort column is invalid.");
     }
 }

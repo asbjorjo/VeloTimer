@@ -242,6 +242,39 @@ public sealed class TransponderOwnerRenderingTests
         Assert.Equal(new[] { 3, 2 }, requested);
     }
 
+    [Theory]
+    [InlineData(true, "lastSeen")]
+    [InlineData(false, "ownedLastSeen")]
+    public async Task List_UsesViewSpecificDefaultSort(bool administration, string expectedSort)
+    {
+        var services = CreateServices();
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, _) =>
+        {
+            Assert.Equal(nameof(ITransponderManagementService.GetTranspondersAsync), method.Name);
+            return new TransponderPage([], 0);
+        }));
+        services.AddSingleton(NoContentClientCallTests.UnusedOwners());
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            TransponderManagement? component = null;
+            await renderer.RenderComponentAsync<ManagementHost>(ParameterView.FromDictionary(
+                new Dictionary<string, object?>
+                {
+                    [nameof(ManagementHost.Administration)] = administration,
+                    [nameof(ManagementHost.Capture)] = (Action<TransponderManagement>)(value => component = value)
+                }));
+            await Grid(component!).ReloadServerData();
+        });
+
+        var call = Assert.Single(((PlatformServiceTests.TestProxy)(object)
+            provider.GetRequiredService<ITransponderManagementService>()).Calls);
+        Assert.Equal(expectedSort, call.Arguments[7]);
+        Assert.True(Assert.IsType<bool>(call.Arguments[8]));
+    }
+
     [Fact]
     public async Task List_ShowsExplicitFailureInsteadOfSuccessfulEmptyState()
     {
