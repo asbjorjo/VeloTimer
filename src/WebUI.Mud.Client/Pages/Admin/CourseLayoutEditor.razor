@@ -1,3 +1,4 @@
+@inherits PresentationComponentBase
 @page "/admin/facilities/{FacilityId:guid}/layouts/new"
 @page "/admin/facilities/{FacilityId:guid}/layouts/{LayoutId:guid}"
 @attribute [Authorize(Policy = AdministrationPolicies.Facilities)]
@@ -46,11 +47,11 @@
                 <NoRecordsContent><MudText>@L["NoCoursepoints"]</MudText></NoRecordsContent>
             </MudTable>
             <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-4">
-                <MudText Typo="Typo.h6">@L["Segments"]</MudText><MudSpacer /><MudText>@_segments.Sum(segment => segment.Length) m</MudText>
+                <MudText Typo="Typo.h6">@L["Segments"]</MudText><MudSpacer /><MudText>@_segments.Sum(segment => segment.Length).ToString("G", _editorSettings.NumberCulture) @_editorSettings.DistanceUnit</MudText>
                 <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="AddSegment" Disabled="@(_busy || _points.Count == 0)">@L["AddSegment"]</MudButton>
             </MudStack>
             <MudTable T="EditableSegment" Items="_segments" Dense="true" Elevation="0" Class="mb-6">
-                <HeaderContent><MudTh>@L["Order"]</MudTh><MudTh>@L["Start"]</MudTh><MudTh>@L["End"]</MudTh><MudTh>@L["LengthMeters"]</MudTh><MudTh /></HeaderContent>
+                <HeaderContent><MudTh>@L["Order"]</MudTh><MudTh>@L["Start"]</MudTh><MudTh>@L["End"]</MudTh><MudTh>@L["LengthInUnit", _editorSettings.DistanceUnit]</MudTh><MudTh /></HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="@L["Order"]">@(_segments.IndexOf(context) + 1)</MudTd>
                     <MudTd DataLabel="@L["Start"]"><MudSelect T="Guid?" @bind-Value="context.StartId" @bind-Value:after="MarkDirty" Required="true" RequiredError="@L["RequiredError"]" Margin="Margin.Dense" Disabled="_busy">
@@ -59,7 +60,7 @@
                     <MudTd DataLabel="@L["End"]"><MudSelect T="Guid?" @bind-Value="context.EndId" @bind-Value:after="MarkDirty" Required="true" RequiredError="@L["RequiredError"]" Margin="Margin.Dense" Disabled="_busy">
                         @foreach (var point in _points) { <MudSelectItem T="Guid?" Value="@((Guid?)point.Id)">@point.Name</MudSelectItem> }
                     </MudSelect></MudTd>
-                    <MudTd DataLabel="@L["LengthMeters"]"><MudNumericField T="double" @bind-Value="context.Length" @bind-Value:after="MarkDirty" Min="0.001" Required="true" RequiredError="@L["RequiredError"]" Margin="Margin.Dense" Disabled="_busy" /></MudTd>
+                    <MudTd DataLabel="@L["LengthInUnit", _editorSettings.DistanceUnit]"><MudNumericField T="double" @bind-Value="context.Length" @bind-Value:after="MarkDirty" Min="@_editorSettings.DistanceFromMetres(0.001)" Culture="_editorSettings.NumberCulture" Required="true" RequiredError="@L["RequiredError"]" Margin="Margin.Dense" Disabled="_busy" /></MudTd>
                     <MudTd DataLabel="@L["Actions"]">
                         <MudTooltip Text="@L["MoveSegmentUp"]"><MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" OnClick="() => Move(context, -1)" Disabled="@(_busy || _segments.IndexOf(context) == 0)" aria-label="@L["MoveSegmentUp"]" /></MudTooltip>
                         <MudTooltip Text="@L["MoveSegmentDown"]"><MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" OnClick="() => Move(context, 1)" Disabled="@(_busy || _segments.IndexOf(context) == _segments.Count - 1)" aria-label="@L["MoveSegmentDown"]" /></MudTooltip>
@@ -81,6 +82,7 @@
     [Parameter] public Guid? LayoutId { get; set; }
     private readonly CancellationTokenSource _lifetime = new();
     private IDisposable? _unsavedRegistration;
+    private EffectiveDisplaySettings _editorSettings = EffectiveDisplaySettings.Unresolved;
     private List<EditablePoint> _points = [];
     private List<EditableSegment> _segments = [];
     private List<CoursePointDTO> _facilityPoints = [];
@@ -91,9 +93,10 @@
     private string? _error;
     private string _facilityName = "";
     private Guid? _savedId, _reuseId;
+    private Guid? _loadedFacility, _loadedLayout;
     protected override void OnInitialized() => _unsavedRegistration = UnsavedChanges.Register(() => _dirty);
     private sealed class EditablePoint { public Guid Id { get; init; } = Guid.NewGuid(); public string Name { get; set; } = ""; public Guid? TimingPointId { get; set; } }
-    private sealed class EditableSegment { public Guid Id { get; init; } = Guid.NewGuid(); public Guid? StartId { get; set; } public Guid? EndId { get; set; } public double Length { get; set; } = 100; }
+    private sealed class EditableSegment { public Guid Id { get; init; } = Guid.NewGuid(); public Guid? StartId { get; set; } public Guid? EndId { get; set; } public DistanceEditorValue Distance { get; set; } = default!; public double Length { get => Distance.Value; set => Distance.Value = value; } }
     private sealed record TimingChoice(Guid Id, string Name);
     public override Task SetParametersAsync(ParameterView parameters)
     {
@@ -102,7 +105,17 @@
     }
     protected override async Task OnParametersSetAsync()
     {
+        if (_loadedFacility == FacilityId && _loadedLayout == LayoutId)
+        {
+            if (!_dirty && !_busy && _editorSettings != Display)
+            {
+                foreach (var segment in _segments) segment.Distance = new(segment.Distance.Metres, Display);
+                _editorSettings = Display;
+            }
+            return;
+        }
         _loading = true; _error = null; _found = false; _dirty = false;
+        _editorSettings = Display;
         _savedId = LayoutId;
         try
         {
@@ -117,10 +130,11 @@
             if (LayoutId.HasValue && selected is null) { _error = L["CourseLayoutNotFound"]; return; }
             _points = selected?.Segments.SelectMany(segment => new[] { segment.Start, segment.End }).DistinctBy(point => point.Id)
                 .Select(point => new EditablePoint { Id = point.Id, Name = point.Name, TimingPointId = point.TimingPointId }).ToList() ?? [];
-            _segments = selected?.Segments.OrderBy(segment => segment.Order).Select(segment => new EditableSegment { Id = segment.Id, StartId = segment.Start.Id, EndId = segment.End.Id, Length = segment.Length }).ToList() ?? [];
+            _segments = selected?.Segments.OrderBy(segment => segment.Order).Select(segment => new EditableSegment { Id = segment.Id, StartId = segment.Start.Id, EndId = segment.End.Id, Distance = new(segment.Length, _editorSettings) }).ToList() ?? [];
             _originalLinks.Clear();
             foreach (var point in _facilityPoints) _originalLinks[point.Id] = point.TimingPointId;
             _found = true;
+            _loadedFacility = FacilityId; _loadedLayout = LayoutId;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception) { _error = L["LayoutLoadFailed"]; }
@@ -135,7 +149,7 @@
         _points.Add(new EditablePoint { Id = point.Id, Name = point.Name, TimingPointId = point.TimingPointId }); _reuseId = null; MarkDirty();
     }
     private void RemovePoint(EditablePoint point) { _points.Remove(point); MarkDirty(); }
-    private void AddSegment() { _segments.Add(new EditableSegment { StartId = _segments.LastOrDefault()?.EndId ?? _points.FirstOrDefault()?.Id }); MarkDirty(); }
+    private void AddSegment() { _segments.Add(new EditableSegment { Distance = new(100, _editorSettings), StartId = _segments.LastOrDefault()?.EndId ?? _points.FirstOrDefault()?.Id }); MarkDirty(); }
     private void RemoveSegment(EditableSegment segment) { _segments.Remove(segment); MarkDirty(); }
     private void Move(EditableSegment segment, int offset)
     {
@@ -147,6 +161,7 @@
     {
         await _form!.ValidateAsync();
         if (!_form.IsValid || _busy) return;
+        if (_segments.Any(segment => !segment.Distance.IsValid)) { _error = L["InvalidDistance", _editorSettings.Distance(0.001)]; return; }
         if (_segments.Count == 0 || _segments.Any(segment => !segment.StartId.HasValue || !segment.EndId.HasValue)) { _error = L["AddConnectedSegments"]; return; }
         var used = _segments.SelectMany(segment => new[] { segment.StartId!.Value, segment.EndId!.Value }).ToHashSet();
         if (!used.SetEquals(_points.Select(point => point.Id))) { _error = L["UseEveryCoursepoint"]; return; }
@@ -155,7 +170,7 @@
         try
         {
             var saved = await Service.SaveLayoutAsync(FacilityId, _savedId, new(_points.Select(point => new SaveCoursePointRequest(point.Id, point.Name)).ToList(),
-                _segments.Select(segment => new SaveCourseSegmentRequest(segment.Id, segment.StartId!.Value, segment.EndId!.Value, segment.Length)).ToList()), _lifetime.Token);
+                _segments.Select(segment => new SaveCourseSegmentRequest(segment.Id, segment.StartId!.Value, segment.EndId!.Value, segment.Distance.Metres)).ToList()), _lifetime.Token);
             _savedId = saved.Id; layoutSaved = true;
             foreach (var point in _points)
             {

@@ -1,10 +1,10 @@
+@inherits PresentationComponentBase
 @using VeloTime.Module.Timing.Interface.Data
 @using VeloTime.WebUI.Mud.Client.ViewModel
 @using Microsoft.JSInterop
 @using System.Globalization
 @inject ITransponderManagementService Service
 @inject ITransponderOwnerService Owners
-@inject IJSRuntime JS
 @inject IDialogService Dialogs
 @inject ISnackbar Snackbar
 @inject UnsavedChangesTracker UnsavedChanges
@@ -33,9 +33,9 @@
                 {
                     <MudItem xs="12" md="6"><MudTextField Value="@(_ownProfile is null ? null : string.IsNullOrWhiteSpace(_ownProfile.ProfileName) ? L["NoStatisticsProfile"].Value : _ownProfile.ProfileName)" Label="@L["Owner"]" ReadOnly="true" /></MudItem>
                 }
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_registrationFrom" Label="@L["RegistrationStart"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_registrationTo" Label="@L["RegistrationEndOptional"]" Clearable="true" MinDate="_registrationFrom" Disabled="_busy" /></MudItem>
-                <MudItem xs="12"><MudText Typo="Typo.body2">@L["RegistrationDateHelp"]</MudText></MudItem>
+                <MudItem xs="12" md="6"><ZonedInstantEditor Draft="_registrationStart" EditorSettings="_editorSettings" CalendarOnly="true" Label="@L["RegistrationStart"]" Disabled="_busy" /></MudItem>
+                <MudItem xs="12" md="6"><ZonedInstantEditor Draft="_registrationEnd" EditorSettings="_editorSettings" CalendarOnly="true" Required="false" Label="@L["RegistrationEndOptional"]" Disabled="_busy" /></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.body2">@L["SelectedZoneRegistrationHelp", _editorSettings.ZoneLabel]</MudText></MudItem>
             }
             else if (_editor == "transponder")
             {
@@ -48,13 +48,11 @@
                     <TransponderPicker Value="_selectedTransponder" ValueChanged="SelectTransponder" Disabled="@(_busy || _ownershipId.HasValue)" />
                 </MudItem>
                 <MudItem xs="12" md="6"><TransponderOwnerPicker @bind-Value="_owner" Disabled="_busy" /></MudItem>
-                <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_fromDate" Label="@L["OwnedFromUTC"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy" /></MudItem>
-                <MudItem xs="12" md="6"><MudTimePicker @bind-Time="_fromTime" Label="@L["OwnedFromTimeUTC"]" Required="true" RequiredError="@L["RequiredError"]" AmPm="false" Disabled="_busy" /></MudItem>
+                <MudItem xs="12"><ZonedInstantEditor Draft="_from" EditorSettings="_editorSettings" Label="@L["From"]" Disabled="_busy" /></MudItem>
                 <MudItem xs="12"><MudCheckBox @bind-Value="_hasEnd" Label="@L["HasEndDate"]" Disabled="_busy" /></MudItem>
                 @if (_hasEnd)
                 {
-                    <MudItem xs="12" md="6"><MudDatePicker @bind-Date="_toDate" Label="@L["OwnedToUTC"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy" /></MudItem>
-                    <MudItem xs="12" md="6"><MudTimePicker @bind-Time="_toTime" Label="@L["OwnedToTimeUTC"]" Required="true" RequiredError="@L["RequiredError"]" AmPm="false" Disabled="_busy" /></MudItem>
+                    <MudItem xs="12"><ZonedInstantEditor Draft="_to" EditorSettings="_editorSettings" Label="@L["ToExclusive"]" Disabled="_busy" /></MudItem>
                 }
             }
         </MudGrid>
@@ -75,6 +73,14 @@
         }
         <MudTooltip Text="@L["Refresh"]"><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" Disabled="_busy" aria-label="@L["Refresh"]" /></MudTooltip>
     </MudStack>
+    @foreach (var selection in _dateFilters.Values)
+    {
+        <MudPaper Outlined="true" Class="pa-2 mb-2">
+            <MudText Typo="Typo.caption">@L["CalendarFilterZone", selection.Day.ToString("d", selection.Settings.NumberCulture), selection.Settings.ZoneLabel]</MudText>
+            <ZonedInstantEditor Draft="selection.Start" EditorSettings="selection.Settings" FixedWall="true" CalendarOnly="true" Label="@L["From"]" Changed="Load" />
+            <ZonedInstantEditor Draft="selection.End" EditorSettings="selection.Settings" FixedWall="true" CalendarOnly="true" Label="@L["ToExclusive"]" Changed="Load" />
+        </MudPaper>
+    }
     <MudDataGrid T="GridTransponderRow" @ref="_grid" ServerData="LoadPage" @bind-CurrentPage="_page" @bind-RowsPerPage="_pageSize"
                  Dense="true" Hover="true" Elevation="0" SortMode="SortMode.Single" Filterable="true"
                  FilterMode="DataGridFilterMode.ColumnFilterRow" FilterCaseSensitivity="DataGridFilterCaseSensitivity.CaseInsensitive">
@@ -94,7 +100,7 @@
             <PropertyColumn Property="row => row.System" Title="@L["System"]" FilterOperators="@ContainsFilterOperators" />
             @if (Administration)
             {
-                <PropertyColumn Property="row => row.LastSeenDate" Title="@L["LastSeenUTC"]" FilterOperators="@DateFilterOperators"
+                <PropertyColumn Property="row => row.LastSeenDate" Title="@L["LastSeen"]" FilterOperators="@DateFilterOperators"
                                 InitialDirection="SortDirection.Descending">
                     <CellTemplate Context="cell">@Format(cell.Item.Row.Transponder.LastSeen)</CellTemplate>
                 </PropertyColumn>
@@ -111,10 +117,10 @@
                     }
                 </CellTemplate>
             </PropertyColumn>
-            <PropertyColumn Property="row => row.OwnedFromDate" Title="@L["FromUTC"]" FilterOperators="@DateFilterOperators">
+            <PropertyColumn Property="row => row.OwnedFromDate" Title="@L["From"]" FilterOperators="@DateFilterOperators">
                 <CellTemplate Context="cell">@Format(cell.Item.Row.Ownership?.OwnedFrom)</CellTemplate>
             </PropertyColumn>
-            <PropertyColumn Property="row => row.OwnedToDate" Title="@L["ToUTC"]" FilterOperators="@DateFilterOperators">
+            <PropertyColumn Property="row => row.OwnedToDate" Title="@L["ToExclusive"]" FilterOperators="@DateFilterOperators">
                 <CellTemplate Context="cell">@Format(cell.Item.Row.Ownership?.OwnedTo)</CellTemplate>
             </PropertyColumn>
             <PropertyColumn Property="row => row.Status" Title="@L["Status"]" FilterOperators="@StatusFilterOperators">
@@ -170,9 +176,11 @@
     private readonly Dictionary<Guid, TransponderOwnerView> _owners = [];
     private bool _namesLoaded;
     private Guid? _ownershipId, _transponderId;
-    private DateTime? _fromDate, _toDate;
-    private DateTime? _registrationFrom, _registrationTo;
-    private TimeSpan? _fromTime, _toTime;
+    private EffectiveDisplaySettings _editorSettings = EffectiveDisplaySettings.Unresolved;
+    private ZonedInstantDraft _from = new(), _to = new();
+    private ZonedInstantDraft _registrationStart = new(), _registrationEnd = new() { NextDay = true };
+    private readonly Dictionary<string, CalendarFilterSelection> _dateFilters = [];
+    private sealed record CalendarFilterSelection(DateOnly Day, EffectiveDisplaySettings Settings, ZonedInstantDraft Start, ZonedInstantDraft End);
     private static readonly HashSet<string> ContainsFilterOperators = [FilterOperator.String.Contains];
     private static readonly HashSet<string> DateFilterOperators = [FilterOperator.DateOnly.Is];
     private static readonly HashSet<string> StatusFilterOperators = [FilterOperator.Enum.Is];
@@ -244,7 +252,7 @@
             var rows = result.Items.Select(row => new GridTransponderRow(row,
                 row.Ownership is not { } ownership ? "" : Administration
                     ? OwnerName(ownership.OwnerId) : profile is null ? L["OwnerNamesUnavailable"].Value
-                        : string.IsNullOrWhiteSpace(profile.ProfileName) ? L["NoStatisticsProfile"].Value : profile.ProfileName)).ToList();
+                        : string.IsNullOrWhiteSpace(profile.ProfileName) ? L["NoStatisticsProfile"].Value : profile.ProfileName, () => Display)).ToList();
             _lastData = new() { Items = rows, TotalItems = result.TotalCount };
             return _lastData;
         }
@@ -252,6 +260,11 @@
         {
             // MudDataGrid assigns every completed callback; superseded callbacks must return the newest result.
             return version != _version ? await _pageLoad : _lastData;
+        }
+        catch (PresentationValidationException exception)
+        {
+            if (version != _version) return await _pageLoad;
+            _error = L[exception.ResourceKey];
         }
         catch (HttpRequestException exception)
         {
@@ -271,14 +284,30 @@
         return new() { Items = [], TotalItems = 0 };
     }
 
-    private static TransponderColumnFilters GetFilters(IEnumerable<IFilterDefinition<GridTransponderRow>> definitions) => new(
+    private TransponderColumnFilters GetFilters(IEnumerable<IFilterDefinition<GridTransponderRow>> definitions) => new(
         Label: GetStringFilter(definitions, nameof(GridTransponderRow.Label)),
         System: GetStringFilter(definitions, nameof(GridTransponderRow.System)),
-        LastSeen: GetDateFilter(definitions, nameof(GridTransponderRow.LastSeenDate)),
         Owner: GetStringFilter(definitions, nameof(GridTransponderRow.OwnerName)),
-        OwnedFrom: GetDateFilter(definitions, nameof(GridTransponderRow.OwnedFromDate)),
-        OwnedTo: GetDateFilter(definitions, nameof(GridTransponderRow.OwnedToDate)),
-        Status: GetStatusFilter(definitions));
+        Status: GetStatusFilter(definitions))
+    {
+        LastSeenUtcRange = GetDateRange(definitions, nameof(GridTransponderRow.LastSeenDate)),
+        OwnedFromUtcRange = GetDateRange(definitions, nameof(GridTransponderRow.OwnedFromDate)),
+        OwnedToUtcRange = GetDateRange(definitions, nameof(GridTransponderRow.OwnedToDate))
+    };
+
+    private UtcInstantRange? GetDateRange(IEnumerable<IFilterDefinition<GridTransponderRow>> definitions, string identifier)
+    {
+        var date = GetDateFilter(definitions, identifier);
+        if (!date.HasValue) { _dateFilters.Remove(identifier); return null; }
+        if (!_dateFilters.TryGetValue(identifier, out var selection) || selection.Day != date.Value)
+        {
+            selection = new(date.Value, Display, new() { Date = date.Value.ToDateTime(TimeOnly.MinValue) },
+                new() { Date = date.Value.AddDays(1).ToDateTime(TimeOnly.MinValue) });
+            _dateFilters[identifier] = selection;
+        }
+        // The chosen day is bound once to exact instants. Preference changes never change selection.
+        return new(selection.Start.Resolve(selection.Settings), selection.End.Resolve(selection.Settings));
+    }
 
     private static string? GetStringFilter(IEnumerable<IFilterDefinition<GridTransponderRow>> definitions, string identifier) =>
         definitions.FirstOrDefault(definition => definition.Column?.PropertyName == identifier &&
@@ -313,21 +342,13 @@
         _ => throw new InvalidOperationException($"The transponder grid sort '{sortBy}' is not supported.")
     };
 
-    private async Task Register()
+    private Task Register()
     {
-        _busy = true;
-        _error = null;
-        try
-        {
-            await using var dates = await JS.InvokeAsync<IJSObjectReference>("import", "./registrationDates.js");
-            _registrationFrom = DateTime.ParseExact(await dates.InvokeAsync<string>("today"), "yyyy-MM-dd", CultureInfo.InvariantCulture);
-            _registrationTo = null;
-            _owner = null;
-            _code = "";
-            _editor = "register";
-        }
-        catch (JSException) { _error = L["LocalRegistrationDateFailed"]; }
-        finally { _busy = false; }
+        _editorSettings = Display;
+        _registrationStart = new() { Date = Display.Local(DateTimeOffset.UtcNow).Date };
+        _registrationEnd = new() { NextDay = true };
+        _owner = null; _code = ""; _error = null; _editor = "register";
+        return Task.CompletedTask;
     }
 
     private void EditTransponder(TransponderDTO transponder)
@@ -351,11 +372,11 @@
         _ownershipId = _transponderId = null;
         _selectedTransponder = null;
         _owner = null;
-        var now = DateTime.UtcNow;
-        _fromDate = now.Date;
-        _fromTime = now.TimeOfDay;
-        _toDate = now.Date.AddDays(1);
-        _toTime = now.TimeOfDay;
+        _editorSettings = Display;
+        var now = DateTimeOffset.UtcNow;
+        _from = ZonedInstantDraft.FromInstant(now, _editorSettings);
+        var local = _editorSettings.Local(now);
+        _to = new() { Date = local.Date.AddDays(1), Time = local.TimeOfDay };
         _hasEnd = false;
         _error = null;
     }
@@ -375,11 +396,9 @@
         _transponderId = row.Transponder.Id;
         _selectedTransponder = new(row.Transponder.Id, row.Transponder.Label, row.Transponder.SystemId, []);
         _owner = _owners[ownership.OwnerId];
-        _fromDate = ownership.OwnedFrom.UtcDateTime.Date;
-        _fromTime = ownership.OwnedFrom.UtcDateTime.TimeOfDay;
+        _from = ZonedInstantDraft.FromInstant(ownership.OwnedFrom, _editorSettings);
         _hasEnd = ownership.OwnedTo.HasValue;
-        _toDate = ownership.OwnedTo?.UtcDateTime.Date;
-        _toTime = ownership.OwnedTo?.UtcDateTime.TimeOfDay;
+        _to = ownership.OwnedTo is { } end ? ZonedInstantDraft.FromInstant(end, _editorSettings) : new();
     }
 
     private async Task Save()
@@ -397,12 +416,9 @@
         {
             if (_editor == "register")
             {
-                if (_registrationTo < _registrationFrom) { _error = L["RegistrationEndBeforeStart"]; return; }
-                await using var dates = await JS.InvokeAsync<IJSObjectReference>("import", "./registrationDates.js");
-                var period = await dates.InvokeAsync<RegistrationPeriod>("period",
-                    _registrationFrom!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                    _registrationTo?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-                var request = new RegisterTransponderRequest(_code, period.OwnedFrom, period.OwnedTo,
+                if (_registrationEnd.Date < _registrationStart.Date) { _error = L["RegistrationEndBeforeStart"]; return; }
+                var request = new RegisterTransponderRequest(_code, _registrationStart.Resolve(_editorSettings),
+                    _registrationEnd.Date.HasValue ? _registrationEnd.Resolve(_editorSettings) : null,
                     Administration ? _owner!.UserId : null);
                 var result = await Service.RegisterOwnershipAsync(request, Administration, _lifetime.Token);
                 while (result.RequiresConfirmation)
@@ -411,10 +427,8 @@
                         throw new HttpRequestException("Invalid registration confirmation response.", null, System.Net.HttpStatusCode.BadGateway);
                     var existing = new List<string>();
                     foreach (var ownership in result.ExistingOwnerships)
-                        existing.Add(Describe(await dates.InvokeAsync<RegistrationDescription>("describe",
-                            ownership.OwnedFrom, ownership.OwnedTo, CultureInfo.CurrentCulture.Name)));
-                    var proposed = Describe(await dates.InvokeAsync<RegistrationDescription>("describe",
-                        request.OwnedFrom, request.OwnedTo, CultureInfo.CurrentCulture.Name));
+                        existing.Add(Describe(ownership.OwnedFrom, ownership.OwnedTo));
+                    var proposed = Describe(request.OwnedFrom, request.OwnedTo);
                     var confirmed = await Dialogs.ShowMessageBoxAsync(L["ConfirmOwnershipChange"],
                         L["OwnershipConfirmationDetails", string.Join("; ", existing), proposed],
                         yesText: L["ApplyDates"], cancelText: L["KeepExistingOwnership"]);
@@ -425,8 +439,8 @@
             else if (_editor == "transponder") await Service.SaveTransponderAsync(_transponderId!.Value, _label, _lifetime.Token);
             else
             {
-                var start = Utc(_fromDate!.Value, _fromTime!.Value);
-                var end = _hasEnd ? Utc(_toDate!.Value, _toTime!.Value) : (DateTimeOffset?)null;
+                var start = _from.Resolve(_editorSettings);
+                var end = _hasEnd ? _to.Resolve(_editorSettings) : (DateTimeOffset?)null;
                 if (end.HasValue && end <= start) { _error = L["OwnershipEndAfterStart"]; return; }
                 await Service.SaveOwnershipAsync(_ownershipId, new(_transponderId!.Value, _owner!.UserId, start, end), _lifetime.Token);
             }
@@ -435,7 +449,7 @@
             await Load();
         }
         catch (HttpRequestException exception) { _error = ErrorFor(exception); }
-        catch (JSException) { _error = L["RegistrationDateConversionFailed"]; }
+        catch (PresentationValidationException exception) { _error = L[exception.ResourceKey]; }
         catch (Exception) { _error = L["RequestFailed"]; }
         finally { _busy = false; }
     }
@@ -470,24 +484,22 @@
         var fullName = string.Join(" ", new[] { owner.FirstName, owner.LastName }.Where(name => !string.IsNullOrWhiteSpace(name)));
         return $"{profile} ({(fullName.Length == 0 ? L["NameNotSet"].Value : fullName)})";
     }
-    private sealed record RegistrationPeriod(DateTimeOffset OwnedFrom, DateTimeOffset? OwnedTo);
-    private sealed record RegistrationDescription(string From, string? Through);
-    private string Describe(RegistrationDescription period) => period.Through is null
-        ? L["OwnershipOpenEnded", period.From] : L["OwnershipDateRange", period.From, period.Through];
-    private sealed record GridTransponderRow(TransponderRow Row, string OwnerName)
+    private string Describe(DateTimeOffset start, DateTimeOffset? end) => end.HasValue
+        ? L["OwnershipDateRange", _editorSettings.Timestamp(start), _editorSettings.Timestamp(end.Value.AddTicks(-1))]
+        : L["OwnershipOpenEnded", _editorSettings.Timestamp(start)];
+    private sealed record GridTransponderRow(TransponderRow Row, string OwnerName, Func<EffectiveDisplaySettings> Settings)
     {
         public string Label => Row.Transponder.Label;
         public string System => Row.Transponder.System;
         public DateOnly? LastSeenDate => Row.Transponder.LastSeen is { } lastSeen
-            ? DateOnly.FromDateTime(lastSeen.UtcDateTime) : null;
+            ? Settings().CalendarDate(lastSeen) : null;
         public DateOnly? OwnedFromDate => Row.Ownership is { } ownership
-            ? DateOnly.FromDateTime(ownership.OwnedFrom.UtcDateTime) : null;
+            ? Settings().CalendarDate(ownership.OwnedFrom) : null;
         public DateOnly? OwnedToDate => Row.Ownership?.OwnedTo is { } ownedTo
-            ? DateOnly.FromDateTime(ownedTo.UtcDateTime) : null;
+            ? Settings().CalendarDate(ownedTo) : null;
         public TransponderOwnershipStatus Status => GetStatus(Row.Ownership);
     }
 
-    private static DateTimeOffset Utc(DateTime date, TimeSpan time) => new(DateTime.SpecifyKind(date.Date.Add(time), DateTimeKind.Utc));
     private static bool IsActive(TransponderOwnershipDTO owner) => owner.OwnedFrom <= DateTimeOffset.UtcNow && (!owner.OwnedTo.HasValue || owner.OwnedTo > DateTimeOffset.UtcNow);
     private static TransponderOwnershipStatus GetStatus(TransponderOwnershipDTO? owner) => owner is null
         ? TransponderOwnershipStatus.Unassigned : IsActive(owner) ? TransponderOwnershipStatus.Active
@@ -500,7 +512,7 @@
         TransponderOwnershipStatus.Ended => L["Ended"].Value,
         _ => L["Unknown"].Value
     };
-    private static string Format(DateTimeOffset? value) => value?.UtcDateTime.ToString("yyyy-MM-dd HH:mm") ?? "-";
+    private string Format(DateTimeOffset? value) => Display.Timestamp(value);
     private string ErrorFor(HttpRequestException exception) => exception.StatusCode switch
     {
         System.Net.HttpStatusCode.Unauthorized => L["SignInRequired"].Value,

@@ -432,4 +432,44 @@
   <data name="UseEveryCoursepoint" xml:space="preserve"><value>Bruk alle banepunktene i en strekning, eller fjern ubrukte punkter.</value></data>
   <data name="LayoutSaveFailed" xml:space="preserve"><value>Kunne ikke lagre baneløpet. Prøv igjen.</value></data>
   <data name="DiscardLayoutChanges" xml:space="preserve"><value>Ulagrede endringer i baneløpet eller tilknytningene går tapt.</value></data>
+  <data name="DisplaySettings" xml:space="preserve"><value>Enheter og tid</value></data>
+  <data name="DisplaySettingsHelp" xml:space="preserve"><value>Lagrede innstillinger følger kontoen din på tvers av enheter. Nettlesertid bruker tidssonen på enheten du bruker. Endringer tas i bruk først når lagringen er vellykket.</value></data>
+  <data name="DisplaySettingsLoading" xml:space="preserve"><value>Henter visningsinnstillinger og nettleserens tidssone …</value></data>
+  <data name="DisplaySettingsLoadFailed" xml:space="preserve"><value>Kunne ikke hente visningsinnstillinger eller finne nettleserens tidssone. Prøv igjen for å fortsette. Serverens lokale tid brukes ikke.</value></data>
+  <data name="DisplaySettingsSaveFailed" xml:space="preserve"><value>Innstillingene ble ikke lagret. Utkastet er beholdt, og de sist lagrede innstillingene brukes fortsatt. Prøv igjen eller forkast endringene.</value></data>
+  <data name="DisplaySettingsInvalid" xml:space="preserve"><value>Innstillingene ble avvist, eller enheten kan ikke bruke den valgte tidssonen. Kontroller enhetene og velg en støttet tidssone.</value></data>
+  <data name="DisplaySettingsPending" xml:space="preserve"><value>Fullfør eller forkast andre åpne endringer, og lagre deretter disse innstillingene. Ventende endringer er ikke tatt i bruk.</value></data>
+  <data name="DisplaySettingsSaved" xml:space="preserve"><value>Visningsinnstillingene er lagret.</value></data>
+  <data name="DistanceUnit" xml:space="preserve"><value>Avstandsenhet</value></data>
+  <data name="SpeedUnit" xml:space="preserve"><value>Hastighetsenhet</value></data>
+  <data name="Metres" xml:space="preserve"><value>Meter</value></data>
+  <data name="Feet" xml:space="preserve"><value>Fot</value></data>
+  <data name="TimeDisplay" xml:space="preserve"><value>Tidsvisning</value></data>
+  <data name="BrowserTime" xml:space="preserve"><value>Nettlesertid (denne enheten)</value></data>
+  <data name="NamedTimeZone" xml:space="preserve"><value>Valgt tidssone</value></data>
+  <data name="SearchTimeZones" xml:space="preserve"><value>Søk etter tidssoner</value></data>
+  <data name="EffectiveTimeZone" xml:space="preserve"><value>Tidssone i bruk: {0}</value></data>
+  <data name="TimeZonesLoadFailed" xml:space="preserve"><value>Kunne ikke hente støttede tidssoner. Prøv igjen for å velge en tidssone.</value></data>
+  <data name="NoTimeZones" xml:space="preserve"><value>Ingen støttede tidssoner er tilgjengelige.</value></data>
+  <data name="SelectTimeZone" xml:space="preserve"><value>Velg en støttet tidssone fra søkeresultatene.</value></data>
+  <data name="LocalTime" xml:space="preserve"><value>Lokal tid</value></data>
+  <data name="From" xml:space="preserve"><value>Fra</value></data>
+  <data name="ToExclusive" xml:space="preserve"><value>Til (eksklusiv)</value></data>
+  <data name="ChooseUtcOffset" xml:space="preserve"><value>Velg UTC-forskyvning for det gjentatte lokale klokkeslettet</value></data>
+  <data name="LocalTimeGap" xml:space="preserve"><value>Dette lokale klokkeslettet finnes ikke fordi klokken stilles frem. Velg et annet klokkeslett eller en annen dato.</value></data>
+  <data name="LocalTimeRepeated" xml:space="preserve"><value>Dette lokale klokkeslettet forekommer to ganger. Velg ønsket UTC-forskyvning. Ingen forskyvning velges automatisk.</value></data>
+  <data name="SelectedZoneRegistrationHelp" xml:space="preserve"><value>Datoene er inklusive i {0}. Eierskapet slutter eksklusivt ved starten av neste kalenderdag. Døgnets lengde følger endringer i sommertid.</value></data>
+  <data name="CalendarFilterZone" xml:space="preserve"><value>Valgt dag {0} i {1}. Utvalget beholder UTC-grensene når innstillingene endres.</value></data>
+  <data name="DistanceInUnit" xml:space="preserve"><value>Avstand ({0})</value></data>
+  <data name="LengthInUnit" xml:space="preserve"><value>Lengde ({0})</value></data>
+  <data name="SpeedInUnit" xml:space="preserve"><value>Hastighet ({0})</value></data>
+  <data name="MinimumSpeedInUnit" xml:space="preserve"><value>Minste hastighet ({0})</value></data>
+  <data name="MaximumSpeedInUnit" xml:space="preserve"><value>Største hastighet ({0})</value></data>
+  <data name="InvalidDistance" xml:space="preserve"><value>Skriv inn en endelig avstand på minst {0}.</value></data>
+  <data name="PreferredStatisticsFilterHelp" xml:space="preserve"><value>Skriv inn hastigheter i vist enhet med nettleserens tallformat. Grensene er inklusive. Delte nettadresser beholder alltid verdier i km/h. Varigheter er uendret.</value></data>
+  <data name="LinkedAccountsLoadFailed" xml:space="preserve"><value>Kunne ikke hente tilknyttede kontoer.</value></data>
+  <data name="NoLinkedAccounts" xml:space="preserve"><value>Ingen tilknyttede kontoer.</value></data>
+  <data name="SamplesLoadFailed" xml:space="preserve"><value>Kunne ikke hente tidtakingsprøver.</value></data>
+  <data name="NoSamples" xml:space="preserve"><value>Ingen tidtakingsprøver funnet.</value></data>
+  <data name="AverageSpeedInUnit" xml:space="preserve"><value>Gjennomsnittsfart ({0})</value></data>
 </root>

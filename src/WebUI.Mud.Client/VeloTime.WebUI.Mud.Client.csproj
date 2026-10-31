@@ -11,6 +11,7 @@
 	  <ContainerImageTag>$(Version)</ContainerImageTag>
     <IsPublishable>false</IsPublishable>
     <BlazorWebAssemblyLoadAllGlobalizationData>true</BlazorWebAssemblyLoadAllGlobalizationData>
+    <InvariantTimezone>false</InvariantTimezone>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,11 +19,13 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" />
 	  <PackageReference Include="Extensions.MudBlazor.StaticInput" />
     <PackageReference Include="MudBlazor" />
+    <PackageReference Include="UnitsNet" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Module.Facilities.Interface\VeloTime.Module.Facilities.Interface.csproj" />
     <ProjectReference Include="..\Module.Statistics.Interface\VeloTime.Module.Statistics.Interface.csproj" />
+    <ProjectReference Include="..\Module.Profiles.Interface\VeloTime.Module.Profiles.Interface.csproj" />
     <ProjectReference Include="..\Module.Timing.Interface\VeloTime.Module.Timing.Interface.csproj" />
   </ItemGroup>
 

@@ -1,3 +1,4 @@
+@inherits PresentationComponentBase
 @page "/admin/facilities/{FacilityId:guid}"
 @page "/admin/facilities/{FacilityId:guid}/layouts"
 @attribute [Authorize(Policy = AdministrationPolicies.Facilities)]
@@ -24,7 +25,7 @@
             <HeaderContent><MudTh>@L["Layout"]</MudTh><MudTh>@L["Segments"]</MudTh><MudTh>@L["Distance"]</MudTh><MudTh /></HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="@L["Layout"]" Style="overflow-wrap:anywhere"><MudLink Href="@($"/admin/facilities/{FacilityId}/layouts/{context.Id}")">@Label(context)</MudLink></MudTd>
-                <MudTd DataLabel="@L["Segments"]">@context.Segments.Count</MudTd><MudTd DataLabel="@L["Distance"]">@context.Segments.Sum(segment => segment.Length) m</MudTd>
+                <MudTd DataLabel="@L["Segments"]">@context.Segments.Count</MudTd><MudTd DataLabel="@L["Distance"]">@Display.Distance(context.Segments.Sum(segment => segment.Length))</MudTd>
                 <MudTd DataLabel="@L["Actions"]"><MudTooltip Text="@L["DeleteLayoutAction"]"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => Delete(context)" Disabled="_busy" aria-label="@L["DeleteLayoutAction"]" /></MudTooltip></MudTd>
             </RowTemplate>
             <NoRecordsContent><MudText>@L["NoCourseLayouts"]</MudText></NoRecordsContent>
@@ -40,7 +41,13 @@
     private IReadOnlyList<CourseLayoutDTO> _layouts = [];
     private bool _loading = true, _busy;
     private string? _error;
-    protected override Task OnParametersSetAsync() => Load();
+    private Guid? _loadedFacility;
+    protected override Task OnParametersSetAsync()
+    {
+        if (_loadedFacility == FacilityId) return Task.CompletedTask;
+        _loadedFacility = FacilityId;
+        return Load();
+    }
     private async Task Load()
     {
         _loading = true; _error = null;

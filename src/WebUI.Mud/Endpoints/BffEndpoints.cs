@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
+using ProfileClientContracts = VeloTime.Module.Profiles.Client;
 
 namespace VeloTime.WebUI.Mud.Endpoints;
 
@@ -39,6 +40,7 @@ internal static class BffEndpoints
                     Module.Facilities.Client.ApiException upstream => upstream.StatusCode,
                     Module.Timing.Client.ApiException upstream => upstream.StatusCode,
                     Module.Statistics.Client.ApiException upstream => upstream.StatusCode,
+                    Module.Profiles.Client.ApiException upstream => upstream.StatusCode,
                     Keycloak.ApiException upstream => upstream.StatusCode,
                     HttpRequestException { StatusCode: { } statusCode } => (int)statusCode,
                     _ => StatusCodes.Status502BadGateway
@@ -46,6 +48,11 @@ internal static class BffEndpoints
                 http.RequestServices.GetRequiredService<ILoggerFactory>()
                     .CreateLogger("WebUI.Bff").LogError("BFF request failed for {Path}: {ExceptionType}, status {Status}",
                         http.Request.Path, exception.GetType().Name, status);
+                if (exception is Module.Profiles.Client.ApiException { StatusCode: StatusCodes.Status400BadRequest } profileError &&
+                    !string.IsNullOrWhiteSpace(profileError.Response))
+                {
+                    return Results.Content(profileError.Response, "application/problem+json", statusCode: StatusCodes.Status400BadRequest);
+                }
                 return Results.Problem(
                     detail: exception is HttpRequestException && status is 400 or 409 or 422 or 503 ? exception.Message : null,
                     statusCode: status is 400 or 401 or 403 or 404 or 409 or 422 or 503 ? status : 502);
@@ -93,6 +100,20 @@ internal static class BffEndpoints
 
         api.MapGet("/debug/auth/token", async (IAuthDebugService service, CancellationToken cancellationToken) =>
             await service.GetAccessTokenInfoAsync(cancellationToken) is { } info ? Results.Ok(info) : Results.NotFound());
+
+        api.MapGet("/profile/preferences/display", async (ProfileClientContracts.IProfilesClient profiles, CancellationToken cancellationToken) =>
+        {
+            return Results.Ok(await profiles.GetCurrentDisplayPreferenceAsync(cancellationToken));
+        });
+        api.MapPut("/profile/preferences/display", async (
+            ProfileClientContracts.UpdateDisplayPreferenceRequest request,
+            ProfileClientContracts.IProfilesClient profiles,
+            CancellationToken cancellationToken) =>
+            Results.Ok(await profiles.UpdateDisplayPreferenceAsync(request, cancellationToken)));
+        api.MapGet("/profile/preferences/time-zones", async (ProfileClientContracts.IProfilesClient profiles, CancellationToken cancellationToken) =>
+        {
+            return Results.Ok(await profiles.GetSupportedTimeZonesAsync(cancellationToken));
+        });
 
         api.MapGet("/profile/username", async (IProfileService service, CancellationToken cancellationToken) =>
             TypedResults.Ok(await service.GetUsernameAsync(cancellationToken)));

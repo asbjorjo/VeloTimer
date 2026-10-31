@@ -185,7 +185,7 @@ public sealed class LocalizationContractTests
             await using var renderer = new Microsoft.AspNetCore.Components.Web.HtmlRenderer(provider,
                 provider.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>());
             var html = await renderer.Dispatcher.InvokeAsync(async () =>
-                (await renderer.RenderComponentAsync<VeloTime.WebUI.Mud.Client.Components.StatisticsTable>()).ToHtmlString());
+                (await renderer.RenderComponentAsync<Microsoft.AspNetCore.Components.CascadingValue<EffectiveDisplaySettings>>(DisplayTestRendering.Parameters<VeloTime.WebUI.Mud.Client.Components.StatisticsTable>(locale: cultureName))).ToHtmlString());
 
             Assert.Contains(expectedItemHeading, html);
             Assert.Contains(expectedFacilityHeading, html);
@@ -427,6 +427,14 @@ public sealed class LocalizationContractTests
 
     private sealed class RecordingProfilesClient : IProfilesClient
     {
+        // Language tests must fail if they accidentally call the independent display contract.
+        public Task<DisplayPreferenceDTO> GetCurrentDisplayPreferenceAsync() => throw new NotSupportedException();
+        public Task<DisplayPreferenceDTO> GetCurrentDisplayPreferenceAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<DisplayPreferenceDTO> UpdateDisplayPreferenceAsync(UpdateDisplayPreferenceRequest body) => throw new NotSupportedException();
+        public Task<DisplayPreferenceDTO> UpdateDisplayPreferenceAsync(UpdateDisplayPreferenceRequest body, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<ICollection<TimeZoneOptionDTO>> GetSupportedTimeZonesAsync() => throw new NotSupportedException();
+        public Task<ICollection<TimeZoneOptionDTO>> GetSupportedTimeZonesAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public string? Language { get; init; }
         public Exception? ReadFailure { get; init; }
         public List<CancellationToken> Reads { get; } = [];

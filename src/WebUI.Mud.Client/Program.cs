@@ -10,6 +10,8 @@ builder.Services.AddMudLocalization();
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 builder.Services.AddTransient<MudLocalizer, LocalizedMudLocalizer>();
 builder.Services.AddScoped<UnsavedChangesTracker>();
+builder.Services.AddScoped<IDisplayPreferenceService, DisplayPreferenceHttpService>();
+builder.Services.AddScoped<DisplayPreferenceState>();
 
 builder.Services.AddAuthorizationCore(AdministrationPolicies.Configure);
 builder.Services.AddCascadingAuthenticationState();

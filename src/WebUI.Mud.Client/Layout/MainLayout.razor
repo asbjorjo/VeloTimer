@@ -1,6 +1,9 @@
 ﻿@inherits LayoutComponentBase
 @inject IStringLocalizer<SharedResource> L
 @inject NavigationManager NavigationManager
+@inject DisplayPreferenceState Preferences
+@inject AuthenticationStateProvider Authentication
+@implements IDisposable
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -30,7 +33,22 @@
         <NavMenu />
     </MudDrawer>
     <MudMainContent>
-        @Body
+        @if (_preferenceError is not null)
+        {
+            <MudAlert Severity="Severity.Error" role="alert">@L[_preferenceError]</MudAlert>
+            <MudButton OnClick="RetryPreferences" Disabled="_preferenceLoading">@L["Retry"]</MudButton>
+        }
+        else if (!Preferences.Effective.IsReady)
+        {
+            <MudProgressLinear Indeterminate="true" aria-label="@L["DisplaySettingsLoading"]" />
+            <MudText role="status">@L["DisplaySettingsLoading"]</MudText>
+        }
+        else
+        {
+            <CascadingValue Value="Preferences.Effective">
+                @Body
+            </CascadingValue>
+        }
     </MudMainContent>
 </MudLayout>
 
@@ -43,4 +61,28 @@
 
 @code {
     private bool _drawerOpen = true;
+    private readonly CancellationTokenSource _lifetime = new();
+    private string? _preferenceError;
+    private bool _preferenceLoading;
+    protected override void OnInitialized() => Preferences.Changed += PreferencesChanged;
+    private void PreferencesChanged() { if (!_lifetime.IsCancellationRequested) _ = InvokeAsync(StateHasChanged); }
+    protected override Task OnAfterRenderAsync(bool firstRender) => firstRender ? LoadPreferences(false) : Task.CompletedTask;
+    private Task RetryPreferences() => LoadPreferences(true);
+    private async Task LoadPreferences(bool retry)
+    {
+        _preferenceLoading = true;
+        _preferenceError = null;
+        try
+        {
+            var signedIn = (await Authentication.GetAuthenticationStateAsync()).User.Identity?.IsAuthenticated == true;
+            if (retry) await Preferences.RetryAsync(signedIn, _lifetime.Token);
+            else await Preferences.InitializeAsync(signedIn, _lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (HttpRequestException exception) { _preferenceError = exception.StatusCode switch
+            { System.Net.HttpStatusCode.Unauthorized => "SignInRequired", System.Net.HttpStatusCode.Forbidden => "NoPermission", _ => "DisplaySettingsLoadFailed" }; }
+        catch (Exception) { _preferenceError = "DisplaySettingsLoadFailed"; }
+        finally { _preferenceLoading = false; if (!_lifetime.IsCancellationRequested) StateHasChanged(); }
+    }
+    public void Dispose() { Preferences.Changed -= PreferencesChanged; _lifetime.Cancel(); _lifetime.Dispose(); }
 }

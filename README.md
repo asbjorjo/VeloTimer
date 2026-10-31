@@ -72,6 +72,28 @@
 The main purpose of this is to provide a way of turning passing data from the timing system at a velodrome into meaningful data and tools for coaches and riders.
 An aside is to produce fun statistics for riders and track owners.
 
+### Profile display preferences
+
+Signed-in users can independently choose distance, speed, and time display preferences under
+**Profile → Units and time**. Distance is shown in metres or feet; speed in
+km/h, mph, or m/s. Time can use the browser zone, UTC, or a selected named IANA
+zone. Browser time follows the current device zone detected after the page becomes
+interactive; it is not a persisted fixed offset. A named zone is saved by its IANA
+ID. Anonymous viewers use metres, km/h, and browser time.
+
+These choices affect presentation only: backend times remain UTC and quantities
+remain SI (including distances in metres). Public statistics speed values on the
+wire remain km/h for samples, public results, and best-results APIs. Public
+`minSpeed`/`maxSpeed` query values and shareable URLs are canonical km/h even when
+entered in another display unit; the UI converts the entry at the presentation
+boundary. Durations and rolling observation windows
+are unchanged.
+
+Registration calendar dates and ownership date filters use the selected zone. A
+registration date is inclusive; its end is the start of the following calendar
+day, exclusive. Day boundaries follow zone rules, so DST days need not be 24 hours.
+Date filters retain their selected zone and UTC interval if preferences later change.
+
 ### Public filtered statistics
 
 The public Statistics results view uses `/statistics/{facilityId}/{itemId}/{configurationId}`.

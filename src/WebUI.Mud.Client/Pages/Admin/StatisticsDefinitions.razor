@@ -1,3 +1,4 @@
+@inherits PresentationComponentBase
 @page "/admin/statistics/items"
 @page "/admin/statistics/configurations"
 @attribute [Authorize(Policy = AdministrationPolicies.Statistics)]
@@ -34,14 +35,14 @@ else if (_editing)
             @if (!_configurationEditor)
             {
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_name" Label="@L["Name"]" Required="true" RequiredError="@L["RequiredError"]" MaxLength="200" /></MudItem>
-                <MudItem xs="12" md="6"><MudNumericField T="float" @bind-Value="_distance" Label="@L["DistanceMeters"]" Min="0.001f" Required="true" RequiredError="@L["RequiredError"]" /></MudItem>
+                <MudItem xs="12" md="6"><MudNumericField T="double" @bind-Value="_distanceDraft.Value" Label="@L["DistanceInUnit", _distanceDraft.Settings.DistanceUnit]" Min="@_distanceDraft.Settings.DistanceFromMetres(0.001)" Culture="_distanceDraft.Settings.NumberCulture" Required="true" RequiredError="@L["RequiredError"]" /></MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_description" Label="@L["Description"]" Lines="3" /></MudItem>
             }
             else
             {
                 <MudItem xs="12" md="6">
                     <MudSelect T="Guid?" @bind-Value="_itemId" Label="@L["StatisticsItemLabel"]" Required="true" RequiredError="@L["RequiredError"]">
-                        @foreach (var item in _items) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Name (@item.Distance m)</MudSelectItem> }
+                        @foreach (var item in _items) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Name (@Display.Distance(item.Distance))</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="6">
@@ -107,7 +108,7 @@ else
         <MudTable T="StatisticsItemDTO" Items="@_items.Where(MatchesItem)" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
             <HeaderContent><MudTh>@L["Name"]</MudTh><MudTh>@L["Description"]</MudTh><MudTh>@L["Distance"]</MudTh><MudTh>@L["Configurations"]</MudTh><MudTh /></HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="@L["Name"]">@context.Name</MudTd><MudTd DataLabel="@L["Description"]">@context.Description</MudTd><MudTd DataLabel="@L["Distance"]">@context.Distance m</MudTd>
+                <MudTd DataLabel="@L["Name"]">@context.Name</MudTd><MudTd DataLabel="@L["Description"]">@context.Description</MudTd><MudTd DataLabel="@L["Distance"]">@Display.Distance(context.Distance)</MudTd>
                 <MudTd DataLabel="@L["Configurations"]">@_configs.Count(config => config.StatisticsItemId == context.Id)</MudTd>
                 <MudTd DataLabel="@L["Actions"]">
                     <MudTooltip Text="@L["EditItem"]"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditItem(context)" aria-label="@L["EditItem"]" /></MudTooltip>
@@ -154,7 +155,7 @@ else
     private Guid? _id, _itemId, _facilityId, _layoutId, _startId, _endId, _parentId;
     private string _search = "", _name = "", _description = "";
     private string? _error;
-    private float _distance = 250;
+    private DistanceEditorValue _distanceDraft = default!;
     private int _repetitions = 2;
     private StatisticsConfigurationType _type;
     private bool IsConfigurations => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("admin/statistics/configurations", StringComparison.OrdinalIgnoreCase);
@@ -201,7 +202,7 @@ else
         _configurationEditor = IsConfigurations;
         _type = StatisticsConfigurationType.Simple;
         _name = _description = "";
-        _distance = 250;
+        _distanceDraft = new(250, Display);
         _repetitions = 2;
         _layouts = [];
         _points = [];
@@ -215,7 +216,7 @@ else
         _id = item.Id;
         _name = item.Name;
         _description = item.Description;
-        _distance = item.Distance;
+        _distanceDraft = new(item.Distance, Display);
     }
 
     private async Task EditConfiguration(StatisticsConfigurationDTO config)
@@ -270,6 +271,7 @@ else
     {
         await _form!.ValidateAsync();
         if (!_valid || _busy) return;
+        if (!_configurationEditor && (!_distanceDraft.IsValid || !float.IsFinite((float)_distanceDraft.Metres))) { _error = L["InvalidDistance", _distanceDraft.Settings.Distance(0.001)]; return; }
         _busy = true;
         _error = null;
         try
@@ -279,7 +281,7 @@ else
                     _type == StatisticsConfigurationType.Simple ? _startId : null, _type == StatisticsConfigurationType.Simple ? _endId : null,
                     _type == StatisticsConfigurationType.Multi ? _parentId : null, _type == StatisticsConfigurationType.Multi ? _repetitions : null), _lifetime.Token);
             else
-                await Administration.SaveItemAsync(_id, new(_name, _description, _distance), _lifetime.Token);
+                await Administration.SaveItemAsync(_id, new(_name, _description, (float)_distanceDraft.Metres), _lifetime.Token);
             _editing = false;
             Snackbar.Add(L["Saved"], Severity.Success);
             await Load();

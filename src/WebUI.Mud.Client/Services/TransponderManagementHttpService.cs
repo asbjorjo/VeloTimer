@@ -25,6 +25,9 @@ public sealed class TransponderManagementHttpService(HttpClient client) : ITrans
         AddQuery(query, "lastSeenFilter", filters?.LastSeen?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
         AddQuery(query, "ownedFromFilter", filters?.OwnedFrom?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
         AddQuery(query, "ownedToFilter", filters?.OwnedTo?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        AddRange(query, "lastSeen", filters?.LastSeenUtcRange);
+        AddRange(query, "ownedFrom", filters?.OwnedFromUtcRange);
+        AddRange(query, "ownedTo", filters?.OwnedToUtcRange);
         AddQuery(query, "statusFilter", filters?.Status?.ToString());
         AddQuery(query, "sortBy", sortBy);
         query.Add($"sortDescending={sortDescending}");
@@ -32,6 +35,16 @@ public sealed class TransponderManagementHttpService(HttpClient client) : ITrans
         await EnsureSuccess(response, cancellationToken);
         return await response.Content.ReadFromJsonAsync<TransponderPage>(cancellationToken)
             ?? throw new HttpRequestException("The transponder page response was empty.");
+    }
+
+    private static void AddRange(List<string> query, string prefix, UtcInstantRange? range)
+    {
+        if (range is null) return;
+        if (range.StartInclusive.Offset != TimeSpan.Zero || range.EndExclusive.Offset != TimeSpan.Zero)
+            throw new ArgumentException($"Both {prefix} UTC instant range bounds must have a zero UTC offset.", nameof(range));
+
+        AddQuery(query, prefix + "UtcStart", range.StartInclusive.ToString("O", CultureInfo.InvariantCulture));
+        AddQuery(query, prefix + "UtcEnd", range.EndExclusive.ToString("O", CultureInfo.InvariantCulture));
     }
 
     private static void AddQuery(List<string> query, string name, string? value)

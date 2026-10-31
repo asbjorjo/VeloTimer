@@ -1,3 +1,4 @@
+@inherits PresentationComponentBase
 @using System.Globalization
 @inject IStatisticsService Service
 @inject ILogger<StatisticsTable> Logger
@@ -18,14 +19,14 @@ else
         <HeaderContent>
             <MudTh>@L["StatisticsItem"]</MudTh>
             <MudTh>@L["Profile"]</MudTh>
-            <MudTh Class="text-right">@L["AverageSpeed"]</MudTh>
+            <MudTh Class="text-right">@L["AverageSpeedInUnit", Display.SpeedUnit]</MudTh>
             <MudTh Class="text-right">@L["Time"]</MudTh>
             <MudTh>@L["Facility"]</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="@L["StatisticsItem"]">@context.StatisticsItemName</MudTd>
             <MudTd DataLabel="@L["Profile"]">@context.ProfileName</MudTd>
-            <MudTd DataLabel="@L["AverageSpeed"]" Class="text-right">@context.Speed.ToString("N3", CultureInfo.CurrentCulture)</MudTd>
+            <MudTd DataLabel="@L["AverageSpeedInUnit", Display.SpeedUnit]" Class="text-right">@Display.StatisticsSpeed(context.Speed)</MudTd>
             <MudTd DataLabel="@L["Time"]" Class="text-right">@context.Duration.ToString(context.Duration.Days == 0 ? @"hh\:mm\:ss\.fff" : @"d\.hh\:mm\:ss\.fff", CultureInfo.CurrentCulture)</MudTd>
             <MudTd DataLabel="@L["Facility"]">@context.FacilityName</MudTd>
         </RowTemplate>
@@ -45,7 +46,14 @@ else
     private bool _loading;
     private bool _error;
 
-    protected override Task OnParametersSetAsync() => LoadAsync();
+    private (Guid?, DateTimeOffset?, DateTimeOffset?)? _loadedSelection;
+    protected override Task OnParametersSetAsync()
+    {
+        var selection = (FacilityId, From, To);
+        if (_loadedSelection == selection) return Task.CompletedTask;
+        _loadedSelection = selection;
+        return LoadAsync();
+    }
 
     private async Task LoadAsync()
     {

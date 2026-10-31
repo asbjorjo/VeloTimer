@@ -72,15 +72,16 @@ public sealed class TransponderOwnerRenderingTests
         if (administration)
         {
             Assert.Contains("KeycloakFirst KeycloakLast", html);
-            Assert.Contains("Last seen (UTC)", html);
-            Assert.Contains("2026-04-03 02:05", html);
+            Assert.Contains("Last seen", html);
+            Assert.DoesNotContain("Last seen (UTC)", html);
+            Assert.Matches(@"4/3/2026 2:05:00\sAM \+00:00 \[UTC\]", System.Net.WebUtility.HtmlDecode(html));
         }
         else
         {
             Assert.DoesNotContain("KeycloakFirst", html);
             Assert.DoesNotContain(OwnerId.ToString(), html);
-            Assert.DoesNotContain("Last seen (UTC)", html);
-            Assert.DoesNotContain("2026-04-03 02:05", html);
+            Assert.DoesNotContain("Last seen", html);
+            Assert.DoesNotContain("4/3/2026 2:05:00", System.Net.WebUtility.HtmlDecode(html));
         }
     }
 
@@ -429,9 +430,15 @@ public sealed class TransponderOwnerRenderingTests
 
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
-            builder.OpenComponent<TransponderManagement>(0);
-            builder.AddAttribute(1, nameof(TransponderManagement.Administration), Administration);
-            builder.AddComponentReferenceCapture(2, value => Capture?.Invoke((TransponderManagement)value));
+            builder.OpenComponent<CascadingValue<EffectiveDisplaySettings>>(0);
+            builder.AddAttribute(1, nameof(CascadingValue<EffectiveDisplaySettings>.Value), DisplayTestRendering.Utc);
+            builder.AddAttribute(2, nameof(CascadingValue<EffectiveDisplaySettings>.ChildContent), (RenderFragment)(child =>
+            {
+                child.OpenComponent<TransponderManagement>(0);
+                child.AddAttribute(1, nameof(TransponderManagement.Administration), Administration);
+                child.AddComponentReferenceCapture(2, value => Capture?.Invoke((TransponderManagement)value));
+                child.CloseComponent();
+            }));
             builder.CloseComponent();
         }
     }

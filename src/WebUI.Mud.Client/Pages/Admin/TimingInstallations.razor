@@ -1,3 +1,4 @@
+@inherits PresentationComponentBase
 @page "/admin/timing/installations"
 @page "/admin/installations"
 @attribute [Authorize(Policy = AdministrationPolicies.Timing)]
@@ -23,11 +24,11 @@
             <MudTooltip Text="@L["Refresh"]"><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" Disabled="_busy" /></MudTooltip>
         </MudStack>
         <MudTable T="InstallationDTO" Items="@_installations.Where(Matches)" Dense="true" Hover="true" Elevation="0">
-            <HeaderContent><MudTh>@L["Agent"]</MudTh><MudTh>@L["Facility"]</MudTh><MudTh>@L["System"]</MudTh><MudTh>@L["TimingPoints"]</MudTh><MudTh>@L["LastSeenUTC"]</MudTh><MudTh /></HeaderContent>
+            <HeaderContent><MudTh>@L["Agent"]</MudTh><MudTh>@L["Facility"]</MudTh><MudTh>@L["System"]</MudTh><MudTh>@L["TimingPoints"]</MudTh><MudTh>@L["LastSeen"]</MudTh><MudTh /></HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="@L["Agent"]" Style="overflow-wrap:anywhere"><MudLink Href="@($"/admin/timing/installations/{context.Id}")">@context.AgentId</MudLink></MudTd>
                 <MudTd DataLabel="@L["Facility"]">@FacilityName(context.FacilityId)</MudTd><MudTd DataLabel="@L["System"]">@TimingSystemName(context.TimingSystem.Name)</MudTd>
-                <MudTd DataLabel="@L["TimingPoints"]">@context.TimingPoints.Count</MudTd><MudTd DataLabel="@L["LastSeenUTC"]">@context.LastSeen?.ToUniversalTime().ToString("yyyy-MM-dd HH:mm")</MudTd>
+                <MudTd DataLabel="@L["TimingPoints"]">@context.TimingPoints.Count</MudTd><MudTd DataLabel="@L["LastSeen"]">@Display.Timestamp(context.LastSeen)</MudTd>
                 <MudTd DataLabel="@L["Actions"]"><MudTooltip Text="@L["DeleteInstallationAction"]"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => Delete(context)" Disabled="_busy" aria-label="@L["DeleteInstallationAction"]" /></MudTooltip></MudTd>
             </RowTemplate>
             <NoRecordsContent><MudText>@L["NoInstallations"]</MudText></NoRecordsContent>

@@ -432,4 +432,44 @@
   <data name="LayoutSaveFailed" xml:space="preserve"><value>The layout could not be saved. Please try again.</value></data>
   <data name="DiscardLayoutChanges" xml:space="preserve"><value>Unsaved layout or link changes will be lost.</value></data>
   <data name="FacilityNotFound" xml:space="preserve"><value>Facility not found.</value></data>
+  <data name="DisplaySettings" xml:space="preserve"><value>Units and time</value></data>
+  <data name="DisplaySettingsHelp" xml:space="preserve"><value>Your saved settings follow your account across devices. Browser time uses the current device’s time zone. Changes take effect only after a successful save.</value></data>
+  <data name="DisplaySettingsLoading" xml:space="preserve"><value>Resolving your display settings and browser time zone…</value></data>
+  <data name="DisplaySettingsLoadFailed" xml:space="preserve"><value>Could not load display settings or resolve the browser time zone. Retry to continue; no server-local time is being displayed.</value></data>
+  <data name="DisplaySettingsSaveFailed" xml:space="preserve"><value>Settings were not saved. Your draft is retained and the last saved settings remain in use. Retry or discard your changes.</value></data>
+  <data name="DisplaySettingsInvalid" xml:space="preserve"><value>The settings were rejected or this device cannot resolve the selected time zone. Check the units and select a supported zone.</value></data>
+  <data name="DisplaySettingsPending" xml:space="preserve"><value>Finish or discard other open edits, then save these settings. Pending changes have not been applied.</value></data>
+  <data name="DisplaySettingsSaved" xml:space="preserve"><value>Display settings saved.</value></data>
+  <data name="DistanceUnit" xml:space="preserve"><value>Distance unit</value></data>
+  <data name="SpeedUnit" xml:space="preserve"><value>Speed unit</value></data>
+  <data name="Metres" xml:space="preserve"><value>Metres</value></data>
+  <data name="Feet" xml:space="preserve"><value>Feet</value></data>
+  <data name="TimeDisplay" xml:space="preserve"><value>Time display</value></data>
+  <data name="BrowserTime" xml:space="preserve"><value>Browser time (current device)</value></data>
+  <data name="NamedTimeZone" xml:space="preserve"><value>Named time zone</value></data>
+  <data name="SearchTimeZones" xml:space="preserve"><value>Search time zones</value></data>
+  <data name="EffectiveTimeZone" xml:space="preserve"><value>Effective time zone: {0}</value></data>
+  <data name="TimeZonesLoadFailed" xml:space="preserve"><value>Could not load the supported time zones. Retry to choose a named zone.</value></data>
+  <data name="NoTimeZones" xml:space="preserve"><value>No supported time zones are available.</value></data>
+  <data name="SelectTimeZone" xml:space="preserve"><value>Select a supported time zone from the search results.</value></data>
+  <data name="LocalTime" xml:space="preserve"><value>Local time</value></data>
+  <data name="From" xml:space="preserve"><value>From</value></data>
+  <data name="ToExclusive" xml:space="preserve"><value>To (exclusive)</value></data>
+  <data name="ChooseUtcOffset" xml:space="preserve"><value>Choose UTC offset for the repeated local time</value></data>
+  <data name="LocalTimeGap" xml:space="preserve"><value>This local time does not exist because the clock moves forward. Choose another time or calendar date.</value></data>
+  <data name="LocalTimeRepeated" xml:space="preserve"><value>This local time occurs twice. Choose the intended UTC offset; no offset will be guessed.</value></data>
+  <data name="SelectedZoneRegistrationHelp" xml:space="preserve"><value>Dates are inclusive in {0}. Ownership ends exclusively at the start of the following calendar day. Day length follows daylight-saving changes.</value></data>
+  <data name="CalendarFilterZone" xml:space="preserve"><value>Selected day {0} in {1}. This selection keeps its UTC boundaries when preferences change.</value></data>
+  <data name="DistanceInUnit" xml:space="preserve"><value>Distance ({0})</value></data>
+  <data name="LengthInUnit" xml:space="preserve"><value>Length ({0})</value></data>
+  <data name="SpeedInUnit" xml:space="preserve"><value>Speed ({0})</value></data>
+  <data name="MinimumSpeedInUnit" xml:space="preserve"><value>Minimum speed ({0})</value></data>
+  <data name="MaximumSpeedInUnit" xml:space="preserve"><value>Maximum speed ({0})</value></data>
+  <data name="InvalidDistance" xml:space="preserve"><value>Enter a finite distance of at least {0}.</value></data>
+  <data name="PreferredStatisticsFilterHelp" xml:space="preserve"><value>Enter speeds in the displayed unit using your browser’s number format. Bounds are inclusive. Shared URLs always retain canonical km/h values; durations are unchanged.</value></data>
+  <data name="LinkedAccountsLoadFailed" xml:space="preserve"><value>Could not load linked accounts.</value></data>
+  <data name="NoLinkedAccounts" xml:space="preserve"><value>No linked accounts.</value></data>
+  <data name="SamplesLoadFailed" xml:space="preserve"><value>Could not load timing samples.</value></data>
+  <data name="NoSamples" xml:space="preserve"><value>No timing samples found.</value></data>
+  <data name="AverageSpeedInUnit" xml:space="preserve"><value>Average speed ({0})</value></data>
 </root>

@@ -1,3 +1,4 @@
+@inherits PresentationComponentBase
 @page "/transponders/{Id:guid}"
 @attribute [Authorize]
 @using System.Net
@@ -40,14 +41,14 @@
         <MudText Typo="Typo.h6" HtmlTag="h2">@L["LastSeen"]</MudText>
         @if (status.LastSeen is { } last)
         {
-            <MudText Class="mb-4">@Format(last.Time) UTC - @Location(last)</MudText>
+            <MudText Class="mb-4">@Format(last.Time) - @Location(last)</MudText>
         }
         else
         {
             <MudText Class="mb-4">@(status.Administration ? L["NoPassingsRecorded"] : L["NoOwnershipSightings"])</MudText>
         }
         <MudText Typo="Typo.h6" HtmlTag="h2">@L["WarningsLast7Days"]</MudText>
-        <MudText Typo="Typo.caption">@Format(status.WarningWindowStart) to @Format(status.WarningWindowEnd) UTC</MudText>
+        <MudText Typo="Typo.caption">@Format(status.WarningWindowStart) — @Format(status.WarningWindowEnd)</MudText>
         <MudStack Row="true" Wrap="Wrap.Wrap" Class="my-3">
             <MudChip T="string" Color="@(status.LowBattery ? Color.Warning : Color.Default)">@L["LowBattery"]: @(status.LowBattery ? L["Reported"] : L["NoReports"])</MudChip>
             <MudChip T="string" Color="@(status.LowStrength ? Color.Warning : Color.Default)">@L["LowSignalStrength"]: @(status.LowStrength ? L["Reported"] : L["NoReports"])</MudChip>
@@ -60,7 +61,7 @@
         else
         {
             <MudSimpleTable Dense="true" Class="mb-2">
-                <thead><tr><th>@L["Time"] (UTC)</th><th>@L["Location"]</th><th>@L["Warnings"]</th></tr></thead>
+                <thead><tr><th>@L["Time"]</th><th>@L["Location"]</th><th>@L["Warnings"]</th></tr></thead>
                 <tbody>
                     @foreach (var warning in status.Warnings)
                     {
@@ -87,7 +88,7 @@
         else
         {
             <MudSimpleTable Dense="true" Class="my-3">
-                <thead><tr><th>@L["Owner"]</th><th>@L["FromUTC"]</th><th>@L["ToUTCExclusive"]</th></tr></thead>
+                <thead><tr><th>@L["Owner"]</th><th>@L["From"]</th><th>@L["ToExclusive"]</th></tr></thead>
                 <tbody>
                     @foreach (var ownership in status.Ownerships)
                     {
@@ -214,7 +215,7 @@
         return $"{facility} / {installation} / {timingPoint}";
     }
 
-    private static string Format(DateTimeOffset value) => value.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+    private string Format(DateTimeOffset value) => Display.Timestamp(value);
     private string WarningText(TransponderSighting sighting) => string.Join(", ",
         new[] { sighting.LowBattery ? L["LowBattery"].Value : null, sighting.LowStrength ? L["LowSignalStrength"].Value : null, sighting.LowHits ? L["LowHitCount"].Value : null }
             .Where(warning => warning is not null));
