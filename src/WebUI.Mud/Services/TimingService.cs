@@ -1,11 +1,12 @@
 ﻿using VeloTime.Module.Facilities.Client;
+using VeloTime.Module.Facilities.Interface;
 using VeloTime.Module.Timing.Client;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
 
 namespace VeloTime.WebUI.Mud.Services;
 
-public class TimingService(ITimingClient timing, IFacilitiesClient facilities) : ITimingService
+public class TimingService(ITimingClient timing, WebUiCache cache) : ITimingService
 {
     public async Task<InstallationView> GetInstallationAsync(Guid Id, CancellationToken cancellationToken = default)
     {
@@ -31,9 +32,10 @@ public class TimingService(ITimingClient timing, IFacilitiesClient facilities) :
 
     public async Task<IEnumerable<InstallationView>> GetInstallationsAsync(CancellationToken cancellationToken)
     {
-        var facilitiesById = (await facilities.FacilityAllAsync(cancellationToken: cancellationToken))
-            .ToDictionary(facility => facility.Id, facility => facility.Name);
         var installations = await timing.InstallationsAllAsync(null, cancellationToken);
+        var facilitiesById = new Dictionary<Guid, string>();
+        foreach (var facilityId in installations.Select(installation => installation.FacilityId).Distinct())
+            facilitiesById[facilityId] = await GetFacilityNameAsync(facilityId, cancellationToken);
 
         return installations.Select(installation => new InstallationView
         {
@@ -83,7 +85,15 @@ public class TimingService(ITimingClient timing, IFacilitiesClient facilities) :
             return string.Empty;
         }
 
-        var facility = await facilities.Facility2Async(facilityId, cancellationToken);
-        return facility.Name;
+        return await cache.GetPublicAsync(
+            "facility-name", "string-v1", facilityId.ToString("N"),
+            async (IFacilitiesClient factoryClient, CancellationToken token) =>
+            {
+                var facility = await factoryClient.Facility2Async(facilityId, token);
+                if (facility is null || facility.Id != facilityId || string.IsNullOrWhiteSpace(facility.Name))
+                    throw new InvalidDataException("A facility name could not be resolved.");
+                return facility.Name;
+            },
+            [FacilitiesCacheTags.Relationships], cancellationToken);
     }
 }

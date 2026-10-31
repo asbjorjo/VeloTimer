@@ -1,4 +1,5 @@
 using System.Globalization;
+using ZiggyCreatures.Caching.Fusion;
 using System.Xml.Linq;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -341,6 +342,11 @@ public sealed class LocalizationContractTests
     {
         var builder = WebApplication.CreateBuilder();
         builder.Services.AddSingleton<IProfilesClient>(profiles);
+        builder.Services.AddMemoryCache();
+        builder.Services.AddFusionCache().AsHybridCache();
+        builder.Services.AddSingleton<VeloTime.Module.Common.FusionCacheCircuitBreakerState>();
+        builder.Services.AddSingleton<VeloTime.Module.Common.ICacheInvalidationOperations, VeloTime.Module.Common.FusionCacheInvalidationOperations>();
+        WebUiCacheTestHost.Register(builder.Services);
         CultureResolver.Configure(builder);
         using var provider = builder.Services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<RequestLocalizationOptions>>().Value;
@@ -353,12 +359,16 @@ public sealed class LocalizationContractTests
         if (anonymousCookie is not null)
             context.Request.Headers.Cookie = $"{CultureResolver.AnonymousPreferenceCookie}={anonymousCookie}";
         if (authenticated)
-            context.User = new System.Security.Claims.ClaimsPrincipal(
-                new System.Security.Claims.ClaimsIdentity("test"));
+            context.User = WebUiCacheTestHost.Principal();
         context.RequestServices = provider;
-
-        var result = await options.RequestCultureProviders.Single().DetermineProviderCultureResult(context);
-        return Assert.Single(Assert.IsType<ProviderCultureResult>(result).Cultures).ToString();
+        var accessor = provider.GetRequiredService<IHttpContextAccessor>();
+        accessor.HttpContext = context;
+        try
+        {
+            var result = await options.RequestCultureProviders.Single().DetermineProviderCultureResult(context);
+            return Assert.Single(Assert.IsType<ProviderCultureResult>(result).Cultures).ToString();
+        }
+        finally { accessor.HttpContext = null; }
     }
 
     private static Dictionary<string, string> ReadResources(string path)

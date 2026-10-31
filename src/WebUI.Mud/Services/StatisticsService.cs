@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using System.Net;
-using Microsoft.Extensions.Caching.Memory;
 using VeloTime.Module.Facilities.Client;
+using VeloTime.Module.Facilities.Interface;
 using VeloTime.Module.Statistics.Client;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
@@ -11,8 +11,7 @@ namespace VeloTime.WebUI.Mud.Services;
 
 public class StatisticsService(
     IStatisticsClient statistics,
-    IFacilitiesClient facitilies,
-    IMemoryCache cache) : IStatisticsService
+    WebUiCache cache) : IStatisticsService
 {
     public Task<Contracts.PublicStatisticsDiscoveryDTO> GetPublicDiscoveryAsync(CancellationToken cancellationToken = default) =>
         PublicCall(async () =>
@@ -101,10 +100,7 @@ public class StatisticsService(
             var names = new Dictionary<Guid, string>();
             foreach (var id in results.Select(result => result.FacilityId).Distinct())
             {
-                var facility = await facitilies.Facility2Async(id, cancellationToken);
-                if (facility is null || string.IsNullOrWhiteSpace(facility.Name))
-                    throw new HttpRequestException("The result facility could not be resolved.", null, HttpStatusCode.BadGateway);
-                names.Add(id, facility.Name);
+                names.Add(id, await GetFacilityNameAsync(id, cancellationToken));
             }
 
             return results.Select(result => new BestStatisticsResultView(
@@ -132,8 +128,8 @@ public class StatisticsService(
                 Time = sample.Time.DateTime,
                 TransponderId = sample.TransponderId,
                 TransponderLabel = sample.TransponderId.ToString(),
-                StartPoint = (await cache.GetOrCreateAsync(sample.CoursePointStartId, async (entry) => { return await facitilies.CoursepointAsync(sample.CoursePointStartId, cancellationToken); }))!.Name,
-                EndPoint = (await cache.GetOrCreateAsync(sample.CoursePointEndId, async (entry) => { return await facitilies.CoursepointAsync(sample.CoursePointEndId, cancellationToken); }))!.Name,
+                StartPoint = await GetCoursePointNameAsync(sample.CoursePointStartId, cancellationToken),
+                EndPoint = await GetCoursePointNameAsync(sample.CoursePointEndId, cancellationToken),
                 Distance = sample.Distance,
                 Duration = TimeSpan.Parse(sample.Duration),
                 Speed = sample.Speed
@@ -142,4 +138,28 @@ public class StatisticsService(
 
         return samples;
     }
+
+    private Task<string> GetCoursePointNameAsync(Guid coursePointId, CancellationToken cancellationToken) =>
+        cache.GetPublicAsync(
+            "course-point-name", "string-v1", coursePointId.ToString("N"),
+            async (IFacilitiesClient factoryClient, CancellationToken token) =>
+            {
+                var point = await factoryClient.CoursepointAsync(coursePointId, token);
+                if (point is null || point.Id != coursePointId || string.IsNullOrWhiteSpace(point.Name))
+                    throw new HttpRequestException("A course-point name could not be resolved.", null, HttpStatusCode.BadGateway);
+                return point.Name;
+            },
+            [FacilitiesCacheTags.Relationships], cancellationToken);
+
+    private Task<string> GetFacilityNameAsync(Guid facilityId, CancellationToken cancellationToken) =>
+        cache.GetPublicAsync(
+            "facility-name", "string-v1", facilityId.ToString("N"),
+            async (IFacilitiesClient factoryClient, CancellationToken token) =>
+            {
+                var facility = await factoryClient.Facility2Async(facilityId, token);
+                if (facility is null || facility.Id != facilityId || string.IsNullOrWhiteSpace(facility.Name))
+                    throw new HttpRequestException("The result facility could not be resolved.", null, HttpStatusCode.BadGateway);
+                return facility.Name;
+            },
+            [FacilitiesCacheTags.Relationships], cancellationToken);
 }

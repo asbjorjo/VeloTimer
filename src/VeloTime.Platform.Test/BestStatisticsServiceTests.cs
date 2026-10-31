@@ -1,5 +1,4 @@
 using System.Net;
-using Microsoft.Extensions.Caching.Memory;
 using VeloTime.Module.Facilities.Client;
 using VeloTime.Module.Statistics.Client;
 using VeloTime.WebUI.Mud.Services;
@@ -36,8 +35,8 @@ public sealed class BestStatisticsServiceTests
             Assert.Equal(facilityId, args[0]);
             return new FacilityDTO { Id = facilityId, Name = "Arena" };
         });
-        using var cache = new MemoryCache(new MemoryCacheOptions());
-        var service = new StatisticsService(statistics, facilities, cache);
+        using var cache = new WebUiCacheTestHost(facilities);
+        var service = new StatisticsService(statistics, cache.Cache);
 
         var rows = await service.GetBestResultsAsync(facilityId, from, to, cancellation.Token);
 
@@ -54,8 +53,8 @@ public sealed class BestStatisticsServiceTests
     {
         var statistics = PlatformServiceTests.TestProxy.Create<IStatisticsClient>((_, _) => new List<BestStatisticsResultDTO>());
         var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((_, _) => throw new InvalidOperationException());
-        using var cache = new MemoryCache(new MemoryCacheOptions());
-        Assert.Empty(await new StatisticsService(statistics, facilities, cache).GetBestResultsAsync());
+        using var cache = new WebUiCacheTestHost(facilities);
+        Assert.Empty(await new StatisticsService(statistics, cache.Cache).GetBestResultsAsync());
     }
 
     [Theory]
@@ -68,9 +67,9 @@ public sealed class BestStatisticsServiceTests
         var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((_, _) => missing
             ? new FacilityDTO { Name = "" }
             : throw new VeloTime.Module.Facilities.Client.ApiException("secret", 404, "secret body", null!, null!));
-        using var cache = new MemoryCache(new MemoryCacheOptions());
+        using var cache = new WebUiCacheTestHost(facilities);
         var error = await Assert.ThrowsAsync<HttpRequestException>(() =>
-            new StatisticsService(statistics, facilities, cache).GetBestResultsAsync());
+            new StatisticsService(statistics, cache.Cache).GetBestResultsAsync());
         Assert.Equal(HttpStatusCode.BadGateway, error.StatusCode);
         Assert.DoesNotContain("secret", error.Message);
     }
@@ -81,9 +80,9 @@ public sealed class BestStatisticsServiceTests
         var statistics = PlatformServiceTests.TestProxy.Create<IStatisticsClient>((_, _) =>
             throw new VeloTime.Module.Statistics.Client.ApiException("secret", 503, "secret body", null!, null!));
         var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((_, _) => throw new InvalidOperationException());
-        using var cache = new MemoryCache(new MemoryCacheOptions());
+        using var cache = new WebUiCacheTestHost(facilities);
         var error = await Assert.ThrowsAsync<HttpRequestException>(() =>
-            new StatisticsService(statistics, facilities, cache).GetBestResultsAsync());
+            new StatisticsService(statistics, cache.Cache).GetBestResultsAsync());
         Assert.Equal(HttpStatusCode.ServiceUnavailable, error.StatusCode);
         Assert.DoesNotContain("secret", error.Message);
     }

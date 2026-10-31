@@ -2,14 +2,19 @@
 using VeloTime.Module.Timing.Client;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
+using VeloTime.Module.Facilities.Interface;
 
 namespace VeloTime.WebUI.Mud.Services
 {
-    public class FacilityService(IFacilitiesClient facitilies, ITimingClient timing) : IFacilityService
+    public class FacilityService(ITimingClient timing, WebUiCache cache) : IFacilityService
     {
         public async Task<CourseLayoutDetailView> GetCourseLayoutDetailAsync(Guid layoutId, CancellationToken cancellationToken = default)
         {
-            var layout = await facitilies.LayoutsAsync(layoutId, cancellationToken: cancellationToken);
+            var layout = await cache.GetPublicAsync(
+                "layout-detail", "course-layout-view-v1", layoutId.ToString("N"),
+                async (IFacilitiesClient factoryClient, CancellationToken token) =>
+                    FacilityLookupSnapshots.From(await factoryClient.LayoutsAsync(layoutId, cancellationToken: token), layoutId),
+                [FacilitiesCacheTags.Relationships], cancellationToken);
 
             return new CourseLayoutDetailView
             {
@@ -37,49 +42,72 @@ namespace VeloTime.WebUI.Mud.Services
 
         public async Task<IEnumerable<FacilityView>> GetFacilitiesAsync(CancellationToken token)
         {
-            var f = await facitilies.FacilityAllAsync(cancellationToken: token);
+            var f = await cache.GetPublicAsync(
+                "facility-list", "facility-view-v1", "all",
+                async (IFacilitiesClient factoryClient, CancellationToken factoryToken) =>
+                    FacilityLookupSnapshots.Facilities(await factoryClient.FacilityAllAsync(cancellationToken: factoryToken)),
+                [FacilitiesCacheTags.Relationships], token);
 
-            var facilities = f.Select(f => new FacilityView
+            return f.Select(facility => new FacilityView
             {
-                Id = f.Id,
-                Name = f.Name,
-                LayoutId = f.Layouts,
-            });
-
-            return facilities.OrderBy(f => f.Name);
+                Id = facility.Id,
+                Name = facility.Name,
+                LayoutId = facility.LayoutIds.ToArray(),
+            }).OrderBy(facility => facility.Name).ToArray();
         }
 
         public async Task<IEnumerable<CourseLayoutView>> GetFacilityLayoutsAsync(Guid id, CancellationToken token)
         {
-            var l = await facitilies.LayoutsAllAsync(id, token);
-            
-            return l.Select(l => new CourseLayoutView
+            var layouts = await cache.GetPublicAsync(
+                "facility-layout-list", "course-layout-view-v1", id.ToString("N"),
+                async (IFacilitiesClient factoryClient, CancellationToken factoryToken) =>
+                    FacilityLookupSnapshots.Layouts(await factoryClient.LayoutsAllAsync(id, factoryToken), id),
+                [FacilitiesCacheTags.Relationships], token);
+
+            return layouts.Select(layout => new CourseLayoutView
             {
-                Id = l.Id,
-                Segments = l.Segments.Select(s => new SegmentView
+                Id = layout.Id,
+                Segments = layout.Segments.Select(segment => new SegmentView
                 {
-                    Id = s.Id,
-                    Name = $"{s.Start.Name} - {s.End.Name}",
-                    Distance = s.Length,
-                    Order = s.Order,
+                    Id = segment.Id,
+                    Name = $"{segment.Start.Name} - {segment.End.Name}",
+                    Distance = segment.Length,
+                    Order = segment.Order,
                 }).OrderBy(s => s.Order),
-            });
+            }).ToArray();
         }
 
         public async Task<IEnumerable<InstallationView>> GetInstallationsAsync(Guid id, CancellationToken cancellationToken)
         {
             var i = await timing.InstallationsAllAsync(id, cancellationToken);
-            var facility = await facitilies.FacilityAsync(id, cancellationToken);
+            var facilityName = await GetFacilityNameAsync(id, cancellationToken);
 
             return i.Select(i => new InstallationView
             {
                 Id = i.Id,
                 FacilityId = i.FacilityId,
-                FacilityName = facility.Name,
+                FacilityName = facilityName,
                 Description = i.Description,
                 AgentId = i.AgentId,
                 TimingSystem = i.TimingSystem.Name,
-            });
+            }).ToArray();
+        }
+
+        private async Task<string> GetFacilityNameAsync(Guid facilityId, CancellationToken cancellationToken)
+        {
+            if (facilityId == Guid.Empty)
+                return string.Empty;
+
+            return await cache.GetPublicAsync(
+                "facility-name", "string-v1", facilityId.ToString("N"),
+                async (IFacilitiesClient factoryClient, CancellationToken token) =>
+                {
+                    var facility = await factoryClient.Facility2Async(facilityId, token);
+                    if (facility is null || facility.Id != facilityId || string.IsNullOrWhiteSpace(facility.Name))
+                        throw new InvalidDataException("A facility name could not be resolved.");
+                    return facility.Name;
+                },
+                [FacilitiesCacheTags.Relationships], cancellationToken);
         }
     }
 }

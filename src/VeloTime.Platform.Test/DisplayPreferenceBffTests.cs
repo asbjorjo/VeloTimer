@@ -25,7 +25,10 @@ public sealed partial class WebUiBffTests
         {
             using var response = await client.GetAsync(route); Assert.Equal(HttpStatusCode.OK, response.StatusCode); Assert.True(response.Headers.CacheControl!.NoStore);
         }
-        Assert.Equal(5, ((PlatformServiceTests.TestProxy)(object)profiles).Calls.Count);
+        var calls = ((PlatformServiceTests.TestProxy)(object)profiles).Calls;
+        Assert.Equal(4, calls.Count);
+        Assert.Single(calls, call => call.Method.Name == nameof(Contracts.IProfilesClient.GetSupportedTimeZonesAsync));
+        Assert.Equal(2, calls.Count(call => call.Method.Name == nameof(Contracts.IProfilesClient.GetCurrentDisplayPreferenceAsync)));
     }
     private static Contracts.DisplayPreferenceDTO VerifySaved(object?[] args)
     {

@@ -101,18 +101,19 @@ internal static class BffEndpoints
         api.MapGet("/debug/auth/token", async (IAuthDebugService service, CancellationToken cancellationToken) =>
             await service.GetAccessTokenInfoAsync(cancellationToken) is { } info ? Results.Ok(info) : Results.NotFound());
 
-        api.MapGet("/profile/preferences/display", async (ProfileClientContracts.IProfilesClient profiles, CancellationToken cancellationToken) =>
+        api.MapGet("/profile/preferences/display", async (IDisplayPreferenceService preferences, CancellationToken cancellationToken) =>
         {
-            return Results.Ok(await profiles.GetCurrentDisplayPreferenceAsync(cancellationToken));
+            return Results.Ok(await preferences.GetAsync(cancellationToken));
         });
         api.MapPut("/profile/preferences/display", async (
             ProfileClientContracts.UpdateDisplayPreferenceRequest request,
-            ProfileClientContracts.IProfilesClient profiles,
+            IDisplayPreferenceService preferences,
             CancellationToken cancellationToken) =>
-            Results.Ok(await profiles.UpdateDisplayPreferenceAsync(request, cancellationToken)));
-        api.MapGet("/profile/preferences/time-zones", async (ProfileClientContracts.IProfilesClient profiles, CancellationToken cancellationToken) =>
+            Results.Ok(await preferences.SaveAsync(new VeloTime.Module.Profiles.Interface.Data.UpdateDisplayPreferenceRequest(
+                request.DistanceUnit, request.SpeedUnit, request.TimeMode, request.TimeZoneId), cancellationToken)));
+        api.MapGet("/profile/preferences/time-zones", async (IDisplayPreferenceService preferences, CancellationToken cancellationToken) =>
         {
-            return Results.Ok(await profiles.GetSupportedTimeZonesAsync(cancellationToken));
+            return Results.Ok(await preferences.GetTimeZonesAsync(cancellationToken));
         });
 
         api.MapGet("/profile/username", async (IProfileService service, CancellationToken cancellationToken) =>

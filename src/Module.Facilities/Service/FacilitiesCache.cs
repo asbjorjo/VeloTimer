@@ -1,12 +1,13 @@
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using VeloTime.Module.Common;
+using VeloTime.Module.Facilities.Interface;
 
 namespace VeloTime.Module.Facilities.Service;
 
 public static class FacilitiesCache
 {
-    public const string RelationshipsTag = "Facilities.Relationships";
+    public const string RelationshipsTag = FacilitiesCacheTags.Relationships;
     private static readonly TimeSpan PostCommitTimeout = TimeSpan.FromSeconds(5);
 
     public static string FacilityByCoursePoint(Guid coursePointId) => $"FacilityByCoursePoint_{coursePointId}";

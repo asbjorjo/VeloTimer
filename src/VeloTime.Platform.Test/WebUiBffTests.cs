@@ -16,6 +16,7 @@ using VeloTime.WebUI.Mud;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
 using VeloTime.WebUI.Mud.Endpoints;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace VeloTime.Platform.Test;
 
@@ -620,6 +621,11 @@ public sealed partial class WebUiBffTests
             .AddCookie(options => options.EventsType = typeof(TestCookieEvents));
         builder.Services.AddTransient<TestCookieEvents>();
         builder.Services.AddAdministrationAuthorization();
+        builder.Services.AddMemoryCache();
+        builder.Services.AddFusionCache().AsHybridCache();
+        builder.Services.AddSingleton<FusionCacheCircuitBreakerState>();
+        builder.Services.AddSingleton<ICacheInvalidationOperations, FusionCacheInvalidationOperations>();
+        WebUiCacheTestHost.Register(builder.Services);
         builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
         builder.Services.AddSingleton(status ?? PlatformServiceTests.TestProxy.Create<ITransponderStatusService>((_, _) =>
             throw new NotSupportedException("Status lookups require an explicit test response.")));
@@ -689,7 +695,8 @@ public sealed partial class WebUiBffTests
         app.UseAntiforgery();
         app.MapGet("/signin", async (HttpContext context) =>
         {
-            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "rider"), new Claim(ClaimTypes.Name, "rider")], "Cookies");
+            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "rider"), new Claim(ClaimTypes.Name, "rider"),
+                new Claim("iss", "https://issuer.test"), new Claim("sub", "rider"), new Claim("sid", "session")], "Cookies");
             if (context.Request.Query.TryGetValue("role", out var role))
                 identity.AddClaim(new Claim("realm_access", System.Text.Json.JsonSerializer.Serialize(new { roles = new[] { role.ToString() } })));
             await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));

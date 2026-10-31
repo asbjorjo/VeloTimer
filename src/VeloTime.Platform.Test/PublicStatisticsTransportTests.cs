@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using Microsoft.Extensions.Caching.Memory;
 using VeloTime.Module.Facilities.Client;
 using VeloTime.Module.Statistics.Client;
 using VeloTime.WebUI.Mud.Client.Services;
@@ -28,8 +27,8 @@ public sealed class PublicStatisticsTransportTests
             return GeneratedPage(expected);
         });
         var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((_, _) => throw new InvalidOperationException("No result-level lookup"));
-        using var cache = new MemoryCache(new MemoryCacheOptions());
-        var service = new StatisticsService(client, facilities, cache);
+        using var cache = new WebUiCacheTestHost(facilities);
+        var service = new StatisticsService(client, cache.Cache);
         var actual = await service.GetPublicResultsAsync(request, cancellation.Token);
         Assert.Equal(expected.Items, actual.Items);
         Assert.Equal(expected.Previous, actual.Previous);
@@ -68,8 +67,8 @@ public sealed class PublicStatisticsTransportTests
             };
         });
         var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((_, _) => throw new InvalidOperationException());
-        using var cache = new MemoryCache(new MemoryCacheOptions());
-        var actual = await new StatisticsService(client, facilities, cache).GetPublicDiscoveryAsync(cancellation.Token);
+        using var cache = new WebUiCacheTestHost(facilities);
+        var actual = await new StatisticsService(client, cache.Cache).GetPublicDiscoveryAsync(cancellation.Token);
         Assert.Equal("Lap", Assert.Single(actual.Items).Name);
         var option = Assert.Single(actual.Configurations);
         Assert.Equal(Contracts.StatisticsConfigurationType.Multi, option.Type);
@@ -92,9 +91,9 @@ public sealed class PublicStatisticsTransportTests
         if (kind == "oversize") generated.Items = Enumerable.Repeat(generated.Items.First(), 26).ToList();
         var client = PlatformServiceTests.TestProxy.Create<IStatisticsClient>((_, _) => generated);
         var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((_, _) => throw new InvalidOperationException());
-        using var cache = new MemoryCache(new MemoryCacheOptions());
+        using var cache = new WebUiCacheTestHost(facilities);
         var error = await Assert.ThrowsAsync<HttpRequestException>(() =>
-            new StatisticsService(client, facilities, cache).GetPublicResultsAsync(Request()));
+            new StatisticsService(client, cache.Cache).GetPublicResultsAsync(Request()));
         Assert.Equal(HttpStatusCode.BadGateway, error.StatusCode);
     }
 
@@ -107,9 +106,9 @@ public sealed class PublicStatisticsTransportTests
         var client = PlatformServiceTests.TestProxy.Create<IStatisticsClient>((_, _) =>
             throw new VeloTime.Module.Statistics.Client.ApiException("secret", upstream, "secret body", null!, null!));
         var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((_, _) => throw new InvalidOperationException());
-        using var cache = new MemoryCache(new MemoryCacheOptions());
+        using var cache = new WebUiCacheTestHost(facilities);
         var error = await Assert.ThrowsAsync<HttpRequestException>(() =>
-            new StatisticsService(client, facilities, cache).GetPublicResultsAsync(Request()));
+            new StatisticsService(client, cache.Cache).GetPublicResultsAsync(Request()));
         Assert.Equal((HttpStatusCode)expected, error.StatusCode);
         Assert.DoesNotContain("secret", error.Message);
     }

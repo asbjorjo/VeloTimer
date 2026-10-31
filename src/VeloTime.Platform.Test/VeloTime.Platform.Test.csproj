@@ -27,6 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Bootstrap\VeloTime.Bootstrap.csproj" />
     <ProjectReference Include="..\Module.Profiles.Migration\VeloTime.Module.Profiles.Migration.csproj" />
+    <ProjectReference Include="..\Module.Facilities.Api.Test\VeloTime.Module.Facilities.Api.Test.csproj" />
     <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Users.Migration\VeloTime.Users.Migration.csproj" />
     <ProjectReference Include="..\WebUI.Mud\VeloTime.WebUI.Mud.csproj" />

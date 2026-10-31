@@ -109,6 +109,8 @@ builder.Services
     .AddOpenIdConnectAccessTokenManagement()
     .AddBlazorServerAccessTokenManagement<ServerSideTokenStore>();
 
+WebUiCacheUserAccessor.Register(builder.Services);
+
 builder.Services.AddTransient<CookieEvents>();
 builder.Services.AddTransient<OidcEvents>();
 
@@ -144,7 +146,9 @@ builder.Services
     .AddUserAccessTokenHandler();
 
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<WebUiCache>();
 builder.Services.AddScoped<IDisplayPreferenceService, DisplayPreferenceService>();
+builder.Services.AddScoped<ILanguagePreferenceService, LanguagePreferenceService>();
 builder.Services.AddScoped<DisplayPreferenceState>();
 builder.Services.AddScoped<IAuthDebugService, AuthDebugService>();
 builder.Services.AddScoped<IFacilityService, FacilityService>();
