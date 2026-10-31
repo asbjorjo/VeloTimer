@@ -19,6 +19,14 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.20"></a>
+## [2.1.0-alpha.20](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.20) (2026-10-31)
+
+### Bug Fixes
+
+* **webui:** cache preferences and isolate lookup snapshots ([175bf7e](https://www.github.com/asbjorjo/VeloTimer/commit/175bf7e3a3df80d31aadc84717ba496b66dae705))
+* **webui:** merge isolated UI caching into v2 ([b796c42](https://www.github.com/asbjorjo/VeloTimer/commit/b796c423ff8b1d0d14ee3d39551791766695ad50))
+
 <a name="2.1.0-alpha.19"></a>
 ## [2.1.0-alpha.19](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.19) (2026-10-31)
 
