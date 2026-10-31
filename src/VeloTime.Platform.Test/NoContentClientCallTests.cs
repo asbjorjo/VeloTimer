@@ -76,9 +76,10 @@ public sealed class NoContentClientCallTests
         var timing = new Timing.TimingClient(http);
         var facilities = new Facilities.FacilitiesClient(http);
         var statistics = new Statistics.StatisticsClient(http);
+        using var cacheHost = new WebUiCacheTestHost(facilities, timing, statistics);
         var transponders = new TransponderManagementService(timing, UnusedOwners());
-        var infrastructure = new InfrastructureAdministrationService(facilities, timing);
-        var definitions = new StatisticsAdministrationService(statistics);
+        var infrastructure = new InfrastructureAdministrationService(facilities, timing, cacheHost.Cache);
+        var definitions = new StatisticsAdministrationService(statistics, cacheHost.Cache);
         var id = Guid.NewGuid();
         using var cancellation = new CancellationTokenSource();
         var token = cancellation.Token;
@@ -97,11 +98,11 @@ public sealed class NoContentClientCallTests
         await infrastructure.DeleteTimingPointAsync(id, id, token);
         await definitions.DeleteItemAsync(id, token);
         await definitions.DeleteConfigurationAsync(id, token);
-        await new TimingService(timing, facilities).UpdateInstallationAsync(new InstallationView
+        await new TimingService(timing, cacheHost.Cache).UpdateInstallationAsync(new InstallationView
         {
             Id = id, TimingSystem = "X2", TimingPoints = []
         }, token);
-        await new ProfileService(new Keycloak.KeycloakClient(http)).DeleteLinkedAccountAsync("provider", token);
+        await new ProfileService(new Keycloak.KeycloakClient(http), cacheHost.Cache).DeleteLinkedAccountAsync("provider", token);
 
         Assert.Equal(15, handler.Calls);
         Assert.True(handler.AllRequestsCancelable);
@@ -121,12 +122,13 @@ public sealed class NoContentClientCallTests
             BaseAddress = new Uri("http://upstream/")
         };
         var timing = new Timing.TimingClient(http);
+        using var cacheHost = new WebUiCacheTestHost();
         var id = Guid.NewGuid();
         Func<Task>[] actions =
         [
             () => new TransponderManagementService(timing, UnusedOwners()).SaveOwnershipAsync(id, new(id, id, DateTimeOffset.UtcNow, null)),
-            () => new InfrastructureAdministrationService(new Facilities.FacilitiesClient(http), timing).DeleteFacilityAsync(id),
-            () => new StatisticsAdministrationService(new Statistics.StatisticsClient(http)).DeleteItemAsync(id)
+            () => new InfrastructureAdministrationService(new Facilities.FacilitiesClient(http), timing, cacheHost.Cache).DeleteFacilityAsync(id),
+            () => new StatisticsAdministrationService(new Statistics.StatisticsClient(http), cacheHost.Cache).DeleteItemAsync(id)
         ];
         foreach (var action in actions)
         {
@@ -148,17 +150,18 @@ public sealed class NoContentClientCallTests
             BaseAddress = new Uri("http://upstream/")
         };
         var timing = new Timing.TimingClient(http);
+        using var cacheHost = new WebUiCacheTestHost();
         var transponders = new TransponderManagementService(timing, UnusedOwners());
-        var infrastructure = new InfrastructureAdministrationService(new Facilities.FacilitiesClient(http), timing);
-        var definitions = new StatisticsAdministrationService(new Statistics.StatisticsClient(http));
+        var infrastructure = new InfrastructureAdministrationService(new Facilities.FacilitiesClient(http), timing, cacheHost.Cache);
+        var definitions = new StatisticsAdministrationService(new Statistics.StatisticsClient(http), cacheHost.Cache);
         var id = Guid.NewGuid();
 
         await Assert.ThrowsAsync<Timing.ApiException>(() => transponders.SaveTransponderAsync(id, "Label"));
         await Assert.ThrowsAsync<Timing.ApiException>(() => transponders.RegisterAsync("FF-87718", false));
         await Assert.ThrowsAsync<Timing.ApiException>(() => transponders.RegisterOwnershipAsync(new("FF-87718", DateTimeOffset.UtcNow, null), false));
-        await Assert.ThrowsAsync<Facilities.ApiException>(() => infrastructure.SetTimingLinkAsync(id, id));
-        await Assert.ThrowsAsync<Facilities.ApiException>(() => infrastructure.SaveFacilityAsync(null, new("Track")));
-        await Assert.ThrowsAsync<Statistics.ApiException>(() => definitions.SaveItemAsync(null, new("Lap", "Description", 250)));
+        await Assert.ThrowsAsync<InvalidDataException>(() => infrastructure.SetTimingLinkAsync(id, id));
+        await Assert.ThrowsAsync<InvalidDataException>(() => infrastructure.SaveFacilityAsync(null, new("Track")));
+        await Assert.ThrowsAsync<InvalidDataException>(() => definitions.SaveItemAsync(null, new("Lap", "Description", 250)));
     }
 
     private static Exception ApiException(string client, int status) => client switch

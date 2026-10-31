@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Localization;
-using VeloTime.Module.Profiles.Client;
+using VeloTime.WebUI.Mud.Services;
 
 namespace VeloTime.WebUI.Mud.Localization;
 
@@ -40,8 +40,8 @@ internal static class CultureResolver
         {
             try
             {
-                var profile = context.RequestServices.GetRequiredService<IProfilesClient>();
-                var preference = await profile.GetCurrentLanguagePreferenceAsync(context.RequestAborted);
+                var preference = await context.RequestServices.GetRequiredService<ILanguagePreferenceService>()
+                    .GetAsync(context.RequestAborted);
                 selected = Normalize(preference.Language)
                     ?? Normalize(context.Request.Cookies[AnonymousPreferenceCookie]);
             }

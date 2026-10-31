@@ -448,8 +448,8 @@ public sealed class PlatformServiceTests
                 new() { Id = Guid.NewGuid(), Name = "Zulu", Layouts = [] },
                 facility
             },
-            nameof(IFacilitiesClient.FacilityAsync) => facility,
-            nameof(IFacilitiesClient.LayoutsAsync) => CreateLayout(facilityId),
+            nameof(IFacilitiesClient.Facility2Async) => facility,
+            nameof(IFacilitiesClient.LayoutsAsync) => LayoutWithId(facilityId, (Guid)_[0]!),
             nameof(IFacilitiesClient.LayoutsAllAsync) => new List<CourseLayoutDTO> { CreateLayout(facilityId) },
             _ => throw new NotSupportedException(method.Name)
         });
@@ -459,7 +459,8 @@ public sealed class PlatformServiceTests
             nameof(ITimingClient.InstallationsAllAsync) => new List<Module.Timing.Client.InstallationDTO> { installation },
             _ => throw new NotSupportedException(method.Name)
         });
-        var service = new FacilityService(facilities, timing);
+        using var cacheHost = new WebUiCacheTestHost(facilities);
+        var service = new FacilityService(timing, cacheHost.Cache);
 
         var allFacilities = (await service.GetFacilitiesAsync(CancellationToken.None)).ToList();
         var layoutDetail = await service.GetCourseLayoutDetailAsync(Guid.NewGuid());
@@ -496,7 +497,8 @@ public sealed class PlatformServiceTests
             nameof(ITimingClient.InstallationsPUTAsync) => RecordUpdate(args, value => updated = value),
             _ => throw new NotSupportedException(method.Name)
         });
-        var service = new TimingService(timing, facilities);
+        using var cacheHost = new WebUiCacheTestHost(facilities, timing);
+        var service = new TimingService(timing, cacheHost.Cache);
 
         var detail = await service.GetInstallationAsync(installationId);
         var installations = (await service.GetInstallationsAsync(CancellationToken.None)).ToList();
@@ -559,8 +561,8 @@ public sealed class PlatformServiceTests
             var coursePointId = args[0] is Guid id ? id : throw new InvalidOperationException("Missing course point ID.");
             return new CoursePointDTO { Id = coursePointId, Name = coursePointId == startId ? "Start" : "Finish" };
         });
-        using var cache = new MemoryCache(new MemoryCacheOptions());
-        var service = new StatisticsService(statistics, facility, cache);
+        using var cache = new WebUiCacheTestHost(facility);
+        var service = new StatisticsService(statistics, cache.Cache);
 
         var result = (await service.GetSamplesAsync(null, true, 10)).ToList();
 
@@ -585,7 +587,8 @@ public sealed class PlatformServiceTests
             nameof(IKeycloakClient.DeleteLinkedProviderAsync) => null,
             _ => throw new NotSupportedException(method.Name)
         });
-        var service = new ProfileService(keycloak);
+        using var cacheHost = new WebUiCacheTestHost(keycloak);
+        var service = new ProfileService(keycloak, cacheHost.Cache);
 
         Assert.Equal("rider", await service.GetUsernameAsync(CancellationToken.None));
         var linked = Assert.Single(await service.GetLinkedAccountsAsync(CancellationToken.None));
@@ -598,6 +601,13 @@ public sealed class PlatformServiceTests
         var calls = ((TestProxy)(object)keycloak).Calls;
         Assert.Contains(calls, call => call.Method.Name == nameof(IKeycloakClient.DeleteLinkedProviderAsync)
             && Equals(call.Arguments[0], "velotime") && Equals(call.Arguments[1], "provider"));
+    }
+
+    private static CourseLayoutDTO LayoutWithId(Guid facilityId, Guid id)
+    {
+        var layout = CreateLayout(facilityId);
+        layout.Id = id;
+        return layout;
     }
 
     private static CourseLayoutDTO CreateLayout(Guid facilityId)

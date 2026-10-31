@@ -1,3 +1,4 @@
+using ZiggyCreatures.Caching.Fusion;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -128,6 +129,13 @@ public sealed class LanguageSelectionEndpointTests
         profiles.ReadFailure = new HttpRequestException("private profile dependency detail", null,
             HttpStatusCode.ServiceUnavailable);
         state = await client.GetFromJsonAsync<LanguageState>("/language/state");
+        Assert.Equal("nb-NO", state!.Language);
+        Assert.False(state.PreferenceUnavailable);
+        Assert.Single(profiles.Reads);
+        // A committed save evicts the warm snapshot before the next failed read.
+        using var save = SelectionRequest("en", "/profile");
+        Assert.Equal(HttpStatusCode.OK, (await client.SendAsync(save)).StatusCode);
+        state = await client.GetFromJsonAsync<LanguageState>("/language/state");
         Assert.Equal("en", state!.Language);
         Assert.True(state.PreferenceUnavailable);
         Assert.Equal(2, profiles.Reads.Count);
@@ -227,6 +235,11 @@ public sealed class LanguageSelectionEndpointTests
         builder.Services.AddAuthorization();
         builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
         builder.Services.AddSingleton<IProfilesClient>(profiles);
+        builder.Services.AddMemoryCache();
+        builder.Services.AddFusionCache().AsHybridCache();
+        builder.Services.AddSingleton<VeloTime.Module.Common.FusionCacheCircuitBreakerState>();
+        builder.Services.AddSingleton<VeloTime.Module.Common.ICacheInvalidationOperations, VeloTime.Module.Common.FusionCacheInvalidationOperations>();
+        WebUiCacheTestHost.Register(builder.Services);
         builder.Services.AddSingleton<IProfileService>(PlatformServiceTests.TestProxy.Create<IProfileService>(
             (_, _) => throw new InvalidOperationException("Language preferences must not use the Keycloak account service.")));
         var app = builder.Build();
@@ -238,7 +251,8 @@ public sealed class LanguageSelectionEndpointTests
             Results.Ok(antiforgery.GetAndStoreTokens(context).RequestToken)).AllowAnonymous();
         app.MapGet("/signin", async (HttpContext context) =>
         {
-            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "test-subject")],
+            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "test-subject"),
+                new Claim("iss", "https://issuer.test"), new Claim("sub", "test-subject"), new Claim("sid", "session")],
                 CookieAuthenticationDefaults.AuthenticationScheme);
             await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(identity));

@@ -1,5 +1,6 @@
 using System.Net;
 using VeloTime.Module.Facilities.Client;
+using VeloTime.Module.Facilities.Interface;
 using VeloTime.Module.Timing.Client;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
@@ -7,8 +8,8 @@ using Contracts = VeloTime.Module.Timing.Interface.Data;
 
 namespace VeloTime.WebUI.Mud.Services;
 
-public sealed class TransponderStatusService(ITimingClient timing, IFacilitiesClient facilities,
-    ILogger<TransponderStatusService> logger) : ITransponderStatusService
+public sealed class TransponderStatusService(ITimingClient timing,
+    ILogger<TransponderStatusService> logger, WebUiCache cache) : ITransponderStatusService
 {
     public async Task<TransponderStatusView> GetAsync(Guid id, int ownershipPage = 0, int warningPage = 0,
         int pageSize = 10, CancellationToken cancellationToken = default)
@@ -39,10 +40,16 @@ public sealed class TransponderStatusService(ITimingClient timing, IFacilitiesCl
         {
             try
             {
-                var facility = await facilities.Facility2Async(facilityId, cancellationToken);
-                if (facility is null || string.IsNullOrWhiteSpace(facility.Name))
-                    throw new HttpRequestException("An assigned facility returned no name.", null, HttpStatusCode.BadGateway);
-                names.Add(facilityId, facility.Name);
+                names.Add(facilityId, await cache.GetPublicAsync(
+                    "facility-name", "string-v1", facilityId.ToString("N"),
+                    async (IFacilitiesClient factoryClient, CancellationToken token) =>
+                    {
+                        var facility = await factoryClient.Facility2Async(facilityId, token);
+                        if (facility is null || facility.Id != facilityId || string.IsNullOrWhiteSpace(facility.Name))
+                            throw new HttpRequestException("An assigned facility returned no name.", null, HttpStatusCode.BadGateway);
+                        return facility.Name;
+                    },
+                    [FacilitiesCacheTags.Relationships], cancellationToken));
             }
             catch (Module.Facilities.Client.ApiException exception)
             {

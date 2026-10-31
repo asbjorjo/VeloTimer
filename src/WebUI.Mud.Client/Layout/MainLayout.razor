@@ -64,25 +64,102 @@
     private readonly CancellationTokenSource _lifetime = new();
     private string? _preferenceError;
     private bool _preferenceLoading;
-    protected override void OnInitialized() => Preferences.Changed += PreferencesChanged;
+    private bool _identityInitialized;
+    private string? _identityKey;
+    private bool _reloadAfterCurrentLoad;
+
+    protected override void OnInitialized()
+    {
+        Preferences.Changed += PreferencesChanged;
+        Authentication.AuthenticationStateChanged += AuthenticationChanged;
+    }
+
     private void PreferencesChanged() { if (!_lifetime.IsCancellationRequested) _ = InvokeAsync(StateHasChanged); }
     protected override Task OnAfterRenderAsync(bool firstRender) => firstRender ? LoadPreferences(false) : Task.CompletedTask;
     private Task RetryPreferences() => LoadPreferences(true);
+
+    private void AuthenticationChanged(Task<AuthenticationState> authenticationState) =>
+        _ = HandleAuthenticationChange(authenticationState);
+
+    private async Task HandleAuthenticationChange(Task<AuthenticationState> authenticationState)
+    {
+        try
+        {
+            var state = await authenticationState;
+            await InvokeAsync(async () =>
+            {
+                if (_lifetime.IsCancellationRequested) return;
+                var identity = IdentityKey(state);
+                if (!_identityInitialized)
+                {
+                    _identityInitialized = true;
+                    _identityKey = identity;
+                    return;
+                }
+                if (StringComparer.Ordinal.Equals(_identityKey, identity)) return;
+
+                _identityKey = identity;
+                Preferences.ResetForAuthenticationChange();
+                _preferenceError = null;
+                await LoadPreferences(false);
+            });
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception) when (_lifetime.IsCancellationRequested) { }
+    }
+
     private async Task LoadPreferences(bool retry)
     {
+        if (_preferenceLoading)
+        {
+            _reloadAfterCurrentLoad = true;
+            return;
+        }
         _preferenceLoading = true;
         _preferenceError = null;
         try
         {
-            var signedIn = (await Authentication.GetAuthenticationStateAsync()).User.Identity?.IsAuthenticated == true;
+            var authState = await Authentication.GetAuthenticationStateAsync();
+            var identity = IdentityKey(authState);
+            if (_identityInitialized && !StringComparer.Ordinal.Equals(_identityKey, identity))
+                Preferences.ResetForAuthenticationChange();
+            _identityInitialized = true;
+            _identityKey = identity;
+            var signedIn = authState.User.Identity?.IsAuthenticated == true;
             if (retry) await Preferences.RetryAsync(signedIn, _lifetime.Token);
             else await Preferences.InitializeAsync(signedIn, _lifetime.Token);
         }
-        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (OperationCanceledException) { }
         catch (HttpRequestException exception) { _preferenceError = exception.StatusCode switch
             { System.Net.HttpStatusCode.Unauthorized => "SignInRequired", System.Net.HttpStatusCode.Forbidden => "NoPermission", _ => "DisplaySettingsLoadFailed" }; }
         catch (Exception) { _preferenceError = "DisplaySettingsLoadFailed"; }
-        finally { _preferenceLoading = false; if (!_lifetime.IsCancellationRequested) StateHasChanged(); }
+        finally
+        {
+            _preferenceLoading = false;
+            if (!_lifetime.IsCancellationRequested) StateHasChanged();
+            if (_reloadAfterCurrentLoad && !_lifetime.IsCancellationRequested)
+            {
+                _reloadAfterCurrentLoad = false;
+                _ = LoadPreferences(false);
+            }
+        }
     }
-    public void Dispose() { Preferences.Changed -= PreferencesChanged; _lifetime.Cancel(); _lifetime.Dispose(); }
+
+    private static string? IdentityKey(AuthenticationState state)
+    {
+        var user = state.User;
+        if (user.Identity?.IsAuthenticated != true) return null;
+        var issuer = user.FindFirst("iss")?.Value ?? "";
+        var subject = user.FindFirst("sub")?.Value ?? "";
+        var session = user.FindFirst("sid")?.Value ?? "";
+        return $"{issuer.Length}:{issuer}|{subject.Length}:{subject}|{session.Length}:{session}";
+    }
+
+    public void Dispose()
+    {
+        Preferences.Changed -= PreferencesChanged;
+        Authentication.AuthenticationStateChanged -= AuthenticationChanged;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
 }

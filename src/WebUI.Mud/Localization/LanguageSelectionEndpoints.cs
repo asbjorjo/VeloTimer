@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
-using VeloTime.Module.Profiles.Client;
+using VeloTime.WebUI.Mud.Services;
 
 namespace VeloTime.WebUI.Mud.Localization;
 
@@ -40,7 +40,7 @@ internal static class LanguageSelectionEndpoints
         });
 
         group.MapPost("/select", async ([FromBody] LanguageSelection? selection, HttpContext http,
-            IProfilesClient profiles, CancellationToken cancellationToken) =>
+            ILanguagePreferenceService preferences, CancellationToken cancellationToken) =>
         {
             if (selection is null || selection.Language is not ("en" or "nb-NO") ||
                 !IsLocalReturnUrl(selection.ReturnUrl, http))
@@ -52,8 +52,7 @@ internal static class LanguageSelectionEndpoints
             {
                 try
                 {
-                    var result = await profiles.UpdateLanguagePreferenceAsync(
-                        new UpdateLanguagePreferenceRequest { Language = selection.Language }, cancellationToken);
+                    var result = await preferences.SaveAsync(selection.Language, cancellationToken);
                     if (result.Language != selection.Language)
                     {
                         return Results.Problem(statusCode: StatusCodes.Status502BadGateway);

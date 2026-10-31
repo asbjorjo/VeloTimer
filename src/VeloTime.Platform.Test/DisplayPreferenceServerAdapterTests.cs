@@ -23,7 +23,9 @@ public sealed class DisplayPreferenceServerAdapterTests
         var token = new CancellationTokenSource().Token;
         var profiles = PlatformServiceTests.TestProxy.Create<ProfilesClient.IProfilesClient>((method, arguments) =>
         {
-            Assert.Equal(token, arguments[^1]);
+            Assert.IsType<CancellationToken>(arguments[^1]);
+            if (method.Name == nameof(ProfilesClient.IProfilesClient.UpdateDisplayPreferenceAsync))
+                Assert.Equal(token, arguments[^1]);
             return method.Name switch
             {
                 nameof(ProfilesClient.IProfilesClient.GetCurrentDisplayPreferenceAsync) => expected,
@@ -36,7 +38,8 @@ public sealed class DisplayPreferenceServerAdapterTests
                 _ => throw new NotSupportedException(method.Name)
             };
         });
-        var service = new DisplayPreferenceService(profiles);
+        using var cacheHost = new WebUiCacheTestHost(profiles);
+        var service = new DisplayPreferenceService(profiles, cacheHost.Cache);
 
         Assert.Equal(new DisplayPreferenceDTO("ft", "mph", "timeZone", "Europe/Oslo"), await service.GetAsync(token));
         Assert.Equal(new DisplayPreferenceDTO("ft", "mph", "timeZone", "Europe/Oslo"),
@@ -54,15 +57,17 @@ public sealed class DisplayPreferenceServerAdapterTests
         var cancellation = new OperationCanceledException(source.Token);
         var canceledProfiles = PlatformServiceTests.TestProxy.Create<ProfilesClient.IProfilesClient>((_, arguments) =>
         {
-            Assert.Equal(source.Token, arguments[^1]);
+            Assert.IsType<CancellationToken>(arguments[^1]);
             throw cancellation;
         });
-        var canceledService = new DisplayPreferenceService(canceledProfiles);
+        using var canceledHost = new WebUiCacheTestHost(canceledProfiles);
+        var canceledService = new DisplayPreferenceService(canceledProfiles, canceledHost.Cache);
         Assert.Same(cancellation, await Assert.ThrowsAnyAsync<OperationCanceledException>(() => canceledService.GetAsync(source.Token)));
 
         var upstreamError = new InvalidOperationException("Profiles upstream failed");
         var failingProfiles = PlatformServiceTests.TestProxy.Create<ProfilesClient.IProfilesClient>((_, _) => throw upstreamError);
-        var failingService = new DisplayPreferenceService(failingProfiles);
+        using var failingHost = new WebUiCacheTestHost(failingProfiles);
+        var failingService = new DisplayPreferenceService(failingProfiles, failingHost.Cache);
         Assert.Same(upstreamError, await Assert.ThrowsAsync<InvalidOperationException>(() =>
             failingService.GetTimeZonesAsync(CancellationToken.None)));
     }

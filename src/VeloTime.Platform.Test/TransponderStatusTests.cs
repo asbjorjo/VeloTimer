@@ -69,9 +69,9 @@ public sealed class TransponderStatusServiceTests
                 Samples = [new VeloTime.Module.Statistics.Client.SampleDTO { TransponderId = id,
                     CoursePointStartId = Guid.NewGuid(), CoursePointEndId = Guid.NewGuid(), Duration = "00:00:20" }]
             });
-        var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((_, _) => new CoursePointDTO { Name = "Finish" });
-        using var cache = new MemoryCache(new MemoryCacheOptions());
-        var result = Assert.Single(await new StatisticsService(statistics, facilities, cache).GetSamplesAsync(null, false, 10));
+        var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((_, args) => new CoursePointDTO { Id = (Guid)args[0]!, Name = "Finish" });
+        using var cache = new WebUiCacheTestHost(facilities);
+        var result = Assert.Single(await new StatisticsService(statistics, cache.Cache).GetSamplesAsync(null, false, 10));
         Assert.Equal(id, result.TransponderId);
         Assert.Equal(id.ToString(), result.TransponderLabel);
     }
@@ -111,7 +111,8 @@ public sealed class TransponderStatusServiceTests
             if (failFacility) throw new HttpRequestException("offline");
             return new FacilityDTO { Id = sighting.FacilityId, Name = "Arena" };
         });
-        var service = new TransponderStatusService(timing, facilities, NullLogger<TransponderStatusService>.Instance);
+        using var cacheHost = new WebUiCacheTestHost(facilities);
+        var service = new TransponderStatusService(timing, NullLogger<TransponderStatusService>.Instance, cacheHost.Cache);
         var result = await service.GetAsync(expected.Status.Id, 2, 3);
         Assert.Equal(sighting, Assert.Single(result.Status.Warnings));
         Assert.Equal(TransponderStatusTestData.OwnerId, Assert.Single(result.Status.Ownerships).OwnerId);
@@ -133,7 +134,8 @@ public sealed class TransponderStatusServiceTests
         var timing = PlatformServiceTests.TestProxy.Create<ITimingClient>((_, _) =>
             throw new VeloTime.Module.Timing.Client.ApiException("denied", 404, "", null!, null!));
         var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((_, _) => throw new InvalidOperationException("Must not resolve"));
-        var service = new TransponderStatusService(timing, facilities, NullLogger<TransponderStatusService>.Instance);
+        using var cacheHost = new WebUiCacheTestHost(facilities);
+        var service = new TransponderStatusService(timing, NullLogger<TransponderStatusService>.Instance, cacheHost.Cache);
         var exception = await Assert.ThrowsAsync<HttpRequestException>(() => service.GetAsync(Guid.NewGuid()));
         Assert.Equal(HttpStatusCode.NotFound, exception.StatusCode);
         Assert.Empty(((PlatformServiceTests.TestProxy)(object)facilities).Calls);
