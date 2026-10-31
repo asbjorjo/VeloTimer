@@ -351,6 +351,13 @@ reported as unresolved profile migrations. If the identity account lookup throws
 the error is logged, that rider is skipped, and its profile and ownership work is
 reported as unresolved.
 
+When the migration creates a Keycloak user, it normalizes first and last names to
+fit Keycloak's default user-profile rules. It composes Unicode, and turns
+prohibited characters (`<>&"$%!#?§;*~/\|^=[]{}()`), control characters, and
+runs of whitespace into a single space. It trims the result and caps it at 255
+characters. Names with nothing valid left are left empty. Each changed name is
+logged as a warning.
+
 For a new realm, the checked-in import declares these roles and includes realm roles
 in the WebUI ID token. Existing Keycloak realms are not updated by editing the import:
 create the roles, add the WebUI realm-role mapper to ID/access tokens, assign the

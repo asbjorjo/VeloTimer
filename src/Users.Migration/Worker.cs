@@ -97,14 +97,20 @@ public class Worker(
                 }
                 else
                 {
+                    var firstName = KeycloakNameNormalizer.Normalize(rider.FirstName);
+                    var lastName = KeycloakNameNormalizer.Normalize(rider.LastName);
+                    if (firstName != rider.FirstName || lastName != rider.LastName)
+                        logger.LogWarning("Normalized name for rider {RiderId} from '{FirstName} {LastName}' to '{NormalizedFirstName} {NormalizedLastName}' for Keycloak.",
+                            rider.Id, rider.FirstName, rider.LastName, firstName, lastName);
+
                     kcuser = new UserRepresentation
                     {
                         Username = user.UserName,
                         Enabled = true,
                         EmailVerified = true,
                         Email = user.Email,
-                        FirstName = rider.FirstName,
-                        LastName = rider.LastName
+                        FirstName = firstName,
+                        LastName = lastName
                     };
                 }
 
