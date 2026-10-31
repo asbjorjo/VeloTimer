@@ -72,6 +72,81 @@
 The main purpose of this is to provide a way of turning passing data from the timing system at a velodrome into meaningful data and tools for coaches and riders.
 An aside is to produce fun statistics for riders and track owners.
 
+### Public filtered statistics
+
+The public Statistics results view uses `/statistics/{facilityId}/{itemId}/{configurationId}`.
+The initial `/statistics` selection is the first alphabetical facility, item named
+`Lap`, and first eligible configuration (stable ID tie-breakers). The existing
+best-times homepage and raw samples page remain separate and unchanged.
+
+Each row is an individual recorded result with public profile name, elapsed duration
+and average speed in **km/h**. Private profiles and entries without a linked profile
+are excluded in the Statistics database on every request; result responses are no-store.
+Simple configurations resolve their two coursepoints to the same facility; Multi
+configurations inherit their Simple parent's points. Discovery does not require results.
+Unavailable defaults, invalid explicit selections, legacy references and upstream failures
+are explicit states rather than silent fallback.
+
+Name search is a trimmed, case-insensitive **literal substring**. Optional minimum/
+maximum duration and speed bounds are inclusive, nonnegative and ordered. Duration
+filters use invariant `hh:mm:ss.fff`, or `d.hh:mm:ss.fff` beyond 24 hours; speed bounds
+use finite invariant km/h numbers. Filtering, newest-first sorting and composite
+completion-timestamp/UUID keyset paging execute in PostgreSQL. Pages contain 25 results,
+Previous/Next cursors and no total count; no numbered offsets or client-side table paging.
+
+Example shareable URL (replace the selection IDs with discovery IDs):
+
+```text
+/statistics/00000000-0000-0000-0000-000000000001/00000000-0000-0000-0000-000000000002/00000000-0000-0000-0000-000000000003?name=Alice&minTime=00%3A00%3A20.000&maxTime=00%3A01%3A00.000&minSpeed=20&maxSpeed=60
+```
+
+Anonymous API and browser BFF routes are `GET /api/statistics/public/discovery` and
+`GET /api/statistics/public/results`. Results require `facilityId`, `itemId` and
+`configurationId`; the other filter keys match the example. Paging adds URL-encoded
+`cursor=<UTC O timestamp>|<entry UUID>` and `direction=next` or `previous`. Preserve
+all timestamp fractional digits and reset pagination when applying filters/selections.
+Invalid/malformed queries return 400; Facilities dependency failures return explicit
+502/503 errors. Existing admin routes remain authorized.
+
+See [the public API contract and PostgreSQL query handoff](api/statistics-public-contract.md)
+for exact DTOs, cursor encoding, Simple/Multi eligibility and index prerequisites.
+
+#### Statistics database deployment
+
+The `statistics_public_indexes` migration adds a selection/keyset B-tree and a partial
+public-profile name trigram GIN index to the **Statistics-owned database** only.
+
+- PostgreSQL must provide `pg_trgm` installed in the **`public` schema**, or the
+  migration role must have permission to install it there. Verify database/schema
+  privileges, target-table ownership or equivalent index creation/drop authority,
+  and that `gin_trgm_ops` resolves on the deployment search path. An extension already
+  installed in another schema needs an approved prerequisite resolution:
+  `CREATE EXTENSION IF NOT EXISTS` does not relocate it.
+- The EF migration uses `CREATE INDEX CONCURRENTLY` with transaction suppression.
+  Use the existing migration worker or an executor supporting nontransactional
+  statements; **do not wrap the migration/script in an enclosing transaction**.
+  Rollback (`Down`) drops the two indexes concurrently outside transactions and
+  deliberately **retains `pg_trgm`**, which may have other dependants.
+- Concurrent builds are not atomic. After a failed/cancelled build or migration-worker
+  retry failure, **do not blindly retry**: inspect migration history and both indexes'
+  `pg_index` validity/readiness flags. A build may leave an invalid index, or a valid
+  index before history is recorded. If this migration remains pending, obtain operator
+  approval for targeted concurrent cleanup of only its remnants before retrying:
+  `statistics.ix_stats_profile_public_name_trgm` and
+  `statistics.ix_statistics_entry_facility_item_config_time_end_id`.
+  Cleanup must run outside a transaction; never remove unrelated indexes or add
+  `IF NOT EXISTS` to the build to silently accept an invalid index.
+- Check disk headroom, replication impact, long-lived transactions and statement
+  timeouts before deployment. Concurrent DDL can still wait and consumes resources;
+  these indexes add storage and write costs.
+
+Isolated PostgreSQL validation used 1.2 million synthetic results with a warm local
+cache and demonstrated ordered/keyset B-tree scans and reduced work for selective
+trigram searches. This is **not a production performance guarantee**: short/broad name
+terms may bypass GIN, and duration/speed bounds remain residual filters. Real writer
+load, cancellation and replication behavior require deployment-specific validation.
+Integrated API/browser verification remains a separate gate, not implied by compilation.
+
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
