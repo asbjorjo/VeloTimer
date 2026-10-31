@@ -140,6 +140,10 @@ test('real Results router restores refresh/history and server-backed paging/filt
     await choose('Statistics item', 'Sprint');
     await page.waitForURL(`**/statistics/${id(1)}/${id(7)}/${id(8)}`);
     await waitForName('Rider 60 Group A');
+    // Both selections show the same mocked rows. URL and row text alone can
+    // settle before Blazor updates the new configuration's input value.
+    await page.waitForFunction(expected =>
+      [...document.querySelectorAll('input')].some(element => element.value === expected), id(8));
     assert.equal(await input('Configuration').inputValue(), id(8));
     await page.reload();
     await waitForName('Rider 60 Group A');

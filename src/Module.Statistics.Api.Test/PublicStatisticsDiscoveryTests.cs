@@ -140,6 +140,8 @@ public sealed class PublicStatisticsDiscoveryTests
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal(400, document.RootElement.GetProperty("status").GetInt32());
+        Assert.Empty(host.Points.FacilityCalls);
+        Assert.Empty(host.Points.NameCalls);
     }
 
     [Fact]

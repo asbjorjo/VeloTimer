@@ -64,8 +64,7 @@ internal sealed class PublicStatisticsTestHost : IAsyncDisposable
                     services.Remove(descriptor);
                 services.AddSingleton<ICoursePointReferences>(host.Points);
                 services.AddSingleton<IPublicCoursePointNames>(host.Points);
-                if (postgres)
-                    services.AddDbContext<StatisticsDbContext>(options => options.AddInterceptors(host.Sql));
+                services.AddDbContext<StatisticsDbContext>(options => options.AddInterceptors(host.Sql));
             }));
             await using var scope = host.App.Services.CreateAsyncScope();
             await scope.ServiceProvider.GetRequiredService<StatisticsDbContext>().Database.EnsureCreatedAsync();
@@ -118,11 +117,14 @@ internal sealed class PublicStatisticsTestHost : IAsyncDisposable
         public ConcurrentBag<Guid> FacilityCalls { get; } = [];
         public ConcurrentBag<Guid> NameCalls { get; } = [];
         public Exception? Failure { get; set; }
+        public Dictionary<Guid, Exception> FacilityFailures { get; } = [];
+        public Exception? NameFailure { get; set; }
         public Task<Guid?> GetFacilityAsync(Guid pointId, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             FacilityCalls.Add(pointId);
             if (Failure is not null) throw Failure;
+            if (FacilityFailures.TryGetValue(pointId, out var failure)) throw failure;
             return Task.FromResult(Facilities.GetValueOrDefault(pointId));
         }
         public Task<string?> GetNameAsync(Guid pointId, CancellationToken cancellationToken)
@@ -130,6 +132,7 @@ internal sealed class PublicStatisticsTestHost : IAsyncDisposable
             cancellationToken.ThrowIfCancellationRequested();
             NameCalls.Add(pointId);
             if (Failure is not null) throw Failure;
+            if (NameFailure is not null) throw NameFailure;
             return Task.FromResult(Names.GetValueOrDefault(pointId));
         }
     }

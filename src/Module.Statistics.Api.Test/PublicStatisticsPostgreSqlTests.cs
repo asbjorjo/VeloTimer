@@ -13,6 +13,61 @@ public sealed class PublicStatisticsPostgreSqlTests
         .AddTicks(1_234_560);
 
     [PublicStatisticsPostgreSqlFact]
+    public async Task Results_FloatDerivedSpeedMaximumIncludesExactReturnedKmh()
+    {
+        await AssertFloatDerivedSpeedBoundary(TimeSpan.FromMilliseconds(19_100), maximum: true);
+    }
+
+    [PublicStatisticsPostgreSqlFact]
+    public async Task Results_FloatDerivedSpeedMinimumIncludesExactReturnedKmh()
+    {
+        await AssertFloatDerivedSpeedBoundary(TimeSpan.FromMilliseconds(10_449), maximum: false);
+    }
+
+    private static async Task AssertFloatDerivedSpeedBoundary(TimeSpan duration, bool maximum)
+    {
+        await using var host = await PublicStatisticsTestHost.CreateAsync(postgres: true);
+        var config = Config();
+        // StatisticsService divides its float distance by double TotalSeconds. Do not
+        // seed via kmh / 3.6: that conceals the boundary's round-trip rounding bug.
+        var entry = new StatisticsEntry
+        {
+            Id = Guid.NewGuid(), StatisticsItem = config.StatisticsItem, StatisticsItemConfig = config,
+            StatsProfile = Profile("Float-derived rider"), TransponderId = Guid.NewGuid(),
+            FacilityId = PublicStatisticsTestHost.Facility, Duration = duration,
+            Speed = config.StatisticsItem.Distance / duration.TotalSeconds,
+            TimeStart = Completed.Subtract(duration), TimeEnd = Completed
+        };
+        await host.SeedAsync(entry);
+        using var client = PublicStatisticsDiscoveryTests.Anonymous(host);
+        var unbounded = Assert.Single((await Get(client, Request(config))).Items);
+        var returnedKmh = entry.Speed * 3.6d;
+        Assert.Equal(returnedKmh, unbounded.SpeedKmh);
+        Assert.Equal(duration, unbounded.Duration);
+        // Prove this fixture distinguishes multiplication-space comparisons from
+        // converting the response bound back into m/s.
+        if (maximum) Assert.True(returnedKmh / 3.6d < entry.Speed);
+        else Assert.True(returnedKmh / 3.6d > entry.Speed);
+
+        var bounded = await Get(client, maximum
+            ? Request(config) with { MaxSpeedKmh = unbounded.SpeedKmh }
+            : Request(config) with { MinSpeedKmh = unbounded.SpeedKmh });
+        Assert.Equal(unbounded, Assert.Single(bounded.Items));
+        var equal = await Get(client, Request(config) with
+        {
+            MinSpeedKmh = unbounded.SpeedKmh, MaxSpeedKmh = unbounded.SpeedKmh
+        });
+        Assert.Equal(unbounded, Assert.Single(equal.Items));
+        var excluding = await Get(client, maximum
+            ? Request(config) with { MaxSpeedKmh = Math.BitDecrement(unbounded.SpeedKmh) }
+            : Request(config) with { MinSpeedKmh = Math.BitIncrement(unbounded.SpeedKmh) });
+        Assert.Empty(excluding.Items);
+        Assert.Empty(host.Points.NameCalls);
+        Assert.Equal(4, host.Points.FacilityCalls.Count(point => point == PublicStatisticsTestHost.Start));
+        Assert.Equal(4, host.Points.FacilityCalls.Count(point => point == PublicStatisticsTestHost.End));
+    }
+
+    [PublicStatisticsPostgreSqlFact]
     public async Task Results_AreIndividualPublicEntriesAndObserveVisibilityOnEveryRequest()
     {
         await using var host = await PublicStatisticsTestHost.CreateAsync(postgres: true);
@@ -84,8 +139,9 @@ public sealed class PublicStatisticsPostgreSqlTests
         var commands = EntryCommands(host);
         Assert.NotEmpty(commands);
         var select = Assert.Single(commands, command => !command.Text.Contains("EXISTS", StringComparison.OrdinalIgnoreCase));
+        // Npgsql renders the double 3.6 constant using its round-trip decimal.
         foreach (var fragment in new[] { "JOIN", "is_public", "facility_id", "statistics_item_id",
-            "statistics_item_config_id", "ILIKE", "ESCAPE", "duration >=", "duration <=", "speed >=", "speed <=",
+            "statistics_item_config_id", "ILIKE", "ESCAPE", "duration >=", "duration <=", "speed * 3.6000000000000001 >=", "speed * 3.6000000000000001 <=",
             "ORDER BY", "time_end DESC", "id DESC", "LIMIT" })
             Assert.Contains(fragment, select.Text, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(select.Parameters, value => value is int limit && limit == 26);
@@ -96,7 +152,7 @@ public sealed class PublicStatisticsPostgreSqlTests
             Assert.DoesNotContain("OFFSET", command.Text, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("COUNT(", command.Text, StringComparison.OrdinalIgnoreCase);
             foreach (var predicate in new[] { "is_public", "facility_id", "statistics_item_id",
-                "statistics_item_config_id", "ILIKE", "duration >=", "duration <=", "speed >=", "speed <=" })
+                "statistics_item_config_id", "ILIKE", "duration >=", "duration <=", "speed * 3.6000000000000001 >=", "speed * 3.6000000000000001 <=" })
                 Assert.Contains(predicate, command.Text, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("transponder_id", command.Text, StringComparison.OrdinalIgnoreCase);
         });
