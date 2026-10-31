@@ -14,6 +14,7 @@ Follow [repository instructions](../../AGENTS.md) for architecture, branch rules
 
 - Add/update tests and necessary test fixtures in the relevant domain, API, worker, or platform test project.
 - Verify the actual acceptance criteria, including errors, authorization boundaries, contract shapes, and regressions where relevant.
+- For time/unit behavior, verify backend and persisted values remain UTC and base SI units, and that user-facing formatting/conversion follows browser locale or explicit preferences.
 - Do not change production code to make a test pass, weaken assertions, or suppress failures. Return production defects to their developer through Coordinator.
 
 ## Approach

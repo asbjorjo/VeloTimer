@@ -14,6 +14,7 @@ Follow [repository instructions](../../AGENTS.md). Own EF models/storage and mig
 
 - Inspect the relevant DbContext, provider configuration, existing migrations/snapshot, and history-table conventions. Each service owns its database; never add cross-service database access.
 - Use existing EF tooling and naming conventions. Keep model, generated migration, snapshot, indexes, constraints, and history behavior consistent.
+- Persist dates and times as UTC and physical quantities in base SI units. Do not store localized timestamps or presentation-unit values; user-locale formatting and unit conversion belong at the UI boundary.
 - Consider existing data, nullability, backfills, ordering, transactions, and compatibility with concurrently deployed consumers. Explain provider-specific behavior and deployment prerequisites.
 - Do not rewrite applied migrations, run destructive schema operations, or apply migrations to shared databases without explicit appropriate approval. Generating a migration is not proof it applies successfully.
 - Coordinate domain/API changes and messaging/outbox semantics through Coordinator, with a single owner for shared entity or contract files.

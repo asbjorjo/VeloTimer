@@ -29,7 +29,7 @@ Use the runtime's available subagent invocation tool; do not assume a particular
 ## Workflow
 
 1. Establish acceptance criteria and examine the existing worktree. Respect the repository branch policy and preserve user changes.
-2. Delegate bounded work with objective, allowed files, prerequisites, existing patterns, acceptance criteria, and required report. Pass the relevant context explicitly; do not assume a subagent sees this conversation.
+2. Delegate bounded work with objective, allowed files, prerequisites, existing patterns, acceptance criteria, and required report. Pass the relevant context explicitly; do not assume a subagent sees this conversation. For time/unit work, include the shared convention: backend and database values are UTC and base SI units; user-facing presentation follows browser locale or explicit preferences.
 3. Give each shared file one owner. When shared contracts cross specialist boundaries, complete the contract-first gate below before delegating dependent implementations. Parallelize only independent work with non-overlapping ownership. Ask the user about material scope or behavior ambiguity.
 4. Collect each developer's report: changed files, behavior/contract decisions, checks with exact results, risks/blockers, and next owner. Inspect integration evidence instead of treating a success statement as proof.
 5. Hand completed implementation to Tester with acceptance criteria and changed surfaces. Tester adds/updates tests and runs the smallest relevant validation. Return production defects to the original developer, then ask Tester to rerun affected checks.

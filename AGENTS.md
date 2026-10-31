@@ -20,6 +20,12 @@ VeloTimer is a microservices architecture built with .NET 10 using Aspire for di
 - For concrete implementations, follow [TimingEndpoints.cs](src/Module.Timing.Api/Endpoints/TimingEndpoints.cs) for route grouping, [TransponderEndpoints.cs](src/Module.Timing.Api/Endpoints/TransponderEndpoints.cs) for typed results, [PassingObservedHandler.cs](src/Module.Timing.Processor/Handlers/PassingObservedHandler.cs) for message consumers, and [InstallationMapper.cs](src/Module.Timing/Mapping/InstallationMapper.cs) for entity-to-contract mapping.
 - Package versions are centrally managed in [Directory.Packages.props](Directory.Packages.props); avoid adding per-project versions unless a project has an established exception.
 
+## Time and Unit Conventions
+
+- Backend services, APIs, messages, and databases represent and persist all times and dates in UTC. Do not store or exchange browser-local times; convert at user-facing boundaries.
+- Backend services, APIs, messages, and databases represent and persist quantities in base SI units. Do not store or exchange values in display or customary units; convert at user-facing boundaries.
+- User-facing times and units are formatted according to the browser locale or the user's explicit preferences. Keep presentation conversion and formatting in the UI, not in domain logic or persistence.
+
 ## Specialist Agent Workflow
 
 The shared architecture and conventions in this file remain the source of truth. The eight workspace agents are configured for selection in the agent picker and for subagent invocation: [Coordinator](.github/agents/coordinator.agent.md), [Tester](.github/agents/tester.agent.md), [.NET API Developer](.github/agents/dotnet-api-developer.agent.md), [Blazor UI Developer](.github/agents/blazor-ui-developer.agent.md), [Data & Migrations Developer](.github/agents/data-migrations-developer.agent.md), [Messaging & Workers Developer](.github/agents/messaging-workers-developer.agent.md), [Platform & Deployment Developer](.github/agents/platform-deployment-developer.agent.md), and [Code Reviewer](.github/agents/code-reviewer.agent.md). Keep agent models unpinned.

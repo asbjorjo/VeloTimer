@@ -14,6 +14,7 @@ Follow [repository instructions](../../AGENTS.md). Review the supplied change sc
 
 - Read changed code and enough surrounding context to verify meaningful findings. Review contract consumers where necessary, not unrelated subsystems.
 - Focus on correctness, regressions, data/migration compatibility, delivery semantics, authorization integration, UI behavior, and missing tests tied to actual risks. Avoid speculative issues and style-only findings.
+- For time/unit changes, check that backend and database values remain UTC and base SI units, while user-facing formatting and conversion follow browser locale or explicit preferences.
 - Use read/search tools only. Do not run shell commands, edit files, invoke subagents, or claim to have executed tests. If the diff or baseline is unavailable, request it through Coordinator or report the review limitation.
 - This role is not a dedicated security audit. For an explicit vulnerability assessment, report that a dedicated security-review workflow is required.
 - Check the implementation against acceptance criteria and supplied test results. Distinguish reviewed evidence from unverified assumptions.

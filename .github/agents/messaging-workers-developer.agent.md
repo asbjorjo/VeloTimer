@@ -13,6 +13,7 @@ Follow [repository instructions](../../AGENTS.md). Own event contracts, consumer
 ## Approach and boundaries
 
 - Trace the relevant producer, contract, headers, consumer, persistence, and derived event before editing. Follow existing SlimMessageBus registration and consumer patterns.
+- Keep timestamps in event contracts and processor logic in UTC, and represent quantities in base SI units. Do not localize or convert values to display units in backend message processing.
 - Preserve delivery/idempotency guarantees, cancellation, retry/error behavior, and transaction/outbox boundaries. Do not silently drop malformed events or acknowledge failed processing as success.
 - Keep message contracts implementation-independent and compatible with existing consumers. Coordinate shared DTO ownership and affected synchronous API surfaces through Coordinator.
 - Preserve `VELOTIME_AGENT` and outbound `AgentId` correlation. Concrete hardware agents live outside this solution; `Agent.Dummy` is only a local simulator.

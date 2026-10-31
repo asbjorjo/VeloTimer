@@ -14,6 +14,7 @@ Follow [repository instructions](../../AGENTS.md). Own the Timing, Facilities, a
 
 - Read existing endpoints, services, mappers, and tests before editing. Follow route groups, static handlers, dependency injection, typed results, naming, and central package versions.
 - Preserve service-owned databases and contract compatibility. Wire all relevant endpoint, contract, mapper, and client surfaces for an approved behavior change.
+- Keep backend API and domain times/dates in UTC and quantities in base SI units, including request/response contracts. Leave locale- and preference-based formatting and display-unit conversion to the user interface.
 - Keep authorization and validation consistent with existing Keycloak/OIDC integration. Surface errors explicitly; do not add success-shaped fallbacks.
 - Request Data & Migrations ownership through Coordinator for schema/storage changes; Messaging & Workers for event semantics; Blazor UI for frontend changes; Platform & Deployment for shared hosting/configuration.
 - Agree shared contract changes and their file owner before other specialists modify consumers. Do not independently edit another specialist's assigned files.
