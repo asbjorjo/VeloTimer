@@ -27,6 +27,13 @@ internal static partial class CookieOidcServiceCollectionExtensions
         {
             oidcOptions.GetClaimsFromUserInfoEndpoint = true;
             oidcOptions.MapInboundClaims = false;
+            // Keep the validated id_token "iss" claim. The framework default
+            // ClaimActions delete it before the ticket is persisted, and the
+            // WebUI cache partitions personal data by validated issuer/subject.
+            // This only removes that delete action; no action maps "iss" from
+            // the userinfo response, so the persisted issuer stays the one the
+            // token handler validated.
+            oidcOptions.ClaimActions.Remove("iss");
             oidcOptions.ClaimActions.MapUniqueJsonKey("realm_access", "realm_access");
 
             // Request a refresh_token.

@@ -614,37 +614,61 @@ public sealed partial class WebUiBffTests
         ITransponderStatusService? status = null, VeloTime.Module.Profiles.Client.IProfilesClient? profiles = null)
     {
         var builder = WebApplication.CreateBuilder();
-        builder.Services.AddSingleton(profiles ?? PlatformServiceTests.TestProxy.Create<VeloTime.Module.Profiles.Client.IProfilesClient>((_, _) => throw new NotSupportedException("Profiles calls require an explicit response.")));
         builder.WebHost.UseTestServer();
         builder.Logging.SetMinimumLevel(LogLevel.Critical);
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(options => options.EventsType = typeof(TestCookieEvents));
         builder.Services.AddTransient<TestCookieEvents>();
-        builder.Services.AddAdministrationAuthorization();
-        builder.Services.AddMemoryCache();
-        builder.Services.AddFusionCache().AsHybridCache();
-        builder.Services.AddSingleton<FusionCacheCircuitBreakerState>();
-        builder.Services.AddSingleton<ICacheInvalidationOperations, FusionCacheInvalidationOperations>();
-        WebUiCacheTestHost.Register(builder.Services);
-        builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
-        builder.Services.AddSingleton(status ?? PlatformServiceTests.TestProxy.Create<ITransponderStatusService>((_, _) =>
+        AddBffServices(builder.Services, statistics, administration, infrastructure, authDebug, transponders, owners, status, profiles);
+        var app = builder.Build();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.UseAntiforgery();
+        app.MapGet("/signin", async (HttpContext context) =>
+        {
+            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "rider"), new Claim(ClaimTypes.Name, "rider"),
+                new Claim("iss", "https://issuer.test"), new Claim("sub", "rider"), new Claim("sid", "session")], "Cookies");
+            if (context.Request.Query.TryGetValue("role", out var role))
+                identity.AddClaim(new Claim("realm_access", System.Text.Json.JsonSerializer.Serialize(new { roles = new[] { role.ToString() } })));
+            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+            return Results.NoContent();
+        });
+        app.MapBffEndpoints();
+        await app.StartAsync();
+        return app;
+    }
+
+    /// <summary>BFF dependencies shared by fake-cookie and real OIDC callback hosts; authentication is configured by the caller.</summary>
+    private static void AddBffServices(IServiceCollection services, IStatisticsService? statistics = null, IStatisticsAdministrationService? administration = null,
+        IInfrastructureAdministrationService? infrastructure = null, IAuthDebugService? authDebug = null, ITransponderManagementService? transponders = null,
+        ITransponderOwnerService? owners = null, ITransponderStatusService? status = null, VeloTime.Module.Profiles.Client.IProfilesClient? profiles = null)
+    {
+        services.AddSingleton(profiles ?? PlatformServiceTests.TestProxy.Create<VeloTime.Module.Profiles.Client.IProfilesClient>((_, _) => throw new NotSupportedException("Profiles calls require an explicit response.")));
+        services.AddAdministrationAuthorization();
+        services.AddMemoryCache();
+        services.AddFusionCache().AsHybridCache();
+        services.AddSingleton<FusionCacheCircuitBreakerState>();
+        services.AddSingleton<ICacheInvalidationOperations, FusionCacheInvalidationOperations>();
+        WebUiCacheTestHost.Register(services);
+        services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+        services.AddSingleton(status ?? PlatformServiceTests.TestProxy.Create<ITransponderStatusService>((_, _) =>
             throw new NotSupportedException("Status lookups require an explicit test response.")));
-        builder.Services.AddSingleton(owners ?? PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((_, _) =>
+        services.AddSingleton(owners ?? PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((_, _) =>
             throw new NotSupportedException("Owner lookups require an explicit test response.")));
-        builder.Services.AddSingleton(statistics ?? PlatformServiceTests.TestProxy.Create<IStatisticsService>((_, _) => Array.Empty<SampleView>()));
-        builder.Services.AddSingleton(administration ?? PlatformServiceTests.TestProxy.Create<IStatisticsAdministrationService>((method, _) => method.Name switch
+        services.AddSingleton(statistics ?? PlatformServiceTests.TestProxy.Create<IStatisticsService>((_, _) => Array.Empty<SampleView>()));
+        services.AddSingleton(administration ?? PlatformServiceTests.TestProxy.Create<IStatisticsAdministrationService>((method, _) => method.Name switch
         {
             nameof(IStatisticsAdministrationService.GetItemsAsync) => (IReadOnlyList<StatisticsItemDTO>)Array.Empty<StatisticsItemDTO>(),
             nameof(IStatisticsAdministrationService.GetConfigurationsAsync) => (IReadOnlyList<StatisticsConfigurationDTO>)Array.Empty<StatisticsConfigurationDTO>(),
             _ => null
         }));
-        builder.Services.AddSingleton(transponders ?? PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, _) => method.Name switch
+        services.AddSingleton(transponders ?? PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, _) => method.Name switch
         {
             nameof(ITransponderManagementService.GetTranspondersAsync) => new TimingContracts.TransponderPage([], 0),
             nameof(ITransponderManagementService.LookupTranspondersAsync) => new TimingContracts.TransponderLookupPage([], 0),
             _ => null
         }));
-        builder.Services.AddSingleton(infrastructure ?? PlatformServiceTests.TestProxy.Create<IInfrastructureAdministrationService>((method, arguments) => method.Name switch
+        services.AddSingleton(infrastructure ?? PlatformServiceTests.TestProxy.Create<IInfrastructureAdministrationService>((method, arguments) => method.Name switch
         {
             nameof(IInfrastructureAdministrationService.GetFacilitiesAsync) => (IReadOnlyList<FacilitiesContracts.FacilityDTO>)Array.Empty<FacilitiesContracts.FacilityDTO>(),
             nameof(IInfrastructureAdministrationService.GetLayoutsAsync) => (IReadOnlyList<FacilitiesContracts.CourseLayoutDTO>)Array.Empty<FacilitiesContracts.CourseLayoutDTO>(),
@@ -665,7 +689,7 @@ public sealed partial class WebUiBffTests
             },
             _ => null
         }));
-        builder.Services.AddSingleton(PlatformServiceTests.TestProxy.Create<IFacilityService>((method, _) => method.Name switch
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<IFacilityService>((method, _) => method.Name switch
         {
             nameof(IFacilityService.GetFacilitiesAsync) => Array.Empty<FacilityView>(),
             nameof(IFacilityService.GetFacilityLayoutsAsync) => Array.Empty<CourseLayoutView>(),
@@ -673,14 +697,14 @@ public sealed partial class WebUiBffTests
             nameof(IFacilityService.GetInstallationsAsync) => new[] { new InstallationView { Id = ResourceId } },
             _ => throw new NotSupportedException(method.Name)
         }));
-        builder.Services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITimingService>((method, _) => method.Name switch
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITimingService>((method, _) => method.Name switch
         {
             nameof(ITimingService.GetInstallationsAsync) => new[] { new InstallationView { Id = ResourceId } },
             nameof(ITimingService.GetInstallationAsync) => new InstallationView { Id = ResourceId },
             nameof(ITimingService.UpdateInstallationAsync) => null,
             _ => throw new NotSupportedException(method.Name)
         }));
-        builder.Services.AddSingleton(PlatformServiceTests.TestProxy.Create<IProfileService>((method, _) => method.Name switch
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<IProfileService>((method, _) => method.Name switch
         {
             nameof(IProfileService.GetUsernameAsync) => "rider",
             nameof(IProfileService.GetLinkedAccountsAsync) => Array.Empty<LinkedAccountView>(),
@@ -688,28 +712,12 @@ public sealed partial class WebUiBffTests
             nameof(IProfileService.DeleteLinkedAccountAsync) => null,
             _ => throw new NotSupportedException(method.Name)
         }));
-        builder.Services.AddSingleton(authDebug ?? PlatformServiceTests.TestProxy.Create<IAuthDebugService>((_, _) => null));
-        var app = builder.Build();
-        app.UseAuthentication();
-        app.UseAuthorization();
-        app.UseAntiforgery();
-        app.MapGet("/signin", async (HttpContext context) =>
-        {
-            var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "rider"), new Claim(ClaimTypes.Name, "rider"),
-                new Claim("iss", "https://issuer.test"), new Claim("sub", "rider"), new Claim("sid", "session")], "Cookies");
-            if (context.Request.Query.TryGetValue("role", out var role))
-                identity.AddClaim(new Claim("realm_access", System.Text.Json.JsonSerializer.Serialize(new { roles = new[] { role.ToString() } })));
-            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-            return Results.NoContent();
-        });
-        app.MapBffEndpoints();
-        await app.StartAsync();
-        return app;
+        services.AddSingleton(authDebug ?? PlatformServiceTests.TestProxy.Create<IAuthDebugService>((_, _) => null));
     }
 
-    private static HttpClient CreateClient(WebApplication app, bool antiforgery = true)
+    private static HttpClient CreateClient(WebApplication app, bool antiforgery = true, Uri? origin = null)
     {
-        var origin = new Uri("http://localhost/");
+        origin ??= new Uri("http://localhost/");
         var cookies = new CookieHandler { InnerHandler = app.GetTestServer().CreateHandler() };
         HttpMessageHandler handler = antiforgery ? new BffAntiforgeryHandler(origin) { InnerHandler = cookies } : cookies;
         return new HttpClient(handler) { BaseAddress = origin };
