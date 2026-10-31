@@ -18,6 +18,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.13"></a>
+## [2.1.0-alpha.13](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.13) (2026-10-31)
+
+### Bug Fixes
+
+* **users-migration:** normalize rider names before creating Keycloak users ([824130d](https://www.github.com/asbjorjo/VeloTimer/commit/824130d368b13e0f7fbfb6f783b92a17dcd13bd0))
+
 <a name="2.1.0-alpha.12"></a>
 ## [2.1.0-alpha.12](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.12) (2026-10-30)
 
