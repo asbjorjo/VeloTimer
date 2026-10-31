@@ -23,6 +23,12 @@ internal sealed class ProfilesDatabaseHealthCheck(
                 .Select(_ => 1)
                 .Take(1)
                 .ToListAsync(cancellationToken);
+            // This table is introduced by the display-preference migration. Checking it prevents
+            // the API from becoming ready while the storage contract is only partially migrated.
+            await profiles.DisplayPreferences.AsNoTracking()
+                .Select(_ => 1)
+                .Take(1)
+                .ToListAsync(cancellationToken);
 
             return HealthCheckResult.Healthy();
         }
