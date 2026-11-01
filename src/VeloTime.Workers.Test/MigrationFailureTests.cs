@@ -13,6 +13,9 @@ public sealed class MigrationFailureTests
     [InlineData("http", true)]
     [InlineData("socket", true)]
     [InlineData("timeout", true)]
+    [InlineData("polly-timeout", true)]
+    [InlineData("polly-circuit-breaker", true)]
+    [InlineData("polly-rate-limiter", true)]
     [InlineData("task-cancelled", true)]
     [InlineData("cancelled", true)]
     [InlineData("database", true)]
@@ -29,6 +32,9 @@ public sealed class MigrationFailureTests
             "http" => new HttpRequestException(),
             "socket" => new SocketException(),
             "timeout" => new TimeoutException(),
+            "polly-timeout" => new Polly.Timeout.TimeoutRejectedException(),
+            "polly-circuit-breaker" => new Polly.CircuitBreaker.BrokenCircuitException(),
+            "polly-rate-limiter" => new Polly.RateLimiting.RateLimiterRejectedException(),
             "task-cancelled" => new TaskCanceledException(),
             "cancelled" => new OperationCanceledException(),
             "database" => new TestDbException(),

@@ -114,7 +114,7 @@ internal sealed class KeycloakUserMigrationWriter(IKeycloakClient keycloak, ILog
 
             var verifiedLinks = await TryGetIdentitiesAsync(riderId, verifiedUser.Id!, ct);
             if (verifiedLinks is null)
-                return userId;
+                return null;
             var clean = !hasMultipleProviderLogins;
             foreach (var login in selectedLogins)
             {
@@ -145,9 +145,9 @@ internal sealed class KeycloakUserMigrationWriter(IKeycloakClient keycloak, ILog
     {
         if (string.IsNullOrWhiteSpace(username))
             throw new InvalidOperationException("The identity user has no username for Keycloak lookup.");
-        var users = await keycloak.UsersAll3Async(briefRepresentation: false, createdAfter: "", createdBefore: "", email: "",
-            emailVerified: null, enabled: null, exact: true, first: null, firstName: "", idpAlias: "", idpUserId: "",
-            lastName: "", max: null, q: "", search: "", username: username, realm: Realm, cancellationToken: ct);
+        var users = await keycloak.UsersAll3Async(briefRepresentation: false, createdAfter: null!, createdBefore: null!, email: null!,
+            emailVerified: null, enabled: null, exact: true, first: null, firstName: null!, idpAlias: null!, idpUserId: null!,
+            lastName: null!, max: null, q: null!, search: null!, username: username, realm: Realm, cancellationToken: ct);
         return users ?? throw new InvalidOperationException("Keycloak returned a null user collection.");
     }
 

@@ -15,7 +15,7 @@ internal static class MigrationFailure
     internal static bool IsFatal(Exception exception)
     {
         if (exception is HttpRequestException or SocketException or TimeoutException or
-            TaskCanceledException or OperationCanceledException or DbException)
+            TaskCanceledException or OperationCanceledException or DbException or Polly.ExecutionRejectedException)
             return true;
 
         if (exception is KeycloakApiException keycloakException)

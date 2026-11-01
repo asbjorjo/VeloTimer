@@ -196,6 +196,32 @@ public sealed class KeycloakUserMigrationTests
         Assert.Empty(fixture.Writer.Issues);
     }
 
+    [Theory]
+    [InlineData(true, 400)]
+    [InlineData(true, 404)]
+    [InlineData(true, 200)]
+    [InlineData(false, 400)]
+    [InlineData(false, 404)]
+    [InlineData(false, 200)]
+    public async Task FinalIdentityRead_FailureOrNull_IsReportedAndReturnsNull(bool create, int status)
+    {
+        using var fixture = new Fixture();
+        fixture.Reply(HttpMethod.Get, UsersPath, create ? "[]" : Users(InitialId));
+        if (create) fixture.Reply(HttpMethod.Post, UsersPath, "", 201);
+        else fixture.Reply(HttpMethod.Get, IdentitiesPath(InitialId), MatchingLinks);
+        fixture.Reply(HttpMethod.Get, UsersPath, Users(UserId));
+        fixture.Reply(HttpMethod.Get, IdentitiesPath(UserId), status == 200 ? "null" : "{\"error\":\"rejected\"}", status);
+
+        Assert.Null(await fixture.Ensure());
+        fixture.AssertComplete();
+        var issue = Assert.Single(fixture.Writer.Issues);
+        Assert.Contains("Rider 42:", issue);
+        Assert.Contains("federated identit", issue);
+        Assert.Contains(UserId.ToString(), issue);
+        if (status != 200) Assert.Contains($"HTTP {status}:", issue);
+        Assert.Empty(fixture.Writer.Warnings);
+    }
+
     [Fact]
     public async Task LinkConflict_WarnsAndVerifiesWithoutRecordingIssue()
     {
@@ -291,6 +317,18 @@ public sealed class KeycloakUserMigrationTests
     }
 
     [Fact]
+    public async Task PollyTimeoutRejection_PropagatesWithoutIssues()
+    {
+        using var fixture = new Fixture();
+        var failure = new Polly.Timeout.TimeoutRejectedException();
+        fixture.Handler.Route(HttpMethod.Get, UsersPath, () => throw failure);
+        Assert.Same(failure, await Assert.ThrowsAsync<Polly.Timeout.TimeoutRejectedException>(() => fixture.Ensure()));
+        fixture.AssertComplete();
+        Assert.Empty(fixture.Writer.Issues);
+        Assert.Empty(fixture.Writer.Warnings);
+    }
+
+    [Fact]
     public async Task PreCancelledToken_ThrowsWithoutRequestsOrIssues()
     {
         using var fixture = new Fixture();
@@ -341,6 +379,12 @@ public sealed class KeycloakUserMigrationTests
                 var query = QueryHelpers.ParseQuery(request.Uri.Query);
                 Assert.Equal("true", query["exact"].ToString());
                 Assert.Equal(Source.UserName, query["username"].ToString());
+                foreach (var unusedFilter in new[]
+                {
+                    "search", "q", "email", "firstName", "lastName", "idpAlias", "idpUserId",
+                    "createdAfter", "createdBefore", "first", "max", "enabled", "emailVerified"
+                })
+                    Assert.False(query.ContainsKey(unusedFilter), $"Unexpected lookup filter {unusedFilter}: {request.Uri.Query}");
             }
         }
         public void Dispose() => http.Dispose();
