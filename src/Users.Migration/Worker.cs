@@ -42,6 +42,7 @@ public class Worker(
                     ownership.Transponder.SystemId, ownership.OwnedFrom, ownership.OwnedUntil))));
             var ownershipWriter = new OwnershipMigrationWriter(timing, logger, preflight);
             var profileWriter = new StatsProfileMigrationWriter(statistics, logger);
+            var keycloakWriter = new KeycloakUserMigrationWriter(keycloak, logger);
             ownershipWriter.LogPreflight();
 
             foreach (var rider in riders)
@@ -52,7 +53,7 @@ public class Worker(
                 {
                     user = await userManager.FindByIdAsync(rider.UserId.ToString());
                 }
-                catch (Exception exception) when (exception is not OperationCanceledException || !stoppingToken.IsCancellationRequested)
+                catch (Exception exception) when (!MigrationFailure.IsFatalOrStopping(exception, stoppingToken))
                 {
                     logger.LogError(exception, "Could not look up identity user {UserId} for rider {RiderId}; skipping rider.", rider.UserId, rider.Id);
                     const string reason = "the identity account lookup failed";
@@ -68,103 +69,37 @@ public class Worker(
                     continue;
                 }
 
-                var logins = await userManager.GetLoginsAsync(user);
-
-                UserRepresentation kcuser;
-
-
-                var kcusers = await keycloak.UsersAll3Async(username: user.UserName,
-                                                        realm: "velotime",
-                                                        cancellationToken: stoppingToken,
-                                                        briefRepresentation: false,
-                                                        createdAfter: "",
-                                                        createdBefore: "",
-                                                        email: "",
-                                                        emailVerified: null,
-                                                        enabled: null,
-                                                        exact: null,
-                                                        first: null,
-                                                        firstName: "",
-                                                        idpAlias: "",
-                                                        idpUserId: "",
-                                                        lastName: "",
-                                                        max: null,
-                                                        q: "",
-                                                        search: "");
-                if (kcusers.Any())
+                IList<Microsoft.AspNetCore.Identity.UserLoginInfo> logins;
+                try
                 {
-                    kcuser = kcusers.First();
+                    logins = await userManager.GetLoginsAsync(user);
                 }
-                else
+                catch (Exception exception) when (!MigrationFailure.IsFatalOrStopping(exception, stoppingToken))
                 {
-                    var firstName = KeycloakNameNormalizer.Normalize(rider.FirstName);
-                    var lastName = KeycloakNameNormalizer.Normalize(rider.LastName);
-                    if (firstName != rider.FirstName || lastName != rider.LastName)
-                        logger.LogWarning("Normalized name for rider {RiderId} from '{FirstName} {LastName}' to '{NormalizedFirstName} {NormalizedLastName}' for Keycloak.",
-                            rider.Id, rider.FirstName, rider.LastName, firstName, lastName);
-
-                    kcuser = new UserRepresentation
-                    {
-                        Username = user.UserName,
-                        Enabled = true,
-                        EmailVerified = true,
-                        Email = user.Email,
-                        FirstName = firstName,
-                        LastName = lastName
-                    };
+                    logger.LogError(exception, "Could not look up external logins for identity user {UserId}, rider {RiderId}; skipping rider.", user.Id, rider.Id);
+                    const string reason = "the identity account logins could not be read";
+                    profileWriter.MissingOwner(rider.Id, reason);
+                    ownershipWriter.MissingOwner(rider.Id, reason);
+                    continue;
                 }
 
-                if (kcuser.FederatedIdentities == null) kcuser.FederatedIdentities = new List<FederatedIdentityRepresentation>();
-
-                foreach (var login in logins)
+                var userId = await keycloakWriter.EnsureUserAsync(rider.Id, user, logins,
+                    rider.FirstName, rider.LastName, stoppingToken);
+                if (userId is null)
                 {
-                    var provider = login.LoginProvider;
-                    var key = login.ProviderKey;
-
-                    FederatedIdentityRepresentation federatedIdentity = new()
-                    {
-                        IdentityProvider = provider.ToLower(),
-                        UserId = key,
-                    };
-
-                    kcuser.FederatedIdentities.Add(federatedIdentity);
-                }
-   
-                if (kcuser.Id == null)
-                {
-                    await keycloak.UsersPOSTAsync(kcuser, "velotime", stoppingToken);
-                } else
-                {
-                    await keycloak.UsersPUTAsync(kcuser, "velotime", kcuser.Id, stoppingToken);
+                    const string reason = "the Keycloak account could not be created or verified";
+                    profileWriter.MissingOwner(rider.Id, reason);
+                    ownershipWriter.MissingOwner(rider.Id, reason);
+                    continue;
                 }
 
-                kcusers = await keycloak.UsersAll3Async(username: user.UserName,
-                                                        realm: "velotime",
-                                                        cancellationToken: stoppingToken,
-                                                        briefRepresentation: false,
-                                                        createdAfter: "",
-                                                        createdBefore: "",
-                                                        email: "",
-                                                        emailVerified: null,
-                                                        enabled: null,
-                                                        exact: null,
-                                                        first: null,
-                                                        firstName: "",
-                                                        idpAlias: "",
-                                                        idpUserId: "",
-                                                        lastName: "",
-                                                        max: null,
-                                                        q: "",
-                                                        search: "");
-                kcuser = kcusers.First();
-                var userId = Guid.Parse(kcuser.Id);
-
-                await profileWriter.EnsureAsync(rider.Id, userId, rider.Name, rider.IsPublic, stoppingToken);
-                await ownershipWriter.RegisterRiderAsync(rider.Id, userId, stoppingToken);
+                await profileWriter.EnsureAsync(rider.Id, userId.Value, rider.Name, rider.IsPublic, stoppingToken);
+                await ownershipWriter.RegisterRiderAsync(rider.Id, userId.Value, stoppingToken);
             }
             stoppingToken.ThrowIfCancellationRequested();
+            keycloakWriter.LogSummary();
             profileWriter.LogSummary();
-            ownershipWriter.Complete(profileWriter.Issues);
+            ownershipWriter.Complete(profileWriter.Issues.Concat(keycloakWriter.Issues));
         }
         catch (Exception ex)
         {

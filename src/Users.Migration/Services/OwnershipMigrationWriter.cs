@@ -45,9 +45,12 @@ internal sealed class OwnershipMigrationWriter(ITimingClient timing, ILogger log
                 }
                 else saved++;
             }
-            catch (ApiException exception) when (exception.StatusCode is 400 or 404 or 409 or 422)
+            catch (Exception exception) when (!MigrationFailure.IsFatalOrStopping(exception, cancellationToken))
             {
-                Report(period, $"Owner {ownerId}: registration rejected with HTTP {exception.StatusCode}: {exception.Response}");
+                var detail = exception is ApiException apiException
+                    ? $"HTTP {apiException.StatusCode}: {apiException.Response}"
+                    : exception.Message;
+                Report(period, $"Owner {ownerId}: registration could not be completed: {detail}");
             }
         }
     }
@@ -56,12 +59,15 @@ internal sealed class OwnershipMigrationWriter(ITimingClient timing, ILogger log
 
     internal void Complete(IEnumerable<string> profileIssues)
     {
+        var unresolved = issues.Concat(profileIssues).ToList();
         logger.LogInformation("Ownership migration finished: {SourceCount} source rows, {NormalizedCount} normalized periods, {SavedCount} successful registrations, {UnresolvedCount} unresolved issues.",
             preflight.SourceCount, preflight.NormalizedCount, saved, issues.Count);
-        var unresolved = issues.Concat(profileIssues).ToList();
         if (unresolved.Count > 0)
-            throw new AggregateException("Migration has unresolved profile or ownership registrations. Successful registrations remain saved and can be retried.",
-                unresolved.Select(issue => new InvalidOperationException(issue)));
+        {
+            logger.LogWarning("Migration reported {UnresolvedCount} non-fatal issues. These issues are reported, not fatal; successful work remains saved and retryable.", unresolved.Count);
+            foreach (var issue in unresolved)
+                logger.LogWarning("Reported migration issue (non-fatal; successful work remains saved and retryable): {Issue}", issue);
+        }
     }
 
     private void Report(MigrationOwnership period, string reason)
