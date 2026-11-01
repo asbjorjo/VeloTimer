@@ -53,7 +53,7 @@ public sealed class StatsProfileMigrationTests
     }
 
     [Fact]
-    public async Task Mismatch_ContinuesOwnershipAndLaterRidersAndRetainsBothFailureCategories()
+    public async Task Mismatch_ContinuesOwnershipAndLaterRidersAndReportsBothIssueCategoriesWithoutFailingCompletion()
     {
         using var handler = new ProfileHandler(HttpStatusCode.OK, "Existing", false);
         using var http = new HttpClient(handler) { BaseAddress = new("http://statistics/") };
@@ -65,7 +65,8 @@ public sealed class StatsProfileMigrationTests
             new(42, "HT-24422", start, null, [1]),
             new(43, "HT-24423", start, null, [2])
         ], [], 2, 2);
-        var ownerships = new OwnershipMigrationWriter(new Timing.TimingClient(timingHttp), NullLogger.Instance, preflight);
+        var logger = new MigrationTestLogger();
+        var ownerships = new OwnershipMigrationWriter(new Timing.TimingClient(timingHttp), logger, preflight);
 
         foreach (var rider in new long[] { 42, 43 })
         {
@@ -73,34 +74,41 @@ public sealed class StatsProfileMigrationTests
             await ownerships.RegisterRiderAsync(rider, OwnerId, CancellationToken.None);
         }
         profiles.LogSummary();
-        var failure = Assert.Throws<AggregateException>(() => ownerships.Complete(profiles.Issues));
+        Assert.Null(Record.Exception(() => ownerships.Complete(profiles.Issues)));
 
         Assert.Equal(2, handler.Requests.Count);
         Assert.Equal(2, timingHandler.RequestCount);
-        Assert.Equal(3, failure.InnerExceptions.Count);
-        Assert.Equal(2, failure.InnerExceptions.Count(issue => issue.Message.Contains("statistics profile differs")));
-        Assert.Single(failure.InnerExceptions, issue => issue.Message.Contains("HTTP 409"));
+        Assert.Equal(2, profiles.Issues.Count);
+        Assert.Equal(3, logger.ReportedIssues.Count);
+        Assert.Equal(2, logger.ReportedIssues.Count(issue => issue.Contains("statistics profile differs")));
+        Assert.All(profiles.Issues, issue => Assert.Contains(issue, logger.ReportedIssues));
+        Assert.Single(logger.ReportedIssues, issue => issue.Contains("HTTP 409"));
     }
 
     [Theory]
     [InlineData(400)]
+    [InlineData(404)]
+    [InlineData(409)]
     [InlineData(422)]
-    public async Task Ensure_ReportsValidationFailure(int status)
+    public async Task Ensure_ReportsNonFatalFailureAndContinuesLaterRiders(int status)
     {
         using var handler = new ProfileHandler((HttpStatusCode)status, "Legacy", false);
         using var http = new HttpClient(handler) { BaseAddress = new("http://statistics/") };
         var writer = new StatsProfileMigrationWriter(new StatisticsClient(http), NullLogger.Instance);
         await writer.EnsureAsync(42, OwnerId, "Legacy", false, CancellationToken.None);
-        Assert.Contains($"HTTP {status}", Assert.Single(writer.Issues));
+        Assert.Contains($"statistics profile could not be ensured: HTTP {status}:", Assert.Single(writer.Issues));
+        await writer.EnsureAsync(43, OwnerId, "Legacy", false, CancellationToken.None);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(2, writer.Issues.Count);
+        Assert.Contains("Rider 43", writer.Issues[1]);
     }
 
     [Theory]
     [InlineData(401)]
     [InlineData(403)]
-    [InlineData(404)]
-    [InlineData(409)]
     [InlineData(500)]
-    public async Task Ensure_PropagatesUnexpectedAndAuthenticationErrors(int status)
+    [InlineData(503)]
+    public async Task Ensure_PropagatesServiceAndAuthenticationErrors(int status)
     {
         using var handler = new ProfileHandler((HttpStatusCode)status, "Legacy", false);
         using var http = new HttpClient(handler) { BaseAddress = new("http://statistics/") };
@@ -140,7 +148,7 @@ public sealed class StatsProfileMigrationTests
     [Theory]
     [InlineData(false, "Valid")]
     [InlineData(true, "")]
-    public async Task Ensure_RejectsMalformedSuccess(bool correctIdentity, string name)
+    public async Task Ensure_ReportsMalformedSuccessAndContinuesLaterRiders(bool correctIdentity, string name)
     {
         using var handler = new ProfileHandler(HttpStatusCode.OK, name, false)
         {
@@ -148,9 +156,12 @@ public sealed class StatsProfileMigrationTests
         };
         using var http = new HttpClient(handler) { BaseAddress = new("http://statistics/") };
         var writer = new StatsProfileMigrationWriter(new StatisticsClient(http), NullLogger.Instance);
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            writer.EnsureAsync(42, OwnerId, "Legacy", false, CancellationToken.None));
-        Assert.Empty(writer.Issues);
+        await writer.EnsureAsync(42, OwnerId, "Legacy", false, CancellationToken.None);
+        Assert.Contains("statistics profile could not be ensured: Statistics ensure returned an invalid profile", Assert.Single(writer.Issues));
+        await writer.EnsureAsync(43, OwnerId, "Legacy", false, CancellationToken.None);
+        Assert.Equal(2, writer.Issues.Count);
+        Assert.Contains("Rider 43", writer.Issues[1]);
+        Assert.Equal(2, handler.Requests.Count);
     }
 
     private sealed class ProfileHandler(HttpStatusCode status, string name, bool isPublic) : HttpMessageHandler

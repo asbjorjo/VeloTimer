@@ -21,15 +21,18 @@ internal sealed class StatsProfileMigrationWriter(IStatisticsClient statistics, 
             {
                 UserId = userId, ProfileName = profileName, IsPublic = isPublic
             }, cancellationToken);
-            if (profile.UserId != userId || string.IsNullOrWhiteSpace(profile.ProfileName))
+            if (profile is null || profile.UserId != userId || string.IsNullOrWhiteSpace(profile.ProfileName))
                 throw new InvalidOperationException($"Statistics ensure returned an invalid profile for owner {userId}.");
             if (!string.Equals(profile.ProfileName, profileName, StringComparison.Ordinal) || profile.IsPublic != isPublic)
                 Report($"Rider {riderId}, owner {userId}: statistics profile differs. Requested name '{profileName}', public {isPublic}; saved name '{profile.ProfileName}', public {profile.IsPublic}. Existing settings were preserved.");
             else matched++;
         }
-        catch (ApiException exception) when (exception.StatusCode is 400 or 422)
+        catch (Exception exception) when (!MigrationFailure.IsFatalOrStopping(exception, cancellationToken))
         {
-            Report($"Rider {riderId}, owner {userId}: statistics profile validation rejected with HTTP {exception.StatusCode}: {exception.Response}");
+            var detail = exception is ApiException apiException
+                ? $"HTTP {apiException.StatusCode}: {apiException.Response}"
+                : exception.Message;
+            Report($"Rider {riderId}, owner {userId}: statistics profile could not be ensured: {detail}");
         }
     }
 

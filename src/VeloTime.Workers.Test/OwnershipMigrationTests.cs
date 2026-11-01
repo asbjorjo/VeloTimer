@@ -209,7 +209,7 @@ public sealed class OwnershipMigrationTests
     [InlineData(404)]
     [InlineData(409)]
     [InlineData(422)]
-    public async Task UnresolvedRegistrationContinuesIndependentPeriodsButFailsCompletion(int status)
+    public async Task UnresolvedRegistrationContinuesIndependentPeriodsAndIsReportedWithoutFailingCompletion(int status)
     {
         var plan = TwoPeriods();
         using var handler = new RegistrationHandler((HttpStatusCode)status, HttpStatusCode.OK)
@@ -217,15 +217,16 @@ public sealed class OwnershipMigrationTests
             RequireConfirmation = status == 200
         };
         using var http = new HttpClient(handler) { BaseAddress = new("http://timing/") };
-        var writer = Writer(http, plan);
+        var logger = new MigrationTestLogger();
+        var writer = new OwnershipMigrationWriter(new TimingClient(http), logger, plan);
 
         await writer.RegisterRiderAsync(1, Guid.NewGuid(), CancellationToken.None);
 
         Assert.Equal(2, handler.Requests.Count);
-        var failure = Assert.Throws<AggregateException>(writer.Complete);
-        var issue = Assert.Single(failure.InnerExceptions);
-        Assert.Contains("source rows [1]", issue.Message);
-        Assert.Contains(status == 200 ? "shortening requires review" : $"HTTP {status}", issue.Message);
+        Assert.Null(Record.Exception(writer.Complete));
+        var issue = Assert.Single(logger.ReportedIssues);
+        Assert.Contains("source rows [1]", issue);
+        Assert.Contains(status == 200 ? "shortening requires review" : $"HTTP {status}", issue);
     }
 
     [Theory]
@@ -267,27 +268,33 @@ public sealed class OwnershipMigrationTests
         ]);
         using var handler = new RegistrationHandler();
         using var http = new HttpClient(handler) { BaseAddress = new("http://timing/") };
-        var writer = Writer(http, plan);
+        var logger = new MigrationTestLogger();
+        var writer = new OwnershipMigrationWriter(new TimingClient(http), logger, plan);
 
         writer.LogPreflight();
         await writer.RegisterRiderAsync(1, Guid.NewGuid(), CancellationToken.None);
         await writer.RegisterRiderAsync(2, Guid.NewGuid(), CancellationToken.None);
 
         Assert.Empty(handler.Requests);
-        Assert.Throws<AggregateException>(writer.Complete);
+        Assert.Null(Record.Exception(writer.Complete));
+        Assert.Equal(plan.Issues, logger.ReportedIssues);
     }
 
     [Fact]
-    public void SourceIssuesAndMissingIdentityFailCompletion()
+    public void SourceIssuesAndMissingIdentityAreReportedWithoutFailingCompletion()
     {
         using var handler = new RegistrationHandler();
         using var http = new HttpClient(handler) { BaseAddress = new("http://timing/") };
-        var writer = Writer(http, TwoPeriods() with { Issues = ["source conflict"] });
+        var logger = new MigrationTestLogger();
+        var writer = new OwnershipMigrationWriter(new TimingClient(http), logger, TwoPeriods() with { Issues = ["source conflict"] });
         writer.MissingOwner(1);
 
-        var failure = Assert.Throws<AggregateException>(writer.Complete);
-        Assert.Equal(3, failure.InnerExceptions.Count);
-        Assert.Contains(failure.InnerExceptions, issue => issue.Message == "source conflict");
+        Assert.Null(Record.Exception(writer.Complete));
+        Assert.Equal(3, logger.ReportedIssues.Count);
+        Assert.Contains("source conflict", logger.ReportedIssues);
+        Assert.Equal(2, logger.ReportedIssues.Count(issue => issue.Contains("no identity account")));
+        Assert.Contains(logger.ReportedIssues, issue => issue.Contains("source rows [1]"));
+        Assert.Contains(logger.ReportedIssues, issue => issue.Contains("source rows [2]"));
         Assert.Empty(handler.Requests);
     }
 
