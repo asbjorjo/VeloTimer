@@ -1,0 +1,44 @@
+﻿@page "/profile"
+@attribute [Authorize]
+
+@inject NavigationManager Navigation
+@inject IProfileService Profile
+@implements IDisposable
+
+<PageTitle>@L["Profile"]</PageTitle>
+<MudText Typo="Typo.h4" Class="mb-4">@L["Profile"]</MudText>
+<LanguageSelector />
+<DisplaySettings />
+
+@if (_loading) { <MudProgressLinear Indeterminate="true" aria-label="@L["Loading"]" /> }
+else if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error" role="alert">@L[_error]</MudAlert>
+    <MudButton OnClick="Load">@L["Retry"]</MudButton>
+}
+else if (!linkedAccounts.Any()) { <MudText>@L["NoLinkedAccounts"]</MudText> }
+else
+{
+    @foreach (var linkedAccount in linkedAccounts) { <Account account="@linkedAccount" /> }
+}
+
+<MudButton Href="/authentication/changepass">@L["ChangePassword"]</MudButton>
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private IEnumerable<LinkedAccountView> linkedAccounts = [];
+    private bool _loading;
+    private string? _error;
+    protected override Task OnInitializedAsync() => Load();
+    private async Task Load()
+    {
+        _loading = true; _error = null;
+        try { linkedAccounts = (await Profile.GetLinkedAccountsAsync(_lifetime.Token)).ToList(); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (HttpRequestException exception) { _error = exception.StatusCode switch
+            { System.Net.HttpStatusCode.Unauthorized => "SignInRequired", System.Net.HttpStatusCode.Forbidden => "NoPermission", _ => "LinkedAccountsLoadFailed" }; }
+        catch (Exception) { _error = "LinkedAccountsLoadFailed"; }
+        finally { _loading = false; }
+    }
+    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+}

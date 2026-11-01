@@ -1,0 +1,317 @@
+{
+  "realm": "velotime",
+  "enabled": true,
+  "displayName": "VeloTime Realm",
+  "attributes": {
+    "CreateDefaultClientScopes": "true"
+  },
+  "sslRequired": "external",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": false,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 30,
+  "accessTokenLifespan": 300,
+  "defaultRoles": [
+    "velotime-user"
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "statistics-processor",
+        "description": "Read transponder ownership for statistics profile assignment"
+      },
+      {
+        "name": "velotime-user",
+        "description": "User role"
+      },
+      {
+        "name": "velotime-admin",
+        "description": "Administrator for all VeloTime modules",
+        "composite": true,
+        "composites": {
+          "client": {
+            "realm-management": ["query-users", "view-users"]
+          }
+        }
+      },
+      {
+        "name": "facilities-admin",
+        "description": "Facilities administrator",
+        "composite": true,
+        "composites": {
+          "client": {
+            "realm-management": ["query-users", "view-users"]
+          }
+        }
+      },
+      {
+        "name": "timing-admin",
+        "description": "Timing and transponder ownership administrator",
+        "composite": true,
+        "composites": {
+          "client": {
+            "realm-management": ["query-users", "view-users"]
+          }
+        }
+      },
+      {
+        "name": "statistics-admin",
+        "description": "Statistics definitions administrator",
+        "composite": true,
+        "composites": {
+          "client": {
+            "realm-management": ["query-users", "view-users"]
+          }
+        }
+      },
+      {
+        "name": "velotime-users-migration",
+        "description": "Import users and their timing and statistics records",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "timing-admin",
+            "statistics-admin"
+          ],
+          "client": {
+            "realm-management": [
+              "query-users",
+              "manage-users"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "velotime.webui",
+      "name": "VeloTime Web UI",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "fullScopeAllowed": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
+    },
+    {
+      "clientId": "velotime.users.migration",
+      "name": "VeloTime Users Migration",
+      "enabled": true,
+      "secret": "${USER_MIGRATION_SECRET}",
+      "clientAuthenticatorType": "client-secret",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    },
+    {
+      "clientId": "velotime.statistics.processor",
+      "name": "VeloTime Statistics Processor",
+      "enabled": true,
+      "secret": "${STATISTICS_PROCESSOR_SECRET}",
+      "clientAuthenticatorType": "client-secret",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    },
+    {
+      "clientId": "velotime.timing.processor",
+      "name": "VeloTime Timing Processor",
+      "enabled": true,
+      "secret": "${TIMING_PROCESSOR_SECRET}",
+      "clientAuthenticatorType": "client-secret",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    }
+  ],
+  "defaultDefaultClientScopes": [
+    "profile",
+    "email",
+    "roles",
+    "web-origins",
+    "basic",
+    "velotime"
+  ],
+  "defaultOptionalClientScopes": [
+    "offline_access"
+  ],
+  "clientScopes": [
+    {
+      "name": "velotime",
+      "description": "VeloTime API audience, subject and permission claims",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "velotime-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "${OIDC_AUDIENCE}",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "client roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "",
+            "access.token.claim": "true",
+            "claim.name": "resource_access.${client_id}.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience resolve",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-resolve-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "clientProfiles": {
+    "profiles": [
+      {
+        "name": "velotime-public-pkce",
+        "executors": [
+          {
+            "executor": "pkce-enforcer",
+            "configuration": {
+              "auto-configure": true
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "clientPolicies": {
+    "policies": [
+      {
+        "name": "velotime-public-pkce",
+        "enabled": true,
+        "conditions": [
+          {
+            "condition": "client-access-type",
+            "configuration": {
+              "type": [
+                "public"
+              ]
+            }
+          }
+        ],
+        "profiles": [
+          "velotime-public-pkce"
+        ]
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "service-account-velotime.statistics.processor",
+      "enabled": true,
+      "serviceAccountClientId": "velotime.statistics.processor",
+      "realmRoles": [
+        "statistics-processor"
+      ]
+    },
+    {
+      "username": "testuser",
+      "enabled": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "email": "test@velotime.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-velotime"
+      ]
+    },
+    {
+      "username": "testadm",
+      "enabled": true,
+      "firstName": "Test",
+      "lastName": "Admin",
+      "email": "testadm@velotime.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "asdf1234",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-velotime",
+        "velotime-admin"
+      ]
+    },
+    {
+      "username": "service-account-velotime.users.migration",
+      "enabled": true,
+      "serviceAccountClientId": "velotime.users.migration",
+      "realmRoles": [
+        "velotime-users-migration"
+      ]
+    }
+  ]
+}

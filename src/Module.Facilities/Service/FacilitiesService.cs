@@ -1,0 +1,166 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Logging;
+using VeloTime.Module.Common;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Diagnostics;
+using VeloTime.Module.Facilities.Model;
+using VeloTime.Module.Facilities.Storage;
+
+namespace VeloTime.Module.Facilities.Service;
+
+public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILogger<FacilitiesService>? logger = null,
+    ICacheInvalidationOperations? evictionOperations = null)
+{
+    private readonly ILogger _logger = logger ?? NullLogger<FacilitiesService>.Instance;
+
+    public async Task<CourseLayout> CreateCourseLayout(CourseLayout Layout, CancellationToken cancellationToken = default)
+    {
+        using var activity = Instrumentation.Source.StartActivity("CreateCourseLayout");
+        storage.Set<CourseLayout>().Add(Layout);
+        await storage.SaveChangesAsync(cancellationToken);
+        await FacilitiesCache.InvalidateRelationshipsAsync(cache, _logger, evictionOperations);
+        activity?.SetTag("CourseLayoutId", Layout.Id);
+        activity?.SetStatus(ActivityStatusCode.Ok);
+        return Layout;
+    }
+
+    public async Task<Facility?> FacilityByCoursePoint(Guid CoursePointId, CancellationToken cancellationToken = default)
+    {
+        using var activity = Instrumentation.Source.StartActivity("FacilityByCoursePoint");
+        activity?.SetTag("CoursePointId", CoursePointId);
+        var facility = await cache.GetOrCreateAsync(
+            FacilitiesCache.FacilityByCoursePoint(CoursePointId),
+            async cancel => await storage.Set<CourseSegment>()
+                .Where(s => s.Start.Id == CoursePointId || s.End.Id == CoursePointId)
+                .Select(s => s.CourseLayout.Facility)
+                .Distinct()
+                .SingleOrDefaultAsync(cancellationToken: cancel),
+            options: FacilitiesCache.NewEntryOptions(),
+            tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
+        activity?.SetTag("FacilityId", facility?.Id);
+        activity?.SetStatus(ActivityStatusCode.Ok);
+        return facility;
+    }
+
+    public async Task<CoursePoint?> GetCoursePointById(Guid CoursePointId, CancellationToken cancellationToken = default)
+    {
+        using var activity = Instrumentation.Source.StartActivity("GetCoursePointById");
+        activity?.SetTag("CoursePointId", CoursePointId);
+        var coursePoint = await cache.GetOrCreateAsync(
+            FacilitiesCache.CoursePointById(CoursePointId),
+            async cancel => await storage.Set<CoursePoint>()
+                .SingleOrDefaultAsync(p => p.Id == CoursePointId, cancellationToken: cancel),
+            options: FacilitiesCache.NewEntryOptions(),
+            tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
+        activity?.SetStatus(ActivityStatusCode.Ok);
+        return coursePoint;
+    }
+
+    public async Task<IEnumerable<CourseSegment>> GetSegmentsBetweenCoursePoints(CoursePoint start, CoursePoint end, CancellationToken cancellationToken = default)
+    {
+        using var activity = Instrumentation.Source.StartActivity("GetSegmentsBetweenCoursePoints");
+
+        return await cache.GetOrCreateAsync(
+            FacilitiesCache.SegmentsBetweenCoursePoints(start.Id, end.Id),
+            async cancel => await storage.Set<CourseLayout>()
+                .Include(l => l.Segments)
+                    .ThenInclude(s => s.Start)
+                .Include(l => l.Segments)
+                    .ThenInclude(s => s.End)
+                .Where(l => l.Segments.Select(s => s.Start).Contains(start) || l.Segments.Select(s => s.End).Contains(end))
+                .SelectMany(l => l.Segments)
+                .OrderBy(s => s.Order)
+                .ToListAsync(),
+            options: FacilitiesCache.NewEntryOptions(),
+            tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
+    }
+
+    public async Task<double> CalculateDistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
+    {
+        using var activity = Instrumentation.Source.StartActivity("CalculateDistanceBetweenCoursePoints");
+        var segments = await GetSegmentsBetweenCoursePoints(Start, End, cancellationToken);
+
+        CourseSegment start = segments.Single(s => s.Start.Id == Start.Id);
+        CourseSegment end = Start.Id == End.Id ? start : segments.Single(s => s.End.Id == End.Id);
+
+        activity?.SetTag("StartSegmentId", start.Id);
+        activity?.SetTag("EndSegmentId", end.Id);
+
+        if (Start.Id == End.Id)
+        {
+            return segments.Sum(s => s.Length);
+        }
+
+
+        if (start.Order < end.Order)
+        {
+            return segments.Where(s => s.Order >= start.Order && s.Order <= end.Order).Sum(s => s.Length);
+        }
+        else
+        {
+            return segments.Where(s => s.Order <= start.Order && s.Order >= end.Order).Sum(s => s.Length);
+        }
+    }
+
+    public async Task<double> DistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
+    {
+        using var activity = Instrumentation.Source.StartActivity("DistanceBetweenCoursePoints");
+
+        activity?.SetTag("StartCoursePointId", Start.Id);
+        activity?.SetTag("EndCoursePointId", End.Id);
+
+        var distance = await cache.GetOrCreateAsync(
+            FacilitiesCache.DistanceBetweenCoursePoints(Start.Id, End.Id),
+            async cancel => await CalculateDistanceBetweenCoursePoints(Start, End, cancel),
+            options: FacilitiesCache.NewEntryOptions(),
+            tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
+
+        activity?.SetTag("Distance", distance);
+
+        return distance;
+    }
+    public async Task<double> DistanceBetweenTimingPoints(Guid Start, Guid End, CancellationToken cancellationToken = default)
+    {
+        using var activity = Instrumentation.Source.StartActivity("DistanceBetweenTimingPoints");
+
+        try
+        {
+            activity?.SetTag("StartTimingPointId", Start);
+            activity?.SetTag("EndTimingPointId", End);
+
+            CoursePoint StartPoint = await FindCoursePointByTimingPointId(Start, cancellationToken);
+            CoursePoint EndPoint = await FindCoursePointByTimingPointId(End, cancellationToken);
+
+            return await DistanceBetweenCoursePoints(StartPoint, EndPoint, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
+    }
+
+    public async Task<CoursePoint> FindCoursePointByTimingPointId(Guid TimingPoint, CancellationToken cancellationToken = default)
+    {
+        using var activity = Instrumentation.Source.StartActivity("FindCoursePointByTimingPointId");
+        activity?.SetTag("TimingPointId", TimingPoint);
+        try
+        {
+            var timingPoint = await cache.GetOrCreateAsync(
+                FacilitiesCache.CoursePointByTimingPoint(TimingPoint),
+                async cancel => await storage.Set<CoursePoint>()
+                    .SingleAsync(p => p.TimingPoint == TimingPoint, cancellationToken: cancel),
+                options: FacilitiesCache.NewEntryOptions(),
+            tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
+            activity?.SetTag("CoursePointId", timingPoint.Id);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+            return timingPoint;
+        }
+        catch (InvalidOperationException ex)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            throw;
+        }
+    }
+}

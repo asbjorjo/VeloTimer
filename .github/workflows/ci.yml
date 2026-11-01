@@ -19,6 +19,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      OIDC_AUDIENCE: https://build.invalid
+      VELOTIME_TEST_OUTBOX_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
+      VELOTIME_TEST_STATISTICS_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: outbox-tests
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
     steps:
     - uses: actions/checkout@v4
@@ -42,3 +58,4 @@ jobs:
 
     - name: Coveralls
       uses: coverallsapp/github-action@v2
+      continue-on-error: true

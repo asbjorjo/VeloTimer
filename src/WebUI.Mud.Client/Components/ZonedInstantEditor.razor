@@ -1,0 +1,48 @@
+@inherits PresentationComponentBase
+<MudStack Spacing="1">
+    @if (FixedWall) { <MudText>@Label: @Draft.Wall?.ToString("G", Settings.NumberCulture)</MudText> }
+    else
+    {
+    <MudDatePicker @bind-Date="Draft.Date" @bind-Date:after="WallChanged" Culture="Settings.NumberCulture" Label="@Label" Disabled="Disabled" Required="Required" Clearable="@(!Required)" RequiredError="@L["RequiredError"]" />
+    }
+    @if (!CalendarOnly && !FixedWall)
+    {
+        <MudTimePicker @bind-Time="Draft.Time" @bind-Time:after="WallChanged" Culture="Settings.NumberCulture" Label="@L["LocalTime"]" AmPm="false" Disabled="Disabled" Required="Required" RequiredError="@L["RequiredError"]" />
+    }
+    <MudText Typo="Typo.caption">@Settings.ZoneLabel</MudText>
+    @if (_error is not null) { <MudAlert Severity="Severity.Warning" role="alert">@L[_error]</MudAlert> }
+    @if (_offsets.Length > 1)
+    {
+        <MudSelect T="TimeSpan?" Value="Draft.Offset" ValueChanged="OffsetChanged" Label="@L["ChooseUtcOffset"]" Disabled="Disabled" Required="true" RequiredError="@L["LocalTimeRepeated"]">
+            @foreach (var offset in _offsets)
+            {
+                <MudSelectItem T="TimeSpan?" Value="@((TimeSpan?)offset)">@OffsetLabel(offset)</MudSelectItem>
+            }
+        </MudSelect>
+    }
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public ZonedInstantDraft Draft { get; set; } = default!;
+    [Parameter] public EffectiveDisplaySettings? EditorSettings { get; set; }
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public bool FixedWall { get; set; }
+    [Parameter] public bool CalendarOnly { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool Required { get; set; } = true;
+    [Parameter] public EventCallback Changed { get; set; }
+    private EffectiveDisplaySettings Settings => EditorSettings ?? Display;
+    private TimeSpan[] _offsets = [];
+    private string? _error;
+    protected override void OnParametersSet() => Validate();
+    private void Validate()
+    {
+        _error = null; _offsets = [];
+        if (Draft.Wall is not { } wall) return;
+        try { _offsets = Settings.Offsets(wall); if (_offsets.Length > 1 && !Draft.Offset.HasValue) _error = "LocalTimeRepeated"; }
+        catch (PresentationValidationException exception) { _error = exception.ResourceKey; }
+    }
+    private async Task WallChanged() { Draft.Changed(); Validate(); await Changed.InvokeAsync(); }
+    private async Task OffsetChanged(TimeSpan? offset) { Draft.Offset = offset; Validate(); await Changed.InvokeAsync(); }
+    private string OffsetLabel(TimeSpan offset) => $"{new DateTimeOffset(Draft.Wall!.Value, offset):zzz} → {new DateTimeOffset(Draft.Wall.Value, offset).UtcDateTime:O} UTC";
+}

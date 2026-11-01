@@ -361,5 +361,19 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
 /VeloTimerWeb.Api/tempkey.jwk
 /nuget.config
+_logs*.txt
+/src/AppHost/aspire-output
+
+# Helm dependency build artefacts
+/charts/*/charts/
+/charts/**/*.tgz
+
+# Devcontainer generated lock file
+/.devcontainer/devcontainer-lock.json
+api/VeloTime.Module.Facilities.Api.json
+api/VeloTime.Module.Statistics.Api.json
+api/VeloTime.Module.Timing.Api.json
+api/VeloTime.Module.Profiles.Api.json

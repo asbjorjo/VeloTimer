@@ -1,0 +1,39 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.3">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>103fca41-9f30-4779-8f62-678337e4f92c</UserSecretsId>
+	<Version>2.1.0-alpha.23</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Keycloak" />
+    <PackageReference Include="Aspire.Hosting.Kubernetes" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
+    <PackageReference Include="Aspire.Hosting.Valkey" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Keycloak.Extensions" />
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.PostgreSQL.Extensions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bootstrap\VeloTime.Bootstrap.csproj" />
+    <ProjectReference Include="..\Module.Facilities.Api\VeloTime.Module.Facilities.Api.csproj" />
+    <ProjectReference Include="..\Module.Facilities.Migration\VeloTime.Module.Facilities.Migration.csproj" />
+    <ProjectReference Include="..\Module.Facilities.Processor\VeloTime.Module.Facilities.Processor.csproj" />
+    <ProjectReference Include="..\Module.Profiles.Api\VeloTime.Module.Profiles.Api.csproj" />
+    <ProjectReference Include="..\Module.Profiles.Migration\VeloTime.Module.Profiles.Migration.csproj" />
+    <ProjectReference Include="..\Module.Statistics.Api\VeloTime.Module.Statistics.Api.csproj" />
+    <ProjectReference Include="..\Module.Statistics.Migration\VeloTime.Module.Statistics.Migration.csproj" />
+    <ProjectReference Include="..\Module.Statistics.Processor\VeloTime.Module.Statistics.Processor.csproj" />
+    <ProjectReference Include="..\Module.Timing.Api\VeloTime.Module.Timing.Api.csproj" />
+    <ProjectReference Include="..\Module.Timing.Migration\VeloTime.Module.Timing.Migration.csproj" />
+    <ProjectReference Include="..\Module.Timing.Processor\VeloTime.Module.Timing.Processor.csproj" />
+    <ProjectReference Include="..\Users.Migration\VeloTime.Users.Migration.csproj" />
+    <ProjectReference Include="..\WebUI.Mud\VeloTime.WebUI.Mud.csproj" />
+  </ItemGroup>
+
+</Project>

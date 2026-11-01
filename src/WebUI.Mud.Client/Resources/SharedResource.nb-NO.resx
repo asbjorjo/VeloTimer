@@ -1,0 +1,475 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="Home" xml:space="preserve"><value>Hjem</value></data>
+  <data name="MudDataGridPager_RowsPerPage" xml:space="preserve"><value>Rader per side:</value></data>
+  <data name="MudDataGridPager_InfoFormat" xml:space="preserve"><value>{0}-{1} av {2}</value></data>
+  <data name="Language" xml:space="preserve"><value>Språk</value></data>
+  <data name="English" xml:space="preserve"><value>Engelsk</value></data>
+  <data name="NorwegianBokmal" xml:space="preserve"><value>Norsk bokmål</value></data>
+  <data name="ChangeLanguage" xml:space="preserve"><value>Bytt språk</value></data>
+  <data name="LanguagePreferenceUnavailable" xml:space="preserve"><value>Den lagrede språkinnstillingen kunne ikke lastes inn. Prøv igjen.</value></data>
+  <data name="LanguageSaveFailed" xml:space="preserve"><value>Språkinnstillingen kunne ikke lagres. Språket er ikke endret. Prøv igjen.</value></data>
+  <data name="LanguageApplied" xml:space="preserve"><value>Språkinnstillingen er lagret. Laster inn på nytt…</value></data>
+  <data name="KeepEditing" xml:space="preserve"><value>Du har ulagrede endringer. Vil du forkaste dem og bytte språk?</value></data>
+  <data name="Retry" xml:space="preserve"><value>Prøv igjen</value></data>
+  <data name="Profile" xml:space="preserve"><value>Profil</value></data>
+  <data name="Loading" xml:space="preserve"><value>Laster inn…</value></data>
+  <data name="ErrorTitle" xml:space="preserve"><value>Noe gikk galt</value></data>
+  <data name="Reload" xml:space="preserve"><value>Last inn på nytt</value></data>
+  <data name="UnhandledError" xml:space="preserve"><value>Det har oppstått en uventet feil.</value></data>
+  <data name="Samples" xml:space="preserve"><value>Prøver</value></data><data name="Auth" xml:space="preserve"><value>Innlogging</value></data>
+  <data name="MyTransponders" xml:space="preserve"><value>Mine transpondere</value></data>
+  <data name="TimingAdministration" xml:space="preserve"><value>Tidtakeradministrasjon</value></data>
+  <data name="FacilitiesAdministration" xml:space="preserve"><value>Anleggsadministrasjon</value></data>
+  <data name="StatisticsAdministration" xml:space="preserve"><value>Statistikkadministrasjon</value></data>
+  <data name="Installations" xml:space="preserve"><value>Installasjoner</value></data><data name="Transponders" xml:space="preserve"><value>Transpondere</value></data>
+  <data name="Facilities" xml:space="preserve"><value>Anlegg</value></data><data name="Items" xml:space="preserve"><value>Elementer</value></data>
+  <data name="Configurations" xml:space="preserve"><value>Konfigurasjoner</value></data><data name="Logout" xml:space="preserve"><value>Logg ut</value></data>
+  <data name="Register" xml:space="preserve"><value>Registrer</value></data><data name="Login" xml:space="preserve"><value>Logg inn</value></data>
+  <data name="About" xml:space="preserve"><value>Om</value></data><data name="Privacy" xml:space="preserve"><value>Personvern</value></data>
+  <data name="Terms" xml:space="preserve"><value>Vilkår</value></data><data name="AboutVeloTime" xml:space="preserve"><value>VeloTime</value></data>
+  <data name="ChangePassword" xml:space="preserve"><value>Bytt passord</value></data>
+  <data name="AccessDenied" xml:space="preserve"><value>Ingen tilgang</value></data>
+  <data name="NoPermission" xml:space="preserve"><value>Du har ikke tilgang til denne siden.</value></data>
+  <data name="SamplesTitle" xml:space="preserve"><value>Prøver</value></data>
+  <data name="BestTimes" xml:space="preserve"><value>Beste tider</value></data>
+  <data name="BestTimesLast30Days" xml:space="preserve"><value>Beste tider – de siste 30 dagene</value></data>
+  <data name="FastestPublicResult" xml:space="preserve"><value>Det raskeste offentlige resultatet for hvert statistikkelement på tvers av alle anlegg.</value></data>
+  <data name="LoadingBestTimes" xml:space="preserve"><value>Laster inn beste tider</value></data>
+  <data name="BestTimesLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn beste tider. Prøv igjen.</value></data>
+  <data name="StatisticsItem" xml:space="preserve"><value>Statistikkelement</value></data>
+  <data name="AverageSpeed" xml:space="preserve"><value>Gjennomsnittsfart (km/t)</value></data>
+  <data name="Time" xml:space="preserve"><value>Tid</value></data><data name="Facility" xml:space="preserve"><value>Anlegg</value></data>
+  <data name="NoPublicBestTimes" xml:space="preserve"><value>Det finnes ingen offentlige bestenoteringer for denne perioden og dette anlegget.</value></data>
+  <data name="Online" xml:space="preserve"><value>Tilkoblet</value></data><data name="Offline" xml:space="preserve"><value>Frakoblet</value></data>
+  <data name="PeopleCount" xml:space="preserve"><value>{0} personer</value></data>
+  <data name="RequestFailed" xml:space="preserve"><value>Forespørselen kunne ikke fullføres. Prøv igjen.</value></data>
+  <data name="PartialTimingPointLink" xml:space="preserve"><value>Tidtakerpunktet ble lagret, men koblingen til banepunktet ble ikke fullført. Lagre på nytt for å prøve koblingen igjen.</value></data>
+  <data name="PartialLayoutLink" xml:space="preserve"><value>Banen ble lagret, men en tidtakerkobling ble ikke lagret. Rett koblingen og lagre på nytt.</value></data>
+  <data name="RefreshRetry" xml:space="preserve"><value>Kunne ikke laste inn dataene. Oppdater siden for å prøve igjen.</value></data>
+  <data name="OperationFailed" xml:space="preserve"><value>Handlingen kunne ikke fullføres. Prøv igjen.</value></data>
+  <data name="Delete" xml:space="preserve"><value>Slett</value></data><data name="Cancel" xml:space="preserve"><value>Avbryt</value></data>
+  <data name="DiscardChanges" xml:space="preserve"><value>Forkaste endringene?</value></data>
+  <data name="UnsavedChangesLost" xml:space="preserve"><value>Ulagrede endringer går tapt.</value></data>
+  <data name="KeepEditingAction" xml:space="preserve"><value>Fortsett redigering</value></data>
+  <data name="Save" xml:space="preserve"><value>Lagre</value></data><data name="Saved" xml:space="preserve"><value>Lagret.</value></data>
+  <data name="Refresh" xml:space="preserve"><value>Oppdater</value></data><data name="Search" xml:space="preserve"><value>Søk</value></data>
+  <data name="NoFacilities" xml:space="preserve"><value>Ingen anlegg.</value></data>
+  <data name="SearchFacilities" xml:space="preserve"><value>Søk etter anlegg</value></data>
+  <data name="NewFacility" xml:space="preserve"><value>Nytt anlegg</value></data>
+  <data name="EditFacility" xml:space="preserve"><value>Rediger anlegg</value></data>
+  <data name="FacilityName" xml:space="preserve"><value>Anleggsnavn</value></data>
+  <data name="CourseLayouts" xml:space="preserve"><value>Baneløp</value></data>
+  <data name="Name" xml:space="preserve"><value>Navn</value></data><data name="Actions" xml:space="preserve"><value>Handlinger</value></data>
+  <data name="EditFacilityAction" xml:space="preserve"><value>Rediger anlegg</value></data>
+  <data name="DeleteFacilityAction" xml:space="preserve"><value>Slett anlegg</value></data>
+  <data name="DeleteFacilityQuestion" xml:space="preserve"><value>Slette anlegget?</value></data>
+  <data name="DeleteFacilityConfirm" xml:space="preserve"><value>Slette «{0}» permanent? Tilknyttede baner, installasjoner eller resultater hindrer sletting.</value></data>
+  <data name="FacilitiesLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn anlegg. Oppdater for å prøve igjen.</value></data>
+  <data name="CourseLayoutsLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn baneløp. Oppdater for å prøve igjen.</value></data>
+  <data name="FacilityNotFound" xml:space="preserve"><value>Fant ikke anlegget.</value></data>
+  <data name="TimingInstallationsTitle" xml:space="preserve"><value>Tidtakerinstallasjoner</value></data>
+  <data name="SearchInstallations" xml:space="preserve"><value>Søk etter installasjoner</value></data>
+  <data name="NewInstallation" xml:space="preserve"><value>Ny installasjon</value></data>
+  <data name="Agent" xml:space="preserve"><value>Agent</value></data><data name="System" xml:space="preserve"><value>System</value></data>
+  <data name="TimingPoints" xml:space="preserve"><value>Tidtakerpunkter</value></data><data name="LastSeenUTC" xml:space="preserve"><value>Sist sett (UTC)</value></data>
+  <data name="NoInstallations" xml:space="preserve"><value>Ingen installasjoner samsvarer med denne visningen.</value></data>
+  <data name="InstallationsLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn installasjoner. Oppdater for å prøve igjen.</value></data>
+  <data name="Unassigned" xml:space="preserve"><value>Ikke tilordnet</value></data><data name="MissingFacility" xml:space="preserve"><value>Manglende anlegg</value></data>
+  <data name="DeleteInstallation" xml:space="preserve"><value>Slette installasjonen?</value></data>
+  <data name="DeleteInstallationConfirm" xml:space="preserve"><value>Slette «{0}»? Eksisterende tidtakerpunkter må fjernes først.</value></data>
+  <data name="InstallationDeleted" xml:space="preserve"><value>Installasjonen er slettet.</value></data>
+  <data name="LayoutDeleted" xml:space="preserve"><value>Banen er slettet.</value></data>
+  <data name="NoCourseLayouts" xml:space="preserve"><value>Ingen baneløp.</value></data>
+  <data name="DeleteCourseLayout" xml:space="preserve"><value>Slette baneløpet?</value></data>
+  <data name="DeleteCourseLayoutConfirm" xml:space="preserve"><value>Banen og ubrukte banepunkter fjernes. Tilknyttede tidtakerpunkter eller statistikkoppføringer hindrer sletting.</value></data>
+  <data name="LayoutDeleteFailed" xml:space="preserve"><value>Kunne ikke slette banen. Prøv igjen.</value></data>
+  <data name="NewLayout" xml:space="preserve"><value>Ny bane</value></data><data name="Layout" xml:space="preserve"><value>Bane</value></data>
+  <data name="Segments" xml:space="preserve"><value>Strekninger</value></data><data name="Distance" xml:space="preserve"><value>Distanse</value></data>
+  <data name="DeleteLayoutAction" xml:space="preserve"><value>Slett bane</value></data>
+  <data name="DeleteInstallationAction" xml:space="preserve"><value>Slett installasjon</value></data>
+  <data name="Authenticated" xml:space="preserve"><value>Autentisert</value></data>
+  <data name="Hello" xml:space="preserve"><value>Hei</value></data>
+  <data name="Duration" xml:space="preserve"><value>Varighet</value></data>
+  <data name="Start" xml:space="preserve"><value>Start</value></data>
+  <data name="End" xml:space="preserve"><value>Slutt</value></data>
+  <data name="Speed" xml:space="preserve"><value>Hastighet</value></data>
+  <data name="Link" xml:space="preserve"><value>Koble til</value></data>
+  <data name="Unlink" xml:space="preserve"><value>Koble fra</value></data>
+  <data name="RequestId" xml:space="preserve"><value>Forespørsels-ID</value></data>
+  <data name="DevelopmentMode" xml:space="preserve"><value>Utviklingsmodus</value></data>
+  <data name="DevelopmentModeDescription" xml:space="preserve"><value>Hvis du bytter til utviklingsmiljøet, vises mer detaljert feilinformasjon.</value></data>
+  <data name="DevelopmentModeWarning" xml:space="preserve"><value>Utviklingsmiljøet skal ikke brukes i distribuerte applikasjoner, fordi det kan vise sensitive unntaksdetaljer.</value></data>
+  <data name="HostErrorMessage" xml:space="preserve"><value>Det oppstod en feil under behandlingen av forespørselen.</value></data>
+  <data name="TransponderStatus" xml:space="preserve"><value>Transponderstatus</value></data>
+  <data name="RetryStatus" xml:space="preserve"><value>Prøv statusen på nytt</value></data>
+  <data name="Code" xml:space="preserve"><value>Kode</value></data>
+  <data name="SystemId" xml:space="preserve"><value>System-ID</value></data>
+  <data name="TransponderId" xml:space="preserve"><value>Transponder-ID</value></data>
+  <data name="LastSeen" xml:space="preserve"><value>Sist registrert</value></data>
+  <data name="NoPassingsRecorded" xml:space="preserve"><value>Ingen passeringer er registrert.</value></data>
+  <data name="NoOwnershipSightings" xml:space="preserve"><value>Ingen observasjoner i eierperiodene dine.</value></data>
+  <data name="WarningsLast7Days" xml:space="preserve"><value>Varsler rapportert de siste 7 dagene</value></data>
+  <data name="LowBattery" xml:space="preserve"><value>Lavt batterinivå</value></data>
+  <data name="LowSignalStrength" xml:space="preserve"><value>Lav signalstyrke</value></data>
+  <data name="LowHitCount" xml:space="preserve"><value>Lavt antall treff</value></data>
+  <data name="Reported" xml:space="preserve"><value>Rapportert</value></data>
+  <data name="NoReports" xml:space="preserve"><value>Ingen rapporter</value></data>
+  <data name="NoWarningsHealth" xml:space="preserve"><value>Ingen varsler er rapportert de siste 7 dagene. Dette garanterer ikke at transponderen fungerer som den skal.</value></data>
+  <data name="Location" xml:space="preserve"><value>Sted</value></data>
+  <data name="Warnings" xml:space="preserve"><value>Varsler</value></data>
+  <data name="PageCountWarnings" xml:space="preserve"><value>Side {0} – {1} varseltreff</value></data>
+  <data name="PreviousWarnings" xml:space="preserve"><value>Forrige varsler</value></data>
+  <data name="NextWarnings" xml:space="preserve"><value>Neste varsler</value></data>
+  <data name="OwnerHistory" xml:space="preserve"><value>Eierhistorikk</value></data>
+  <data name="YourOwnershipHistory" xml:space="preserve"><value>Eierhistorikken din</value></data>
+  <data name="RetryOwnerNames" xml:space="preserve"><value>Prøv å laste inn eiernavn på nytt</value></data>
+  <data name="NoOwnershipHistory" xml:space="preserve"><value>Ingen eierhistorikk er registrert.</value></data>
+  <data name="Owner" xml:space="preserve"><value>Eier</value></data>
+  <data name="FromUTC" xml:space="preserve"><value>Fra (UTC)</value></data>
+  <data name="ToUTCExclusive" xml:space="preserve"><value>Til (UTC, eksklusiv)</value></data>
+  <data name="NoExpiry" xml:space="preserve"><value>Utløper ikke</value></data>
+  <data name="PreviousOwners" xml:space="preserve"><value>Forrige eiere</value></data>
+  <data name="NextOwners" xml:space="preserve"><value>Neste eiere</value></data>
+  <data name="PageCountOwnership" xml:space="preserve"><value>Side {0} – {1} eierperioder</value></data>
+  <data name="OwnershipSightingsNotice" xml:space="preserve"><value>Kun observasjoner i eierperiodene dine vises. Tilgangen til status opphører når den gjeldende eierperioden slutter.</value></data>
+  <data name="TransponderNotFound" xml:space="preserve"><value>Fant ikke transponderen, eller kontoen din har ikke tilgang til den.</value></data>
+  <data name="TransponderAccessDenied" xml:space="preserve"><value>Logg inn med en konto som har tilgang til å vise denne transponderen.</value></data>
+  <data name="TransponderStatusLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn transponderstatus. Prøv igjen.</value></data>
+  <data name="OwnerNamesUnavailable" xml:space="preserve"><value>Eiernavn er ikke tilgjengelige</value></data>
+  <data name="OwnerNamesRetry" xml:space="preserve"><value>Kunne ikke laste inn eiernavn. Prøv på nytt for å finne navnene.</value></data>
+  <data name="UnassignedFacility" xml:space="preserve"><value>Ikke tilknyttet anlegg</value></data>
+  <data name="FacilityNameUnavailable" xml:space="preserve"><value>Anleggsnavn er ikke tilgjengelig ({0})</value></data>
+  <data name="TransponderCode" xml:space="preserve"><value>MyLaps X2-transponderkode</value></data>
+  <data name="RegistrationStart" xml:space="preserve"><value>Startdato for registrering</value></data>
+  <data name="RegistrationEndOptional" xml:space="preserve"><value>Sluttdato for registrering (valgfritt)</value></data>
+  <data name="RegistrationDateHelp" xml:space="preserve"><value>Datoene bruker den lokale tidssonen din. Hele sluttdatoen er inkludert. La feltet stå tomt hvis registreringen ikke skal utløpe.</value></data>
+  <data name="TransponderLabel" xml:space="preserve"><value>Etikett</value></data>
+  <data name="OwnedFromUTC" xml:space="preserve"><value>Eid fra dato (UTC)</value></data>
+  <data name="OwnedFromTimeUTC" xml:space="preserve"><value>Eid fra klokkeslett (UTC)</value></data>
+  <data name="HasEndDate" xml:space="preserve"><value>Har sluttdato</value></data>
+  <data name="OwnedToUTC" xml:space="preserve"><value>Eid til dato (UTC)</value></data>
+  <data name="OwnedToTimeUTC" xml:space="preserve"><value>Eid til klokkeslett (UTC)</value></data>
+  <data name="SearchTransponders" xml:space="preserve"><value>Søk etter transpondere</value></data>
+  <data name="IncludeHistory" xml:space="preserve"><value>Ta med historikk</value></data>
+  <data name="RegisterTransponder" xml:space="preserve"><value>Registrer transponder</value></data>
+  <data name="AddOwnership" xml:space="preserve"><value>Legg til eierperiode</value></data>
+  <data name="TransponderColumn" xml:space="preserve"><value>Transponder</value></data>
+  <data name="EditTransponderLabel" xml:space="preserve"><value>Rediger transponderetikett</value></data>
+  <data name="DeleteUnusedTransponder" xml:space="preserve"><value>Slett ubrukt transponder</value></data>
+  <data name="EditOwnership" xml:space="preserve"><value>Rediger eierperiode</value></data>
+  <data name="EndOwnershipNow" xml:space="preserve"><value>Avslutt eierperioden nå</value></data>
+  <data name="DeleteOwnership" xml:space="preserve"><value>Slett eierperiode</value></data>
+  <data name="NoTranspondersMatch" xml:space="preserve"><value>Ingen transpondere samsvarer med denne visningen.</value></data>
+  <data name="TransponderDataUnavailable" xml:space="preserve"><value>Transponderdata er ikke tilgjengelige. Oppdater for å prøve igjen.</value></data>
+  <data name="TransponderSearchFailed" xml:space="preserve"><value>Kunne ikke laste inn transpondere. Prøv søket på nytt.</value></data>
+  <data name="TranspondersLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn transpondere. Kontroller tilgangen din og oppdater.</value></data>
+  <data name="OwnerNamesLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn eiernavn.</value></data>
+  <data name="LocalRegistrationDateFailed" xml:space="preserve"><value>Kunne ikke finne den lokale registreringsdatoen. Prøv igjen.</value></data>
+  <data name="DeleteTransponderQuestion" xml:space="preserve"><value>Slette transponderen?</value></data>
+  <data name="DeleteTransponderConfirm" xml:space="preserve"><value>Slette «{0}» permanent? Eiereperioder, passeringer og registrerte resultater hindrer sletting.</value></data>
+  <data name="TransponderDeleted" xml:space="preserve"><value>Transponderen er slettet.</value></data>
+  <data name="SelectOwnerSearchResults" xml:space="preserve"><value>Velg en eier fra søkeresultatene.</value></data>
+  <data name="RegistrationEndBeforeStart" xml:space="preserve"><value>Sluttdatoen for registreringen kan ikke være før startdatoen.</value></data>
+  <data name="InvalidRegistrationResponse" xml:space="preserve"><value>Kunne ikke fullføre registreringen. Prøv igjen.</value></data>
+  <data name="ConfirmOwnershipChange" xml:space="preserve"><value>Bekreft endring av eierperiode</value></data>
+  <data name="OwnershipConfirmationDetails" xml:space="preserve"><value>Eksisterende eierperioder: {0}. Foreslått eierperiode: {1}. Dette kan forkorte eksisterende dekning. Hvis eierskapet er endret, bør du kontrollere de oppdaterte datoene før du bekrefter.</value></data>
+  <data name="ApplyDates" xml:space="preserve"><value>Bruk datoene</value></data>
+  <data name="KeepExistingOwnership" xml:space="preserve"><value>Behold eksisterende eierperiode</value></data>
+  <data name="OwnershipEndAfterStart" xml:space="preserve"><value>Slutten på eierperioden må være etter starten.</value></data>
+  <data name="RegistrationDateConversionFailed" xml:space="preserve"><value>Kunne ikke konvertere registreringsdatoene i den lokale tidssonen. Kontroller datoene og prøv igjen.</value></data>
+  <data name="EndOwnershipQuestion" xml:space="preserve"><value>Avslutte eierperioden?</value></data>
+  <data name="DeleteOwnershipQuestion" xml:space="preserve"><value>Slette eierperioden?</value></data>
+  <data name="EndOwnershipConfirm" xml:space="preserve"><value>Avslutte denne eierperioden nå og beholde den i historikken?</value></data>
+  <data name="DeleteOwnershipConfirm" xml:space="preserve"><value>Slette denne eierperioden permanent? Transponderen og registrerte resultater blir ikke slettet.</value></data>
+  <data name="OwnershipEnded" xml:space="preserve"><value>Eierperioden er avsluttet.</value></data>
+  <data name="OwnershipDeleted" xml:space="preserve"><value>Eierperioden er slettet.</value></data>
+  <data name="OwnershipChangeFailed" xml:space="preserve"><value>Kunne ikke endre eierperioden. Prøv igjen.</value></data>
+  <data name="DeleteFailedConflict" xml:space="preserve"><value>Elementet er i bruk og kan ikke slettes.</value></data>
+  <data name="SignInRequired" xml:space="preserve"><value>Økten din er utløpt. Logg inn på nytt og prøv igjen.</value></data>
+  <data name="ServiceUnavailable" xml:space="preserve"><value>Tjenesten er midlertidig utilgjengelig. Prøv igjen.</value></data>
+  <data name="SearchOwner" xml:space="preserve"><value>Finn eier etter profil eller navn</value></data>
+  <data name="OwnerSearchHelp" xml:space="preserve"><value>Skriv inn minst to tegn, og velg deretter en eier nedenfor.</value></data>
+  <data name="RetryOwnerSearch" xml:space="preserve"><value>Prøv eiersøket på nytt</value></data>
+  <data name="NoMatchingUsers" xml:space="preserve"><value>Fant ingen brukere.</value></data>
+  <data name="LoadMoreOwners" xml:space="preserve"><value>Last inn flere eiere</value></data>
+  <data name="OwnerSearchFailed" xml:space="preserve"><value>Kunne ikke fullføre eiersøket. Prøv igjen.</value></data>
+  <data name="SelectOwner" xml:space="preserve"><value>Velg en eier fra søkeresultatene.</value></data>
+  <data name="SearchTransponder" xml:space="preserve"><value>Finn transponder etter etikett eller system-ID</value></data>
+  <data name="RetryTransponderSearch" xml:space="preserve"><value>Prøv transpondersøket på nytt</value></data>
+  <data name="NoMatchingTransponders" xml:space="preserve"><value>Fant ingen samsvarende transpondere.</value></data>
+  <data name="LoadMoreTransponders" xml:space="preserve"><value>Last inn flere transpondere</value></data>
+  <data name="SelectTransponder" xml:space="preserve"><value>Velg en transponder fra søkeresultatene.</value></data>
+  <data name="SelectTransponderResults" xml:space="preserve"><value>Velg en transponder fra søkeresultatene.</value></data>
+  <data name="AuthDebug" xml:space="preserve"><value>Autentiseringsdiagnostikk</value></data>
+  <data name="DevelopmentOnly" xml:space="preserve"><value>Autentiseringsdiagnostikk er bare tilgjengelig i utviklingsmiljøet.</value></data>
+  <data name="AccessToken" xml:space="preserve"><value>Tilgangstoken</value></data>
+  <data name="NoAccessToken" xml:space="preserve"><value>Det er ikke lagret noe tilgangstoken for denne økten. Logg inn på nytt.</value></data>
+  <data name="Audience" xml:space="preserve"><value>Målgruppe</value></data>
+  <data name="RealmRoles" xml:space="preserve"><value>Realm-roller</value></data>
+  <data name="Issuer" xml:space="preserve"><value>Utsteder</value></data>
+  <data name="AuthorizedParty" xml:space="preserve"><value>Autorisert part</value></data>
+  <data name="Scope" xml:space="preserve"><value>Omfang</value></data>
+  <data name="Expires" xml:space="preserve"><value>Utløper</value></data>
+  <data name="Identity" xml:space="preserve"><value>Identitet</value></data>
+  <data name="AuthenticationType" xml:space="preserve"><value>Autentiseringstype</value></data>
+  <data name="Claims" xml:space="preserve"><value>Claims</value></data>
+  <data name="Type" xml:space="preserve"><value>Type</value></data>
+  <data name="Value" xml:space="preserve"><value>Verdi</value></data>
+  <data name="None" xml:space="preserve"><value>Ingen</value></data>
+  <data name="TokenDetailsFailed" xml:space="preserve"><value>Kunne ikke laste inn autentiseringsdetaljer. Prøv igjen.</value></data>
+  <data name="EnglishNative" xml:space="preserve"><value>English</value></data>
+  <data name="NorwegianNative" xml:space="preserve"><value>Norsk bokmål</value></data>
+  <data name="UserId" xml:space="preserve"><value>Bruker-ID: {0}</value></data>
+  <data name="FacilityNamesLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn enkelte anleggsnavn. Prøv på nytt for å finne tilknyttede anlegg.</value></data>
+  <data name="RequestRejected" xml:space="preserve"><value>Forespørselen ble avvist. Kontroller opplysningene og prøv igjen.</value></data>
+  <data name="Transponder" xml:space="preserve"><value>Transponder</value></data>
+  <data name="ToUTC" xml:space="preserve"><value>Til (UTC)</value></data>
+  <data name="RequiredError" xml:space="preserve"><value>Dette feltet må fylles ut.</value></data>
+  <data name="Active" xml:space="preserve"><value>Aktiv</value></data>
+  <data name="Scheduled" xml:space="preserve"><value>Planlagt</value></data>
+  <data name="Ended" xml:space="preserve"><value>Avsluttet</value></data>
+  <data name="Unknown" xml:space="preserve"><value>Ukjent</value></data>
+  <data name="TransponderAdministration" xml:space="preserve"><value>Transponderadministrasjon</value></data>
+  <data name="IdentityRealmRoles" xml:space="preserve"><value>Realm-roller (realm_access-claim)</value></data>
+  <data name="No options" xml:space="preserve"><value>Ingen alternativer</value></data>
+  <data name="No records" xml:space="preserve"><value>Ingen oppføringer</value></data>
+  <data name="First page" xml:space="preserve"><value>Første side</value></data>
+  <data name="Last page" xml:space="preserve"><value>Siste side</value></data>
+  <data name="Next page" xml:space="preserve"><value>Neste side</value></data>
+  <data name="Previous page" xml:space="preserve"><value>Forrige side</value></data>
+  <data name="Rows per page" xml:space="preserve"><value>Rader per side</value></data>
+  <data name="Rows per page:" xml:space="preserve"><value>Rader per side:</value></data>
+  <data name="Previous month" xml:space="preserve"><value>Forrige måned</value></data>
+  <data name="Next month" xml:space="preserve"><value>Neste måned</value></data>
+  <data name="Previous year" xml:space="preserve"><value>Forrige år</value></data>
+  <data name="Next year" xml:space="preserve"><value>Neste år</value></data>
+  <data name="Go to today" xml:space="preserve"><value>Gå til i dag</value></data>
+  <data name="Choose date" xml:space="preserve"><value>Velg dato</value></data>
+  <data name="Choose time" xml:space="preserve"><value>Velg klokkeslett</value></data>
+  <data name="Select all" xml:space="preserve"><value>Velg alle</value></data>
+  <data name="Deselect all" xml:space="preserve"><value>Fjern alle valg</value></data>
+  <data name="No data" xml:space="preserve"><value>Ingen data</value></data>
+  <data name="Loading..." xml:space="preserve"><value>Laster inn...</value></data>
+  <data name="Filter value" xml:space="preserve"><value>Filtrer verdi</value></data>
+  <data name="Clear filter" xml:space="preserve"><value>Tøm filter</value></data>
+  <data name="Open filters" xml:space="preserve"><value>Åpne filtre</value></data>
+  <data name="Remove filter" xml:space="preserve"><value>Fjern filter</value></data>
+  <data name="Select all rows" xml:space="preserve"><value>Velg alle rader</value></data>
+  <data name="Select row" xml:space="preserve"><value>Velg rad</value></data>
+  <data name="Cancel edit" xml:space="preserve"><value>Avbryt redigering</value></data>
+  <data name="Toggle group" xml:space="preserve"><value>Vis eller skjul gruppen</value></data>
+  <data name="StatisticsAdministrationTitle" xml:space="preserve"><value>Statistikkadministrasjon</value></data>
+  <data name="Statistics" xml:space="preserve"><value>Statistikk</value></data>
+  <data name="PublicStatisticsNav" xml:space="preserve"><value>Offentlige resultater</value></data>
+  <data name="PublicStatisticsTitle" xml:space="preserve"><value>Offentlige statistikkresultater</value></data>
+  <data name="PublicStatisticsDescription" xml:space="preserve"><value>Vis individuelle resultater fra profiler som for øyeblikket er offentlige.</value></data>
+  <data name="LoadingPublicStatistics" xml:space="preserve"><value>Laster inn offentlige resultater</value></data>
+  <data name="PublicStatisticsFilters" xml:space="preserve"><value>Filtre for offentlige resultater</value></data>
+  <data name="StatisticsConfiguration" xml:space="preserve"><value>Konfigurasjon</value></data>
+  <data name="PublicStatisticsNameSearch" xml:space="preserve"><value>Profilnavn inneholder</value></data>
+  <data name="MinimumDuration" xml:space="preserve"><value>Minste varighet (hh:mm:ss.fff)</value></data>
+  <data name="MaximumDuration" xml:space="preserve"><value>Største varighet (hh:mm:ss.fff)</value></data>
+  <data name="MinimumSpeedKmh" xml:space="preserve"><value>Minste hastighet (km/t)</value></data>
+  <data name="MaximumSpeedKmh" xml:space="preserve"><value>Største hastighet (km/t)</value></data>
+  <data name="ApplyFilters" xml:space="preserve"><value>Bruk filtre</value></data>
+  <data name="ClearFilters" xml:space="preserve"><value>Fjern filtre</value></data>
+  <data name="PublicStatisticsFilterHelp" xml:space="preserve"><value>Varighetsfiltre bruker invariant hh:mm:ss.fff; bruk d.hh:mm:ss.fff for varigheter på én dag eller mer. Hastighet bruker invariant desimalpunktum. Grensene er inklusive.</value></data>
+  <data name="PublicStatisticsDefaultsUnavailable" xml:space="preserve"><value>Standardvalget for offentlige resultater er utilgjengelig: et anlegg, elementet Lap eller en gyldig konfigurasjon ble ikke funnet.</value></data>
+  <data name="PublicStatisticsInvalidSelection" xml:space="preserve"><value>Valget av anlegg, element eller konfigurasjon er ugyldig eller utilgjengelig. Velg et gyldig alternativ ovenfor.</value></data>
+  <data name="PublicStatisticsNoConfigurations" xml:space="preserve"><value>Ingen konfigurasjon er tilgjengelig for dette anlegget og statistikkelementet. Velg et annet anlegg eller element.</value></data>
+  <data name="PublicStatisticsInvalidQuery" xml:space="preserve"><value>URL-filtrene er ugyldige eller støttes ikke. Rett verdiene og bruk filtrene på nytt.</value></data>
+  <data name="PublicStatisticsInvalidFilters" xml:space="preserve"><value>Filtrene er ugyldige. Bruk de oppgitte varighets- og desimalformatene, ikke-negative grenser og en minsteverdi som ikke er større enn størsteverdien.</value></data>
+  <data name="PublicStatisticsDuplicateQuery" xml:space="preserve"><value>URL-en inneholder en gjentatt spørringsparameter og kan ikke lastes inn.</value></data>
+  <data name="PublicStatisticsUnauthorized" xml:space="preserve"><value>Offentlige resultater er midlertidig utilgjengelige fordi tilgangen ble avvist. Prøv igjen senere.</value></data>
+  <data name="PublicStatisticsLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn offentlige resultater. Kontroller tilkoblingen og prøv igjen.</value></data>
+  <data name="NoPublicStatisticsResults" xml:space="preserve"><value>Ingen offentlige resultater samsvarer med valgene og filtrene.</value></data>
+  <data name="PublicStatisticsResultsCaption" xml:space="preserve"><value>Individuelle offentlige statistikkresultater, nyeste først</value></data>
+  <data name="PublicStatisticsPagination" xml:space="preserve"><value>Sider med offentlige resultater</value></data>
+  <data name="PreviousResults" xml:space="preserve"><value>Forrige resultater</value></data>
+  <data name="NextResults" xml:space="preserve"><value>Neste resultater</value></data>
+  <data name="SpeedKmh" xml:space="preserve"><value>Gjennomsnittshastighet (km/t)</value></data>
+  <data name="UnnamedCoursePoint" xml:space="preserve"><value>Punkt uten navn</value></data>
+  <data name="SimpleConfigurationLabel" xml:space="preserve"><value>{0} – {1}</value></data>
+  <data name="MultiConfigurationLabel" xml:space="preserve"><value>{0} repetisjoner: {1}</value></data>
+  <data name="ConfigurationLabelWithId" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Edit" xml:space="preserve"><value>Rediger</value></data>
+  <data name="New" xml:space="preserve"><value>Ny</value></data>
+  <data name="Configuration" xml:space="preserve"><value>konfigurasjon</value></data>
+  <data name="Item" xml:space="preserve"><value>element</value></data>
+  <data name="StatisticsItemLabel" xml:space="preserve"><value>Statistikkelement</value></data>
+  <data name="DistanceMeters" xml:space="preserve"><value>Distanse (m)</value></data>
+  <data name="Simple" xml:space="preserve"><value>Enkel</value></data>
+  <data name="Multi" xml:space="preserve"><value>Flere</value></data>
+  <data name="CourseLayout" xml:space="preserve"><value>Baneløp</value></data>
+  <data name="StartCoursepoint" xml:space="preserve"><value>Startbanepunkt</value></data>
+  <data name="EndCoursepoint" xml:space="preserve"><value>Sluttbanepunkt</value></data>
+  <data name="SimpleParentConfiguration" xml:space="preserve"><value>Overordnet enkel konfigurasjon</value></data>
+  <data name="Repetitions" xml:space="preserve"><value>Repetisjoner</value></data>
+  <data name="NewConfiguration" xml:space="preserve"><value>Ny konfigurasjon</value></data>
+  <data name="NewItem" xml:space="preserve"><value>Nytt element</value></data>
+  <data name="EditItem" xml:space="preserve"><value>Rediger element</value></data>
+  <data name="DeleteItem" xml:space="preserve"><value>Slett element</value></data>
+  <data name="EditConfiguration" xml:space="preserve"><value>Rediger konfigurasjon</value></data>
+  <data name="DeleteConfiguration" xml:space="preserve"><value>Slett konfigurasjon</value></data>
+  <data name="NoStatisticsItems" xml:space="preserve"><value>Ingen statistikkelementer.</value></data>
+  <data name="NoStatisticsConfigurations" xml:space="preserve"><value>Ingen statistikkonfigurasjoner.</value></data>
+  <data name="StatisticsLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn statistikk. Kontroller tilgangen din og prøv å oppdatere.</value></data>
+  <data name="ChangesNotSaved" xml:space="preserve"><value>Kunne ikke lagre endringene. Prøv igjen.</value></data>
+  <data name="DefinitionDeleteFailed" xml:space="preserve"><value>Kunne ikke slette definisjonen. Prøv igjen.</value></data>
+  <data name="DeleteDefinitionQuestion" xml:space="preserve"><value>Slette definisjonen?</value></data>
+  <data name="DeleteDefinitionConfirm" xml:space="preserve"><value>Slettingen er permanent. Definisjoner med avhengigheter eller registrerte resultater kan ikke slettes.</value></data>
+  <data name="Deleted" xml:space="preserve"><value>Slettet.</value></data>
+  <data name="Administration" xml:space="preserve"><value>Administrasjon</value></data>
+  <data name="MissingItem" xml:space="preserve"><value>Mangler element ({0})</value></data>
+  <data name="Point" xml:space="preserve"><value>Punkt {0}</value></data>
+  <data name="LayoutIdLabel" xml:space="preserve"><value>Bane {0}</value></data>
+  <data name="MissingCoursepoint" xml:space="preserve"><value>Mangler banepunkt</value></data>
+  <data name="ConnectionTo" xml:space="preserve"><value>{0} til {1}</value></data>
+  <data name="RepetitionsOf" xml:space="preserve"><value>{0} repetisjoner av {1}</value></data>
+  <data name="MissingParent" xml:space="preserve"><value>mangler overordnet konfigurasjon</value></data>
+  <data name="ConflictOccurred" xml:space="preserve"><value>Elementet er endret eller i bruk. Oppdater og prøv igjen.</value></data>
+  <data name="Required" xml:space="preserve"><value>Obligatorisk</value></data>
+  <data name="Clear" xml:space="preserve"><value>Tøm</value></data>
+  <data name="Close" xml:space="preserve"><value>Lukk</value></data>
+  <data name="Today" xml:space="preserve"><value>I dag</value></data>
+  <data name="Ok" xml:space="preserve"><value>OK</value></data>
+  <data name="Apply" xml:space="preserve"><value>Bruk</value></data>
+  <data name="Select" xml:space="preserve"><value>Velg</value></data>
+  <data name="All" xml:space="preserve"><value>Alle</value></data>
+  <data name="Filter" xml:space="preserve"><value>Filter</value></data>
+  <data name="Sort" xml:space="preserve"><value>Sorter</value></data>
+  <data name="Date" xml:space="preserve"><value>Dato</value></data>
+  <data name="Open" xml:space="preserve"><value>Åpne</value></data>
+  <data name="Remove" xml:space="preserve"><value>Fjern</value></data>
+  <data name="DeleteItemQuestion" xml:space="preserve"><value>Slette statistikkelementet?</value></data>
+  <data name="Connection" xml:space="preserve"><value>Tilkobling</value></data>
+  <data name="Coursepoint" xml:space="preserve"><value>Banepunkt</value></data>
+  <data name="Description" xml:space="preserve"><value>Beskrivelse</value></data>
+  <data name="EditTimingPoint" xml:space="preserve"><value>Rediger tidtakerpunkt</value></data>
+  <data name="DeleteTimingPoint" xml:space="preserve"><value>Slett tidtakerpunkt</value></data>
+  <data name="OwnershipOpenEnded" xml:space="preserve"><value>{0} og fremover (utløper ikke)</value></data>
+  <data name="OwnershipDateRange" xml:space="preserve"><value>{0} til og med {1}</value></data>
+  <data name="UtcSuffix" xml:space="preserve"><value>UTC</value></data>
+  <data name="NoStatisticsProfile" xml:space="preserve"><value>Ingen statistikkprofil</value></data>
+  <data name="UserUnavailable" xml:space="preserve"><value>Brukeren er ikke tilgjengelig</value></data>
+  <data name="NameNotSet" xml:space="preserve"><value>Navn er ikke angitt</value></data>
+  <data name="ToggleNavigation" xml:space="preserve"><value>Vis eller skjul navigasjonen</value></data>
+  <data name="DismissError" xml:space="preserve"><value>Lukk feilmeldingen</value></data>
+  <data name="Add filter" xml:space="preserve"><value>Legg til filter</value></data>
+  <data name="Collapse all groups" xml:space="preserve"><value>Skjul alle grupper</value></data>
+  <data name="Collapse group" xml:space="preserve"><value>Skjul gruppen</value></data>
+  <data name="Column options" xml:space="preserve"><value>Kolonnealternativer</value></data>
+  <data name="Current page {0}" xml:space="preserve"><value>Gjeldende side {0}</value></data>
+  <data name="Edit row" xml:space="preserve"><value>Rediger rad</value></data>
+  <data name="End date" xml:space="preserve"><value>Sluttdato</value></data>
+  <data name="Expand all groups" xml:space="preserve"><value>Vis alle grupper</value></data>
+  <data name="Expand group" xml:space="preserve"><value>Vis gruppen</value></data>
+  <data name="Hide all" xml:space="preserve"><value>Skjul alle</value></data>
+  <data name="Not a valid date time" xml:space="preserve"><value>Ugyldig dato og klokkeslett</value></data>
+  <data name="Not a valid time span" xml:space="preserve"><value>Ugyldig tidsintervall</value></data>
+  <data name="Not a value of {0}" xml:space="preserve"><value>Ikke en verdi av typen {0}</value></data>
+  <data name="Page {0}" xml:space="preserve"><value>Side {0}</value></data>
+  <data name="Show all" xml:space="preserve"><value>Vis alle</value></data>
+  <data name="Start date" xml:space="preserve"><value>Startdato</value></data>
+  <data name="Toggle {0}" xml:space="preserve"><value>Vis eller skjul {0}</value></data>
+  <data name="Next month {0}" xml:space="preserve"><value>Neste måned {0}</value></data>
+  <data name="Next year {0}" xml:space="preserve"><value>Neste år {0}</value></data>
+  <data name="Previous month {0}" xml:space="preserve"><value>Forrige måned {0}</value></data>
+  <data name="Previous year {0}" xml:space="preserve"><value>Forrige år {0}</value></data>
+  <data name="InstallationEditor" xml:space="preserve"><value>Rediger installasjon</value></data>
+  <data name="Installation" xml:space="preserve"><value>Installasjon</value></data>
+  <data name="AgentId" xml:space="preserve"><value>Agent-ID</value></data>
+  <data name="TimingSystem" xml:space="preserve"><value>Tidtakersystem</value></data>
+  <data name="UnknownSystem" xml:space="preserve"><value>Ukjent</value></data>
+  <data name="HardwareSystemId" xml:space="preserve"><value>Maskinvaresystem-ID</value></data>
+  <data name="SaveInstallation" xml:space="preserve"><value>Lagre installasjon</value></data>
+  <data name="BackToInstallations" xml:space="preserve"><value>Tilbake til installasjoner</value></data>
+  <data name="NewTimingPoint" xml:space="preserve"><value>Nytt tidtakerpunkt</value></data>
+  <data name="SaveTimingPoint" xml:space="preserve"><value>Lagre tidtakerpunkt</value></data>
+  <data name="NoTimingPoints" xml:space="preserve"><value>Ingen tidtakerpunkter.</value></data>
+  <data name="InstallationNotFound" xml:space="preserve"><value>Fant ikke installasjonen.</value></data>
+  <data name="InstallationLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn installasjonen. Gå tilbake til installasjonene og prøv igjen.</value></data>
+  <data name="InstallationSaveFailed" xml:space="preserve"><value>Kunne ikke lagre installasjonen. Prøv igjen.</value></data>
+  <data name="InstallationSaved" xml:space="preserve"><value>Installasjonen er lagret.</value></data>
+  <data name="TimingPointSaved" xml:space="preserve"><value>Tidtakerpunktet er lagret.</value></data>
+  <data name="TimingPointSaveFailed" xml:space="preserve"><value>Kunne ikke lagre tidtakerpunktet. Prøv igjen.</value></data>
+  <data name="DeleteTimingPointQuestion" xml:space="preserve"><value>Slette tidtakerpunktet?</value></data>
+  <data name="DeleteTimingPointConfirm" xml:space="preserve"><value>Registrerte passeringer eller tilknyttede banepunkter hindrer sletting. Koble fra banepunktet først om nødvendig.</value></data>
+  <data name="TimingPointDeleted" xml:space="preserve"><value>Tidtakerpunktet er slettet.</value></data>
+  <data name="TimingPointDeleteFailed" xml:space="preserve"><value>Kunne ikke slette tidtakerpunktet. Prøv igjen.</value></data>
+  <data name="DiscardTimingPointChanges" xml:space="preserve"><value>Ulagrede endringer i tidtakerpunktet går tapt.</value></data>
+  <data name="DiscardInstallationChanges" xml:space="preserve"><value>Ulagrede endringer i installasjonen eller tidtakerpunktet går tapt.</value></data>
+  <data name="LayoutSaved" xml:space="preserve"><value>Baneløpet er lagret.</value></data>
+  <data name="DeleteConfigurationQuestion" xml:space="preserve"><value>Slette statistikkonfigurasjonen?</value></data>
+  <data name="Status" xml:space="preserve"><value>Status</value></data>
+  <data name="CourseLayoutEditor" xml:space="preserve"><value>Rediger baneløp</value></data>
+  <data name="NewCourseLayout" xml:space="preserve"><value>Nytt baneløp</value></data>
+  <data name="Coursepoints" xml:space="preserve"><value>Banepunkter</value></data>
+  <data name="NewPoint" xml:space="preserve"><value>Nytt punkt</value></data>
+  <data name="ReuseCoursepoint" xml:space="preserve"><value>Bruk eksisterende banepunkt</value></data>
+  <data name="AddSelectedPoint" xml:space="preserve"><value>Legg til valgt punkt</value></data>
+  <data name="TimingPoint" xml:space="preserve"><value>Tidtakerpunkt</value></data>
+  <data name="Unlinked" xml:space="preserve"><value>Ikke tilknyttet</value></data>
+  <data name="RemoveUnusedPoint" xml:space="preserve"><value>Fjern ubrukt punkt</value></data>
+  <data name="NoCoursepoints" xml:space="preserve"><value>Ingen banepunkter.</value></data>
+  <data name="AddSegment" xml:space="preserve"><value>Legg til strekning</value></data>
+  <data name="Order" xml:space="preserve"><value>Rekkefølge</value></data>
+  <data name="LengthMeters" xml:space="preserve"><value>Lengde (m)</value></data>
+  <data name="MoveSegmentUp" xml:space="preserve"><value>Flytt strekning opp</value></data>
+  <data name="MoveSegmentDown" xml:space="preserve"><value>Flytt strekning ned</value></data>
+  <data name="RemoveSegment" xml:space="preserve"><value>Fjern strekning</value></data>
+  <data name="NoSegments" xml:space="preserve"><value>Ingen strekninger.</value></data>
+  <data name="SaveLayout" xml:space="preserve"><value>Lagre baneløp</value></data>
+  <data name="BackToLayouts" xml:space="preserve"><value>Tilbake til baneløp</value></data>
+  <data name="CourseLayoutNotFound" xml:space="preserve"><value>Fant ikke baneløpet.</value></data>
+  <data name="LayoutLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn baneløpet. Gå tilbake til baneløpene og prøv igjen.</value></data>
+  <data name="AddConnectedSegments" xml:space="preserve"><value>Legg til sammenhengende strekninger og velg start- og sluttpunktene.</value></data>
+  <data name="UseEveryCoursepoint" xml:space="preserve"><value>Bruk alle banepunktene i en strekning, eller fjern ubrukte punkter.</value></data>
+  <data name="LayoutSaveFailed" xml:space="preserve"><value>Kunne ikke lagre baneløpet. Prøv igjen.</value></data>
+  <data name="DiscardLayoutChanges" xml:space="preserve"><value>Ulagrede endringer i baneløpet eller tilknytningene går tapt.</value></data>
+  <data name="DisplaySettings" xml:space="preserve"><value>Enheter og tid</value></data>
+  <data name="DisplaySettingsHelp" xml:space="preserve"><value>Lagrede innstillinger følger kontoen din på tvers av enheter. Nettlesertid bruker tidssonen på enheten du bruker. Endringer tas i bruk først når lagringen er vellykket.</value></data>
+  <data name="DisplaySettingsLoading" xml:space="preserve"><value>Henter visningsinnstillinger og nettleserens tidssone …</value></data>
+  <data name="DisplaySettingsLoadFailed" xml:space="preserve"><value>Kunne ikke hente visningsinnstillinger eller finne nettleserens tidssone. Prøv igjen for å fortsette. Serverens lokale tid brukes ikke.</value></data>
+  <data name="DisplaySettingsSaveFailed" xml:space="preserve"><value>Innstillingene ble ikke lagret. Utkastet er beholdt, og de sist lagrede innstillingene brukes fortsatt. Prøv igjen eller forkast endringene.</value></data>
+  <data name="DisplaySettingsInvalid" xml:space="preserve"><value>Innstillingene ble avvist, eller enheten kan ikke bruke den valgte tidssonen. Kontroller enhetene og velg en støttet tidssone.</value></data>
+  <data name="DisplaySettingsPending" xml:space="preserve"><value>Fullfør eller forkast andre åpne endringer, og lagre deretter disse innstillingene. Ventende endringer er ikke tatt i bruk.</value></data>
+  <data name="DisplaySettingsSaved" xml:space="preserve"><value>Visningsinnstillingene er lagret.</value></data>
+  <data name="DistanceUnit" xml:space="preserve"><value>Avstandsenhet</value></data>
+  <data name="SpeedUnit" xml:space="preserve"><value>Hastighetsenhet</value></data>
+  <data name="Metres" xml:space="preserve"><value>Meter</value></data>
+  <data name="Feet" xml:space="preserve"><value>Fot</value></data>
+  <data name="TimeDisplay" xml:space="preserve"><value>Tidsvisning</value></data>
+  <data name="BrowserTime" xml:space="preserve"><value>Nettlesertid (denne enheten)</value></data>
+  <data name="NamedTimeZone" xml:space="preserve"><value>Valgt tidssone</value></data>
+  <data name="SearchTimeZones" xml:space="preserve"><value>Søk etter tidssoner</value></data>
+  <data name="EffectiveTimeZone" xml:space="preserve"><value>Tidssone i bruk: {0}</value></data>
+  <data name="TimeZonesLoadFailed" xml:space="preserve"><value>Kunne ikke hente støttede tidssoner. Prøv igjen for å velge en tidssone.</value></data>
+  <data name="NoTimeZones" xml:space="preserve"><value>Ingen støttede tidssoner er tilgjengelige.</value></data>
+  <data name="SelectTimeZone" xml:space="preserve"><value>Velg en støttet tidssone fra søkeresultatene.</value></data>
+  <data name="LocalTime" xml:space="preserve"><value>Lokal tid</value></data>
+  <data name="From" xml:space="preserve"><value>Fra</value></data>
+  <data name="ToExclusive" xml:space="preserve"><value>Til (eksklusiv)</value></data>
+  <data name="ChooseUtcOffset" xml:space="preserve"><value>Velg UTC-forskyvning for det gjentatte lokale klokkeslettet</value></data>
+  <data name="LocalTimeGap" xml:space="preserve"><value>Dette lokale klokkeslettet finnes ikke fordi klokken stilles frem. Velg et annet klokkeslett eller en annen dato.</value></data>
+  <data name="LocalTimeRepeated" xml:space="preserve"><value>Dette lokale klokkeslettet forekommer to ganger. Velg ønsket UTC-forskyvning. Ingen forskyvning velges automatisk.</value></data>
+  <data name="SelectedZoneRegistrationHelp" xml:space="preserve"><value>Datoene er inklusive i {0}. Eierskapet slutter eksklusivt ved starten av neste kalenderdag. Døgnets lengde følger endringer i sommertid.</value></data>
+  <data name="CalendarFilterZone" xml:space="preserve"><value>Valgt dag {0} i {1}. Utvalget beholder UTC-grensene når innstillingene endres.</value></data>
+  <data name="DistanceInUnit" xml:space="preserve"><value>Avstand ({0})</value></data>
+  <data name="LengthInUnit" xml:space="preserve"><value>Lengde ({0})</value></data>
+  <data name="SpeedInUnit" xml:space="preserve"><value>Hastighet ({0})</value></data>
+  <data name="MinimumSpeedInUnit" xml:space="preserve"><value>Minste hastighet ({0})</value></data>
+  <data name="MaximumSpeedInUnit" xml:space="preserve"><value>Største hastighet ({0})</value></data>
+  <data name="InvalidDistance" xml:space="preserve"><value>Skriv inn en endelig avstand på minst {0}.</value></data>
+  <data name="PreferredStatisticsFilterHelp" xml:space="preserve"><value>Skriv inn hastigheter i vist enhet med nettleserens tallformat. Grensene er inklusive. Delte nettadresser beholder alltid verdier i km/h. Varigheter er uendret.</value></data>
+  <data name="LinkedAccountsLoadFailed" xml:space="preserve"><value>Kunne ikke hente tilknyttede kontoer.</value></data>
+  <data name="NoLinkedAccounts" xml:space="preserve"><value>Ingen tilknyttede kontoer.</value></data>
+  <data name="SamplesLoadFailed" xml:space="preserve"><value>Kunne ikke hente tidtakingsprøver.</value></data>
+  <data name="NoSamples" xml:space="preserve"><value>Ingen tidtakingsprøver funnet.</value></data>
+  <data name="AverageSpeedInUnit" xml:space="preserve"><value>Gjennomsnittsfart ({0})</value></data>
+</root>

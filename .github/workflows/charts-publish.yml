@@ -1,0 +1,118 @@
+name: Charts Publish
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - 'charts/**'
+
+concurrency: charts-publish
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      APP_CHARTS: velotime-bootstrap velotime-migration velotime
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Setup git
+        run: |
+          git config --local user.email "514378+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Get application version
+        run: |
+          set -e
+          APP_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/AppHost/VeloTime.AppHost.csproj | head -n 1)
+          if [[ -z "$APP_VERSION" ]]; then
+            echo "::error ::Unable to read <Version> from VeloTime.AppHost.csproj"
+            exit 1
+          fi
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+
+      - name: Update image tag and appVersion
+        run: |
+          set -e
+          for chart in $APP_CHARTS; do
+            yq -i '.global.image.tag = strenv(APP_VERSION)' "charts/$chart/values.yaml"
+            yq -i '.appVersion = strenv(APP_VERSION)' "charts/$chart/Chart.yaml"
+          done
+
+      - name: Bump chart versions
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -e
+          bump() {
+            local file="charts/$1/Chart.yaml"
+            local version
+            version=$(yq '.version' "$file")
+            NEXT="${version%.*}.$(( ${version##*.} + 1 ))" yq -i '.version = strenv(NEXT)' "$file"
+            yq '.version' "$file"
+          }
+
+          if [[ -n "$BEFORE" && ! "$BEFORE" =~ ^0+$ ]] && ! git diff --quiet "$BEFORE" HEAD -- charts/velotime-library; then
+            LIB_VERSION=$(bump velotime-library)
+            export LIB_VERSION
+            for file in $(grep -rl --include=Chart.yaml 'name: velotime-library' charts); do
+              yq -i '(.dependencies[] | select(.name == "velotime-library") | .version) = strenv(LIB_VERSION)' "$file"
+            done
+          fi
+
+          for chart in $APP_CHARTS; do
+            bump "$chart"
+          done
+
+      - name: Add chart repositories
+        run: helm repo add valkey https://valkey.io/valkey-helm/
+
+      - name: Update dependencies
+        run: |
+          set -e
+          for chart in charts/velotime/charts/*/ charts/velotime-migration/charts/*/; do
+            helm dependency update "$chart"
+          done
+          for chart in velotime-library $APP_CHARTS; do
+            helm dependency update "charts/$chart"
+          done
+
+      - name: Lint and package
+        run: |
+          set -e
+          for chart in velotime-library $APP_CHARTS; do
+            helm lint "charts/$chart"
+            helm package "charts/$chart" --destination .cr-release
+          done
+
+      - name: Push to GHCR
+        env:
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          echo "$REGISTRY_PASSWORD" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+          for pkg in .cr-release/*.tgz; do
+            helm push "$pkg" oci://ghcr.io/${{ github.repository_owner }}/charts
+          done
+
+      - name: Commit chart changes
+        run: |
+          set -e
+          git add charts/
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore(charts): release charts for ${APP_VERSION} [skip ci]"
+          git pull --rebase origin ${{ github.ref_name }}
+          git push origin HEAD:${{ github.ref_name }}

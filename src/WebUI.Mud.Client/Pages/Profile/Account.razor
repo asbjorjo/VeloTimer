@@ -1,0 +1,23 @@
+@inject NavigationManager Navigation;
+@inject IProfileService Profile
+
+<MudCard>
+    <MudText>@account.DisplayName</MudText>
+    @if (!account.IsConnected)
+    {
+        <MudLink Href="@("/authentication/addprovider/" + account.ProviderName)">@L["Link"]</MudLink>
+    } else
+    {
+        <MudButton OnClick="UnLink">@L["Unlink"]</MudButton>
+    }
+</MudCard>
+
+    @code {
+    [Parameter]
+    public required LinkedAccountView account { get; set; }
+
+    private async Task UnLink()
+    {
+        await Profile.DeleteLinkedAccountAsync(account.ProviderName);
+    }
+}

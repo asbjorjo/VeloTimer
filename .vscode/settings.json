@@ -1,0 +1,12 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "dotnet build": true,
+        "dotnet ef": true,
+        "dotnet restore": true,
+        "dotnet test": true,
+        "git diff": true,
+        "git status": true,
+        "git switch": true,
+        "git fetch": true
+    }
+}

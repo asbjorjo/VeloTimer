@@ -1,0 +1,104 @@
+{{- $root := . -}}
+{{- $prefix := .Release.Name -}}
+{{- if gt (len $prefix) 40 -}}
+  {{- $prefix = printf "%s-%s" ($prefix | trunc 31 | trimSuffix "-") ($prefix | sha256sum | trunc 8) -}}
+{{- end -}}
+{{- range $index, $domain := list "facilities" "statistics" "timing" "profiles" -}}
+{{- $api := index $root.Subcharts (printf "module-%s-api" $domain) -}}
+{{- $overrides := index $root.Values.migrationJobs.domains $domain | default dict -}}
+{{- $enabled := $api.Values.migration.enabled -}}
+{{- if has $domain (list "statistics" "timing") -}}
+  {{- $processor := index $root.Subcharts (printf "module-%s-processor" $domain) -}}
+  {{- $enabled = or $enabled $processor.Values.migration.enabled -}}
+{{- end -}}
+{{- if hasKey $overrides "enabled" -}}
+  {{- $enabled = $overrides.enabled -}}
+{{- end -}}
+{{- if $enabled -}}
+{{- $name := printf "%s-%s-migration" $prefix $domain -}}
+{{- $secret := $api.Values.existingSecret -}}
+{{- if hasKey $overrides "existingSecret" -}}
+  {{- $secret = $overrides.existingSecret -}}
+{{- end -}}
+{{- $database := mergeOverwrite (deepCopy $api.Values.database) ($overrides.database | default dict) -}}
+{{- $image := mergeOverwrite (deepCopy $api.Values.migration.image) ($overrides.image | default dict) -}}
+{{- if not $secret }}
+{{- $_ := required (printf "%s migration database.host is required" $domain) $database.host -}}
+{{- $_ := required (printf "%s migration database.port is required" $domain) $database.port -}}
+{{- $_ := required (printf "%s migration database.user is required" $domain) $database.user }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "velotime.labels" $root | nindent 4 }}
+    velotime.io/migration-domain: {{ $domain }}
+    velotime.io/migration-config: "true"
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-20"
+    helm.sh/hook-delete-policy: before-hook-creation
+type: Opaque
+stringData:
+  ConnectionStrings__velotimedb: {{ include "velotime.connectionStringPostgres" $database | quote }}
+{{- $secret = $name -}}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "velotime.labels" $root | nindent 4 }}
+    velotime.io/migration-domain: {{ $domain }}
+    velotime.io/migration-config: "true"
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-20"
+    helm.sh/hook-delete-policy: before-hook-creation
+data:
+  OIDC_AUDIENCE: {{ $api.Values.oidcAudience | default $root.Values.global.oidcAudience | quote }}
+  {{- include "velotime.oidcConfig" $api | nindent 2 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "velotime.labels" $root | nindent 4 }}
+    velotime.io/migration-domain: {{ $domain }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: {{ $index | toString | quote }}
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ $root.Values.migrationJobs.backoffLimit }}
+  activeDeadlineSeconds: {{ $root.Values.migrationJobs.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "velotime.selectorLabels" $root | nindent 8 }}
+        velotime.io/migration-domain: {{ $domain }}
+    spec:
+      restartPolicy: Never
+      {{- with $root.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $domain }}-migration
+          image: "{{ $root.Values.global.image.repository }}velotime-module-{{ $domain }}-migration:{{ $root.Values.global.image.tag }}"
+          imagePullPolicy: {{ $image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: {{ $name }}
+            - secretRef:
+                name: {{ $secret | quote }}
+          resources:
+            requests:
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+{{- end -}}
+{{- end -}}

@@ -1,0 +1,165 @@
+﻿@inherits LayoutComponentBase
+@inject IStringLocalizer<SharedResource> L
+@inject NavigationManager NavigationManager
+@inject DisplayPreferenceState Preferences
+@inject AuthenticationStateProvider Authentication
+@implements IDisposable
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudStaticNavDrawerToggle DrawerId="nav-drawer" Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" aria-label="@L["ToggleNavigation"]" />
+        <MudText Typo="Typo.h5" Class="ml-3">VeloTime</MudText>
+        <MudSpacer />
+        <LanguageSelector IsAppBar="true" />
+        <AuthorizeView>
+            <Authorized>
+                <MudIconButton Href="profile" Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" Edge="Edge.End" aria-label="@L["Profile"]" />
+                <form action="authentication/logout" method="post" class="d-flex align-center">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="ReturnUrl" value="@NavigationManager.ToBaseRelativePath(NavigationManager.Uri)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" Edge="Edge.End" ButtonType="ButtonType.Submit" aria-label="@L["Logout"]" />
+                </form>
+            </Authorized>
+            <NotAuthorized>
+                <MudIconButton Href="authentication/login" Icon="@Icons.Material.Filled.Login" Color="Color.Inherit" Edge="Edge.End" aria-label="@L["Login"]" />
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudAppBar>
+    <MudDrawer id="nav-drawer" @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent>
+        @if (_preferenceError is not null)
+        {
+            <MudAlert Severity="Severity.Error" role="alert">@L[_preferenceError]</MudAlert>
+            <MudButton OnClick="RetryPreferences" Disabled="_preferenceLoading">@L["Retry"]</MudButton>
+        }
+        else if (!Preferences.Effective.IsReady)
+        {
+            <MudProgressLinear Indeterminate="true" aria-label="@L["DisplaySettingsLoading"]" />
+            <MudText role="status">@L["DisplaySettingsLoading"]</MudText>
+        }
+        else
+        {
+            <CascadingValue Value="Preferences.Effective">
+                @Body
+            </CascadingValue>
+        }
+    </MudMainContent>
+</MudLayout>
+
+
+<div id="blazor-error-ui" data-nosnippet>
+    @L["UnhandledError"]
+    <a href="." class="reload">@L["Reload"]</a>
+    <button type="button" class="dismiss" aria-label="@L["DismissError"]">🗙</button>
+</div>
+
+@code {
+    private bool _drawerOpen = true;
+    private readonly CancellationTokenSource _lifetime = new();
+    private string? _preferenceError;
+    private bool _preferenceLoading;
+    private bool _identityInitialized;
+    private string? _identityKey;
+    private bool _reloadAfterCurrentLoad;
+
+    protected override void OnInitialized()
+    {
+        Preferences.Changed += PreferencesChanged;
+        Authentication.AuthenticationStateChanged += AuthenticationChanged;
+    }
+
+    private void PreferencesChanged() { if (!_lifetime.IsCancellationRequested) _ = InvokeAsync(StateHasChanged); }
+    protected override Task OnAfterRenderAsync(bool firstRender) => firstRender ? LoadPreferences(false) : Task.CompletedTask;
+    private Task RetryPreferences() => LoadPreferences(true);
+
+    private void AuthenticationChanged(Task<AuthenticationState> authenticationState) =>
+        _ = HandleAuthenticationChange(authenticationState);
+
+    private async Task HandleAuthenticationChange(Task<AuthenticationState> authenticationState)
+    {
+        try
+        {
+            var state = await authenticationState;
+            await InvokeAsync(async () =>
+            {
+                if (_lifetime.IsCancellationRequested) return;
+                var identity = IdentityKey(state);
+                if (!_identityInitialized)
+                {
+                    _identityInitialized = true;
+                    _identityKey = identity;
+                    return;
+                }
+                if (StringComparer.Ordinal.Equals(_identityKey, identity)) return;
+
+                _identityKey = identity;
+                Preferences.ResetForAuthenticationChange();
+                _preferenceError = null;
+                await LoadPreferences(false);
+            });
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception) when (_lifetime.IsCancellationRequested) { }
+    }
+
+    private async Task LoadPreferences(bool retry)
+    {
+        if (_preferenceLoading)
+        {
+            _reloadAfterCurrentLoad = true;
+            return;
+        }
+        _preferenceLoading = true;
+        _preferenceError = null;
+        try
+        {
+            var authState = await Authentication.GetAuthenticationStateAsync();
+            var identity = IdentityKey(authState);
+            if (_identityInitialized && !StringComparer.Ordinal.Equals(_identityKey, identity))
+                Preferences.ResetForAuthenticationChange();
+            _identityInitialized = true;
+            _identityKey = identity;
+            var signedIn = authState.User.Identity?.IsAuthenticated == true;
+            if (retry) await Preferences.RetryAsync(signedIn, _lifetime.Token);
+            else await Preferences.InitializeAsync(signedIn, _lifetime.Token);
+        }
+        catch (OperationCanceledException) { }
+        catch (HttpRequestException exception) { _preferenceError = exception.StatusCode switch
+            { System.Net.HttpStatusCode.Unauthorized => "SignInRequired", System.Net.HttpStatusCode.Forbidden => "NoPermission", _ => "DisplaySettingsLoadFailed" }; }
+        catch (Exception) { _preferenceError = "DisplaySettingsLoadFailed"; }
+        finally
+        {
+            _preferenceLoading = false;
+            if (!_lifetime.IsCancellationRequested) StateHasChanged();
+            if (_reloadAfterCurrentLoad && !_lifetime.IsCancellationRequested)
+            {
+                _reloadAfterCurrentLoad = false;
+                _ = LoadPreferences(false);
+            }
+        }
+    }
+
+    private static string? IdentityKey(AuthenticationState state)
+    {
+        var user = state.User;
+        if (user.Identity?.IsAuthenticated != true) return null;
+        var issuer = user.FindFirst("iss")?.Value ?? "";
+        var subject = user.FindFirst("sub")?.Value ?? "";
+        var session = user.FindFirst("sid")?.Value ?? "";
+        return $"{issuer.Length}:{issuer}|{subject.Length}:{subject}|{session.Length}:{session}";
+    }
+
+    public void Dispose()
+    {
+        Preferences.Changed -= PreferencesChanged;
+        Authentication.AuthenticationStateChanged -= AuthenticationChanged;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}
