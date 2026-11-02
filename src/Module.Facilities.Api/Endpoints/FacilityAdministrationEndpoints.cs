@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
@@ -199,7 +200,7 @@ internal static class FacilityAdministrationEndpoints
 
     private static async Task<IResult> SetTimingLink(Guid id, SetCoursePointTimingLinkRequest request,
         FacilityDbContext storage, IAdministrationReferences references,
-        IDataProtectionProvider protectionProvider, ITimingAssociationEventPublisher publisher,
+        IDataProtectionProvider protectionProvider, [FromServices] ITimingAssociationEventPublisher publisher,
         HybridCache cache, IOutputCacheStore output,
         ICacheInvalidationOperations invalidation, ILogger<FacilityDbContext> logger, CancellationToken cancellationToken)
     {
@@ -245,7 +246,7 @@ internal static class FacilityAdministrationEndpoints
     private static async Task<IResult> SetTimingAssociation(Guid id,
         SetCoursePointTimingAssociationRequest request, FacilityDbContext storage,
         IAdministrationReferences references, IDataProtectionProvider protectionProvider,
-        ITimingAssociationEventPublisher publisher,
+        [FromServices] ITimingAssociationEventPublisher publisher,
         HybridCache cache, IOutputCacheStore output, ICacheInvalidationOperations invalidation,
         ILogger<FacilityDbContext> logger, CancellationToken cancellationToken)
     {

@@ -30,6 +30,7 @@ builder.Services.AddOutputCache(options =>
 });
 
 builder.AddModuleFacilities();
+builder.AddFacilitiesDataProtection();
 // OpenAPI generation is not an enabled API host and must not dispatch events.
 if (Assembly.GetEntryAssembly()?.GetName().Name != "GetDocument.Insider")
     builder.AddTimingAssociationMessaging();

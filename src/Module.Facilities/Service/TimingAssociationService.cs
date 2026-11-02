@@ -77,33 +77,40 @@ public sealed class TimingAssociationService
     public async Task<IReadOnlyList<CoursePointTimingAssociationSnapshot>> GetHistoryAsync(
         Guid coursePointId, CancellationToken cancellationToken)
     {
-        return await storage.Set<CoursePointTimingAssociation>().AsNoTracking()
+        var snapshots = await storage.Set<CoursePointTimingAssociation>().AsNoTracking()
             .Where(association => association.CoursePointId == coursePointId)
-            .OrderBy(association => association.ValidFromUtc.HasValue)
-            .ThenBy(association => association.ValidFromUtc)
-            .ThenBy(association => association.ValidToUtc.HasValue)
-            .ThenBy(association => association.ValidToUtc)
             .Select(association => new CoursePointTimingAssociationSnapshot(
                 association.TimingPointId, association.CoursePointId,
                 association.ValidFromUtc, association.ValidToUtc))
             .ToListAsync(cancellationToken);
+        // Contract order: lower bound ascending with null (-infinity) first, then upper bound
+        // ascending with null (+infinity) last. One coursepoint's history is small, so ordering
+        // in memory keeps the null placement explicit and provider-independent.
+        return OrderSnapshots(snapshots);
     }
 
+    /// <summary>
+    /// Protects the exact approved conflict state: the requested change, every destination
+    /// overlap, and every complete source association of the requested coursepoint that overlaps
+    /// the requested interval. Source state is bound internally only; the preview shape is unchanged.
+    /// </summary>
     public string CreateConfirmationToken(TimingAssociationRequestedChange requested,
-        IReadOnlyList<TimingAssociationDestinationConflict> conflicts)
+        IReadOnlyList<TimingAssociationDestinationConflict> conflicts,
+        IReadOnlyList<CoursePointTimingAssociationSnapshot> sourceState)
     {
-        var state = JsonSerializer.Serialize(new ConfirmationState(requested, conflicts));
+        var state = JsonSerializer.Serialize(new ConfirmationState(requested, conflicts, sourceState));
         return RequireConfirmationProtector().Protect(state);
     }
 
     public bool ConfirmationMatches(string? token, TimingAssociationRequestedChange requested,
-        IReadOnlyList<TimingAssociationDestinationConflict> conflicts)
+        IReadOnlyList<TimingAssociationDestinationConflict> conflicts,
+        IReadOnlyList<CoursePointTimingAssociationSnapshot> sourceState)
     {
         if (string.IsNullOrEmpty(token)) return false;
         try
         {
             var actual = RequireConfirmationProtector().Unprotect(token);
-            var expected = JsonSerializer.Serialize(new ConfirmationState(requested, conflicts));
+            var expected = JsonSerializer.Serialize(new ConfirmationState(requested, conflicts, sourceState));
             return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(actual), Encoding.UTF8.GetBytes(expected));
         }
         catch (CryptographicException)
@@ -156,26 +163,30 @@ public sealed class TimingAssociationService
             return new TimingAssociationDestinationConflict(ToSnapshot(association), overlap.From, overlap.To);
         }).OrderBy(conflict => conflict.OverlapValidFromUtc.HasValue)
             .ThenBy(conflict => conflict.OverlapValidFromUtc)
-            .ThenBy(conflict => conflict.OverlapValidToUtc.HasValue)
+            .ThenByDescending(conflict => conflict.OverlapValidToUtc.HasValue)
             .ThenBy(conflict => conflict.OverlapValidToUtc)
             .ToList();
 
-        if (request.ConfirmationToken is not null)
-        {
-            if (!ConfirmationMatches(request.ConfirmationToken, requested, conflicts))
-                return await FreshPreviewAsync("confirmation-stale", requested, conflicts, transaction, cancellationToken);
-        }
-        else if (conflicts.Count > 0)
-        {
-            return await FreshPreviewAsync("destination-occupied", requested, conflicts, transaction, cancellationToken);
-        }
-
-        await DeferExclusionConstraintsAsync(cancellationToken);
+        // Read the requested coursepoint's overlapping source rows in the same locked transaction
+        // so a confirmation is rejected when either side changed after the preview was issued.
         var source = await storage.Set<CoursePointTimingAssociation>()
             .Where(association => association.CoursePointId == coursePointId &&
                 (!association.ValidToUtc.HasValue || !from.HasValue || association.ValidToUtc > from) &&
                 (!to.HasValue || !association.ValidFromUtc.HasValue || association.ValidFromUtc < to))
             .ToListAsync(cancellationToken);
+        var sourceState = OrderSnapshots(source.Select(ToSnapshot));
+
+        if (request.ConfirmationToken is not null)
+        {
+            if (!ConfirmationMatches(request.ConfirmationToken, requested, conflicts, sourceState))
+                return await FreshPreviewAsync("confirmation-stale", requested, conflicts, sourceState, transaction, cancellationToken);
+        }
+        else if (conflicts.Count > 0)
+        {
+            return await FreshPreviewAsync("destination-occupied", requested, conflicts, sourceState, transaction, cancellationToken);
+        }
+
+        await DeferExclusionConstraintsAsync(cancellationToken);
 
         var deltas = new List<CoursePointTimingAssociationChange>();
         var destinationChanges = new List<(CoursePointTimingAssociation Association, Interval Overlap)>();
@@ -256,10 +267,11 @@ public sealed class TimingAssociationService
 
     private async Task<TimingAssociationEditResult> FreshPreviewAsync(string code,
         TimingAssociationRequestedChange requested, IReadOnlyList<TimingAssociationDestinationConflict> conflicts,
+        IReadOnlyList<CoursePointTimingAssociationSnapshot> sourceState,
         IDbContextTransaction transaction, CancellationToken cancellationToken)
     {
         var preview = new TimingAssociationConflictPreview(code, requested, conflicts,
-            CreateConfirmationToken(requested, conflicts));
+            CreateConfirmationToken(requested, conflicts, sourceState));
         await transaction.RollbackAsync(cancellationToken);
         return new TimingAssociationEditResult(null, [], preview, null);
     }
@@ -345,6 +357,15 @@ public sealed class TimingAssociationService
             interval.From.Value < interval.To.Value).ToList();
     }
 
+    private static IReadOnlyList<CoursePointTimingAssociationSnapshot> OrderSnapshots(
+        IEnumerable<CoursePointTimingAssociationSnapshot> snapshots) =>
+        snapshots.OrderBy(snapshot => snapshot.ValidFromUtc.HasValue)
+            .ThenBy(snapshot => snapshot.ValidFromUtc)
+            .ThenByDescending(snapshot => snapshot.ValidToUtc.HasValue)
+            .ThenBy(snapshot => snapshot.ValidToUtc)
+            .ThenBy(snapshot => snapshot.TimingPointId)
+            .ToList();
+
     private static CoursePointTimingAssociationSnapshot ToSnapshot(CoursePointTimingAssociation association) =>
         Snapshot(association.TimingPointId, association.CoursePointId, association.ValidFromUtc, association.ValidToUtc);
 
@@ -357,7 +378,8 @@ public sealed class TimingAssociationService
 
     private readonly record struct Interval(DateTimeOffset? From, DateTimeOffset? To);
     private sealed record ConfirmationState(TimingAssociationRequestedChange Requested,
-        IReadOnlyList<TimingAssociationDestinationConflict> Conflicts);
+        IReadOnlyList<TimingAssociationDestinationConflict> Conflicts,
+        IReadOnlyList<CoursePointTimingAssociationSnapshot> Source);
 }
 
 public sealed record TimingAssociationEditResult(Guid? ChangeId,
