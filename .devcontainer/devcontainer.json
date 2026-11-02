@@ -21,11 +21,11 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"davidanson.vscode-markdownlint"
+				"davidanson.vscode-markdownlint",
+				"ms-dotnettools.csdevkit"
 			]
 		}
 	},
-
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [5000, 5001],
 	// "portsAttributes": {
@@ -33,13 +33,10 @@
 	//			"protocol": "https"
 	//		}
 	// }
-
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "dotnet restore",
-
 	// Configure tool-specific properties.
 	// "customizations": {},
-
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
 }
