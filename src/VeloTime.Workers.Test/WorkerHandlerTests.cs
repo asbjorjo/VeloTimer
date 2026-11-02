@@ -91,13 +91,13 @@ public sealed class WorkerHandlerTests
 
         Assert.Equal(6, recorder.Published.Count);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.InstallationLayoutEvent>(recorder.Published[0].Payload);
-        Assert.IsAssignableFrom<IEnumerable<VeloTime.Agent.Interface.Messages.Events.LoopConfigEvent>>(recorder.Published[1].Payload);
+        Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopConfigEvent>(recorder.Published[1].Payload);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent>(recorder.Published[2].Payload);
-        Assert.IsAssignableFrom<IEnumerable<VeloTime.Agent.Interface.Messages.Events.PassingEvent>>(recorder.Published[3].Payload);
-        var sentPassing = Assert.Single((IEnumerable<VeloTime.Agent.Interface.Messages.Events.PassingEvent>)recorder.Published[3].Payload!);
+        Assert.IsType<VeloTime.Agent.Interface.Messages.Events.PassingEvent>(recorder.Published[3].Payload);
+        var sentPassing = Assert.IsType<PassingEvent>(recorder.Published[3].Payload);
         Assert.True(sentPassing.LowBattery && sentPassing.LowStrength && sentPassing.LowHits);
-        Assert.IsAssignableFrom<IEnumerable<VeloTime.Agent.Interface.Messages.Events.SegmentConfigEvent>>(recorder.Published[4].Payload);
-        Assert.IsAssignableFrom<IEnumerable<VeloTime.Agent.Interface.Messages.Events.SystemConfigEvent>>(recorder.Published[5].Payload);
+        Assert.IsType<VeloTime.Agent.Interface.Messages.Events.SegmentConfigEvent>(recorder.Published[4].Payload);
+        Assert.IsType<VeloTime.Agent.Interface.Messages.Events.SystemConfigEvent>(recorder.Published[5].Payload);
         var storedPassing = await storage.Set<VeloTime.Agent.Model.Passing>().SingleAsync();
         Assert.True(storedPassing.LowBattery && storedPassing.LowStrength && storedPassing.LowHits);
     }

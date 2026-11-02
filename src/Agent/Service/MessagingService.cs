@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus;
 using System.Diagnostics;
@@ -10,62 +11,97 @@ namespace VeloTime.Agent.Service;
 
 public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, Metrics metrics, ILogger<MessagingService> log)
 {
-    private bool Resend = true;
+    public Task SendEventAsync(InstallationConfig config) => SendEventAsync(config, CancellationToken.None);
 
-    public async Task SendEventAsync(InstallationConfig config)
+    public Task SendEventAsync(InstallationConfig config, CancellationToken cancellationToken) =>
+        EnqueueAsync([config], m => m.ToMessage(), "Installation Config", cancellationToken);
+
+    public Task SendEventsAsync(IEnumerable<LoopConfig> config) => SendEventsAsync(config, CancellationToken.None);
+
+    public Task SendEventsAsync(IEnumerable<LoopConfig> config, CancellationToken cancellationToken) =>
+        EnqueueAsync(config, m => m.ToMessage(), "Loop Config", cancellationToken);
+
+    public Task SendEventAsync(LoopStatus status) => SendEventAsync(status, CancellationToken.None);
+
+    public Task SendEventAsync(LoopStatus status, CancellationToken cancellationToken) =>
+        EnqueueAsync([status], m => m.ToMessage(), "Loop Status", cancellationToken);
+
+    public Task SendEventsAsync(IEnumerable<Passing> passing) => SendEventsAsync(passing, CancellationToken.None);
+
+    public Task SendEventsAsync(IEnumerable<Passing> passing, CancellationToken cancellationToken) =>
+        EnqueueAsync(passing, m => m.ToMessage(), "Passings", cancellationToken, PreparePassingsAsync, processedPassing: true);
+
+    public Task SendEventsAsync(IEnumerable<SegmentConfig> config) => SendEventsAsync(config, CancellationToken.None);
+
+    public Task SendEventsAsync(IEnumerable<SegmentConfig> config, CancellationToken cancellationToken) =>
+        EnqueueAsync(config, m => m.ToMessage(), "Segment Config", cancellationToken);
+
+    public Task SendEventsAsync(IEnumerable<SystemConfig> config) => SendEventsAsync(config, CancellationToken.None);
+
+    public Task SendEventsAsync(IEnumerable<SystemConfig> config, CancellationToken cancellationToken) =>
+        EnqueueAsync(config, m => m.ToMessage(), "System Config", cancellationToken);
+
+    private async Task<Passing[]> PreparePassingsAsync(Passing[] batch, CancellationToken cancellationToken)
     {
-        await messageBus.Publish(config.ToMessage());
+        var unique = batch.DistinctBy(p => p.Id).ToArray();
+        var ids = unique.Select(p => p.Id).ToArray();
+        var persisted = await dbContext.Set<Passing>().AsNoTracking()
+            .Where(p => ids.Contains(p.Id)).Select(p => p.Id).ToArrayAsync(cancellationToken);
+        var pending = unique.ExceptBy(persisted, p => p.Id).ToArray();
+        await dbContext.AddRangeAsync(pending, cancellationToken);
+        return pending;
     }
 
-    public async Task SendEventsAsync(IEnumerable<LoopConfig> config)
+    private async Task EnqueueAsync<TModel, TMessage>(IEnumerable<TModel> input, Func<TModel, TMessage> map,
+        string operation, CancellationToken cancellationToken,
+        Func<TModel[], CancellationToken, Task<TModel[]>>? prepare = null, bool processedPassing = false)
+        where TMessage : class
     {
-        await messageBus.Publish(config.Select(m => m.ToMessage()));
-    }
-
-    public async Task SendEventAsync(LoopStatus status)
-    {
-        using var activity = Instrumentation.Source.StartActivity("Send Loop Status");
-
-        await messageBus.Publish(status.ToMessage());
-
-        activity?.SetStatus(ActivityStatusCode.Ok);
-    }
-
-    public async Task SendEventsAsync(IEnumerable<Passing> passing)
-    {
-        using var activity = Instrumentation.Source.StartActivity("Send Passings");
-        activity?.SetTag("count", passing.Count());
-        log.LogSendingEvents("Passing", passing.Count());
-        if (Resend)
+        using var activity = Instrumentation.Source.StartActivity($"Send {operation}");
+        IDbContextTransaction? transaction = null;
+        var count = 0;
+        var accepted = 0;
+        try
         {
-           var sent = await dbContext.Set<Passing>()
-                .Where(p => passing.Select(p => p.Id).Contains(p.Id))
-                .ToListAsync();
-            if (sent.Any())
+            var batch = input.ToArray();
+            count = batch.Length;
+            activity?.SetTag("count", count);
+            if (count == 0) return;
+            log.LogSendingEvents(operation, count);
+            transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            if (prepare != null) batch = await prepare(batch, cancellationToken);
+            foreach (var item in batch)
             {
-                passing = passing.ExceptBy(sent.Select(p => p.Id), p => p.Id);
-                await messageBus.Publish(passing.Select(m => m.ToMessage()));
-            } 
-            
-            if (passing.Any())
-            {
-                Resend = false;
+                // Collection publishes bypass SlimMessageBus 3.4 outbox interceptors.
+                await messageBus.Publish(map(item), cancellationToken: cancellationToken);
             }
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            accepted = batch.Length;
         }
-        await dbContext.AddRangeAsync(passing);
-        await messageBus.Publish(passing.Select(m => m.ToMessage()));
-        await dbContext.SaveChangesAsync();
+        catch (Exception exception)
+        {
+            activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
+            log.LogError(exception, "Failed to durably enqueue {Count} events for {Operation}.", count, operation);
+            try
+            {
+                if (transaction != null) await transaction.RollbackAsync(CancellationToken.None);
+            }
+            catch (Exception rollbackException)
+            {
+                log.LogError(rollbackException, "Rollback failed for {Operation}.", operation);
+            }
+            finally
+            {
+                dbContext.ChangeTracker.Clear();
+            }
+            throw;
+        }
+        finally
+        {
+            if (transaction != null) await transaction.DisposeAsync();
+        }
         activity?.SetStatus(ActivityStatusCode.Ok);
-        metrics.ProcessedPassing(passing.Count(), activity);
-    }
-
-    public async Task SendEventsAsync(IEnumerable<SegmentConfig> config)
-    {
-        await messageBus.Publish(config.Select(m => m.ToMessage()));
-    }
-
-    public async Task SendEventsAsync(IEnumerable<SystemConfig> config)
-    {
-        await messageBus.Publish(config.Select(m => m.ToMessage()));
+        if (processedPassing) metrics.ProcessedPassing(accepted, activity);
     }
 }

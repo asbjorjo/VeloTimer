@@ -35,8 +35,10 @@ namespace VeloTime.Agent.Dummy
                     messages.Add(passing);
                 }
 
-                await messagingService.Publish(messages, cancellationToken: cancellationToken);
-                await Task.Delay(TimeSpan.FromSeconds(5));
+                foreach (var message in messages)
+                    await messagingService.Publish(message, cancellationToken: cancellationToken);
+                messages.Clear();
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
             }
         }
 
