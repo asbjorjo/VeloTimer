@@ -10,6 +10,8 @@
         "git diff": true,
         "git status": true,
         "git switch": true,
-        "git fetch": true
-    }
+        "git fetch": true,
+        "git worktree": true
+    },
+    "dotnet.defaultSolution": "VeloTimer.sln"
 }
