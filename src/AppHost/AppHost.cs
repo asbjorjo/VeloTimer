@@ -80,6 +80,7 @@ if (builder.Environment.IsDevelopment())
 
 var facilityapi = builder.AddProject<Projects.VeloTime_Module_Facilities_Api>("module-facilities-api")
     .WithEnvironment("OIDC_AUDIENCE", oidcAudience)
+    .WithReference(servicebusconnection)
     .WithReference(cache)
     .WithReference(velotimedb)
     .WithReference(keycloak)
