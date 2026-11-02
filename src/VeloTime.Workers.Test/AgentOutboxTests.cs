@@ -42,6 +42,7 @@ public sealed class AgentOutboxTests : IAsyncLifetime
     private readonly List<IHost> hosts = [];
     private readonly TestLogs logs = new();
     private readonly CommitFailure commitFailure = new();
+    private readonly PassingInsertGate insertGate = new();
     private string adminConnection = "";
     private string connectionString = "";
 
@@ -144,6 +145,88 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         Assert.Equal(0, await Scalar("SELECT count(*)::int FROM agent.passing WHERE low_battery"));
         Assert.Equal(3, await Scalar("SELECT count(*)::int FROM agent.smb_outbox"));
     }
+
+    [PostgreSqlOutboxFact]
+    public async Task ConcurrentPassingResendsInSeparateScopesAreDeduplicatedNotErrors()
+    {
+        var host = await StartHost(new TestSender());
+        await using var firstScope = host.Services.CreateAsyncScope();
+        await using var secondScope = host.Services.CreateAsyncScope();
+        insertGate.Target = firstScope.ServiceProvider.GetRequiredService<AgentDbContext>();
+        var first = Task.Run(() => firstScope.ServiceProvider.GetRequiredService<MessagingService>()
+            .SendEventsAsync([KeyedPassing("shared"), KeyedPassing("first-only")]));
+        // The first call has inserted "shared" and its outbox row but not committed; the second call must block on that row.
+        await insertGate.Inserted.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        var second = Task.Run(() => secondScope.ServiceProvider.GetRequiredService<MessagingService>()
+            .SendEventsAsync([KeyedPassing("second-only"), KeyedPassing("shared", true)]));
+        await WaitUntil(async () => await Scalar(
+            $"SELECT count(*)::int FROM pg_stat_activity WHERE datname = '{databaseName}' AND wait_event_type = 'Lock'") == 1);
+        insertGate.Release();
+        await Task.WhenAll(first, second);
+
+        Assert.Equal(3, await Scalar("SELECT count(*)::int FROM agent.passing"));
+        Assert.Equal(0, await Scalar("SELECT count(*)::int FROM agent.passing WHERE low_battery"));
+        Assert.Equal(3, await Scalar("SELECT count(*)::int FROM agent.smb_outbox"));
+        foreach (var id in new[] { "shared", "first-only", "second-only" })
+            Assert.Equal(1, await OutboxPassingCount(id));
+    }
+
+    [PostgreSqlOutboxFact]
+    public async Task ConcurrentPassingResendInsertsWhenWinningTransactionRollsBack()
+    {
+        var host = await StartHost(new TestSender());
+        await using var firstScope = host.Services.CreateAsyncScope();
+        await using var secondScope = host.Services.CreateAsyncScope();
+        insertGate.Target = firstScope.ServiceProvider.GetRequiredService<AgentDbContext>();
+        insertGate.FailCommit = true;
+        var first = Task.Run(() => firstScope.ServiceProvider.GetRequiredService<MessagingService>()
+            .SendEventsAsync([KeyedPassing("shared"), KeyedPassing("first-only")]));
+        await insertGate.Inserted.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        var second = Task.Run(() => secondScope.ServiceProvider.GetRequiredService<MessagingService>()
+            .SendEventsAsync([KeyedPassing("shared", true), KeyedPassing("second-only")]));
+        await WaitUntil(async () => await Scalar(
+            $"SELECT count(*)::int FROM pg_stat_activity WHERE datname = '{databaseName}' AND wait_event_type = 'Lock'") == 1);
+        insertGate.Release();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => first);
+        await second;
+
+        Assert.Equal(2, await Scalar("SELECT count(*)::int FROM agent.passing"));
+        Assert.Equal(1, await Scalar("SELECT count(*)::int FROM agent.passing WHERE id = 'shared' AND low_battery"));
+        Assert.Equal(2, await Scalar("SELECT count(*)::int FROM agent.smb_outbox"));
+        Assert.Equal(1, await OutboxPassingCount("shared"));
+        Assert.Equal(1, await OutboxPassingCount("second-only"));
+        Assert.Equal(0, await OutboxPassingCount("first-only"));
+    }
+
+    [PostgreSqlOutboxFact]
+    public async Task LargeMultiChunkPassingBatchIsInsertedAndEnqueuedOncePerPassing()
+    {
+        var host = await StartHost(new TestSender());
+        var ids = Enumerable.Range(0, 2500).Select(i => $"p{2500 - i:D5}").ToArray();
+        await using (var scope = host.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<MessagingService>().SendEventsAsync(ids.Select(id => KeyedPassing(id)));
+        Assert.Equal(2500, await Scalar("SELECT count(*)::int FROM agent.passing"));
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            $"SELECT {OutboxPassingId} FROM agent.smb_outbox", connection);
+        var enqueued = new List<string>();
+        await using (var reader = await command.ExecuteReaderAsync())
+            while (await reader.ReadAsync()) enqueued.Add(reader.GetString(0));
+        Assert.Equal(ids.Order(StringComparer.Ordinal), enqueued.Order(StringComparer.Ordinal));
+    }
+
+    // PassingEvent carries no passing ID, so these tests key each passing by a unique LoopId.
+    private const string OutboxPassingId =
+        "coalesce(convert_from(message_payload, 'UTF8')::jsonb->>'LoopId', convert_from(message_payload, 'UTF8')::jsonb->>'loopId')";
+
+    private static Passing KeyedPassing(string id, bool lowBattery = false) => new()
+    {
+        Id = id, Time = DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = id, LowBattery = lowBattery
+    };
+
+    private Task<int> OutboxPassingCount(string id) =>
+        Scalar($"SELECT count(*)::int FROM agent.smb_outbox WHERE {OutboxPassingId} = '{id}'");
 
     [PostgreSqlOutboxFact]
     public async Task SerializationFailureMidBatchRollsBackOutboxAndClearsTracker()
@@ -257,6 +340,25 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         }
     }
 
+    /// <summary>Holds one context's enqueue transaction open (inserted but uncommitted) until released.</summary>
+    private sealed class PassingInsertGate : DbTransactionInterceptor
+    {
+        private readonly TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public DbContext? Target { get; set; }
+        public bool FailCommit { get; set; }
+        public TaskCompletionSource Inserted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public void Release() => release.TrySetResult();
+        public override async ValueTask<InterceptionResult> TransactionCommittingAsync(DbTransaction transaction, TransactionEventData eventData,
+            InterceptionResult result, CancellationToken cancellationToken = default)
+        {
+            if (Target == null || !ReferenceEquals(eventData.Context, Target)) return result;
+            Inserted.TrySetResult();
+            await release.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+            if (FailCommit) throw new InvalidOperationException("Simulated commit failure.");
+            return result;
+        }
+    }
+
     private sealed class TestLogs : ILoggerProvider
     {
         public ConcurrentQueue<string> Errors { get; } = new();
@@ -329,7 +431,7 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         });
         builder.Services.AddSingleton<IControlService, TestControl>();
         builder.ConfigureAgent();
-        builder.Services.ConfigureDbContext<AgentDbContext>(options => options.AddInterceptors(commitFailure), ServiceLifetime.Singleton);
+        builder.Services.ConfigureDbContext<AgentDbContext>(options => options.AddInterceptors(commitFailure, insertGate), ServiceLifetime.Singleton);
         var host = builder.Build();
         hosts.Add(host);
         var bus = Assert.IsType<ServiceBusMessageBus>(((IMessageBusTarget)host.Services.GetRequiredService<IMessageBus>()).Target);

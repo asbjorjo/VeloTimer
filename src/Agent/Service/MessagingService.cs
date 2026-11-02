@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus;
+using System.Data.Common;
 using System.Diagnostics;
 using VeloTime.Agent.Logging;
 using VeloTime.Agent.Model;
@@ -41,15 +44,84 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
     public Task SendEventsAsync(IEnumerable<SystemConfig> config, CancellationToken cancellationToken) =>
         EnqueueAsync(config, m => m.ToMessage(), "System Config", cancellationToken);
 
+    // Keeps each multi-row insert well below provider parameter limits (8 parameters per passing).
+    private const int PassingInsertChunkSize = 1000;
+
     private async Task<Passing[]> PreparePassingsAsync(Passing[] batch, CancellationToken cancellationToken)
     {
         var unique = batch.DistinctBy(p => p.Id).ToArray();
-        var ids = unique.Select(p => p.Id).ToArray();
-        var persisted = await dbContext.Set<Passing>().AsNoTracking()
-            .Where(p => ids.Contains(p.Id)).Select(p => p.Id).ToArrayAsync(cancellationToken);
-        var pending = unique.ExceptBy(persisted, p => p.Id).ToArray();
-        await dbContext.AddRangeAsync(pending, cancellationToken);
-        return pending;
+        // Insert in a stable key order so concurrent overlapping batches acquire row locks consistently.
+        var ordered = unique.OrderBy(p => p.Id, StringComparer.Ordinal).ToArray();
+        var inserted = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var chunk in ordered.Chunk(PassingInsertChunkSize))
+            inserted.UnionWith(await InsertPassingsIfAbsentAsync(chunk, cancellationToken));
+        return unique.Where(p => inserted.Contains(p.Id)).ToArray();
+    }
+
+    /// <summary>
+    /// Inserts passings in the current transaction, skipping IDs that already exist or are being inserted by a
+    /// concurrent transaction (which blocks until that transaction commits or rolls back). Returns inserted IDs.
+    /// </summary>
+    private async Task<List<string>> InsertPassingsIfAbsentAsync(Passing[] chunk, CancellationToken cancellationToken)
+    {
+        var entity = dbContext.Model.FindEntityType(typeof(Passing))
+            ?? throw new InvalidOperationException("Passing is not mapped in AgentDbContext.");
+        var tableName = entity.GetTableName()
+            ?? throw new InvalidOperationException("Passing is not mapped to a table.");
+        var schema = entity.GetSchema();
+        var table = StoreObjectIdentifier.Table(tableName, schema);
+        var sql = dbContext.GetService<ISqlGenerationHelper>();
+        string Column(string property) => sql.DelimitIdentifier(entity.FindProperty(property)!.GetColumnName(table)!);
+        string[] columns =
+        [
+            Column(nameof(Passing.Id)), Column(nameof(Passing.Time)), Column(nameof(Passing.TransponderType)),
+            Column(nameof(Passing.TransponderId)), Column(nameof(Passing.LoopId)), Column(nameof(Passing.LowBattery)),
+            Column(nameof(Passing.LowStrength)), Column(nameof(Passing.LowHits))
+        ];
+
+        var connection = dbContext.Database.GetDbConnection();
+        await using var command = connection.CreateCommand();
+        command.Transaction = dbContext.Database.CurrentTransaction?.GetDbTransaction()
+            ?? throw new InvalidOperationException("Passings must be inserted inside the enqueue transaction.");
+        if (dbContext.Database.GetCommandTimeout() is { } timeout) command.CommandTimeout = timeout;
+
+        var rows = new List<string>(chunk.Length);
+        var index = 0;
+        foreach (var passing in chunk)
+        {
+            object[] values =
+            [
+                passing.Id, passing.Time, passing.TransponderType, passing.TransponderId, passing.LoopId,
+                passing.LowBattery, passing.LowStrength, passing.LowHits
+            ];
+            var names = new string[values.Length];
+            for (var i = 0; i < values.Length; i++)
+            {
+                var parameter = command.CreateParameter();
+                parameter.ParameterName = $"@p{index++}";
+                parameter.Value = values[i];
+                command.Parameters.Add(parameter);
+                names[i] = parameter.ParameterName;
+            }
+            rows.Add($"({string.Join(", ", names)})");
+        }
+        var id = columns[0];
+        command.CommandText =
+            $"INSERT INTO {sql.DelimitIdentifier(tableName, schema)} ({string.Join(", ", columns)}) " +
+            $"VALUES {string.Join(", ", rows)} ON CONFLICT ({id}) DO NOTHING RETURNING {id}";
+
+        var inserted = new List<string>(chunk.Length);
+        try
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken)) inserted.Add(reader.GetString(0));
+        }
+        catch (DbException exception)
+        {
+            // Keep the store-failure contract callers saw when passings were saved through EF.
+            throw new DbUpdateException("An error occurred while saving passings.", exception);
+        }
+        return inserted;
     }
 
     private async Task EnqueueAsync<TModel, TMessage>(IEnumerable<TModel> input, Func<TModel, TMessage> map,
