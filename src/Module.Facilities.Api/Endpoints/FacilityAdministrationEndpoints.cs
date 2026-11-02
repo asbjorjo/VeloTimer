@@ -273,7 +273,21 @@ internal static class FacilityAdministrationEndpoints
         }
         catch (Exception exception) when (IsAssociationConstraintFailure(exception))
         {
-            return Conflict("The requested association conflicts with a mapping that changed concurrently.");
+            // SetIntervalAsync has disposed (and rolled back) its transaction before recovery.
+            // Never retry a write: the existing 409 contract requires a fresh state-bound preview.
+            try
+            {
+                var edit = await associations.GetConcurrencyPreviewAsync(id, request, references, cancellationToken);
+                return Results.Json(edit.ConflictPreview, statusCode: StatusCodes.Status409Conflict);
+            }
+            catch (KeyNotFoundException)
+            {
+                return Results.NotFound();
+            }
+            catch (TimingAssociationValidationException validation)
+            {
+                return Invalid(validation.Message);
+            }
         }
     }
 

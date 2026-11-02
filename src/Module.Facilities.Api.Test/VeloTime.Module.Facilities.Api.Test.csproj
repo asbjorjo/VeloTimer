@@ -25,6 +25,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Module.Facilities.Api\VeloTime.Module.Facilities.Api.csproj" />
+    <!-- Isolate the client's existing Extensions type from the DI Extensions namespace. -->
+    <ProjectReference Include="..\Module.Facilities.Client\VeloTime.Module.Facilities.Client.csproj" Aliases="FacilitiesClientAssembly" />
   </ItemGroup>
 
   <ItemGroup>

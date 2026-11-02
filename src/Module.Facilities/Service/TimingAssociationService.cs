@@ -149,6 +149,29 @@ public sealed class TimingAssociationService
         IAdministrationReferences references,
         Func<CoursePointTimingAssociationsChangedV1, CancellationToken, Task> enqueueEvent,
         CancellationToken cancellationToken)
+        => await SetIntervalCoreAsync(coursePointId, request, occurredAtUtc, references,
+            enqueueEvent, false, cancellationToken);
+
+    /// <summary>
+    /// Reads a fresh, consistent confirmation state after a failed edit has rolled back and
+    /// disposed its transaction. Never retries the mutation or uses failed tracked entities.
+    /// </summary>
+    public async Task<TimingAssociationEditResult> GetConcurrencyPreviewAsync(Guid coursePointId,
+        SetCoursePointTimingAssociationRequest request, IAdministrationReferences references,
+        CancellationToken cancellationToken)
+    {
+        if (storage.Database.CurrentTransaction is not null)
+            throw new InvalidOperationException("Concurrency recovery requires the failed transaction to be disposed.");
+        storage.ChangeTracker.Clear();
+        return await SetIntervalCoreAsync(coursePointId, request, default, references,
+            null, true, cancellationToken);
+    }
+
+    private async Task<TimingAssociationEditResult> SetIntervalCoreAsync(Guid coursePointId,
+        SetCoursePointTimingAssociationRequest request, DateTimeOffset occurredAtUtc,
+        IAdministrationReferences references,
+        Func<CoursePointTimingAssociationsChangedV1, CancellationToken, Task>? enqueueEvent,
+        bool previewOnly, CancellationToken cancellationToken)
     {
         if (request.TimingPointId == Guid.Empty)
             throw new TimingAssociationValidationException("TimingPointId must be null or a non-empty ID.");
@@ -161,10 +184,17 @@ public sealed class TimingAssociationService
         var from = request.ValidFromUtc;
         var to = request.ValidToUtc;
         var requested = new TimingAssociationRequestedChange(coursePointId, request.TimingPointId, from, to);
-        await using var transaction = await storage.Database.BeginTransactionAsync(cancellationToken);
-        await AcquireWriteLockAsync(cancellationToken);
+        // Recovery must see source and destination from one snapshot, including writers that
+        // do not participate in our advisory lock. A subsequent confirmation rechecks both
+        // under the normal write lock; this read-only path never upgrades to a mutation.
+        await using var transaction = previewOnly
+            ? await storage.Database.BeginTransactionAsync(storage.Database.IsNpgsql()
+                ? System.Data.IsolationLevel.RepeatableRead
+                : System.Data.IsolationLevel.Serializable, cancellationToken)
+            : await storage.Database.BeginTransactionAsync(cancellationToken);
+        if (!previewOnly) await AcquireWriteLockAsync(cancellationToken);
 
-        var point = await storage.Set<CoursePoint>().SingleOrDefaultAsync(candidate => candidate.Id == coursePointId, cancellationToken);
+        var point = await storage.Set<CoursePoint>().AsNoTracking().SingleOrDefaultAsync(candidate => candidate.Id == coursePointId, cancellationToken);
         if (point is null) throw new KeyNotFoundException("The coursepoint does not exist.");
         var facilityId = await PointFacilityAsync(coursePointId, cancellationToken);
         if (request.TimingPointId is { } timingPointId)
@@ -174,8 +204,11 @@ public sealed class TimingAssociationService
                 throw new TimingAssociationValidationException("The timing point must belong to an installation in the same facility.");
         }
 
+        var associations = previewOnly
+            ? storage.Set<CoursePointTimingAssociation>().AsNoTracking()
+            : storage.Set<CoursePointTimingAssociation>();
         var overlaps = request.TimingPointId is { } destinationId
-            ? await storage.Set<CoursePointTimingAssociation>()
+            ? await associations
                 .Where(association => association.TimingPointId == destinationId &&
                     association.CoursePointId != coursePointId &&
                     (!association.ValidToUtc.HasValue || !from.HasValue || association.ValidToUtc > from) &&
@@ -194,12 +227,15 @@ public sealed class TimingAssociationService
 
         // Read the requested coursepoint's overlapping source rows in the same locked transaction
         // so a confirmation is rejected when either side changed after the preview was issued.
-        var source = await storage.Set<CoursePointTimingAssociation>()
+        var source = await associations
             .Where(association => association.CoursePointId == coursePointId &&
                 (!association.ValidToUtc.HasValue || !from.HasValue || association.ValidToUtc > from) &&
                 (!to.HasValue || !association.ValidFromUtc.HasValue || association.ValidFromUtc < to))
             .ToListAsync(cancellationToken);
         var sourceState = OrderSnapshots(source.Select(ToSnapshot));
+
+        if (previewOnly)
+            return await FreshPreviewAsync("confirmation-stale", requested, conflicts, sourceState, transaction, cancellationToken);
 
         if (request.ConfirmationToken is not null)
         {
@@ -285,7 +321,7 @@ public sealed class TimingAssociationService
         var changeId = Guid.NewGuid();
         var message = new CoursePointTimingAssociationsChangedV1(
             Guid.NewGuid(), changeId, Normalize(occurredAtUtc), facilityId ?? Guid.Empty, deltas);
-        await enqueueEvent(message, cancellationToken);
+        await enqueueEvent!(message, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return new TimingAssociationEditResult(changeId, deltas, null, facilityId);
     }

@@ -126,4 +126,41 @@ Course geometry/name versioning, broad audit-history reconstruction and unrelate
 - A rejected edit, unconfirmed/stale conflict, rolled-back transaction or effective no-op emits no change event.
 - Broker unavailability does not lose a committed edit or its pending event. Restart/retry eventually publishes with the same EventId; duplicate delivery is permitted and documented.
 - Test dispatcher concurrency/claim behavior and acknowledgement failure boundaries. Verify contract serialization preserves nullable bounds and UTC timestamps.
+
+## Association concurrency response recovery (PR #117)
+
+The explicit `PUT /api/facilities/coursepoint/{id}/timing-association` keeps its
+structured `TimingAssociationConflictPreview` 409 contract on PostgreSQL exclusion,
+check, foreign-key, deadlock, and serialization failures. After the failed edit's
+transaction is disposed/rolled back, recovery clears failed tracked state and reads
+source and destination in a new repeatable snapshot. It returns `confirmation-stale`
+with the normalized requested interval, current conflicts (possibly empty), and a
+token bound to the complete current overlapping source state as well as the request
+and destination conflicts. Recovery never saves, enqueues, or automatically retries
+the edit. Explicit confirmation revalidates under the normal advisory write lock.
+
+If the coursepoint has disappeared, recovery returns the existing 404; invalid
+references return the existing 400. Cancellation and unexpected recovery failures
+propagate rather than fabricating a preview. The legacy `timing-link` endpoint keeps
+its documented ProblemDetails 409.
+
+Regression: `TimingAssociationConcurrencyResponseTests` uses the fixture's disposable
+PostgreSQL database and an EF interceptor to commit independent source/destination
+changes, then raise each real PostgreSQL failure inside the edit transaction after
+EF has saved/accepted its changes but before event enqueue. It verifies rollback,
+no event/cache invalidation, current conflicts, generated-client 409 deserialization,
+request/source-bound stale rejection, and successful explicit confirmation, including
+an unconfirmed unlink recovery with empty conflicts.
+
+Run with a **test-only** PostgreSQL admin connection whose database is `postgres`:
+
+```sh
+FACILITIES_TEST_POSTGRES_ADMIN_CONNECTION='Host=localhost;Port=5432;Database=postgres;Username=postgres' \
+OIDC_AUDIENCE=https://build.invalid \
+dotnet test src/Module.Facilities.Api.Test/VeloTime.Module.Facilities.Api.Test.csproj \
+  --configuration Release --filter 'FullyQualifiedName~TimingAssociation'
+```
+
+The fixtures create and drop their own uniquely named databases; never point them
+at a production server.
 - Build/validate bus registration and any required durable destination configuration without adding Statistics recalculation processing. Report that stored Statistics repair remains intentionally deferred.
