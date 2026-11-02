@@ -26,7 +26,9 @@ internal static class FacilityAdministrationEndpoints
         layouts.MapDelete("/{id:guid}", DeleteLayout).WithName("DeleteCourseLayout");
         endpoints.MapPut("/coursepoint/{id:guid}/timing-link", SetTimingLink)
             .RequireAuthorization(AdministrationAuthorization.TimingLinkPolicy).AddEndpointFilter<AdministrationDependencyFilter>()
-            .WithName("SetCoursePointTimingLink");
+            .WithName("SetCoursePointTimingLink")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         endpoints.MapPut("/coursepoint/{id:guid}/timing-association", SetTimingAssociation)
             .RequireAuthorization(AdministrationAuthorization.TimingLinkPolicy).AddEndpointFilter<AdministrationDependencyFilter>()
             .WithName("SetCoursePointTimingAssociation")
@@ -198,7 +200,7 @@ internal static class FacilityAdministrationEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<IResult> SetTimingLink(Guid id, SetCoursePointTimingLinkRequest request,
+    private static async Task<Results<Ok<CoursePointDTO>, NotFound, ProblemHttpResult>> SetTimingLink(Guid id, SetCoursePointTimingLinkRequest request,
         FacilityDbContext storage, IAdministrationReferences references,
         IDataProtectionProvider protectionProvider, [FromServices] ITimingAssociationEventPublisher publisher,
         HybridCache cache, IOutputCacheStore output,
