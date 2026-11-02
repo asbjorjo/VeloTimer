@@ -20,6 +20,14 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.25"></a>
+## [2.1.0-alpha.25](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.25) (2026-11-02)
+
+### Bug Fixes
+
+* reset agent version ([c3b7938](https://www.github.com/asbjorjo/VeloTimer/commit/c3b7938b2e613c53effc4d080bc8c3604fc4237e))
+* **agent:** make agent messaging resilient to Service Bus outages ([#116](https://www.github.com/asbjorjo/VeloTimer/issues/116)) ([5cc9b00](https://www.github.com/asbjorjo/VeloTimer/commit/5cc9b000c844b7383a6fcbfadc92ae19d8cc56eb))
+
 <a name="2.1.0-alpha.24"></a>
 ## [2.1.0-alpha.24](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.24) (2026-11-02)
 
