@@ -132,10 +132,8 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
             activity?.SetTag("StartTimingPointId", Start);
             activity?.SetTag("EndTimingPointId", End);
 
-            CoursePoint? StartPoint = await associations.FindCoursePointByTimingPointIdAsync(Start, startAt, cancellationToken);
-            CoursePoint? EndPoint = Start == End && startAt == endAt
-                ? StartPoint
-                : await associations.FindCoursePointByTimingPointIdAsync(End, endAt, cancellationToken);
+            var (StartPoint, EndPoint) = await associations.ResolveDistanceEndpointsAsync(
+                Start, End, startAt, endAt, cancellationToken);
             if (StartPoint is null || EndPoint is null)
                 throw new KeyNotFoundException("A timing point has no coursepoint association at the requested instant.");
 
@@ -151,10 +149,11 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
     public async Task<double> DistanceBetweenTimingPoints(Guid Start, Guid End, CancellationToken cancellationToken = default)
     {
         var now = DateTimeOffset.UtcNow;
-        var startPoint = await FindCoursePointByTimingPointIdAtAsync(Start, now, cancellationToken);
-        var endPoint = Start == End
-            ? startPoint
-            : await FindCoursePointByTimingPointIdAtAsync(End, now, cancellationToken);
+        var (startPoint, endPoint) = await new TimingAssociationService(storage).ResolveDistanceEndpointsAsync(
+            Start, End, now, now, cancellationToken);
+        // Preserve this legacy overload's SingleAsync missing-association error semantics.
+        if (startPoint is null || endPoint is null)
+            throw new InvalidOperationException("Sequence contains no elements.");
         return await DistanceBetweenCoursePoints(startPoint, endPoint, cancellationToken);
     }
 

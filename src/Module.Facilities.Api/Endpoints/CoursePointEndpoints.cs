@@ -93,10 +93,8 @@ internal static class CoursePointEndpoints
         var associations = new TimingAssociationService(storage);
         try
         {
-            var startpoint = await associations.FindCoursePointByTimingPointIdAsync(start, startInstant, cancellationToken);
-            var endpoint = start == end && startInstant == endInstant
-                ? startpoint
-                : await associations.FindCoursePointByTimingPointIdAsync(end, endInstant, cancellationToken);
+            var (startpoint, endpoint) = await associations.ResolveDistanceEndpointsAsync(
+                start, end, startInstant, endInstant, cancellationToken);
             if (startpoint is null || endpoint is null) return TypedResults.NotFound();
             var distance = await facilities.DistanceBetweenCoursePoints(startpoint, endpoint, cancellationToken);
             var facility = await facilities.FacilityByCoursePoint(startpoint.Id, cancellationToken);

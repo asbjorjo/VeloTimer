@@ -60,6 +60,31 @@ public sealed class TimingAssociationService
         return association;
     }
 
+    /// <summary>Resolves both endpoints against one snapshot, even across backdated edits.</summary>
+    public async Task<(CoursePoint? Start, CoursePoint? End)> ResolveDistanceEndpointsAsync(
+        Guid start, Guid end, DateTimeOffset startAt, DateTimeOffset endAt, CancellationToken cancellationToken)
+    {
+        startAt = Normalize(startAt);
+        endAt = Normalize(endAt);
+        // Do not nest transactions or silently accept a caller's read-committed snapshot.
+        var current = storage.Database.CurrentTransaction;
+        if (current is not null && current.GetDbTransaction().IsolationLevel is not
+            (System.Data.IsolationLevel.RepeatableRead or System.Data.IsolationLevel.Serializable))
+            throw new InvalidOperationException("Distance endpoint resolution requires a repeatable snapshot.");
+        // PostgreSQL supports repeatable read; SQLite uses serializable for the same guarantee.
+        await using var transaction = current is null && storage.Database.IsRelational()
+            ? await storage.Database.BeginTransactionAsync(storage.Database.IsNpgsql()
+                ? System.Data.IsolationLevel.RepeatableRead
+                : System.Data.IsolationLevel.Serializable, cancellationToken)
+            : null;
+        var startPoint = await FindCoursePointByTimingPointIdAsync(start, startAt, cancellationToken);
+        var endPoint = start == end && startAt == endAt
+            ? startPoint
+            : await FindCoursePointByTimingPointIdAsync(end, endAt, cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
+        return (startPoint, endPoint);
+    }
+
     public async Task<IReadOnlyDictionary<Guid, Guid?>> ResolveManyAsync(
         IEnumerable<Guid> coursePointIds, DateTimeOffset at, CancellationToken cancellationToken)
     {
