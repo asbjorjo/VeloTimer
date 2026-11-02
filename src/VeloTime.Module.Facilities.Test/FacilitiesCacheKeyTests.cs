@@ -14,7 +14,8 @@ public sealed class FacilitiesCacheKeyTests
         Assert.Equal($"velotime:facilities:course-point-by-id:v1:{startId}", FacilitiesCache.CoursePointById(startId));
         Assert.Equal($"velotime:facilities:segments-between-course-points:v1:{startId}:{endId}", FacilitiesCache.SegmentsBetweenCoursePoints(startId, endId));
         Assert.Equal($"velotime:facilities:distance-between-course-points:v1:{startId}:{endId}", FacilitiesCache.DistanceBetweenCoursePoints(startId, endId));
-        Assert.Equal($"velotime:facilities:course-point-by-timing-point:v1:{startId}", FacilitiesCache.CoursePointByTimingPoint(startId));
+        Assert.DoesNotContain(typeof(FacilitiesCache).GetMethods(),
+            method => method.Name == "CoursePointByTimingPoint");
     }
 
     [Fact]

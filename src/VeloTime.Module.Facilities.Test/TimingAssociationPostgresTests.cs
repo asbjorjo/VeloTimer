@@ -66,12 +66,12 @@ public class TimingAssociationPostgresTests
         storage.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO facility.course_point (id) VALUES ({point})");
 
     private static Task<int> AddAssociation(FacilityDbContext storage, Guid point, Guid timing,
-        DateTimeOffset? from, DateTimeOffset? to) =>
+        DateTimeOffset? from, DateTimeOffset? to, CancellationToken cancellationToken = default) =>
         storage.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO facility.course_point_timing_association
                 (id, course_point_id, timing_point_id, valid_from_utc, valid_to_utc)
             VALUES ({Guid.NewGuid()}, {point}, {timing}, {from}, {to})
-            """);
+            """, cancellationToken);
 
     [FacilitiesPostgresFact]
     public async Task EfPersistence_NormalizesOffsetBoundsAndMaterializesUtc()
@@ -236,6 +236,11 @@ public class TimingAssociationPostgresTests
         await database.InitializeAsync();
         await using var first = database.CreateContext();
         await using var second = database.CreateContext();
+        await using var observer = database.CreateContext();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        await second.Database.OpenConnectionAsync(timeout.Token);
+        var secondPid = await second.Database.SqlQuery<int>($"SELECT pg_backend_pid() AS \"Value\"")
+            .SingleAsync(timeout.Token);
         var point = Guid.NewGuid();
         var other = Guid.NewGuid();
         var timing = Guid.NewGuid();
@@ -243,23 +248,25 @@ public class TimingAssociationPostgresTests
         await AddPoint(first, other);
         await using var transaction = await first.Database.BeginTransactionAsync();
         await AddAssociation(first, point, timing, null, null);
-        var competing = AddAssociation(second, other, timing, null, null);
+        var competing = AddAssociation(second, other, timing, null, null, timeout.Token);
         // Observe the real competing INSERT waiting on PostgreSQL's lock, not merely two
         // sequential inserts that happen to use different contexts.
         var deadline = DateTime.UtcNow.AddSeconds(5);
         var blocked = false;
         while (!blocked && DateTime.UtcNow < deadline)
         {
-            blocked = await first.Database.SqlQuery<int>($"""
-                SELECT count(*)::int AS "Value" FROM pg_stat_activity
-                WHERE datname = current_database() AND wait_event_type = 'Lock'
-                    AND query LIKE '%INSERT INTO facility.course_point_timing_association%'
-                """).SingleAsync() > 0;
+            // Observe this exact connection outside the writer transaction. pg_stat_activity
+            // can retain its first statistics snapshot for that entire transaction and miss
+            // the INSERT starting between polls; pg_blocking_pids reads the live lock manager.
+            blocked = await observer.Database.SqlQuery<int>($"""
+                SELECT cardinality(pg_blocking_pids({secondPid})) AS "Value"
+                """).SingleAsync(timeout.Token) > 0;
             if (!blocked) await Task.Delay(25);
         }
         Assert.True(blocked, "Expected the competing INSERT to wait on the uncommitted exclusion conflict.");
+        Assert.False(competing.IsCompleted);
         await transaction.CommitAsync();
-        var error = await Assert.ThrowsAsync<PostgresException>(async () => await competing);
+        var error = await Assert.ThrowsAsync<PostgresException>(async () => await competing.WaitAsync(timeout.Token));
         Assert.Equal(PostgresErrorCodes.ExclusionViolation, error.SqlState);
     }
 

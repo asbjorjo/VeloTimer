@@ -16,7 +16,7 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    [Fact]
+    [TimingAssociationPostgresFact]
     public async Task LayoutCommands_RejectDisconnectedAndCrossFacilityGraphsAndRetainSharedPoints()
     {
         using var client = factory.CreateClient();
@@ -44,13 +44,13 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/facilities/facility/{facility.Id}/layouts/{secondLayout.Id}")).StatusCode);
     }
 
-    [Fact]
+    [TimingAssociationPostgresFact]
     public async Task TimingLinkChanges_InvalidateRelationshipCaches()
     {
         var graph = await SeedFacilityAsync();
         factory.References.FacilityId = graph.Facility.Id;
         using var client = factory.CreateClient();
-        var oldId = graph.Start.TimingPoint!.Value;
+        var oldId = graph.Start.TimingAssociations.Single().TimingPointId;
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/facilities/timingpoint/{oldId}")).StatusCode);
         var newId = Guid.NewGuid();
         Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"/api/facilities/coursepoint/{graph.Start.Id}/timing-link", new SetCoursePointTimingLinkRequest(newId))).StatusCode);
@@ -62,8 +62,8 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         Assert.True(factory.OutputCache.EvictionCalls >= 2);
     }
 
-    [Fact]
-    public async Task RelationshipOutputPolicy_CachesOnlySuccessfulResponsesForThirtySecondsOnAllFiveRoutes()
+    [TimingAssociationPostgresFact]
+    public async Task RelationshipOutputPolicy_CachesOnlySafeGeometryForThirtySecondsAndBypassesMappingReads()
     {
         var graph = await SeedFacilityAsync();
         factory.OutputCache.Reset();
@@ -75,14 +75,14 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
             .Where(endpoint => endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains("GET") == true)
             .Select(endpoint => endpoint.Metadata.FirstOrDefault(item => item.GetType().Name == "NamedPolicy"))
             .Count(policy => policy is not null);
-        Assert.Equal(5, relationshipPolicyCount);
+        Assert.Equal(2, relationshipPolicyCount);
         var routes = new[]
         {
             $"/api/facilities/coursepoint/{graph.Start.Id}",
             $"/api/facilities/coursepoint/{graph.Start.Id}/facility",
             $"/api/facilities/coursepoint/{graph.Start.Id}/distance/{graph.End.Id}",
-            $"/api/facilities/timingpoint/{graph.Start.TimingPoint}",
-            $"/api/facilities/timingpoint/{graph.Start.TimingPoint}/distance/{graph.End.TimingPoint}"
+            $"/api/facilities/timingpoint/{graph.Start.TimingAssociations.Single().TimingPointId}",
+            $"/api/facilities/timingpoint/{graph.Start.TimingAssociations.Single().TimingPointId}/distance/{graph.End.TimingAssociations.Single().TimingPointId}"
         };
 
         var responseDetails = new List<string>();
@@ -95,31 +95,31 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         }
 
         var firstStoredResponses = factory.OutputCache.Stored;
-        Assert.True(firstStoredResponses.Count == 5,
-            $"Expected all five successful relationship GETs to be cached; store calls={factory.OutputCache.SetCalls}, hits/reads={factory.OutputCache.GetCalls}, tagged responses={firstStoredResponses.Count}; policy routes={relationshipPolicyCount}; responses: {string.Join(" | ", responseDetails)}.");
+        Assert.True(firstStoredResponses.Count == 2,
+            $"Expected only facility and coursepoint geometry distance to be cached; store calls={factory.OutputCache.SetCalls}, tagged responses={firstStoredResponses.Count}; responses: {string.Join(" | ", responseDetails)}.");
         Assert.All(firstStoredResponses, stored =>
         {
             Assert.Contains("Facilities.Relationships", stored.Tags);
             Assert.InRange(stored.ValidFor, TimeSpan.FromSeconds(29), TimeSpan.FromSeconds(30));
         });
-        Assert.Equal(5, factory.OutputCache.SetCalls);
+        Assert.Equal(2, factory.OutputCache.SetCalls);
 
         foreach (var route in routes)
         {
             Assert.Equal(HttpStatusCode.OK, (await GetAnonymouslyAsync(client, route)).StatusCode);
         }
-        Assert.Equal(5, factory.OutputCache.Stored.Count);
-        Assert.Equal(10, factory.OutputCache.GetCalls);
-        Assert.Equal(5, factory.OutputCache.SetCalls);
+        Assert.Equal(2, factory.OutputCache.Stored.Count);
+        Assert.Equal(4, factory.OutputCache.GetCalls);
+        Assert.Equal(2, factory.OutputCache.SetCalls);
 
         factory.OutputCache.AdvanceBy(TimeSpan.FromSeconds(31));
         foreach (var route in routes)
         {
             Assert.Equal(HttpStatusCode.OK, (await GetAnonymouslyAsync(client, route)).StatusCode);
         }
-        Assert.Equal(10, factory.OutputCache.Stored.Count);
-        Assert.Equal(15, factory.OutputCache.GetCalls);
-        Assert.Equal(10, factory.OutputCache.SetCalls);
+        Assert.Equal(4, factory.OutputCache.Stored.Count);
+        Assert.Equal(6, factory.OutputCache.GetCalls);
+        Assert.Equal(4, factory.OutputCache.SetCalls);
 
         var countBeforeMiss = factory.OutputCache.Stored.Count;
         Assert.Equal(HttpStatusCode.NotFound,
@@ -131,7 +131,7 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         Assert.Equal(countBeforeMiss, factory.OutputCache.Stored.Count);
     }
 
-    [Fact]
+    [TimingAssociationPostgresFact]
     public async Task LayoutCommands_PreserveIdsAndValidateTopologyAndLinks()
     {
         using var client = factory.CreateClient();
@@ -167,8 +167,21 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync(route)).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync(route, request with { Segments = [segment with { Length = 300 }] })).StatusCode);
         factory.References.Dependencies = 0;
-        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync(route)).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/facilities/facility/{facility.Id}")).StatusCode);
+        // Unlink closes the current mapping; it no longer destroys effective history.
+        // Deletion must retain the layout/facility required to interpret that history.
+        var history = (await client.GetFromJsonAsync<CoursePointTimingAssociationSnapshot[]>(
+            $"/api/facilities/coursepoint/{start.Id}/timing-associations"))!;
+        var prior = Assert.Single(history);
+        Assert.Equal(timingPointId, prior.TimingPointId);
+        Assert.NotNull(prior.ValidFromUtc);
+        Assert.NotNull(prior.ValidToUtc);
+        Assert.True(prior.ValidFromUtc < prior.ValidToUtc);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync(route)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync($"/api/facilities/facility/{facility.Id}")).StatusCode);
+        Assert.Equal(history, await client.GetFromJsonAsync<CoursePointTimingAssociationSnapshot[]>(
+            $"/api/facilities/coursepoint/{start.Id}/timing-associations"));
+        Assert.Equal(segment.Id, Assert.Single((await client.GetFromJsonAsync<CourseLayoutDTO>(
+            $"/api/facilities/layouts/{layout.Id}"))!.Segments).Id);
     }
 
     [Fact]
@@ -203,7 +216,7 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         Assert.Equal(status, (await client.PostAsJsonAsync("/api/facilities/facility", new SaveFacilityRequest("Track"))).StatusCode);
     }
 
-    [Fact]
+    [TimingAssociationPostgresFact]
     public async Task FacilitiesEndpoints_ReturnExpectedDataAndMissingResourceStatuses()
     {
         using var client = factory.CreateClient();
@@ -215,13 +228,13 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/facilities/layouts/{graph.Layout.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/facilities/coursepoint/{graph.Start.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/facilities/coursepoint/{graph.Start.Id}/facility")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/facilities/timingpoint/{graph.Start.TimingPoint}")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/facilities/timingpoint/{graph.Start.TimingAssociations.Single().TimingPointId}")).StatusCode);
 
         var courseDistanceResponse = await client.GetAsync($"/api/facilities/coursepoint/{graph.Start.Id}/distance/{graph.End.Id}");
         Assert.Equal(HttpStatusCode.OK, courseDistanceResponse.StatusCode);
         Assert.Equal(120, await courseDistanceResponse.Content.ReadFromJsonAsync<double>());
 
-        var timingDistanceResponse = await client.GetAsync($"/api/facilities/timingpoint/{graph.Start.TimingPoint}/distance/{graph.End.TimingPoint}");
+        var timingDistanceResponse = await client.GetAsync($"/api/facilities/timingpoint/{graph.Start.TimingAssociations.Single().TimingPointId}/distance/{graph.End.TimingAssociations.Single().TimingPointId}");
         Assert.Equal(HttpStatusCode.OK, timingDistanceResponse.StatusCode);
 
         var missingId = Guid.NewGuid();
@@ -240,9 +253,12 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         await using var scope = factory.Services.CreateAsyncScope();
         var storage = scope.ServiceProvider.GetRequiredService<FacilityDbContext>();
         var facility = new Facility { Id = Guid.NewGuid(), Name = "Test course" };
-        var start = new CoursePoint { Id = Guid.NewGuid(), Name = "Start", TimingPoint = Guid.NewGuid() };
-        var middle = new CoursePoint { Id = Guid.NewGuid(), Name = "Middle", TimingPoint = Guid.NewGuid() };
-        var end = new CoursePoint { Id = Guid.NewGuid(), Name = "Finish", TimingPoint = Guid.NewGuid() };
+        var start = new CoursePoint { Id = Guid.NewGuid(), Name = "Start",
+            TimingAssociations = [new() { Id = Guid.NewGuid(), TimingPointId = Guid.NewGuid() }] };
+        var middle = new CoursePoint { Id = Guid.NewGuid(), Name = "Middle",
+            TimingAssociations = [new() { Id = Guid.NewGuid(), TimingPointId = Guid.NewGuid() }] };
+        var end = new CoursePoint { Id = Guid.NewGuid(), Name = "Finish",
+            TimingAssociations = [new() { Id = Guid.NewGuid(), TimingPointId = Guid.NewGuid() }] };
         var layout = new CourseLayout { Id = Guid.NewGuid(), FacilityId = facility.Id, Facility = facility };
         layout.Segments.Add(new CourseSegment
         {

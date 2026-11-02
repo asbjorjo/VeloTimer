@@ -114,8 +114,10 @@ public sealed class FacilitiesOutputCacheReplicaTests
         await using var scope = factory.Services.CreateAsyncScope();
         var storage = scope.ServiceProvider.GetRequiredService<FacilityDbContext>();
         var facility = new Facility { Id = Guid.NewGuid(), Name = "Before" };
-        var start = new CoursePoint { Id = Guid.NewGuid(), Name = "Start", TimingPoint = Guid.NewGuid() };
-        var end = new CoursePoint { Id = Guid.NewGuid(), Name = "Finish", TimingPoint = Guid.NewGuid() };
+        var start = new CoursePoint { Id = Guid.NewGuid(), Name = "Start",
+            TimingAssociations = [new() { Id = Guid.NewGuid(), TimingPointId = Guid.NewGuid() }] };
+        var end = new CoursePoint { Id = Guid.NewGuid(), Name = "Finish",
+            TimingAssociations = [new() { Id = Guid.NewGuid(), TimingPointId = Guid.NewGuid() }] };
         var layout = new CourseLayout { Id = Guid.NewGuid(), FacilityId = facility.Id, Facility = facility };
         layout.Segments.Add(new CourseSegment
         {
