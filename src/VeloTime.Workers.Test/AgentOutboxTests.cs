@@ -147,6 +147,22 @@ public sealed class AgentOutboxTests : IAsyncLifetime
     }
 
     [PostgreSqlOutboxFact]
+    public async Task PassingInsertRejectsNonUtcDateTimeKinds()
+    {
+        var host = await StartHost(new TestSender());
+        await using var scope = host.Services.CreateAsyncScope();
+        var service = scope.ServiceProvider.GetRequiredService<MessagingService>();
+        foreach (var kind in new[] { DateTimeKind.Local, DateTimeKind.Unspecified })
+        {
+            var passing = Passing($"non-utc-{kind}", time: DateTime.SpecifyKind(DateTime.UtcNow, kind));
+            await Assert.ThrowsAnyAsync<Exception>(() => service.SendEventsAsync([passing]));
+            Assert.Empty(scope.ServiceProvider.GetRequiredService<AgentDbContext>().ChangeTracker.Entries());
+            Assert.Equal(0, await Scalar("SELECT count(*)::int FROM agent.passing"));
+            Assert.Equal(0, await Scalar("SELECT count(*)::int FROM agent.smb_outbox"));
+        }
+    }
+
+    [PostgreSqlOutboxFact]
     public async Task ConcurrentPassingResendsInSeparateScopesAreDeduplicatedNotErrors()
     {
         var host = await StartHost(new TestSender());
@@ -393,9 +409,9 @@ public sealed class AgentOutboxTests : IAsyncLifetime
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private static Passing Passing(string id, bool lowBattery = false) => new()
+    private static Passing Passing(string id, bool lowBattery = false, DateTime? time = null) => new()
     {
-        Id = id, Time = DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = "loop", LowBattery = lowBattery
+        Id = id, Time = time ?? DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = "loop", LowBattery = lowBattery
     };
 
     private static async Task WaitUntil(Func<Task<bool>> condition)

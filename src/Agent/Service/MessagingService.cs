@@ -72,6 +72,7 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
         var table = StoreObjectIdentifier.Table(tableName, schema);
         var sql = dbContext.GetService<ISqlGenerationHelper>();
         string Column(string property) => sql.DelimitIdentifier(entity.FindProperty(property)!.GetColumnName(table)!);
+        var timeMapping = entity.FindProperty(nameof(Passing.Time))!.GetRelationalTypeMapping();
         string[] columns =
         [
             Column(nameof(Passing.Id)), Column(nameof(Passing.Time)), Column(nameof(Passing.TransponderType)),
@@ -97,8 +98,11 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
             var names = new string[values.Length];
             for (var i = 0; i < values.Length; i++)
             {
-                var parameter = command.CreateParameter();
-                parameter.ParameterName = $"@p{index++}";
+                var parameterName = $"@p{index++}";
+                var parameter = values[i] is DateTime time
+                    ? timeMapping.CreateParameter(command, parameterName, time)
+                    : command.CreateParameter();
+                parameter.ParameterName = parameterName;
                 parameter.Value = values[i];
                 command.Parameters.Add(parameter);
                 names[i] = parameter.ParameterName;
