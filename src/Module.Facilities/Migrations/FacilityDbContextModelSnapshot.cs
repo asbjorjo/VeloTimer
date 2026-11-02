@@ -18,9 +18,10 @@ namespace VeloTime.Module.Facilities.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("facility")
-                .HasAnnotation("ProductVersion", "10.0.3")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "public", "btree_gist");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("VeloTime.Module.Facilities.Model.CourseLayout", b =>
@@ -54,14 +55,50 @@ namespace VeloTime.Module.Facilities.Migrations
                         .HasColumnType("text")
                         .HasColumnName("name");
 
-                    b.Property<Guid?>("TimingPoint")
-                        .HasColumnType("uuid")
-                        .HasColumnName("timing_point");
-
                     b.HasKey("Id")
                         .HasName("pk_course_point");
 
                     b.ToTable("course_point", "facility");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Facilities.Model.CoursePointTimingAssociation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CoursePointId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_point_id");
+
+                    b.Property<Guid>("TimingPointId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("timing_point_id");
+
+                    b.Property<DateTimeOffset?>("ValidFromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_from_utc");
+
+                    b.Property<DateTimeOffset?>("ValidToUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_to_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_course_point_timing_association");
+
+                    b.HasIndex("CoursePointId", "ValidFromUtc", "ValidToUtc")
+                        .HasDatabaseName("ix_course_point_timing_association_course_point_id_valid_from_");
+
+                    b.HasIndex("TimingPointId", "ValidFromUtc", "ValidToUtc")
+                        .HasDatabaseName("ix_course_point_timing_association_timing_point_id_valid_from_");
+
+                    b.ToTable("course_point_timing_association", "facility", t =>
+                        {
+                            t.HasCheckConstraint("ck_course_point_timing_association_finite_bounds", "(valid_from_utc IS NULL OR isfinite(valid_from_utc)) AND (valid_to_utc IS NULL OR isfinite(valid_to_utc))");
+
+                            t.HasCheckConstraint("ck_course_point_timing_association_interval", "valid_from_utc IS NULL OR valid_to_utc IS NULL OR valid_from_utc < valid_to_utc");
+                        });
                 });
 
             modelBuilder.Entity("VeloTime.Module.Facilities.Model.CourseSegment", b =>
@@ -129,11 +166,23 @@ namespace VeloTime.Module.Facilities.Migrations
                     b.HasOne("VeloTime.Module.Facilities.Model.Facility", "Facility")
                         .WithMany("Layouts")
                         .HasForeignKey("FacilityId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_course_layout_facility_facility_id");
 
                     b.Navigation("Facility");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Facilities.Model.CoursePointTimingAssociation", b =>
+                {
+                    b.HasOne("VeloTime.Module.Facilities.Model.CoursePoint", "CoursePoint")
+                        .WithMany("TimingAssociations")
+                        .HasForeignKey("CoursePointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_course_point_timing_association_course_point_course_point_id");
+
+                    b.Navigation("CoursePoint");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Facilities.Model.CourseSegment", b =>
@@ -141,21 +190,21 @@ namespace VeloTime.Module.Facilities.Migrations
                     b.HasOne("VeloTime.Module.Facilities.Model.CourseLayout", "CourseLayout")
                         .WithMany("Segments")
                         .HasForeignKey("CourseLayoutId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_course_segment_course_layout_course_layout_id");
 
                     b.HasOne("VeloTime.Module.Facilities.Model.CoursePoint", "End")
                         .WithMany()
                         .HasForeignKey("EndId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_course_segment_course_point_end_id");
 
                     b.HasOne("VeloTime.Module.Facilities.Model.CoursePoint", "Start")
                         .WithMany()
                         .HasForeignKey("StartId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_course_segment_course_point_start_id");
 
@@ -169,6 +218,11 @@ namespace VeloTime.Module.Facilities.Migrations
             modelBuilder.Entity("VeloTime.Module.Facilities.Model.CourseLayout", b =>
                 {
                     b.Navigation("Segments");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Facilities.Model.CoursePoint", b =>
+                {
+                    b.Navigation("TimingAssociations");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Facilities.Model.Facility", b =>
