@@ -20,6 +20,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.26"></a>
+## [2.1.0-alpha.26](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.26) (2026-11-02)
+
+### Features
+
+* add time-bound timing associations and event-time resolution ([#117](https://www.github.com/asbjorjo/VeloTimer/issues/117)) ([77a0425](https://www.github.com/asbjorjo/VeloTimer/commit/77a042506fe7f40efef4c1f8bb37f5fd86e2fc7f))
+
 <a name="2.1.0-alpha.25"></a>
 ## [2.1.0-alpha.25](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.25) (2026-11-02)
 
