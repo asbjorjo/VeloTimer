@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using VeloTime.Module.Facilities.Api;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Npgsql;
@@ -26,6 +28,7 @@ public sealed class FacilitiesApiFactory : WebApplicationFactory<Program>
     public string? SqliteFilePath { get; init; }
     public TestReferences References { get; } = new();
     public RecordingOutputCacheStore OutputCache { get; } = new();
+    public RecordingTimingAssociationPublisher Events { get; } = new();
     public bool UseProductionRedisCache { get; init; }
     public string? RedisConnectionString { get; init; }
     // Test-only hook applied after production registrations (for decorating providers beneath FusionCache).
@@ -39,6 +42,9 @@ public sealed class FacilitiesApiFactory : WebApplicationFactory<Program>
     {
         if (SqliteFilePath is null) connection.Open();
         builder.UseEnvironment("Development");
+        // Satisfy production's required setting; replace publisher/startup below.
+        // This is a test credential, never used to connect to a broker.
+        builder.UseSetting("ConnectionStrings:MessageBus", "Endpoint=sb://localhost/;SharedAccessKeyName=test;SharedAccessKey=dGVzdA==");
         var redis = RedisConnectionString ?? Environment.GetEnvironmentVariable("VELOTIME_TEST_REDIS");
         if (UseProductionRedisCache)
         {
@@ -54,6 +60,12 @@ public sealed class FacilitiesApiFactory : WebApplicationFactory<Program>
         }));
         builder.ConfigureServices(services =>
         {
+            foreach (var descriptor in services.Where(descriptor => descriptor.ServiceType == typeof(IHostedService)
+                && (descriptor.ImplementationType?.Namespace?.StartsWith("SlimMessageBus", StringComparison.Ordinal) == true
+                    || descriptor.ImplementationType?.Name == "TimingAssociationOutboxStartup")).ToList())
+                services.Remove(descriptor);
+            services.RemoveAll<ITimingAssociationEventPublisher>();
+            services.AddSingleton<ITimingAssociationEventPublisher>(Events);
             services.RemoveAll<FacilityDbContext>();
             services.RemoveAll<DbContextOptions<FacilityDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<FacilityDbContext>>();
@@ -92,6 +104,7 @@ public sealed class FacilitiesApiFactory : WebApplicationFactory<Program>
 
     public async Task InitializeDatabaseAsync()
     {
+        Events.Reset();
         References.Dependencies = 0;
         References.Unavailable = false;
         References.FacilityId = Guid.Empty;

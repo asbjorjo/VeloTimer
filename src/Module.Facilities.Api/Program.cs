@@ -1,4 +1,6 @@
+using System.Reflection;
 using VeloTime.Module.Facilities;
+using VeloTime.Module.Facilities.Api;
 using VeloTime.Module.Facilities.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,6 +30,9 @@ builder.Services.AddOutputCache(options =>
 });
 
 builder.AddModuleFacilities();
+// OpenAPI generation is not an enabled API host and must not dispatch events.
+if (Assembly.GetEntryAssembly()?.GetName().Name != "GetDocument.Insider")
+    builder.AddTimingAssociationMessaging();
 
 var app = builder.Build();
 
