@@ -14,8 +14,6 @@ public static class FacilitiesCache
     public static string CoursePointById(Guid coursePointId) => $"velotime:facilities:course-point-by-id:v1:{coursePointId}";
     public static string SegmentsBetweenCoursePoints(Guid startId, Guid endId) => $"velotime:facilities:segments-between-course-points:v1:{startId}:{endId}";
     public static string DistanceBetweenCoursePoints(Guid startId, Guid endId) => $"velotime:facilities:distance-between-course-points:v1:{startId}:{endId}";
-    public static string CoursePointByTimingPoint(Guid timingPointId) => $"velotime:facilities:course-point-by-timing-point:v1:{timingPointId}";
-
     public static HybridCacheEntryOptions NewEntryOptions() => new()
     {
         Expiration = TimeSpan.FromSeconds(30),

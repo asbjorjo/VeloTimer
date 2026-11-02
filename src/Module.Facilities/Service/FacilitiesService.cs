@@ -79,28 +79,30 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
     public async Task<double> CalculateDistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("CalculateDistanceBetweenCoursePoints");
-        var segments = await GetSegmentsBetweenCoursePoints(Start, End, cancellationToken);
+        var layouts = await storage.Set<CourseLayout>()
+            .Where(layout => layout.Segments.Any(segment => segment.Start.Id == Start.Id || segment.End.Id == Start.Id) &&
+                             layout.Segments.Any(segment => segment.Start.Id == End.Id || segment.End.Id == End.Id))
+            .Include(layout => layout.Segments).ThenInclude(segment => segment.Start)
+            .Include(layout => layout.Segments).ThenInclude(segment => segment.End)
+            .ToListAsync(cancellationToken);
+        if (layouts.Count != 1)
+            throw new IncompatibleCoursePathException("The coursepoints do not identify one compatible course layout.");
 
-        CourseSegment start = segments.Single(s => s.Start.Id == Start.Id);
-        CourseSegment end = Start.Id == End.Id ? start : segments.Single(s => s.End.Id == End.Id);
-
-        activity?.SetTag("StartSegmentId", start.Id);
-        activity?.SetTag("EndSegmentId", end.Id);
-
-        if (Start.Id == End.Id)
-        {
-            return segments.Sum(s => s.Length);
-        }
-
-
-        if (start.Order < end.Order)
-        {
-            return segments.Where(s => s.Order >= start.Order && s.Order <= end.Order).Sum(s => s.Length);
-        }
-        else
-        {
-            return segments.Where(s => s.Order <= start.Order && s.Order >= end.Order).Sum(s => s.Length);
-        }
+        var segments = layouts[0].Segments.OrderBy(segment => segment.Order).ToList();
+        if (segments.Count == 0 || segments.Zip(segments.Skip(1))
+                .Any(pair => pair.First.End.Id != pair.Second.Start.Id))
+            throw new IncompatibleCoursePathException("The course layout does not contain one continuous path.");
+        var points = segments.Take(1).Select(segment => segment.Start)
+            .Concat(segments.Select(segment => segment.End))
+            .ToList();
+        var startIndex = points.FindIndex(point => point.Id == Start.Id);
+        var endIndex = points.FindIndex(point => point.Id == End.Id);
+        if (startIndex < 0 || endIndex < 0)
+            throw new IncompatibleCoursePathException("The coursepoints do not identify a continuous path.");
+        if (startIndex == endIndex) return segments.Sum(segment => segment.Length);
+        return segments.Skip(Math.Min(startIndex, endIndex))
+            .Take(Math.Abs(endIndex - startIndex))
+            .Sum(segment => segment.Length);
     }
 
     public async Task<double> DistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
@@ -120,7 +122,8 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
 
         return distance;
     }
-    public async Task<double> DistanceBetweenTimingPoints(Guid Start, Guid End, CancellationToken cancellationToken = default)
+    public async Task<double> DistanceBetweenTimingPoints(Guid Start, Guid End, DateTimeOffset startAt,
+        DateTimeOffset endAt, TimingAssociationService associations, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("DistanceBetweenTimingPoints");
 
@@ -129,8 +132,12 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
             activity?.SetTag("StartTimingPointId", Start);
             activity?.SetTag("EndTimingPointId", End);
 
-            CoursePoint StartPoint = await FindCoursePointByTimingPointId(Start, cancellationToken);
-            CoursePoint EndPoint = await FindCoursePointByTimingPointId(End, cancellationToken);
+            CoursePoint? StartPoint = await associations.FindCoursePointByTimingPointIdAsync(Start, startAt, cancellationToken);
+            CoursePoint? EndPoint = Start == End && startAt == endAt
+                ? StartPoint
+                : await associations.FindCoursePointByTimingPointIdAsync(End, endAt, cancellationToken);
+            if (StartPoint is null || EndPoint is null)
+                throw new KeyNotFoundException("A timing point has no coursepoint association at the requested instant.");
 
             return await DistanceBetweenCoursePoints(StartPoint, EndPoint, cancellationToken);
         }
@@ -141,26 +148,30 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
         }
     }
 
+    public async Task<double> DistanceBetweenTimingPoints(Guid Start, Guid End, CancellationToken cancellationToken = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var startPoint = await FindCoursePointByTimingPointIdAtAsync(Start, now, cancellationToken);
+        var endPoint = Start == End
+            ? startPoint
+            : await FindCoursePointByTimingPointIdAtAsync(End, now, cancellationToken);
+        return await DistanceBetweenCoursePoints(startPoint, endPoint, cancellationToken);
+    }
+
     public async Task<CoursePoint> FindCoursePointByTimingPointId(Guid TimingPoint, CancellationToken cancellationToken = default)
     {
-        using var activity = Instrumentation.Source.StartActivity("FindCoursePointByTimingPointId");
-        activity?.SetTag("TimingPointId", TimingPoint);
-        try
-        {
-            var timingPoint = await cache.GetOrCreateAsync(
-                FacilitiesCache.CoursePointByTimingPoint(TimingPoint),
-                async cancel => await storage.Set<CoursePoint>()
-                    .SingleAsync(p => p.TimingPoint == TimingPoint, cancellationToken: cancel),
-                options: FacilitiesCache.NewEntryOptions(),
-            tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
-            activity?.SetTag("CoursePointId", timingPoint.Id);
-            activity?.SetStatus(ActivityStatusCode.Ok);
-            return timingPoint;
-        }
-        catch (InvalidOperationException ex)
-        {
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            throw;
-        }
+        var now = DateTimeOffset.UtcNow;
+        return await FindCoursePointByTimingPointIdAtAsync(TimingPoint, now, cancellationToken);
     }
+
+    private async Task<CoursePoint> FindCoursePointByTimingPointIdAtAsync(
+        Guid timingPointId, DateTimeOffset at, CancellationToken cancellationToken) =>
+        await storage.Set<CoursePointTimingAssociation>()
+            .Where(association => association.TimingPointId == timingPointId &&
+                (!association.ValidFromUtc.HasValue || association.ValidFromUtc <= at) &&
+                (!association.ValidToUtc.HasValue || at < association.ValidToUtc))
+            .Select(association => association.CoursePoint)
+            .SingleAsync(cancellationToken);
 }
+
+public sealed class IncompatibleCoursePathException(string message) : Exception(message);

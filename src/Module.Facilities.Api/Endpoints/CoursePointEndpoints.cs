@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VeloTime.Module.Facilities.Interface.Data;
 using VeloTime.Module.Facilities.Model;
@@ -12,72 +13,111 @@ internal static class CoursePointEndpoints
     internal static void MapCoursePointEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var coursePoints = endpoints.MapGroup("coursepoint");
-        
-        coursePoints.MapGet("{id}", GetCoursePointById).CacheOutput(FacilitiesOutputCache.PolicyName);
+
+        // These projections depend on effective time. Bypass both mapping and output caches so a
+        // scheduled boundary cannot leave a stale current mapping behind.
+        coursePoints.MapGet("{id}", GetCoursePointById);
         coursePoints.MapGet("{id}/facility", GetFacilityByCoursePointId).CacheOutput(FacilitiesOutputCache.PolicyName);
         coursePoints.MapGet("{start}/distance/{end}", DistanceBetweenCoursePoints).CacheOutput(FacilitiesOutputCache.PolicyName);
 
         var timingPoints = endpoints.MapGroup("timingpoint");
-        timingPoints.MapGet("{id}", GetCoursePointByTimingPoint).CacheOutput(FacilitiesOutputCache.PolicyName);
-        timingPoints.MapGet("{start:guid}/distance/{end:guid}", DistanceBetweenTimingPoints).CacheOutput(FacilitiesOutputCache.PolicyName);
+        timingPoints.MapGet("{id}", GetCoursePointByTimingPoint);
+        timingPoints.MapGet("{start:guid}/distance/{end:guid}", DistanceBetweenTimingPoints);
     }
 
-    static async Task<Results<Ok<FacilityDTO>, NotFound>> GetFacilityByCoursePointId(Guid id, FacilitiesService facilities)
+    static async Task<Results<Ok<FacilityDTO>, NotFound>> GetFacilityByCoursePointId(
+        Guid id, FacilitiesService facilities, FacilityDbContext storage, CancellationToken cancellationToken)
     {
-        var coursepoint = await facilities.GetCoursePointById(id);
-        if (coursepoint == null)
-        {
+        if (!await storage.Set<CoursePoint>().AnyAsync(point => point.Id == id, cancellationToken))
             return TypedResults.NotFound();
-        }
-        var facility = await facilities.FacilityByCoursePoint(id);
-
-        return facility == null
+        var facility = await facilities.FacilityByCoursePoint(id, cancellationToken);
+        return facility is null
             ? TypedResults.NotFound()
-            : TypedResults.Ok(new FacilityDTO { Id = facility.Id, Name = facility.Name, Layouts = facility.Layouts.Select(l => l.Id).ToList() });
+            : TypedResults.Ok(new FacilityDTO
+            {
+                Id = facility.Id,
+                Name = facility.Name,
+                Layouts = facility.Layouts.Select(layout => layout.Id).ToList()
+            });
     }
 
-    static async Task<Results<Ok<CoursePointDTO>, NotFound>> GetCoursePointById(Guid id, FacilityDbContext storage) =>
-        await storage.Set<CoursePoint>()
-            .Select(c => new CoursePointDTO { Id = c.Id, TimingPointId = c.TimingPoint, Name = c.Name ?? string.Empty })
-            .SingleOrDefaultAsync(c => c.Id == id) is CoursePointDTO coursePoint
-            ? TypedResults.Ok(coursePoint)
-            : TypedResults.NotFound();
-
-    static async Task<Results<Ok<double>, NotFound>> DistanceBetweenCoursePoints(Guid start, Guid end, FacilitiesService facilities, FacilityDbContext storage)
+    static async Task<Results<Ok<CoursePointDTO>, NotFound>> GetCoursePointById(
+        Guid id, [FromQuery] DateTimeOffset? at, FacilityDbContext storage,
+        CancellationToken cancellationToken)
     {
-        var startpoint = await storage.Set<CoursePoint>().SingleOrDefaultAsync(c => c.Id == start);
-        var endpoint = start == end ? startpoint : await storage.Set<CoursePoint>().SingleOrDefaultAsync(c => c.Id == end);
-        if (startpoint == null || endpoint == null)
+        var point = await storage.Set<CoursePoint>().AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Id == id, cancellationToken);
+        if (point is null) return TypedResults.NotFound();
+        var instant = at.HasValue ? TimingAssociationService.Normalize(at.Value) : DateTimeOffset.UtcNow;
+        var associations = new TimingAssociationService(storage);
+        var timingPointId = await associations.ResolveTimingPointIdAsync(id, instant, cancellationToken);
+        return TypedResults.Ok(new CoursePointDTO
         {
-            return TypedResults.NotFound();
-        }
-
-        return TypedResults.Ok(await facilities.DistanceBetweenCoursePoints(startpoint, endpoint));
+            Id = point.Id,
+            TimingPointId = timingPointId,
+            Name = point.Name ?? string.Empty
+        });
     }
 
-    static async Task<Results<Ok<CoursePointDistance>, NotFound>> DistanceBetweenTimingPoints(Guid start, Guid end, FacilitiesService facilities, FacilityDbContext storage)
+    static async Task<Results<Ok<double>, NotFound, ProblemHttpResult>> DistanceBetweenCoursePoints(
+        Guid start, Guid end, FacilitiesService facilities, FacilityDbContext storage, CancellationToken cancellationToken)
     {
-        var startpoint = await storage.Set<CoursePoint>().SingleOrDefaultAsync(c => c.TimingPoint == start);
-        var endpoint = start == end ? startpoint : await storage.Set<CoursePoint>().SingleOrDefaultAsync(c => c.TimingPoint == end);
-
-        if (startpoint == null || endpoint == null )
+        var startpoint = await storage.Set<CoursePoint>().AsNoTracking().SingleOrDefaultAsync(point => point.Id == start, cancellationToken);
+        var endpoint = start == end
+            ? startpoint
+            : await storage.Set<CoursePoint>().AsNoTracking().SingleOrDefaultAsync(point => point.Id == end, cancellationToken);
+        if (startpoint is null || endpoint is null) return TypedResults.NotFound();
+        try
         {
-            return TypedResults.NotFound();
+            return TypedResults.Ok(await facilities.DistanceBetweenCoursePoints(startpoint, endpoint, cancellationToken));
         }
-
-        return TypedResults.Ok(new CoursePointDistance(
-            startpoint.Id,
-            endpoint.Id,
-            await facilities.DistanceBetweenCoursePoints(startpoint, endpoint),
-            await facilities.FacilityByCoursePoint(startpoint.Id) is Facility facility ? facility.Id : Guid.Empty
-            )
-        );
+        catch (IncompatibleCoursePathException exception)
+        {
+            return TypedResults.Problem(detail: exception.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
     }
 
-    static async Task<Results<Ok<CoursePointDTO>, NotFound>> GetCoursePointByTimingPoint(Guid id, FacilityDbContext storage) =>
-        await storage.Set<CoursePoint>()
-            .Select(c => new CoursePointDTO { Id = c.Id, TimingPointId = c.TimingPoint, Name = c.Name ?? string.Empty })
-            .SingleOrDefaultAsync(c => c.TimingPointId == id) is CoursePointDTO coursePoint
-            ? TypedResults.Ok(coursePoint)
-            : TypedResults.NotFound();
+    static async Task<IResult> DistanceBetweenTimingPoints(
+        Guid start, Guid end, [FromQuery] DateTimeOffset? startAt, [FromQuery] DateTimeOffset? endAt,
+        FacilitiesService facilities, FacilityDbContext storage, CancellationToken cancellationToken)
+    {
+        // Both omitted bounds use exactly one captured now. Supplying only one bound does not
+        // affect the independently defaulted other endpoint.
+        var now = DateTimeOffset.UtcNow;
+        var startInstant = startAt.HasValue ? TimingAssociationService.Normalize(startAt.Value) : now;
+        var endInstant = endAt.HasValue ? TimingAssociationService.Normalize(endAt.Value) : now;
+        var associations = new TimingAssociationService(storage);
+        try
+        {
+            var startpoint = await associations.FindCoursePointByTimingPointIdAsync(start, startInstant, cancellationToken);
+            var endpoint = start == end && startInstant == endInstant
+                ? startpoint
+                : await associations.FindCoursePointByTimingPointIdAsync(end, endInstant, cancellationToken);
+            if (startpoint is null || endpoint is null) return TypedResults.NotFound();
+            var distance = await facilities.DistanceBetweenCoursePoints(startpoint, endpoint, cancellationToken);
+            var facility = await facilities.FacilityByCoursePoint(startpoint.Id, cancellationToken);
+            return TypedResults.Ok(new CoursePointDistance(
+                startpoint.Id, endpoint.Id, distance, facility?.Id ?? Guid.Empty));
+        }
+        catch (IncompatibleCoursePathException exception)
+        {
+            return TypedResults.Problem(detail: exception.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    static async Task<Results<Ok<CoursePointDTO>, NotFound>> GetCoursePointByTimingPoint(
+        Guid id, [FromQuery] DateTimeOffset? at, FacilityDbContext storage, CancellationToken cancellationToken)
+    {
+        var instant = at.HasValue ? TimingAssociationService.Normalize(at.Value) : DateTimeOffset.UtcNow;
+        var associations = new TimingAssociationService(storage);
+        var point = await associations.FindCoursePointByTimingPointIdAsync(id, instant, cancellationToken);
+        return point is null
+            ? TypedResults.NotFound()
+            : TypedResults.Ok(new CoursePointDTO
+            {
+                Id = point.Id,
+                TimingPointId = id,
+                Name = point.Name ?? string.Empty
+            });
+    }
 }

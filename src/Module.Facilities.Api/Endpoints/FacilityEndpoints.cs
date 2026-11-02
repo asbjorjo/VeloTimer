@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VeloTime.Module.Facilities.Interface.Data;
 using VeloTime.Module.Facilities.Model;
 using VeloTime.Module.Facilities.Storage;
 using VeloTime.Module.Common;
+using VeloTime.Module.Facilities.Service;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Logging;
@@ -25,19 +27,32 @@ internal static class FacilityEndpoints
             .AddEndpointFilter<AdministrationDependencyFilter>();
     }
 
-    private static async Task<Results<Ok<List<CourseLayoutDTO>>, NotFound>> GetLayoutsForFacility(Guid id, FacilityDbContext storage)
+    private static async Task<Results<Ok<List<CourseLayoutDTO>>, NotFound>> GetLayoutsForFacility(
+        Guid id, [FromQuery] DateTimeOffset? at, FacilityDbContext storage,
+        CancellationToken cancellationToken)
     {
         var layouts = storage.Set<CourseLayout>()
             .Where(cl => cl.FacilityId == id);
 
-        if (!await storage.Set<Facility>().AnyAsync(facility => facility.Id == id))
+        if (!await storage.Set<Facility>().AnyAsync(facility => facility.Id == id, cancellationToken))
         {
             return TypedResults.NotFound();
         }
 
+        var records = await layouts.Include(layout => layout.Segments)
+            .ThenInclude(segment => segment.Start)
+            .Include(layout => layout.Segments)
+            .ThenInclude(segment => segment.End)
+            .ToListAsync(cancellationToken);
+        var instant = at.HasValue ? TimingAssociationService.Normalize(at.Value) : DateTimeOffset.UtcNow;
+        var associations = new TimingAssociationService(storage);
+        var mappings = await associations.ResolveManyAsync(
+            records.SelectMany(layout => layout.Segments.SelectMany(segment =>
+                new[] { segment.Start.Id, segment.End.Id })),
+            instant, cancellationToken);
+
         return TypedResults.Ok(
-            await layouts
-                .Select(cl => new CourseLayoutDTO
+            records.Select(cl => new CourseLayoutDTO
                 {
                     Id = cl.Id,
                     FacilityId = cl.FacilityId,
@@ -49,17 +64,17 @@ internal static class FacilityEndpoints
                         {
                             Id = s.Start.Id,
                             Name = s.Start.Name ?? string.Empty,
-                            TimingPointId = s.Start.TimingPoint
+                            TimingPointId = mappings.GetValueOrDefault(s.Start.Id)
                         },
                         End = new CoursePointDTO
                         {
                             Id = s.End.Id,
                             Name = s.End.Name ?? string.Empty,
-                            TimingPointId = s.End.TimingPoint
+                            TimingPointId = mappings.GetValueOrDefault(s.End.Id)
                         },
                         Length = s.Length
                     }).ToList()
-                }).ToListAsync());
+                }).ToList());
     }
 
     async static Task<Ok<List<FacilityDTO>>> ListFacilities(FacilityDbContext storage)
