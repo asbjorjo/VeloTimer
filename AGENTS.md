@@ -37,8 +37,10 @@ The shared architecture and conventions in this file remain the source of truth.
 
 ## Git Workflow
 
-- Start new work on a dedicated branch based on the appropriate up-to-date base branch; do not make changes directly on the default branch.
-- Keep commits atomic: each commit should contain one focused, self-contained change.
+- Before making changes, start each independent session in a separate Git worktree on a dedicated branch based on the appropriate up-to-date base branch, for example `git worktree add -b <branch> <separate-path> <base-ref>`. Run edits, builds, tests, and commits from that worktree so multiple sessions can work in parallel without sharing working files or an index. Do not make changes directly on the default branch.
+- Reuse the session's assigned worktree for sequential specialist handoffs. Parallel editing specialists must use separate worktrees and branches; the Coordinator integrates their commits explicitly. Read-only reviews do not require a new worktree.
+- Preserve existing worktrees and uncommitted changes belonging to users or other sessions. Do not switch their branches, stage their files, or remove their worktrees.
+- Make atomic commits as work progresses, after each focused, self-contained change passes its relevant checks; do not defer all commits until the end. Stage only the files or hunks belonging to that change, and never commit unrelated work or known-broken intermediate states.
 - Use Conventional Commit messages in the format `<type>(<scope>): <imperative summary>`, for example `fix(timing): validate passing timestamps`.
 
 ## Architecture
