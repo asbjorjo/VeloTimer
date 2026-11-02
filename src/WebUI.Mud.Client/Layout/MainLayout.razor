@@ -67,9 +67,13 @@
     private bool _identityInitialized;
     private string? _identityKey;
     private bool _reloadAfterCurrentLoad;
+    private System.Globalization.CultureInfo _uiCulture = System.Globalization.CultureInfo.InvariantCulture;
 
     protected override void OnInitialized()
     {
+        // Authentication notifications can run under a different execution culture.
+        // Language selection reloads the document, so this resolved UI culture is stable.
+        _uiCulture = System.Globalization.CultureInfo.GetCultureInfo(System.Globalization.CultureInfo.CurrentUICulture.Name);
         Preferences.Changed += PreferencesChanged;
         Authentication.AuthenticationStateChanged += AuthenticationChanged;
     }
@@ -126,8 +130,8 @@
             _identityInitialized = true;
             _identityKey = identity;
             var signedIn = authState.User.Identity?.IsAuthenticated == true;
-            if (retry) await Preferences.RetryAsync(signedIn, _lifetime.Token);
-            else await Preferences.InitializeAsync(signedIn, _lifetime.Token);
+            if (retry) await Preferences.RetryAsync(signedIn, _lifetime.Token, _uiCulture);
+            else await Preferences.InitializeAsync(signedIn, _lifetime.Token, _uiCulture);
         }
         catch (OperationCanceledException) { }
         catch (HttpRequestException exception) { _preferenceError = exception.StatusCode switch

@@ -8,4 +8,5 @@ public sealed class DisplayPreference
     public required string SpeedUnit { get; set; }
     public required string TimeMode { get; set; }
     public string? TimeZoneId { get; set; }
+    public string? DateTimeCulture { get; set; }
 }

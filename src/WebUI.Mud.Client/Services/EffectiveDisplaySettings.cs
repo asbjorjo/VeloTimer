@@ -1,26 +1,34 @@
 using System.Globalization;
 using UnitsNet;
+using VeloTime.Module.Profiles.Interface;
 using VeloTime.Module.Profiles.Interface.Data;
 using VeloTime.Module.Timing.Interface.Data;
 
 namespace VeloTime.WebUI.Mud.Client.Services;
 
 /// <summary>Immutable boundary. Statistics API speeds are km/h; API distances are metres.</summary>
-public sealed record EffectiveDisplaySettings(DisplayPreferenceDTO Preference, TimeZoneInfo? Zone, CultureInfo NumberCulture)
+public sealed record EffectiveDisplaySettings(DisplayPreferenceDTO Preference, TimeZoneInfo? Zone, CultureInfo NumberCulture, CultureInfo DateTimeCulture)
 {
-    public static EffectiveDisplaySettings Unresolved { get; } = new(new("m", "km/h", "browser", null), null, CultureInfo.InvariantCulture);
+    public static EffectiveDisplaySettings Unresolved { get; } = new(new("m", "km/h", "browser", null), null, CultureInfo.InvariantCulture, CultureInfo.InvariantCulture);
     public bool IsReady => Zone is not null;
     public string DistanceUnit => Preference.DistanceUnit;
     public string SpeedUnit => Preference.SpeedUnit;
     public string ZoneLabel => Zone?.Id ?? "";
-    public static EffectiveDisplaySettings Create(DisplayPreferenceDTO value, string browserZone, string browserLocale)
+    public static EffectiveDisplaySettings Create(DisplayPreferenceDTO value, string browserZone, string browserLocale, CultureInfo? uiCulture = null)
     {
+        if (!ProfileDateTimeCultureCodes.IsSupportedPreference(value.DateTimeCulture)) throw new PresentationValidationException("DisplaySettingsInvalid");
         if (value.TimeMode != "timeZone" && value.TimeZoneId is not null) throw new PresentationValidationException("DisplaySettingsInvalid");
         if (value.DistanceUnit is not ("m" or "ft") || value.SpeedUnit is not ("km/h" or "mph" or "m/s")) throw new PresentationValidationException("DisplaySettingsInvalid");
         var id = value.TimeMode switch { "utc" => "UTC", "browser" => browserZone, "timeZone" => value.TimeZoneId, _ => throw new PresentationValidationException("DisplaySettingsInvalid") };
         if (string.IsNullOrWhiteSpace(id)) throw new PresentationValidationException("DisplaySettingsInvalid");
         // Never use TimeZoneInfo.Local: it can be the server zone.
-        return new(value, TimeZoneInfo.FindSystemTimeZoneById(id), CultureInfo.GetCultureInfo(browserLocale));
+        var dateTimeCulture = value.DateTimeCulture switch
+        {
+            null => uiCulture ?? CultureInfo.CurrentUICulture,
+            ProfileDateTimeCultureCodes.Browser => CultureInfo.GetCultureInfo(browserLocale),
+            _ => CultureInfo.GetCultureInfo(value.DateTimeCulture)
+        };
+        return new(value, TimeZoneInfo.FindSystemTimeZoneById(id), CultureInfo.GetCultureInfo(browserLocale), dateTimeCulture);
     }
     public double DistanceFromMetres(double metres) => DistanceUnit == "ft" ? Length.FromMeters(metres).Feet : Length.FromMeters(metres).Meters;
     public double DistanceToMetres(double value) => DistanceUnit == "ft" ? Length.FromFeet(value).Meters : Length.FromMeters(value).Meters;
@@ -46,7 +54,7 @@ public sealed record EffectiveDisplaySettings(DisplayPreferenceDTO Preference, T
     public bool ValidDistance(double value, double minimumMetres = 0.001) => double.IsFinite(value) && double.IsFinite(DistanceToMetres(value)) && value >= DistanceFromMetres(minimumMetres);
     public DateTimeOffset Local(DateTimeOffset instant) => TimeZoneInfo.ConvertTime(instant, Zone ?? throw new PresentationValidationException("DisplaySettingsLoading"));
     public DateTimeOffset Local(DateTime utc) => Local(new DateTimeOffset(DateTime.SpecifyKind(utc, DateTimeKind.Utc)));
-    public string Timestamp(DateTimeOffset? instant) => instant.HasValue ? $"{Local(instant.Value).ToString("G", NumberCulture)} {Local(instant.Value):zzz} [{ZoneLabel}]" : "-";
+    public string Timestamp(DateTimeOffset? instant) => instant.HasValue ? $"{Local(instant.Value).ToString("G", DateTimeCulture)} {Local(instant.Value).ToString("zzz", CultureInfo.InvariantCulture)} [{ZoneLabel}]" : "-";
     public string Timestamp(DateTime? utc) => Timestamp(utc.HasValue ? new DateTimeOffset(DateTime.SpecifyKind(utc.Value, DateTimeKind.Utc)) : null);
     public DateOnly CalendarDate(DateTimeOffset instant) => DateOnly.FromDateTime(Local(instant).DateTime);
     public TimeSpan[] Offsets(DateTime wall)

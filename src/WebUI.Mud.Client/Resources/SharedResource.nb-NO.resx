@@ -433,7 +433,10 @@
   <data name="LayoutSaveFailed" xml:space="preserve"><value>Kunne ikke lagre baneløpet. Prøv igjen.</value></data>
   <data name="DiscardLayoutChanges" xml:space="preserve"><value>Ulagrede endringer i baneløpet eller tilknytningene går tapt.</value></data>
   <data name="DisplaySettings" xml:space="preserve"><value>Enheter og tid</value></data>
-  <data name="DisplaySettingsHelp" xml:space="preserve"><value>Lagrede innstillinger følger kontoen din på tvers av enheter. Nettlesertid bruker tidssonen på enheten du bruker. Endringer tas i bruk først når lagringen er vellykket.</value></data>
+  <data name="DisplaySettingsHelp" xml:space="preserve"><value>Lagrede innstillinger følger kontoen din på tvers av enheter. Datoer og klokkeslett følger grensesnittspråket med mindre du velger et annet format. Nettlesertid bruker tidssonen på enheten du bruker. Tallformatet er uendret. Endringer tas i bruk først når lagringen er vellykket.</value></data>
+  <data name="DateTimeFormat" xml:space="preserve"><value>Dato- og klokkeslettformat</value></data>
+  <data name="FollowUiLanguage" xml:space="preserve"><value>Følg grensesnittspråket (standard)</value></data>
+  <data name="BrowserDateTimeFormat" xml:space="preserve"><value>Nettleserformat (denne enheten)</value></data>
   <data name="DisplaySettingsLoading" xml:space="preserve"><value>Henter visningsinnstillinger og nettleserens tidssone …</value></data>
   <data name="DisplaySettingsLoadFailed" xml:space="preserve"><value>Kunne ikke hente visningsinnstillinger eller finne nettleserens tidssone. Prøv igjen for å fortsette. Serverens lokale tid brukes ikke.</value></data>
   <data name="DisplaySettingsSaveFailed" xml:space="preserve"><value>Innstillingene ble ikke lagret. Utkastet er beholdt, og de sist lagrede innstillingene brukes fortsatt. Prøv igjen eller forkast endringene.</value></data>

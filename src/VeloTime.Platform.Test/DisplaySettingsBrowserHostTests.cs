@@ -266,7 +266,7 @@ public sealed class DisplaySettingsBrowserHostTests
                     (request.TimeMode is "browser" or "utc" ? request.TimeZoneId is null
                         : request.TimeMode == "timeZone" && Zones.Any(zone => zone.Id == request.TimeZoneId));
                 if (!valid) { _submitted.Add(new(DateTimeOffset.UtcNow, request, "rejected-400", null)); throw new HttpRequestException("Invalid", null, System.Net.HttpStatusCode.BadRequest); }
-                Current = new(request.DistanceUnit, request.SpeedUnit, request.TimeMode, request.TimeZoneId);
+                Current = new(request.DistanceUnit, request.SpeedUnit, request.TimeMode, request.TimeZoneId, request.DateTimeCulture);
                 _submitted.Add(new(DateTimeOffset.UtcNow, request, "persisted", Current));
                 return Current;
             }

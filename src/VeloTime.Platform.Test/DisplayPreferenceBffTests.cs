@@ -5,22 +5,23 @@ using Contracts = VeloTime.Module.Profiles.Client;
 namespace VeloTime.Platform.Test;
 public sealed partial class WebUiBffTests
 {
-    private static Contracts.DisplayPreferenceDTO Snapshot() => new() { DistanceUnit = "ft", SpeedUnit = "mph", TimeMode = "timeZone", TimeZoneId = "Europe/Oslo" };
-    [Fact]
-    public async Task DisplayPreferences_BffAndUiTransport_AgreeOnRoutesShapeAndNoStore()
+    private static Contracts.DisplayPreferenceDTO Snapshot(string? culture = null) => new() { DistanceUnit = "ft", SpeedUnit = "mph", TimeMode = "timeZone", TimeZoneId = "Europe/Oslo", DateTimeCulture = culture };
+    [Theory]
+    [InlineData(null)] [InlineData("browser")] [InlineData("en")] [InlineData("nb-NO")]
+    public async Task DisplayPreferences_BffAndUiTransport_AgreeOnRoutesShapeAndNoStore(string? culture)
     {
         var profiles = PlatformServiceTests.TestProxy.Create<Contracts.IProfilesClient>((method, args) => method.Name switch
         {
-            nameof(Contracts.IProfilesClient.GetCurrentDisplayPreferenceAsync) => Snapshot(),
-            nameof(Contracts.IProfilesClient.UpdateDisplayPreferenceAsync) => VerifySaved(args),
+            nameof(Contracts.IProfilesClient.GetCurrentDisplayPreferenceAsync) => Snapshot(culture),
+            nameof(Contracts.IProfilesClient.UpdateDisplayPreferenceAsync) => VerifySaved(args, culture),
             nameof(Contracts.IProfilesClient.GetSupportedTimeZonesAsync) => new List<Contracts.TimeZoneOptionDTO> { new() { Id = "Europe/Oslo", DisplayName = "Oslo" } },
             _ => throw new NotSupportedException(method.Name)
         });
         await using var app = await CreateAppAsync(profiles: profiles); using var client = CreateClient(app); await client.GetAsync("signin?role=user");
         var transport = new DisplayPreferenceHttpService(client);
-        Assert.Equal(new("ft", "mph", "timeZone", "Europe/Oslo"), await transport.GetAsync());
+        Assert.Equal(new("ft", "mph", "timeZone", "Europe/Oslo", culture), await transport.GetAsync());
         Assert.Equal("Europe/Oslo", Assert.Single(await transport.GetTimeZonesAsync()).Id);
-        Assert.Equal(new("ft", "mph", "timeZone", "Europe/Oslo"), await transport.SaveAsync(new("ft", "mph", "timeZone", "Europe/Oslo")));
+        Assert.Equal(new("ft", "mph", "timeZone", "Europe/Oslo", culture), await transport.SaveAsync(new("ft", "mph", "timeZone", "Europe/Oslo", culture)));
         foreach (var route in new[] { "api/profile/preferences/display", "api/profile/preferences/time-zones" })
         {
             using var response = await client.GetAsync(route); Assert.Equal(HttpStatusCode.OK, response.StatusCode); Assert.True(response.Headers.CacheControl!.NoStore);
@@ -30,10 +31,10 @@ public sealed partial class WebUiBffTests
         Assert.Single(calls, call => call.Method.Name == nameof(Contracts.IProfilesClient.GetSupportedTimeZonesAsync));
         Assert.Equal(2, calls.Count(call => call.Method.Name == nameof(Contracts.IProfilesClient.GetCurrentDisplayPreferenceAsync)));
     }
-    private static Contracts.DisplayPreferenceDTO VerifySaved(object?[] args)
+    private static Contracts.DisplayPreferenceDTO VerifySaved(object?[] args, string? culture)
     {
         var request = Assert.IsType<Contracts.UpdateDisplayPreferenceRequest>(args[0]);
-        Assert.Equal("ft", request.DistanceUnit); Assert.Equal("mph", request.SpeedUnit); Assert.Equal("timeZone", request.TimeMode); Assert.Equal("Europe/Oslo", request.TimeZoneId); Assert.IsType<CancellationToken>(args[1]); return Snapshot();
+        Assert.Equal("ft", request.DistanceUnit); Assert.Equal("mph", request.SpeedUnit); Assert.Equal("timeZone", request.TimeMode); Assert.Equal("Europe/Oslo", request.TimeZoneId); Assert.Equal(culture, request.DateTimeCulture); Assert.IsType<CancellationToken>(args[1]); return Snapshot(culture);
     }
     [Fact]
     public async Task DisplayPreferences_UnauthenticatedOrMissingCsrf_NeverReachProfiles()

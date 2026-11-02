@@ -29,7 +29,8 @@ public sealed class DisplayPreferenceService(
             DistanceUnit = request.DistanceUnit,
             SpeedUnit = request.SpeedUnit,
             TimeMode = request.TimeMode,
-            TimeZoneId = request.TimeZoneId
+            TimeZoneId = request.TimeZoneId,
+            DateTimeCulture = request.DateTimeCulture
         }, cancellationToken), preferenceTag, "saving display preferences");
         return Map(response);
     }
@@ -62,12 +63,13 @@ public sealed class DisplayPreferenceService(
         if (preference is null ||
             preference.DistanceUnit is not ("m" or "ft") ||
             preference.SpeedUnit is not ("km/h" or "mph" or "m/s") ||
+            !ProfileDateTimeCultureCodes.IsSupportedPreference(preference.DateTimeCulture) ||
             preference.TimeMode is not ("browser" or "utc" or "timeZone") ||
             (preference.TimeMode != "timeZone" && preference.TimeZoneId is not null))
             throw new InvalidDataException("The persisted display preference is invalid.");
         if (preference.TimeMode == "timeZone")
             ValidateZone(preference.TimeZoneId);
-        return new(preference.DistanceUnit, preference.SpeedUnit, preference.TimeMode, preference.TimeZoneId);
+        return new(preference.DistanceUnit, preference.SpeedUnit, preference.TimeMode, preference.TimeZoneId, preference.DateTimeCulture);
     }
 
     private static void ValidateZone(string? id)

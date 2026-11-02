@@ -1,13 +1,13 @@
 @inherits PresentationComponentBase
 <MudStack Spacing="1">
-    @if (FixedWall) { <MudText>@Label: @Draft.Wall?.ToString("G", Settings.NumberCulture)</MudText> }
+    @if (FixedWall) { <MudText>@Label: @Draft.Wall?.ToString("G", Settings.DateTimeCulture)</MudText> }
     else
     {
-    <MudDatePicker @bind-Date="Draft.Date" @bind-Date:after="WallChanged" Culture="Settings.NumberCulture" Label="@Label" Disabled="Disabled" Required="Required" Clearable="@(!Required)" RequiredError="@L["RequiredError"]" />
+    <MudDatePicker @bind-Date="Draft.Date" @bind-Date:after="WallChanged" Culture="Settings.DateTimeCulture" DateFormat="@Settings.DateTimeCulture.DateTimeFormat.ShortDatePattern" Label="@Label" Disabled="Disabled" Required="Required" Clearable="@(!Required)" RequiredError="@L["RequiredError"]" />
     }
     @if (!CalendarOnly && !FixedWall)
     {
-        <MudTimePicker @bind-Time="Draft.Time" @bind-Time:after="WallChanged" Culture="Settings.NumberCulture" Label="@L["LocalTime"]" AmPm="false" Disabled="Disabled" Required="Required" RequiredError="@L["RequiredError"]" />
+        <MudTimePicker @bind-Time="Draft.Time" @bind-Time:after="WallChanged" Culture="Settings.DateTimeCulture" TimeFormat="@Settings.DateTimeCulture.DateTimeFormat.ShortTimePattern" Label="@L["LocalTime"]" AmPm="@Settings.DateTimeCulture.DateTimeFormat.ShortTimePattern.Contains('h')" Disabled="Disabled" Required="Required" RequiredError="@L["RequiredError"]" />
     }
     <MudText Typo="Typo.caption">@Settings.ZoneLabel</MudText>
     @if (_error is not null) { <MudAlert Severity="Severity.Warning" role="alert">@L[_error]</MudAlert> }
@@ -44,5 +44,5 @@
     }
     private async Task WallChanged() { Draft.Changed(); Validate(); await Changed.InvokeAsync(); }
     private async Task OffsetChanged(TimeSpan? offset) { Draft.Offset = offset; Validate(); await Changed.InvokeAsync(); }
-    private string OffsetLabel(TimeSpan offset) => $"{new DateTimeOffset(Draft.Wall!.Value, offset):zzz} → {new DateTimeOffset(Draft.Wall.Value, offset).UtcDateTime:O} UTC";
+    private string OffsetLabel(TimeSpan offset) => $"{new DateTimeOffset(Draft.Wall!.Value, offset).ToString("zzz", System.Globalization.CultureInfo.InvariantCulture)} → {new DateTimeOffset(Draft.Wall.Value, offset).UtcDateTime.ToString("G", Settings.DateTimeCulture)} UTC";
 }

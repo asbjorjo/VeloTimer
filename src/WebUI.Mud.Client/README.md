@@ -6,6 +6,17 @@ snapshot to the account, without changing its language setting. Browser time
 means the current device’s IANA zone, detected after interactivity; it is not a
 saved fixed offset. Anonymous viewers use metres, km/h, and browser time.
 
+Date/time formatting is independent of both numbers and the selected time zone.
+By default, timestamps, calendar dates, and date/time pickers follow the resolved
+UI language (also for anonymous viewers). **Date and time format** offers **Follow
+UI language (default)**, **Browser format (current device)**, English, and Norwegian
+Bokmål. The account snapshot persists `dateTimeCulture` as `null`, `browser`,
+`en`, or `nb-NO` respectively. Missing/null values follow the UI language, not the
+browser number culture. Selecting the default and saving clears an override;
+discard restores the saved selection. Language changes reload the UI: the default
+follows that language, while explicit overrides remain in effect. Numeric input
+and output retain their existing formatting.
+
 Named zones are searchable by IANA ID and catalogue label. Failed saves retain
 the draft and keep the previous settings effective. Retry or discard explicitly.
 Other unfinished editors keep a settings change pending until those edits are
@@ -39,13 +50,20 @@ existing delegated Profiles typed client, maps its generated DTOs to the shared
 through. `WebUI.Mud.Client` registers the same scoped state with the BFF-backed
 `DisplayPreferenceHttpService` for WebAssembly.
 
+`EffectiveDisplaySettings` keeps separate `NumberCulture` and `DateTimeCulture`.
+The session state captures the resolved `CurrentUICulture` before asynchronous
+initialization, and passes it explicitly when resolving loads and saved snapshots.
+It never changes global/server cultures to implement a date/time override.
+Editors and calendar filters keep their captured settings, timezone boundaries,
+and UTC instants; only their presentation uses the date/time culture.
+
 The preference BFF routes are in the cookie-authenticated `/api` group, return
 `Cache-Control: no-store`, and validate antiforgery on mutations:
 
 | Method and route | Semantics |
 | --- | --- |
-| GET `/api/profile/preferences/display` | Return complete `DisplayPreferenceDTO`; an account without saved settings receives m/km/h/browser/null without an insert. |
-| PUT `/api/profile/preferences/display` | Accept complete `UpdateDisplayPreferenceRequest`; return the successfully saved `DisplayPreferenceDTO` as 200 JSON. Browser/UTC mode clears the zone ID; named mode requires a supported IANA ID. |
+| GET `/api/profile/preferences/display` | Return complete `DisplayPreferenceDTO`; an account without saved settings receives m/km/h/browser, null zone ID and null date/time override without an insert. |
+| PUT `/api/profile/preferences/display` | Accept complete `UpdateDisplayPreferenceRequest`, including nullable `dateTimeCulture`; return the successfully saved `DisplayPreferenceDTO` as 200 JSON. Browser/UTC mode clears the zone ID; named mode requires a supported IANA ID. |
 | GET `/api/profile/preferences/time-zones` | Return the supported server catalogue as `TimeZoneOptionDTO` values (`id`, `displayName`). |
 
 The BFF proxies the additive Profiles API routes
@@ -82,6 +100,12 @@ verification.
 - Anonymous defaults and signed-in preferences in interactive server and WASM;
   loading, 401/403, offline/retry, saved success, retained failed draft/discard,
   missing/empty zone catalogue and searchable Europe/Oslo.
+- Opposing UI/browser locales (English/nb-NO and Norwegian/en-US): default dates
+  follow UI language, numbers remain unchanged. Save each explicit date/time
+  override, reload, switch language, then clear the override and reload again.
+  Verify picker labels, typed date/time input, 12/24-hour selection, date-column
+  filters, captured filter captions, repeated-time choices, and discard/retry.
+  Confirm null/omitted values and reject unsupported/empty/whitespace culture codes.
 - m/ft and all three speeds; 36 km/h must display as 10 m/s. Decimal comma input,
   finite/nonnegative speed validation, SI threshold, and unchanged editor saves.
 - Canonical speed URLs, repeated apply without drift, duration/cursor precision,

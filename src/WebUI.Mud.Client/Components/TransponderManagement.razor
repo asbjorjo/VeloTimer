@@ -76,7 +76,7 @@
     @foreach (var selection in _dateFilters.Values)
     {
         <MudPaper Outlined="true" Class="pa-2 mb-2">
-            <MudText Typo="Typo.caption">@L["CalendarFilterZone", selection.Day.ToString("d", selection.Settings.NumberCulture), selection.Settings.ZoneLabel]</MudText>
+            <MudText Typo="Typo.caption">@L["CalendarFilterZone", selection.Day.ToString("d", selection.Settings.DateTimeCulture), selection.Settings.ZoneLabel]</MudText>
             <ZonedInstantEditor Draft="selection.Start" EditorSettings="selection.Settings" FixedWall="true" CalendarOnly="true" Label="@L["From"]" Changed="Load" />
             <ZonedInstantEditor Draft="selection.End" EditorSettings="selection.Settings" FixedWall="true" CalendarOnly="true" Label="@L["ToExclusive"]" Changed="Load" />
         </MudPaper>
@@ -101,7 +101,7 @@
             @if (Administration)
             {
                 <PropertyColumn Property="row => row.LastSeenDate" Title="@L["LastSeen"]" FilterOperators="@DateFilterOperators"
-                                InitialDirection="SortDirection.Descending">
+                                Culture="Display.DateTimeCulture" InitialDirection="SortDirection.Descending">
                     <CellTemplate Context="cell">@Format(cell.Item.Row.Transponder.LastSeen)</CellTemplate>
                 </PropertyColumn>
             }
@@ -117,10 +117,10 @@
                     }
                 </CellTemplate>
             </PropertyColumn>
-            <PropertyColumn Property="row => row.OwnedFromDate" Title="@L["From"]" FilterOperators="@DateFilterOperators">
+            <PropertyColumn Property="row => row.OwnedFromDate" Title="@L["From"]" FilterOperators="@DateFilterOperators" Culture="Display.DateTimeCulture">
                 <CellTemplate Context="cell">@Format(cell.Item.Row.Ownership?.OwnedFrom)</CellTemplate>
             </PropertyColumn>
-            <PropertyColumn Property="row => row.OwnedToDate" Title="@L["ToExclusive"]" FilterOperators="@DateFilterOperators">
+            <PropertyColumn Property="row => row.OwnedToDate" Title="@L["ToExclusive"]" FilterOperators="@DateFilterOperators" Culture="Display.DateTimeCulture">
                 <CellTemplate Context="cell">@Format(cell.Item.Row.Ownership?.OwnedTo)</CellTemplate>
             </PropertyColumn>
             <PropertyColumn Property="row => row.Status" Title="@L["Status"]" FilterOperators="@StatusFilterOperators">

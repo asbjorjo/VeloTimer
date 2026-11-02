@@ -34,6 +34,11 @@ namespace VeloTime.Module.Profiles.Migrations
                         .HasColumnName("subject")
                         .UseCollation("C");
 
+                    b.Property<string>("DateTimeCulture")
+                        .HasColumnType("text")
+                        .HasColumnName("date_time_culture")
+                        .UseCollation("C");
+
                     b.Property<string>("DistanceUnit")
                         .IsRequired()
                         .HasColumnType("text")
@@ -62,6 +67,8 @@ namespace VeloTime.Module.Profiles.Migrations
 
                     b.ToTable("display_preference", "profiles", t =>
                         {
+                            t.HasCheckConstraint("ck_display_preference_date_time_culture", "date_time_culture IS NULL OR date_time_culture IN ('browser', 'en', 'nb-NO')");
+
                             t.HasCheckConstraint("ck_display_preference_distance_unit", "distance_unit IN ('m', 'ft')");
 
                             t.HasCheckConstraint("ck_display_preference_speed_unit", "speed_unit IN ('km/h', 'mph', 'm/s')");

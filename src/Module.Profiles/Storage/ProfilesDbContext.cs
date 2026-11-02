@@ -30,6 +30,9 @@ public sealed class ProfilesDbContext(DbContextOptions<ProfilesDbContext> option
             entity.ToTable("display_preference", table =>
             {
                 table.HasCheckConstraint(
+                    "ck_display_preference_date_time_culture",
+                    "date_time_culture IS NULL OR date_time_culture IN ('browser', 'en', 'nb-NO')");
+                table.HasCheckConstraint(
                     "ck_display_preference_distance_unit",
                     "distance_unit IN ('m', 'ft')");
                 table.HasCheckConstraint(
@@ -50,6 +53,7 @@ public sealed class ProfilesDbContext(DbContextOptions<ProfilesDbContext> option
             entity.Property(preference => preference.SpeedUnit).IsRequired().UseCollation("C");
             entity.Property(preference => preference.TimeMode).IsRequired().UseCollation("C");
             entity.Property(preference => preference.TimeZoneId).UseCollation("C");
+            entity.Property(preference => preference.DateTimeCulture).UseCollation("C");
         });
 
         base.OnModelCreating(modelBuilder);

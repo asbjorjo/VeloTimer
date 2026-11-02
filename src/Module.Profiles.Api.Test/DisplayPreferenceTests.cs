@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using VeloTime.Module.Profiles.Interface.Data;
+using VeloTime.Module.Profiles.Interface;
 using VeloTime.Module.Profiles.Service;
 using VeloTime.Module.Profiles.Storage;
 namespace VeloTime.Module.Profiles.Api.Test;
@@ -30,10 +31,92 @@ public sealed class DisplayPreferenceTests(PostgresFixture database) : IClassFix
         { Json("m", "km/h", "timeZone", "Europe/Oslo "), "profiles.invalid_time_zone" },
         { Json("m", "km/h", "timeZone", "Eastern Standard Time"), "profiles.invalid_time_zone" },
         { Json("m", "km/h", "utc", "UTC"), "profiles.time_zone_not_allowed" },
-        { Json("m", "km/h", "browser", ""), "profiles.time_zone_not_allowed" }
+        { Json("m", "km/h", "browser", ""), "profiles.time_zone_not_allowed" },
+        { Json("m", "km/h", "browser", null, ""), "profiles.invalid_date_time_culture" },
+        { Json("m", "km/h", "browser", null, " "), "profiles.invalid_date_time_culture" },
+        { Json("m", "km/h", "browser", null, "Browser"), "profiles.invalid_date_time_culture" },
+        { Json("m", "km/h", "browser", null, "browser "), "profiles.invalid_date_time_culture" },
+        { Json("m", "km/h", "browser", null, "EN"), "profiles.invalid_date_time_culture" },
+        { Json("m", "km/h", "browser", null, "en-US"), "profiles.invalid_date_time_culture" },
+        { Json("m", "km/h", "browser", null, "nb-no"), "profiles.invalid_date_time_culture" },
+        { Json("m", "km/h", "browser", null, "nb"), "profiles.invalid_date_time_culture" },
+        { Json("m", "km/h", "browser", null, "nb-NO "), "profiles.invalid_date_time_culture" },
+        { Json("m", "km/h", "browser", null, "fr-FR"), "profiles.invalid_date_time_culture" }
     };
-    private static string Json(string? distance, string? speed, string? mode, string? zone) =>
-        JsonSerializer.Serialize(new { distanceUnit = distance, speedUnit = speed, timeMode = mode, timeZoneId = zone });
+    private static string Json(string? distance, string? speed, string? mode, string? zone, string? dateTimeCulture = null) =>
+        JsonSerializer.Serialize(new { distanceUnit = distance, speedUnit = speed, timeMode = mode, timeZoneId = zone, dateTimeCulture });
+
+    [Theory]
+    [InlineData(null, true)] [InlineData("browser", true)] [InlineData("en", true)] [InlineData("nb-NO", true)]
+    [InlineData("", false)] [InlineData(" ", false)] [InlineData("Browser", false)] [InlineData("browser ", false)]
+    [InlineData("EN", false)] [InlineData("en-US", false)] [InlineData("nb-no", false)] [InlineData("nb", false)]
+    [InlineData("nb-NO ", false)] [InlineData("fr-FR", false)]
+    public void DateCultureHelper_AcceptsOnlyExactContractValues(string? value, bool supported) =>
+        Assert.Equal(supported, ProfileDateTimeCultureCodes.IsSupportedPreference(value));
+
+    [Fact]
+    public void LegacyFourArgumentContracts_AndOmittedJson_DefaultDateCultureToNull()
+    {
+        Assert.Null(new DisplayPreferenceDTO("m", "km/h", "browser", null).DateTimeCulture);
+        Assert.Null(new UpdateDisplayPreferenceRequest("m", "km/h", "browser", null).DateTimeCulture);
+        const string legacy = """{"distanceUnit":"m","speedUnit":"km/h","timeMode":"browser","timeZoneId":null}""";
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        Assert.Null(JsonSerializer.Deserialize<DisplayPreferenceDTO>(legacy, options)!.DateTimeCulture);
+        Assert.Null(JsonSerializer.Deserialize<UpdateDisplayPreferenceRequest>(legacy, options)!.DateTimeCulture);
+    }
+
+    [PostgresFact]
+    public async Task DateCultures_ApiReadUpsertAndResponseShape_IncludeNullAndOmittedReset()
+    {
+        var subject = Guid.NewGuid().ToString();
+        using var root = new ProfilesApiFactory { UseRealPreferences = true, Principal = ProfilesApiFactory.Identity("date-culture", subject) };
+        using var factory = root.WithWebHostBuilder(b => b.ConfigureTestServices(ConfigureStorage));
+        using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
+        await AssertSnapshot(await client.GetAsync(Route), null, "m", "km/h", "browser", null);
+        foreach (var culture in new string?[] { "browser", "en", "nb-NO", null, "nb-NO" })
+        {
+            using var response = await client.PutAsJsonAsync(Route + "?issuer=attacker&subject=victim",
+                new UpdateDisplayPreferenceRequest("ft", "mph", "timeZone", "Europe/Oslo", culture));
+            await AssertSnapshot(response, culture);
+            await AssertSnapshot(await client.GetAsync(Route), culture);
+            await using var fresh = database.CreateContext();
+            var stored = await fresh.DisplayPreferences.AsNoTracking().SingleAsync(x => x.Issuer == "date-culture" && x.Subject == subject);
+            Assert.Equal(culture, stored.DateTimeCulture);
+        }
+        // Old clients replacing the preference omit the new field: reset to follow UI language.
+        using var reset = await client.PutAsync(Route, new StringContent(
+            """{"distanceUnit":"ft","speedUnit":"mph","timeMode":"timeZone","timeZoneId":"Europe/Oslo"}""", Encoding.UTF8, "application/json"));
+        await AssertSnapshot(reset, null);
+        await AssertSnapshot(await client.GetAsync(Route), null);
+        await using var verify = database.CreateContext();
+        Assert.Null((await verify.DisplayPreferences.AsNoTracking().SingleAsync(x => x.Issuer == "date-culture" && x.Subject == subject)).DateTimeCulture);
+        Assert.Equal(new("m", "km/h", "browser", null), await new DisplayPreferenceService(verify).GetAsync("attacker", "victim"));
+
+        static async Task AssertSnapshot(HttpResponseMessage response, string? culture,
+            string distance = "ft", string speed = "mph", string mode = "timeZone", string? zone = "Europe/Oslo")
+        {
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("application/json", response.Content.Headers.ContentType!.MediaType);
+            using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal(new[] { "distanceUnit", "speedUnit", "timeMode", "timeZoneId", "dateTimeCulture" },
+                body.RootElement.EnumerateObject().Select(x => x.Name).ToArray());
+            Assert.Equal(new DisplayPreferenceDTO(distance, speed, mode, zone, culture),
+                body.RootElement.Deserialize<DisplayPreferenceDTO>(new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+            if (culture is null) Assert.Equal(JsonValueKind.Null, body.RootElement.GetProperty("dateTimeCulture").ValueKind);
+        }
+    }
+
+    [PostgresTheory]
+    [InlineData("")] [InlineData("Browser")] [InlineData("en-US")] [InlineData("nb-no")] [InlineData("en ")]
+    public async Task DateCultureDatabaseConstraint_RejectsNonExactValues(string culture)
+    {
+        await using var context = database.CreateContext();
+        var subject = Guid.NewGuid().ToString();
+        var failure = await Assert.ThrowsAsync<PostgresException>(() => context.Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT INTO profiles.display_preference (issuer, subject, distance_unit, speed_unit, time_mode, date_time_culture) VALUES ({"date-constraint"}, {subject}, {"m"}, {"km/h"}, {"browser"}, {culture})"));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, failure.SqlState);
+        Assert.Equal("ck_display_preference_date_time_culture", failure.ConstraintName);
+    }
     [Theory] [MemberData(nameof(InvalidRequests))]
     public async Task InvalidRequests_HaveStableProblemCodes_BeforeDatabaseAccess(string json, string code)
     {
@@ -88,8 +171,9 @@ public sealed class DisplayPreferenceTests(PostgresFixture database) : IClassFix
         using var root = new ProfilesApiFactory { UseRealPreferences = true, Principal = ProfilesApiFactory.Identity("api-display", Guid.NewGuid().ToString()) };
         using var factory = root.WithWebHostBuilder(b => b.ConfigureTestServices(ConfigureStorage)); using var client = factory.CreateClient(new() { BaseAddress = new Uri("https://localhost") });
         using var initial = await client.GetAsync(Route); using var shape = JsonDocument.Parse(await initial.Content.ReadAsStringAsync());
-        Assert.Equal(new[] { "distanceUnit", "speedUnit", "timeMode", "timeZoneId" }, shape.RootElement.EnumerateObject().Select(x => x.Name).ToArray());
+        Assert.Equal(new[] { "distanceUnit", "speedUnit", "timeMode", "timeZoneId", "dateTimeCulture" }, shape.RootElement.EnumerateObject().Select(x => x.Name).ToArray());
         Assert.Equal(JsonValueKind.Null, shape.RootElement.GetProperty("timeZoneId").ValueKind);
+        Assert.Equal(JsonValueKind.Null, shape.RootElement.GetProperty("dateTimeCulture").ValueKind);
         var zones = (await client.GetFromJsonAsync<List<TimeZoneOptionDTO>>("/api/profiles/me/preferences/time-zones"))!;
         Assert.Contains(zones, x => x.Id == "Europe/Oslo"); Assert.Equal(zones.Count, zones.Select(x => x.Id).Distinct().Count()); Assert.All(zones, x => Assert.False(string.IsNullOrWhiteSpace(x.DisplayName)));
         foreach (var distance in new[] { "m", "ft" }) foreach (var speed in new[] { "km/h", "mph", "m/s" }) foreach (var mode in new[] { "browser", "utc", "timeZone" })
