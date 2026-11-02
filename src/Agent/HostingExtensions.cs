@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Azure.Messaging.ServiceBus;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -51,6 +52,8 @@ public static class StartupExtensions
 
         var mbconfig = configuration.GetSection(MessageBusOptions.Section);
         var settings = mbconfig.Get<MessageBusOptions>() ?? new MessageBusOptions();
+        if (settings.OutboxPollIdleSleep <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(settings.OutboxPollIdleSleep));
         settings.ConnectionString = configuration.GetConnectionString(MessageBusOptions.ConnectionStringProperty) ?? string.Empty;
 
         services.AddSlimMessageBus(mbb =>
@@ -59,6 +62,17 @@ public static class StartupExtensions
             {
 
                 config.ConnectionString = settings.ConnectionString;
+                config.ClientFactory = (_, provider) => new ServiceBusClient(provider.ConnectionString, new ServiceBusClientOptions
+                {
+                    RetryOptions = new ServiceBusRetryOptions
+                    {
+                        Mode = ServiceBusRetryMode.Exponential,
+                        MaxRetries = 2,
+                        Delay = TimeSpan.FromSeconds(1),
+                        MaxDelay = TimeSpan.FromSeconds(5),
+                        TryTimeout = TimeSpan.FromSeconds(10)
+                    }
+                });
                 config.TopologyProvisioning = new ServiceBusTopologySettings
                 {
                     Enabled = false,
@@ -131,6 +145,11 @@ public static class StartupExtensions
             {
                 options.PostgreSqlSettings.DatabaseSchemaName = "agent";
                 options.MaintainSequence = true;
+                options.MaxDeliveryAttempts = int.MaxValue;
+                options.MessageTypeResolver = new OutboxMessageTypeResolver(options.MessageTypeResolver);
+                options.PollIdleSleep = settings.OutboxPollIdleSleep;
+                // A failed oldest message must not let later messages in the same batch advance.
+                options.PollBatchSize = 1;
                 options.MessageCleanup = new OutboxMessageCleanupSettings
                 {
                     Enabled = true,

@@ -10,5 +10,6 @@ public class MessageBusOptions
     public string TopicName { get; set; } = "velotime-agent";
     public string QueueName { get; set; } = "velo-passings";
     public int MaxConcurrency { get; set; } = 5;
+    public TimeSpan OutboxPollIdleSleep { get; set; } = TimeSpan.FromSeconds(5);
     public string ConnectionString { get; set; } = string.Empty;
 }
