@@ -122,6 +122,26 @@ public sealed class TimingAssociationConfirmationTests : IAsyncLifetime
 
         Assert.Null(result.ConflictPreview);
         Assert.NotNull(result.ChangeId);
+        var message = Assert.Single(events);
+        Assert.Equal(result.ChangeId, message.ChangeId);
+        Assert.Equal(
+            [new(new(destinationTiming, occupant, T0.AddDays(1), null), null),
+             new CoursePointTimingAssociationChange(new(sourceTiming, source, T0.AddDays(1), null),
+                 new(destinationTiming, source, T0.AddDays(1), null))],
+            result.Changes);
+        Assert.Equal(result.Changes, message.Changes);
+        await AssertHistoryAsync(source,
+            new(sourceTiming, source, null, T0.AddDays(1)),
+            new(destinationTiming, source, T0.AddDays(1), null));
+        await AssertHistoryAsync(occupant,
+            new CoursePointTimingAssociationSnapshot(destinationTiming, occupant, T0, T0.AddDays(1)));
+
+        var persisted = await RowsAsync();
+        var retry = await SetAsync(Request(null));
+        Assert.Null(retry.ChangeId);
+        Assert.Empty(retry.Changes);
+        Assert.Null(retry.ConflictPreview);
+        Assert.Equal(persisted, await RowsAsync());
         Assert.Single(events);
     }
 
@@ -288,12 +308,14 @@ public sealed class TimingAssociationConfirmationTests : IAsyncLifetime
             ValidFromUtc = T0, ValidToUtc = T0.AddDays(7)
         });
         Assert.Null(confirmed.ConflictPreview);
+        // Event deltas have no ordering contract; compare every exact window in canonical
+        // lower-bound order rather than relying on PostgreSQL's unordered row enumeration.
         Assert.Equal(
-            [new(new(destinationTiming, occupant, T0.AddDays(2), T0.AddDays(4)), null),
-             new(new(destinationTiming, occupant, T0.AddDays(6), T0.AddDays(7)), null),
-             new CoursePointTimingAssociationChange(new(sourceTiming, source, T0, T0.AddDays(7)),
-                 new(destinationTiming, source, T0, T0.AddDays(7)))],
-            Assert.Single(events).Changes);
+            [new CoursePointTimingAssociationChange(new(sourceTiming, source, T0, T0.AddDays(7)),
+                 new(destinationTiming, source, T0, T0.AddDays(7))),
+             new(new(destinationTiming, occupant, T0.AddDays(2), T0.AddDays(4)), null),
+             new(new(destinationTiming, occupant, T0.AddDays(6), T0.AddDays(7)), null)],
+            Assert.Single(events).Changes.OrderBy(delta => delta.Before!.ValidFromUtc).ToArray());
         await AssertHistoryAsync(occupant,
             new(destinationTiming, occupant, null, T0),
             new(destinationTiming, occupant, T0.AddDays(7), null));
