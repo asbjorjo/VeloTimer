@@ -156,6 +156,7 @@
     private Guid? _associationCoursePointId, _associationTimingPointId;
     private string _associationMode = "interval";
     private bool _fromUnbounded = true, _toUnbounded = true, _scheduleLoading;
+    private long _scheduleRequestGeneration;
     private bool _currentMappingUnavailable;
     private readonly ZonedInstantDraft _fromDraft = new(), _toDraft = new();
     private IReadOnlyList<CoursePointTimingAssociationSnapshot> _associationSchedule = [];
@@ -185,6 +186,7 @@
             }
             return;
         }
+        InvalidateAssociationSchedule();
         _loading = true; _error = null; _found = false; _dirty = false;
         _editorSettings = Display;
         InitializeAssociationRange();
@@ -292,19 +294,43 @@
         : CurrentTimingPoint(point.TimingPointId);
     private async Task SelectAssociationCoursePoint(Guid? id)
     {
+        var generation = ++_scheduleRequestGeneration;
         _associationCoursePointId = id;
         _associationSchedule = [];
         _conflictPreview = null;
         _pendingAssociationRequest = null;
         _associationError = _scheduleError = null;
+        _scheduleLoading = id.HasValue;
         if (!id.HasValue) return;
         _associationTimingPointId = _facilityPoints.FirstOrDefault(point => point.Id == id.Value)?.TimingPointId;
-        _scheduleLoading = true;
-        try { _associationSchedule = await Service.GetCoursePointTimingAssociationsAsync(id.Value, _lifetime.Token); }
+        try
+        {
+            var schedule = await Service.GetCoursePointTimingAssociationsAsync(id.Value, _lifetime.Token);
+            if (IsCurrentScheduleRequest(generation, id)) _associationSchedule = schedule;
+        }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (HttpRequestException exception) { _scheduleError = AssociationScheduleError(exception); }
-        catch (Exception) { _scheduleError = L["AssociationScheduleLoadFailed"].Value; }
-        finally { _scheduleLoading = false; }
+        catch (HttpRequestException exception)
+        {
+            if (IsCurrentScheduleRequest(generation, id)) _scheduleError = AssociationScheduleError(exception);
+        }
+        catch (Exception)
+        {
+            if (IsCurrentScheduleRequest(generation, id)) _scheduleError = L["AssociationScheduleLoadFailed"].Value;
+        }
+        finally
+        {
+            if (IsCurrentScheduleRequest(generation, id)) _scheduleLoading = false;
+        }
+    }
+    private bool IsCurrentScheduleRequest(long generation, Guid? coursePointId) =>
+        generation == _scheduleRequestGeneration && _associationCoursePointId == coursePointId;
+    private void InvalidateAssociationSchedule()
+    {
+        _scheduleRequestGeneration++;
+        _associationCoursePointId = null;
+        _associationSchedule = [];
+        _scheduleError = null;
+        _scheduleLoading = false;
     }
     private void AssociationInputChanged() { _conflictPreview = null; _pendingAssociationRequest = null; _associationError = null; }
     private async Task SaveAssociation()
@@ -420,5 +446,5 @@
             FormatInterval(conflict.OverlapValidFromUtc, conflict.OverlapValidToUtc)].Value;
     }
     private sealed record ScheduleRow(DateTimeOffset? ValidFromUtc, DateTimeOffset? ValidToUtc, Guid? TimingPointId, bool IsGap);
-    public void Dispose() { _unsavedRegistration?.Dispose(); _lifetime.Cancel(); _lifetime.Dispose(); }
+    public void Dispose() { InvalidateAssociationSchedule(); _unsavedRegistration?.Dispose(); _lifetime.Cancel(); _lifetime.Dispose(); }
 }

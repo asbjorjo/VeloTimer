@@ -143,6 +143,7 @@
     private string? _associationError, _scheduleError;
     private string _associationMode = "interval";
     private bool _fromUnbounded = true, _toUnbounded = true, _scheduleLoading, _associationChanged;
+    private long _scheduleRequestGeneration;
     private readonly ZonedInstantDraft _fromDraft = new(), _toDraft = new();
     private IReadOnlyList<VeloTime.Module.Facilities.Interface.Data.CoursePointTimingAssociationSnapshot> _associationSchedule = [];
     private VeloTime.Module.Facilities.Interface.Data.TimingAssociationConflictPreview? _conflictPreview;
@@ -159,8 +160,9 @@
     }
     private async Task Load()
     {
+        InvalidateAssociationSchedule();
         _loading = true; _error = null; _found = false;
-        _associationSchedule = []; _scheduleCoursePointId = null; _conflictPreview = null; _pendingAssociationRequest = null;
+        _conflictPreview = null; _pendingAssociationRequest = null;
         try
         {
             _facilities = await Service.GetFacilitiesAsync(_lifetime.Token);
@@ -277,16 +279,40 @@
     }
     private async Task LoadAssociationSchedule(Guid? coursePointId)
     {
+        var generation = ++_scheduleRequestGeneration;
         _scheduleCoursePointId = coursePointId;
         _associationSchedule = [];
         _scheduleError = null;
+        _scheduleLoading = coursePointId.HasValue;
         if (!coursePointId.HasValue) return;
-        _scheduleLoading = true;
-        try { _associationSchedule = await Service.GetCoursePointTimingAssociationsAsync(coursePointId.Value, _lifetime.Token); }
+        try
+        {
+            var schedule = await Service.GetCoursePointTimingAssociationsAsync(coursePointId.Value, _lifetime.Token);
+            if (IsCurrentScheduleRequest(generation, coursePointId)) _associationSchedule = schedule;
+        }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (HttpRequestException exception) { _scheduleError = AssociationScheduleError(exception); }
-        catch (Exception) { _scheduleError = L["AssociationScheduleLoadFailed"].Value; }
-        finally { _scheduleLoading = false; }
+        catch (HttpRequestException exception)
+        {
+            if (IsCurrentScheduleRequest(generation, coursePointId)) _scheduleError = AssociationScheduleError(exception);
+        }
+        catch (Exception)
+        {
+            if (IsCurrentScheduleRequest(generation, coursePointId)) _scheduleError = L["AssociationScheduleLoadFailed"].Value;
+        }
+        finally
+        {
+            if (IsCurrentScheduleRequest(generation, coursePointId)) _scheduleLoading = false;
+        }
+    }
+    private bool IsCurrentScheduleRequest(long generation, Guid? coursePointId) =>
+        generation == _scheduleRequestGeneration && _scheduleCoursePointId == coursePointId;
+    private void InvalidateAssociationSchedule()
+    {
+        _scheduleRequestGeneration++;
+        _scheduleCoursePointId = null;
+        _associationSchedule = [];
+        _scheduleError = null;
+        _scheduleLoading = false;
     }
     private void AssociationInputChanged()
     {
@@ -414,5 +440,5 @@
         System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout => L["ServiceUnavailable"].Value,
         _ => L["RequestFailed"].Value
     };
-    public void Dispose() { _unsavedRegistration?.Dispose(); _lifetime.Cancel(); _lifetime.Dispose(); }
+    public void Dispose() { InvalidateAssociationSchedule(); _unsavedRegistration?.Dispose(); _lifetime.Cancel(); _lifetime.Dispose(); }
 }
