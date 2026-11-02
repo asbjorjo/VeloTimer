@@ -129,7 +129,8 @@ public sealed class InfrastructureAdministrationService(IFacilitiesClient facili
                     !string.IsNullOrWhiteSpace(preview.ConfirmationToken) &&
                     preview.Requested is { } requested && requested.CoursePointId == id &&
                     requested.TimingPointId == request.TimingPointId &&
-                    requested.ValidFromUtc == request.ValidFromUtc && requested.ValidToUtc == request.ValidToUtc &&
+                    NormalizeAssociationBound(requested.ValidFromUtc) == NormalizeAssociationBound(request.ValidFromUtc) &&
+                    NormalizeAssociationBound(requested.ValidToUtc) == NormalizeAssociationBound(request.ValidToUtc) &&
                     preview.Conflicts is not null && preview.Conflicts.All(conflict =>
                         conflict is not null && conflict.Association is { } association &&
                         association.CoursePointId != Guid.Empty && association.TimingPointId != Guid.Empty &&
@@ -146,6 +147,13 @@ public sealed class InfrastructureAdministrationService(IFacilitiesClient facili
         }
         return true;
     });
+    private static DateTimeOffset? NormalizeAssociationBound(DateTimeOffset? value)
+    {
+        if (!value.HasValue) return null;
+        var utc = value.Value.ToUniversalTime();
+        return new DateTimeOffset(utc.Ticks - utc.Ticks % 10, TimeSpan.Zero);
+    }
+
     private static Facilities.TimingAssociationConflictPreview? ToContract(
         VeloTime.Module.Facilities.Client.TimingAssociationConflictPreview preview)
     {

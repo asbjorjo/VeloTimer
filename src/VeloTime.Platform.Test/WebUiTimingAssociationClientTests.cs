@@ -81,6 +81,99 @@ public sealed class WebUiTimingAssociationClientTests
         Assert.Equal(1, handler.Calls);
     }
 
+    [Fact]
+    public async Task StructuredConflict_AcceptsFacilitiesMicrosecondNormalizationForBothOffsetBounds()
+    {
+        var id = Guid.NewGuid();
+        var timingPointId = Guid.NewGuid();
+        var from = DateTimeOffset.Parse("2026-11-02T12:00:00.1234560Z");
+        var to = from.AddHours(1);
+        var request = new Contracts.SetCoursePointTimingAssociationRequest
+        {
+            TimingPointId = timingPointId,
+            ValidFromUtc = from.ToOffset(TimeSpan.FromHours(2)).AddTicks(3),
+            ValidToUtc = to.ToOffset(TimeSpan.FromHours(-3)).AddTicks(7)
+        };
+        var preview = new Contracts.TimingAssociationConflictPreview("destination-occupied",
+            new(id, timingPointId, from, to), [], "normalized-token");
+        using var handler = new ResponseHandler(HttpStatusCode.Conflict, JsonSerializer.Serialize(preview,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        using var http = new HttpClient(handler) { BaseAddress = new("http://facilities.test/") };
+        using var host = new WebUiCacheTestHost();
+
+        var exception = await Assert.ThrowsAsync<TimingAssociationConflictException>(() =>
+            Service(http, host).SetCoursePointTimingAssociationAsync(id, request));
+
+        Assert.Equal("destination-occupied", exception.Preview.Code);
+        Assert.Equal(id, exception.Preview.Requested.CoursePointId);
+        Assert.Equal(timingPointId, exception.Preview.Requested.TimingPointId);
+        Assert.Equal(from, exception.Preview.Requested.ValidFromUtc);
+        Assert.Equal(to, exception.Preview.Requested.ValidToUtc);
+        Assert.Equal("normalized-token", exception.Preview.ConfirmationToken);
+        Assert.Equal(1, handler.Calls);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task StructuredConflict_PreservesUnboundedNullBounds(bool nullFrom, bool nullTo)
+    {
+        var id = Guid.NewGuid();
+        var timingPointId = Guid.NewGuid();
+        var from = DateTimeOffset.Parse("2026-11-02T12:00:00.1234560Z");
+        var to = from.AddHours(1);
+        var request = new Contracts.SetCoursePointTimingAssociationRequest
+        {
+            TimingPointId = timingPointId,
+            ValidFromUtc = nullFrom ? null : from.AddTicks(9),
+            ValidToUtc = nullTo ? null : to.AddTicks(1)
+        };
+        var preview = new Contracts.TimingAssociationConflictPreview("confirmation-stale",
+            new(id, timingPointId, nullFrom ? null : from, nullTo ? null : to), [], "nullable-token");
+        using var handler = new ResponseHandler(HttpStatusCode.Conflict, JsonSerializer.Serialize(preview,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        using var http = new HttpClient(handler) { BaseAddress = new("http://facilities.test/") };
+        using var host = new WebUiCacheTestHost();
+
+        var exception = await Assert.ThrowsAsync<TimingAssociationConflictException>(() =>
+            Service(http, host).SetCoursePointTimingAssociationAsync(id, request));
+
+        Assert.Equal(nullFrom ? null : from, exception.Preview.Requested.ValidFromUtc);
+        Assert.Equal(nullTo ? null : to, exception.Preview.Requested.ValidToUtc);
+        Assert.Equal(1, handler.Calls);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task StructuredConflict_RejectsBoundsThatDifferBeyondFacilitiesNormalization(bool mismatchFrom, bool mismatchTo)
+    {
+        var id = Guid.NewGuid();
+        var timingPointId = Guid.NewGuid();
+        var from = DateTimeOffset.Parse("2026-11-02T12:00:00.1234560Z");
+        var to = from.AddHours(1);
+        var request = new Contracts.SetCoursePointTimingAssociationRequest
+        {
+            TimingPointId = timingPointId,
+            ValidFromUtc = from.AddTicks(1),
+            ValidToUtc = to.AddTicks(9)
+        };
+        var preview = new Contracts.TimingAssociationConflictPreview("destination-occupied",
+            new(id, timingPointId, mismatchFrom ? from.AddTicks(-10) : from, mismatchTo ? to.AddTicks(10) : to),
+            [], "mismatch-token");
+        using var handler = new ResponseHandler(HttpStatusCode.Conflict, JsonSerializer.Serialize(preview,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        using var http = new HttpClient(handler) { BaseAddress = new("http://facilities.test/") };
+        using var host = new WebUiCacheTestHost();
+
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            Service(http, host).SetCoursePointTimingAssociationAsync(id, request));
+
+        Assert.Equal(HttpStatusCode.BadGateway, exception.StatusCode);
+        Assert.Equal(1, handler.Calls);
+    }
+
     [Theory]
     [InlineData("not-json")]
     [InlineData("""{"detail":"Conflict without a preview."}""")]
