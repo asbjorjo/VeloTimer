@@ -44,6 +44,15 @@ Backend/persistence times remain UTC; API timestamps use DateTimeOffset. Admin i
 - Distance lookup supports independent start/end instants for samples spanning a reassignment, with coherent now defaults. Reject incompatible facility/path combinations explicitly.
 - Derive all mappings from association records, rather than maintaining a second mutable current field.
 
+### Finalized admin schedule/history read contract
+
+- [OpenAPI contract](../api/facilities-temporal-associations.openapi.yaml): `GET /api/facilities/coursepoint/{id}/timing-associations`, operation ID `GetCoursePointTimingAssociations`.
+- Reuse `AdministrationAuthorization.TimingLinkPolicy` (`CoursePointTimingLink.Write`): authenticate and require `velotime.admin` or `coursepoint-timing-link.write` before checking whether the coursepoint exists. Return bodyless 401/403 for authentication/permission failures and bodyless 404 for a missing coursepoint.
+- Return 200 with a JSON array of the existing `CoursePointTimingAssociationSnapshot` DTO. Include all complete past, current and future association intervals from one consistent read, without an `at` filter or pagination; return `[]` for an existing coursepoint with no intervals.
+- Bounds are half-open `[validFromUtc, validToUtc)`. Finite bounds are UTC `DateTimeOffset` instants with zero offsets; required nullable bounds mean negative/positive infinity, not omitted/default-now. Sort by lower bound ascending (null first), then upper bound ascending (null last). Gaps mean unlinked; do not synthesize snapshots for gaps.
+- This is effective association history/schedule, not audit history: it does not expose superseded revisions, edit timestamps or actors. Both admin entry points use this list to show historical/scheduled intervals separately from the current mapping returned by the existing as-of read. Existing DTOs, reads and immediate writes are unchanged.
+- NSwag generates `GetCoursePointTimingAssociationsAsync(Guid id, CancellationToken cancellationToken = default)` returning `Task<ICollection<CoursePointTimingAssociationSnapshot>>`. The API owner must implement and expose this operation before regenerating the runtime Facilities client; this revision adds no runtime handler.
+
 ### Interval changes and confirmation
 
 - Provide an explicit interval-write contract supporting unbounded start/end, distinct from legacy writes whose omitted effective time means now. Keep existing clients' immediate link/unlink behavior and authorization. Finalize concrete routes and DTOs in the contract-first phase.

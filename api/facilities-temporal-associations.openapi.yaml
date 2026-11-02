@@ -214,6 +214,48 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /api/facilities/coursepoint/{id}/timing-associations:
+    get:
+      operationId: GetCoursePointTimingAssociations
+      summary: List a coursepoint's effective association history and schedule
+      security:
+        - bearerAuth: []
+      description: |
+        Requires the existing AdministrationAuthorization.TimingLinkPolicy
+        (CoursePointTimingLink.Write): an authenticated caller with velotime.admin or
+        coursepoint-timing-link.write permission. Authorize before checking resource existence.
+
+        Returns all existing association intervals for this coursepoint, including past,
+        current, and scheduled future intervals, from one consistent read. There is no `at`
+        filter or pagination. Each CoursePointTimingAssociationSnapshot contains the complete
+        association interval, not a clipped affected slice. Finite bounds are UTC DateTimeOffset
+        instants serialized with a zero offset (Z or +00:00). Intervals are half-open
+        [validFromUtc, validToUtc): null validFromUtc means negative infinity and null validToUtc
+        means positive infinity, never omitted/default-now.
+
+        Sort by validFromUtc ascending with null first, then validToUtc ascending with null last.
+        Gaps mean no association; no synthetic unlinked snapshots are returned. An existing
+        coursepoint with no intervals returns 200 with an empty array. This is effective mapping
+        history and schedule, not audit history: superseded revisions, edit timestamps, and
+        actors are not returned. Admins can display scheduled/historical intervals separately
+        from the current mapping obtained through the existing as-of coursepoint read.
+      parameters:
+        - $ref: '#/components/parameters/CoursePointId'
+      responses:
+        '200':
+          description: All complete association intervals, or an empty array for an existing coursepoint with none.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CoursePointTimingAssociationSnapshot'
+        '404':
+          description: The coursepoint does not exist; no response body.
+        '401':
+          description: Authentication is required; no response body.
+        '403':
+          description: Caller lacks the existing timing-link admin permission; no response body.
   /api/facilities/coursepoint/{id}/timing-association:
     put:
       operationId: SetCoursePointTimingAssociation
