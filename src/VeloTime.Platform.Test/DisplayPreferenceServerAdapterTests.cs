@@ -13,12 +13,13 @@ namespace VeloTime.Platform.Test;
 
 public sealed class DisplayPreferenceServerAdapterTests
 {
-    [Fact]
-    public async Task DelegatedServiceMapsPreferenceAndZoneDtosAndForwardsCancellation()
+    [Theory]
+    [InlineData(null)] [InlineData("browser")] [InlineData("en")] [InlineData("nb-NO")]
+    public async Task DelegatedServiceMapsPreferenceAndZoneDtosAndForwardsCancellation(string? dateTimeCulture)
     {
         var expected = new ProfilesClient.DisplayPreferenceDTO
         {
-            DistanceUnit = "ft", SpeedUnit = "mph", TimeMode = "timeZone", TimeZoneId = "Europe/Oslo"
+            DistanceUnit = "ft", SpeedUnit = "mph", TimeMode = "timeZone", TimeZoneId = "Europe/Oslo", DateTimeCulture = dateTimeCulture
         };
         var token = new CancellationTokenSource().Token;
         var profiles = PlatformServiceTests.TestProxy.Create<ProfilesClient.IProfilesClient>((method, arguments) =>
@@ -29,7 +30,7 @@ public sealed class DisplayPreferenceServerAdapterTests
             return method.Name switch
             {
                 nameof(ProfilesClient.IProfilesClient.GetCurrentDisplayPreferenceAsync) => expected,
-                nameof(ProfilesClient.IProfilesClient.UpdateDisplayPreferenceAsync) => VerifyUpdate(arguments),
+                nameof(ProfilesClient.IProfilesClient.UpdateDisplayPreferenceAsync) => VerifyUpdate(arguments, dateTimeCulture),
                 nameof(ProfilesClient.IProfilesClient.GetSupportedTimeZonesAsync) => new List<ProfilesClient.TimeZoneOptionDTO>
                 {
                     new() { Id = "Europe/Oslo", DisplayName = "Oslo" },
@@ -41,9 +42,9 @@ public sealed class DisplayPreferenceServerAdapterTests
         using var cacheHost = new WebUiCacheTestHost(profiles);
         var service = new DisplayPreferenceService(profiles, cacheHost.Cache);
 
-        Assert.Equal(new DisplayPreferenceDTO("ft", "mph", "timeZone", "Europe/Oslo"), await service.GetAsync(token));
-        Assert.Equal(new DisplayPreferenceDTO("ft", "mph", "timeZone", "Europe/Oslo"),
-            await service.SaveAsync(new UpdateDisplayPreferenceRequest("ft", "mph", "timeZone", "Europe/Oslo"), token));
+        Assert.Equal(new DisplayPreferenceDTO("ft", "mph", "timeZone", "Europe/Oslo", dateTimeCulture), await service.GetAsync(token));
+        Assert.Equal(new DisplayPreferenceDTO("ft", "mph", "timeZone", "Europe/Oslo", dateTimeCulture),
+            await service.SaveAsync(new UpdateDisplayPreferenceRequest("ft", "mph", "timeZone", "Europe/Oslo", dateTimeCulture), token));
         var zones = await service.GetTimeZonesAsync(token);
         Assert.Equal(new TimeZoneOptionDTO("Europe/Oslo", "Oslo"), zones[0]);
         Assert.Equal(new TimeZoneOptionDTO("Pacific/Honolulu", "Honolulu"), zones[1]);
@@ -101,19 +102,21 @@ public sealed class DisplayPreferenceServerAdapterTests
         Assert.True(firstState.Effective.IsReady);
     }
 
-    private static ProfilesClient.DisplayPreferenceDTO VerifyUpdate(object?[] arguments)
+    private static ProfilesClient.DisplayPreferenceDTO VerifyUpdate(object?[] arguments, string? dateTimeCulture)
     {
         var request = Assert.IsType<ProfilesClient.UpdateDisplayPreferenceRequest>(arguments[0]);
         Assert.Equal("ft", request.DistanceUnit);
         Assert.Equal("mph", request.SpeedUnit);
         Assert.Equal("timeZone", request.TimeMode);
         Assert.Equal("Europe/Oslo", request.TimeZoneId);
+        Assert.Equal(dateTimeCulture, request.DateTimeCulture);
         return new ProfilesClient.DisplayPreferenceDTO
         {
             DistanceUnit = request.DistanceUnit,
             SpeedUnit = request.SpeedUnit,
             TimeMode = request.TimeMode,
-            TimeZoneId = request.TimeZoneId
+            TimeZoneId = request.TimeZoneId,
+            DateTimeCulture = request.DateTimeCulture
         };
     }
 

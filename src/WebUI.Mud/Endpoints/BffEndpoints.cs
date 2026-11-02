@@ -110,7 +110,7 @@ internal static class BffEndpoints
             IDisplayPreferenceService preferences,
             CancellationToken cancellationToken) =>
             Results.Ok(await preferences.SaveAsync(new VeloTime.Module.Profiles.Interface.Data.UpdateDisplayPreferenceRequest(
-                request.DistanceUnit, request.SpeedUnit, request.TimeMode, request.TimeZoneId), cancellationToken)));
+                request.DistanceUnit, request.SpeedUnit, request.TimeMode, request.TimeZoneId, request.DateTimeCulture), cancellationToken)));
         api.MapGet("/profile/preferences/time-zones", async (IDisplayPreferenceService preferences, CancellationToken cancellationToken) =>
         {
             return Results.Ok(await preferences.GetTimeZonesAsync(cancellationToken));

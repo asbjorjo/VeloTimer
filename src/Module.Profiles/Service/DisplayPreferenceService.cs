@@ -28,7 +28,7 @@ public sealed class DisplayPreferenceService(ProfilesDbContext storage)
         var preference = await storage.DisplayPreferences.AsNoTracking()
             .Where(item => item.Issuer == issuer && item.Subject == subject)
             .Select(item => new DisplayPreferenceDTO(
-                item.DistanceUnit, item.SpeedUnit, item.TimeMode, item.TimeZoneId))
+                item.DistanceUnit, item.SpeedUnit, item.TimeMode, item.TimeZoneId, item.DateTimeCulture))
             .SingleOrDefaultAsync(cancellationToken);
 
         return preference ?? new DisplayPreferenceDTO(
@@ -51,18 +51,19 @@ public sealed class DisplayPreferenceService(ProfilesDbContext storage)
         // PostgreSQL arbitrates concurrent first writes using the composite primary key.
         // All interpolated values are SQL parameters; never read before insert or retry a unique violation.
         await storage.Database.ExecuteSqlInterpolatedAsync($@"INSERT INTO profiles.display_preference
-            (issuer, subject, distance_unit, speed_unit, time_mode, time_zone_id)
+            (issuer, subject, distance_unit, speed_unit, time_mode, time_zone_id, date_time_culture)
         VALUES
-            ({issuer}, {subject}, {request.DistanceUnit}, {request.SpeedUnit}, {request.TimeMode}, {request.TimeZoneId})
+            ({issuer}, {subject}, {request.DistanceUnit}, {request.SpeedUnit}, {request.TimeMode}, {request.TimeZoneId}, {request.DateTimeCulture})
         ON CONFLICT (issuer, subject) DO UPDATE SET
             distance_unit = EXCLUDED.distance_unit,
             speed_unit = EXCLUDED.speed_unit,
             time_mode = EXCLUDED.time_mode,
-            time_zone_id = EXCLUDED.time_zone_id", cancellationToken);
+            time_zone_id = EXCLUDED.time_zone_id,
+            date_time_culture = EXCLUDED.date_time_culture", cancellationToken);
 
         // Return this operation's submitted value rather than rereading a possible later concurrent write.
         return new DisplayPreferenceDTO(
-            request.DistanceUnit, request.SpeedUnit, request.TimeMode, request.TimeZoneId);
+            request.DistanceUnit, request.SpeedUnit, request.TimeMode, request.TimeZoneId, request.DateTimeCulture);
     }
 
     private static void ValidateRequest(UpdateDisplayPreferenceRequest request)
@@ -109,6 +110,12 @@ public sealed class DisplayPreferenceService(ProfilesDbContext storage)
         {
             throw Failure("A time-zone ID is not allowed unless time mode is timeZone.",
                 ProfilePreferenceErrorCodes.TimeZoneNotAllowed, nameof(request.TimeZoneId));
+        }
+
+        if (!ProfileDateTimeCultureCodes.IsSupportedPreference(request.DateTimeCulture))
+        {
+            throw Failure("Date/time culture must be null or exactly 'browser', 'en', or 'nb-NO'.",
+                ProfilePreferenceErrorCodes.InvalidDateTimeCulture, nameof(request.DateTimeCulture));
         }
     }
 

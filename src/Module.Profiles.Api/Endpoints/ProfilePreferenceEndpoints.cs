@@ -187,6 +187,11 @@ internal static class ProfilePreferenceEndpoints
             return PreferenceProblem("Time zone not allowed", "A time-zone ID is only allowed for timeZone mode.", ProfilePreferenceErrorCodes.TimeZoneNotAllowed);
         }
 
+        if (!ProfileDateTimeCultureCodes.IsSupportedPreference(request.DateTimeCulture))
+        {
+            return PreferenceProblem("Invalid date/time culture", "Date/time culture must be null or exactly 'browser', 'en', or 'nb-NO'.", ProfilePreferenceErrorCodes.InvalidDateTimeCulture);
+        }
+
         return null;
     }
 

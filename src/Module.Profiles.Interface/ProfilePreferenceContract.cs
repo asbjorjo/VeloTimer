@@ -35,6 +35,18 @@ public static class ProfileDisplayPreferenceCodes
     public const string NamedTimeZone = "timeZone";
 }
 
+/// <summary>Presentation-only date/time formatting cultures, independent of time-zone selection.</summary>
+public static class ProfileDateTimeCultureCodes
+{
+    public const string Browser = "browser";
+    public const string English = ProfileLanguageCodes.English;
+    public const string NorwegianBokmal = ProfileLanguageCodes.NorwegianBokmal;
+
+    /// <summary>Null follows the resolved UI language; non-null codes must match exactly.</summary>
+    public static bool IsSupportedPreference(string? culture) =>
+        culture is null or Browser or English or NorwegianBokmal;
+}
+
 public static class ProfilePreferenceErrorCodes
 {
     public const string InvalidLanguage = "profiles.invalid_language";
@@ -43,6 +55,7 @@ public static class ProfilePreferenceErrorCodes
     public const string InvalidSpeedUnit = "profiles.invalid_speed_unit";
     public const string InvalidTimeMode = "profiles.invalid_time_mode";
     public const string InvalidTimeZone = "profiles.invalid_time_zone";
+    public const string InvalidDateTimeCulture = "profiles.invalid_date_time_culture";
     public const string TimeZoneRequired = "profiles.time_zone_required";
     public const string TimeZoneNotAllowed = "profiles.time_zone_not_allowed";
 }
