@@ -433,7 +433,10 @@
   <data name="DiscardLayoutChanges" xml:space="preserve"><value>Unsaved layout or link changes will be lost.</value></data>
   <data name="FacilityNotFound" xml:space="preserve"><value>Facility not found.</value></data>
   <data name="DisplaySettings" xml:space="preserve"><value>Units and time</value></data>
-  <data name="DisplaySettingsHelp" xml:space="preserve"><value>Your saved settings follow your account across devices. Browser time uses the current device’s time zone. Changes take effect only after a successful save.</value></data>
+  <data name="DisplaySettingsHelp" xml:space="preserve"><value>Your saved settings follow your account across devices. Dates and times follow the UI language unless you choose another format. Browser time uses the current device’s time zone. Number formatting is unchanged. Changes take effect only after a successful save.</value></data>
+  <data name="DateTimeFormat" xml:space="preserve"><value>Date and time format</value></data>
+  <data name="FollowUiLanguage" xml:space="preserve"><value>Follow UI language (default)</value></data>
+  <data name="BrowserDateTimeFormat" xml:space="preserve"><value>Browser format (current device)</value></data>
   <data name="DisplaySettingsLoading" xml:space="preserve"><value>Resolving your display settings and browser time zone…</value></data>
   <data name="DisplaySettingsLoadFailed" xml:space="preserve"><value>Could not load display settings or resolve the browser time zone. Retry to continue; no server-local time is being displayed.</value></data>
   <data name="DisplaySettingsSaveFailed" xml:space="preserve"><value>Settings were not saved. Your draft is retained and the last saved settings remain in use. Retry or discard your changes.</value></data>

@@ -1,10 +1,57 @@
 using System.Text.Json;
+using System.Globalization;
 using Microsoft.JSInterop;
 using VeloTime.Module.Profiles.Interface.Data;
 using VeloTime.WebUI.Mud.Client.Services;
 namespace VeloTime.Platform.Test;
 public sealed class DisplayPreferenceStateTests
 {
+    [Fact]
+    public async Task DateCulture_CapturesUiLanguage_SaveUsesPersistedSnapshot_FailureAndResetAreIsolated()
+    {
+        var previous = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en");
+            var service = new Preferences();
+            var state = new DisplayPreferenceState(service, new Browser());
+            var changes = 0;
+            state.Changed += () => changes++;
+            await state.InitializeAsync(true, default);
+            Assert.Null(state.Effective.Preference.DateTimeCulture);
+            Assert.Equal("en", state.Effective.DateTimeCulture.Name);
+            Assert.Equal("nb-NO", state.Effective.NumberCulture.Name);
+
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("nb-NO");
+            service.Saved = new("m", "km/h", "browser", null, "en");
+            await state.SaveAsync(new("m", "km/h", "browser", null, "browser"), default);
+            Assert.Equal("browser", service.LastRequest!.DateTimeCulture);
+            Assert.Equal("en", state.Effective.DateTimeCulture.Name); // response, not draft
+            service.Saved = new("m", "km/h", "browser", null, "browser");
+            await state.SaveAsync(new("m", "km/h", "browser", null, "browser"), default);
+            Assert.Equal("nb-NO", state.Effective.DateTimeCulture.Name);
+
+            var before = state.Effective;
+            service.Failure = true;
+            await Assert.ThrowsAsync<HttpRequestException>(() => state.SaveAsync(new("m", "km/h", "browser", null), default));
+            Assert.Same(before, state.Effective);
+            Assert.Equal(3, changes);
+            service.Failure = false;
+            service.Saved = new("m", "km/h", "browser", null);
+            await state.SaveAsync(new("m", "km/h", "browser", null), default);
+            Assert.Null(service.LastRequest!.DateTimeCulture);
+            Assert.Equal("en", state.Effective.DateTimeCulture.Name); // captured interactive language
+
+            state.ResetForAuthenticationChange();
+            Assert.False(state.Effective.IsReady);
+            await state.InitializeAsync(false, default);
+            Assert.Null(state.Effective.Preference.DateTimeCulture);
+            Assert.Equal("nb-NO", state.Effective.DateTimeCulture.Name);
+            Assert.Equal("nb-NO", state.Effective.NumberCulture.Name);
+        }
+        finally { CultureInfo.CurrentUICulture = previous; }
+    }
+
     [Fact]
     public async Task InitializationIsShared_OnlyPersistedSuccessBecomesEffective_FailureDoesNotNotify()
     {
@@ -129,9 +176,10 @@ public sealed class DisplayPreferenceStateTests
 
     private sealed class Preferences : IDisplayPreferenceService
     {
+        public UpdateDisplayPreferenceRequest? LastRequest;
         public int Reads; public bool Failure; public DisplayPreferenceDTO Saved = new("ft", "mph", "utc", null);
         public Task<DisplayPreferenceDTO> GetAsync(CancellationToken cancellationToken = default) { Reads++; return Failure ? Task.FromException<DisplayPreferenceDTO>(new HttpRequestException()) : Task.FromResult(new DisplayPreferenceDTO("m", "km/h", "browser", null)); }
-        public Task<DisplayPreferenceDTO> SaveAsync(UpdateDisplayPreferenceRequest request, CancellationToken cancellationToken = default) => Failure ? Task.FromException<DisplayPreferenceDTO>(new HttpRequestException()) : Task.FromResult(Saved);
+        public Task<DisplayPreferenceDTO> SaveAsync(UpdateDisplayPreferenceRequest request, CancellationToken cancellationToken = default) { LastRequest = request; return Failure ? Task.FromException<DisplayPreferenceDTO>(new HttpRequestException()) : Task.FromResult(Saved); }
         public Task<IReadOnlyList<TimeZoneOptionDTO>> GetTimeZonesAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
     private sealed class Browser : IJSRuntime, IJSObjectReference

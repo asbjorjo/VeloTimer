@@ -34,6 +34,14 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6">
+            <MudSelect T="string" @bind-Value="_dateTimeCulture" @bind-Value:after="Changed" Label="@L["DateTimeFormat"]" Disabled="_busy">
+                <MudSelectItem Value="@("")">@L["FollowUiLanguage"]</MudSelectItem>
+                <MudSelectItem Value="@("browser")">@L["BrowserDateTimeFormat"]</MudSelectItem>
+                <MudSelectItem Value="@("en")">@L["EnglishNative"]</MudSelectItem>
+                <MudSelectItem Value="@("nb-NO")">@L["NorwegianNative"]</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
             <MudSelect T="string" @bind-Value="_mode" @bind-Value:after="ModeChanged" Label="@L["TimeDisplay"]" Disabled="_busy">
                 <MudSelectItem Value="@("browser")">@L["BrowserTime"]</MudSelectItem>
                 <MudSelectItem Value="@("utc")">UTC</MudSelectItem>
@@ -61,6 +69,8 @@
     private Func<bool> _draftCheck = default!;
     private List<TimeZoneOptionDTO>? _zones;
     private string _distance = "m", _speed = "km/h", _mode = "browser";
+    // Empty is a UI-only sentinel; the persisted follow-language preference is null.
+    private string _dateTimeCulture = "";
     private TimeZoneOptionDTO? _zone;
     private string? _error;
     private bool _dirty, _busy, _saved, _pending, _saveFailed;
@@ -74,6 +84,7 @@
     {
         var snapshot = Preferences.Effective.Preference;
         _distance = snapshot.DistanceUnit; _speed = snapshot.SpeedUnit; _mode = snapshot.TimeMode;
+        _dateTimeCulture = snapshot.DateTimeCulture ?? "";
         _zone = snapshot.TimeZoneId is { } id ? _zones?.FirstOrDefault(zone => zone.Id == id) ?? new(id, id) : null;
         _dirty = _pending = _saved = _saveFailed = false; _error = null;
     }
@@ -100,7 +111,8 @@
         _busy = true; _error = null; _pending = false;
         try
         {
-            await Preferences.SaveAsync(new(_distance, _speed, _mode, _mode == "timeZone" ? _zone!.Id : null), _lifetime.Token);
+            await Preferences.SaveAsync(new(_distance, _speed, _mode, _mode == "timeZone" ? _zone!.Id : null,
+                _dateTimeCulture == "" ? null : _dateTimeCulture), _lifetime.Token);
             _dirty = _saveFailed = false; _saved = true;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }

@@ -1,5 +1,6 @@
 using VeloTime.Module.Profiles.Interface.Data;
 using Microsoft.JSInterop;
+using System.Globalization;
 
 namespace VeloTime.WebUI.Mud.Client.Services;
 
@@ -49,23 +50,27 @@ public sealed class DisplayPreferenceState(IDisplayPreferenceService service, IJ
     public event Action? Changed;
     private string? _browserZone;
     private string? _browserLocale;
+    private CultureInfo? _uiCulture;
     private Task? _initialization;
     private CancellationTokenSource? _identityCancellation;
     private CancellationTokenSource? _initializationCancellation;
     private int _identityVersion;
     private bool _loaded;
-    public Task InitializeAsync(bool signedIn, CancellationToken token)
+    public Task InitializeAsync(bool signedIn, CancellationToken token, CultureInfo? uiCulture = null)
     {
         if (_initialization is not null) return _initialization;
+        // Capture the resolved interactive UI language before any asynchronous work.
+        // Saves must not depend on a later server/request execution culture.
+        _uiCulture ??= CultureInfo.GetCultureInfo((uiCulture ?? CultureInfo.CurrentUICulture).Name);
         _identityCancellation ??= new CancellationTokenSource();
         _initializationCancellation = CancellationTokenSource.CreateLinkedTokenSource(token, _identityCancellation.Token);
         return _initialization = InitializeCoreAsync(signedIn, _identityVersion, _initializationCancellation, _initializationCancellation.Token);
     }
 
-    public async Task RetryAsync(bool signedIn, CancellationToken token)
+    public async Task RetryAsync(bool signedIn, CancellationToken token, CultureInfo? uiCulture = null)
     {
         CancelInitialization();
-        await InitializeAsync(signedIn, token);
+        await InitializeAsync(signedIn, token, uiCulture);
     }
 
     private void CancelInitialization()
@@ -86,6 +91,7 @@ public sealed class DisplayPreferenceState(IDisplayPreferenceService service, IJ
         _identityCancellation = null;
         CancelInitialization();
         _loaded = false;
+        _uiCulture = null;
         Effective = EffectiveDisplaySettings.Unresolved;
         Changed?.Invoke();
     }
@@ -128,7 +134,8 @@ public sealed class DisplayPreferenceState(IDisplayPreferenceService service, IJ
     public async Task SaveAsync(UpdateDisplayPreferenceRequest value, CancellationToken token)
     {
         var identityVersion = _identityVersion;
-        _ = EffectiveDisplaySettings.Create(new(value.DistanceUnit, value.SpeedUnit, value.TimeMode, value.TimeZoneId), _browserZone!, _browserLocale!);
+        var uiCulture = _uiCulture ?? throw new PresentationValidationException("DisplaySettingsLoading");
+        _ = EffectiveDisplaySettings.Create(new(value.DistanceUnit, value.SpeedUnit, value.TimeMode, value.TimeZoneId, value.DateTimeCulture), _browserZone!, _browserLocale!, uiCulture);
         var saved = await service.SaveAsync(value, token);
         token.ThrowIfCancellationRequested();
         if (identityVersion != _identityVersion) throw new OperationCanceledException("The authenticated identity changed during the preference save.", token);
@@ -139,7 +146,7 @@ public sealed class DisplayPreferenceState(IDisplayPreferenceService service, IJ
     }
     private void Apply(DisplayPreferenceDTO value)
     {
-        Effective = EffectiveDisplaySettings.Create(value, _browserZone!, _browserLocale!);
+        Effective = EffectiveDisplaySettings.Create(value, _browserZone!, _browserLocale!, _uiCulture!);
         Changed?.Invoke();
     }
     private sealed record BrowserPresentation(string TimeZone, string Locale);

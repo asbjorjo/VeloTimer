@@ -82,6 +82,12 @@ zone. Browser time follows the current device zone detected after the page becom
 interactive; it is not a persisted fixed offset. A named zone is saved by its IANA
 ID. Anonymous viewers use metres, km/h, and browser time.
 
+Dates, timestamps, and calendar/time inputs follow the resolved UI language by
+default, independently of the time zone. **Date and time format** can instead
+persist browser format, English, or Norwegian Bokmål. Choosing **Follow UI
+language (default)** clears that override; later language changes then update the
+date/time format too. Numeric formatting continues to use the browser locale.
+
 These choices affect presentation only: backend times remain UTC and quantities
 remain SI (including distances in metres). Public statistics speed values on the
 wire remain km/h for samples, public results, and best-results APIs. Public

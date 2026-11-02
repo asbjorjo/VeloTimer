@@ -3,6 +3,57 @@ using VeloTime.WebUI.Mud.Client.Services;
 namespace VeloTime.Platform.Test;
 public sealed class DisplayPresentationTests
 {
+    [Theory]
+    [InlineData("en", "nb-NO", null, "en")]
+    [InlineData("nb-NO", "en-US", null, "nb-NO")]
+    [InlineData("en", "nb-NO", "browser", "nb-NO")]
+    [InlineData("nb-NO", "en-US", "browser", "en-US")]
+    [InlineData("nb-NO", "nb-NO", "en", "en")]
+    [InlineData("en", "en-US", "nb-NO", "nb-NO")]
+    public void DateCulture_FollowsUiOrExplicitOverride_WithoutChangingNumbersZonesOrCanonicalValues(
+        string ui, string browser, string? preference, string expected)
+    {
+        var settings = EffectiveDisplaySettings.Create(new("ft", "m/s", "timeZone", "Europe/Oslo", preference),
+            "Pacific/Auckland", browser, CultureInfo.GetCultureInfo(ui));
+        var baseline = EffectiveDisplaySettings.Create(new("ft", "m/s", "timeZone", "Europe/Oslo"),
+            "Pacific/Auckland", browser, CultureInfo.GetCultureInfo(ui));
+        var culture = CultureInfo.GetCultureInfo(expected);
+        var instant = new DateTimeOffset(2026, 10, 25, 1, 30, 0, TimeSpan.Zero).AddTicks(1234567);
+        Assert.Equal(expected, settings.DateTimeCulture.Name);
+        Assert.Equal(browser, settings.NumberCulture.Name);
+        Assert.Equal("Europe/Oslo", settings.ZoneLabel);
+        Assert.Equal($"{settings.Local(instant).ToString("G", culture)} +01:00 [Europe/Oslo]", settings.Timestamp(instant));
+        Assert.Equal(settings.Timestamp(instant), settings.Timestamp(instant.UtcDateTime));
+        Assert.StartsWith(settings.Timestamp(instant), settings.RegistrationDescription(instant, null));
+        Assert.Equal(baseline.Distance(1234.5), settings.Distance(1234.5));
+        Assert.Equal(baseline.StatisticsSpeed(37.8), settings.StatisticsSpeed(37.8));
+        Assert.True(settings.TrySpeedDraft(10.5.ToString(settings.NumberCulture), out var kmh));
+        Assert.Equal(37.8, kmh!.Value, 10);
+        Assert.Equal(250, settings.DistanceToMetres(settings.DistanceFromMetres(250)), 10);
+        Assert.Equal(instant, ZonedInstantDraft.FromInstant(instant, settings).Resolve(settings));
+        foreach (var day in new[] { new DateOnly(2026, 3, 29), new DateOnly(2026, 10, 25) })
+        {
+            Assert.Equal(baseline.DayRange(day), settings.DayRange(day));
+            Assert.Equal(TimeSpan.Zero, settings.DayRange(day).StartInclusive.Offset);
+        }
+    }
+
+    [Theory]
+    [InlineData(null, "en", "nb-NO")]
+    [InlineData("browser", "en-US", "en-US")]
+    [InlineData("en", "en", "en")]
+    [InlineData("nb-NO", "nb-NO", "nb-NO")]
+    public void ChangingUiLanguage_ChangesOnlyFollowLanguageDateCulture(string? preference, string first, string second)
+    {
+        var value = new VeloTime.Module.Profiles.Interface.Data.DisplayPreferenceDTO("m", "km/h", "utc", null, preference);
+        var english = EffectiveDisplaySettings.Create(value, "Europe/Oslo", "en-US", CultureInfo.GetCultureInfo("en"));
+        var norwegian = EffectiveDisplaySettings.Create(value, "Europe/Oslo", "en-US", CultureInfo.GetCultureInfo("nb-NO"));
+        Assert.Equal(first, english.DateTimeCulture.Name);
+        Assert.Equal(second, norwegian.DateTimeCulture.Name);
+        Assert.Equal(english.NumberCulture, norwegian.NumberCulture);
+        Assert.Equal(english.Zone, norwegian.Zone);
+    }
+
     private static EffectiveDisplaySettings Settings(string distance = "ft", string speed = "mph", string zone = "Europe/Oslo", string locale = "en-US") =>
         EffectiveDisplaySettings.Create(new(distance, speed, "timeZone", zone), "Pacific/Auckland", locale);
     [Fact]
