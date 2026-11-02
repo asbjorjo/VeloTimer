@@ -73,7 +73,8 @@ public sealed class InfrastructureAdministrationService(IFacilitiesClient facili
     public Task SetTimingLinkAsync(Guid pointId, Guid? timingPointId, CancellationToken cancellationToken = default) => Execute(async () =>
     {
         await cache.RequirePolicyAsync(AdministrationAuthorization.TimingLinkPolicy, cancellationToken);
-        // The regenerated legacy operation returns Task, not a coursepoint DTO.
+        // Intentionally discard the returned CoursePointDTO: this mutation only needs completion,
+        // and callers refresh the authoritative current mapping separately after cache invalidation.
         await ExecuteNoContent(() => facilities.SetCoursePointTimingLinkAsync(pointId,
             new SetCoursePointTimingLinkRequest { TimingPointId = timingPointId }, cancellationToken));
         await cache.InvalidateTagAsync(FacilitiesCacheTags.Relationships, "updating a course-point timing link");
