@@ -16,6 +16,51 @@ public sealed class TimingAssociationEndpointTests(FacilitiesApiFactory factory)
     public Task InitializeAsync() => factory.InitializeDatabaseAsync();
     public Task DisposeAsync() => Task.CompletedTask;
 
+    [Fact]
+    public async Task AssociationWrite_RejectsPostgresNegativeInfinitySentinelAsBadRequest()
+    {
+        var coursePointId = Guid.NewGuid();
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var storage = scope.ServiceProvider.GetRequiredService<FacilityDbContext>();
+            storage.Add(new CoursePoint { Id = coursePointId });
+            await storage.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-Role", "timing-admin");
+        var requests = new[]
+        {
+            new SetCoursePointTimingAssociationRequest
+            {
+                TimingPointId = null,
+                ValidFromUtc = DateTimeOffset.MinValue,
+                ValidToUtc = null
+            },
+            new SetCoursePointTimingAssociationRequest
+            {
+                TimingPointId = null,
+                ValidFromUtc = null,
+                ValidToUtc = new DateTimeOffset(1, 1, 1, 1, 0, 0, TimeSpan.FromHours(1))
+            }
+        };
+
+        foreach (var request in requests)
+        {
+            using var response = await client.PutAsJsonAsync(
+                $"/api/facilities/coursepoint/{coursePointId}/timing-association", request);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal(400, body.RootElement.GetProperty("status").GetInt32());
+            Assert.Contains("minimum UTC instant", body.RootElement.GetProperty("detail").GetString());
+        }
+
+        Assert.Empty(factory.Events.Enqueued);
+        var history = await client.GetFromJsonAsync<CoursePointTimingAssociationSnapshot[]>(
+            $"/api/facilities/coursepoint/{coursePointId}/timing-associations");
+        Assert.Empty(history!);
+    }
+
     [Theory]
     [InlineData("anonymous", HttpStatusCode.Unauthorized)]
     [InlineData("user", HttpStatusCode.Forbidden)]

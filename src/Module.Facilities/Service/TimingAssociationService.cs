@@ -177,6 +177,8 @@ public sealed class TimingAssociationService
             throw new TimingAssociationValidationException("TimingPointId must be null or a non-empty ID.");
         if (request.ValidFromUtc.HasValue) request = request with { ValidFromUtc = Normalize(request.ValidFromUtc.Value) };
         if (request.ValidToUtc.HasValue) request = request with { ValidToUtc = Normalize(request.ValidToUtc.Value) };
+        if (request.ValidFromUtc == DateTimeOffset.MinValue || request.ValidToUtc == DateTimeOffset.MinValue)
+            throw new TimingAssociationValidationException("Association bounds must not use the minimum UTC instant, which PostgreSQL stores as negative infinity.");
         if (request.ValidFromUtc.HasValue && request.ValidToUtc.HasValue &&
             request.ValidFromUtc.Value >= request.ValidToUtc.Value)
             throw new TimingAssociationValidationException("ValidFromUtc must be earlier than ValidToUtc.");
