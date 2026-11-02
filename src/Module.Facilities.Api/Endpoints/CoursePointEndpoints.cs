@@ -22,7 +22,11 @@ internal static class CoursePointEndpoints
 
         var timingPoints = endpoints.MapGroup("timingpoint");
         timingPoints.MapGet("{id}", GetCoursePointByTimingPoint);
-        timingPoints.MapGet("{start:guid}/distance/{end:guid}", DistanceBetweenTimingPoints);
+        // Typed results describe 200 CoursePointDistance and 404; 422 is the incompatible-path
+        // problem and 400 an unparseable startAt/endAt (bare, from parameter binding).
+        timingPoints.MapGet("{start:guid}/distance/{end:guid}", DistanceBetweenTimingPoints)
+            .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
+            .Produces(StatusCodes.Status400BadRequest);
     }
 
     static async Task<Results<Ok<FacilityDTO>, NotFound>> GetFacilityByCoursePointId(
@@ -77,7 +81,7 @@ internal static class CoursePointEndpoints
         }
     }
 
-    static async Task<IResult> DistanceBetweenTimingPoints(
+    static async Task<Results<Ok<CoursePointDistance>, NotFound, ProblemHttpResult>> DistanceBetweenTimingPoints(
         Guid start, Guid end, [FromQuery] DateTimeOffset? startAt, [FromQuery] DateTimeOffset? endAt,
         FacilitiesService facilities, FacilityDbContext storage, CancellationToken cancellationToken)
     {
