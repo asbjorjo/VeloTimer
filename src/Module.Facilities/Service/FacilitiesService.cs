@@ -100,6 +100,15 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
         if (startIndex < 0 || endIndex < 0)
             throw new IncompatibleCoursePathException("The coursepoints do not identify a continuous path.");
         if (startIndex == endIndex) return segments.Sum(segment => segment.Length);
+        if (segments[^1].End.Id == segments[0].Start.Id)
+        {
+            // Closed courses are directed: continue forward through the last segment and
+            // wrap to the first, rather than taking the reverse linear distance.
+            var count = (endIndex - startIndex + segments.Count) % segments.Count;
+            return segments.Skip(startIndex).Concat(segments.Take(startIndex))
+                .Take(count).Sum(segment => segment.Length);
+        }
+        // Open courses retain their existing symmetric linear-path behavior.
         return segments.Skip(Math.Min(startIndex, endIndex))
             .Take(Math.Abs(endIndex - startIndex))
             .Sum(segment => segment.Length);
