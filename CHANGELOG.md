@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. See [versio
 
 ### Bug Fixes
 
+* **agent:** durably accept individual events and passing rows in one AgentDb outbox transaction; deduplicate passing resends on every call, preserve ordered at-least-once retry across outages and restarts, and bound background Service Bus attempts. Concrete agents must upgrade `VeloTime.Agent` to 2.1.0-alpha.25 and still guard SDK callbacks; inspect pending/previously aborted messages in `agent.smb_outbox`.
 * **webui:** stop the public statistics page from redirecting back to its previous selection, which blocked leaving the page and changing facility.
 * **timing:** return transponders instead of installations from transponder queries and persist custom transponder labels.
 * **facilities:** return an empty layout list for an existing facility without layouts.

@@ -648,6 +648,69 @@ administrator roles or bypass ownership checks. Existing realms need the scope
 assigned to clients and users must sign out and back in after scope assignments
 change so newly issued tokens contain the claims.
 
+### Agent Messaging and Outage Recovery
+
+Concrete hardware agents live outside this solution and use
+[ConfigureAgent()](src/Agent/HostingExtensions.cs) and
+[MessagingService](src/Agent/Service/MessagingService.cs). `Agent.Dummy` is only a
+local simulator. Keep `VELOTIME_AGENT` set: outbound events retain the `AgentId`
+and `MessageName` headers, existing topics, and session correlation (agent ID for
+configuration/status, transponder type and ID for passings).
+
+A successful `MessagingService` call means **durable acceptance in AgentDb**, not
+Service Bus delivery. Each call publishes individual events into the PostgreSQL
+outbox in one transaction; passing row inserts share that transaction. Database,
+serialization, and cancellation failures propagate and roll back the call. Empty
+batches do nothing. Passing IDs are deduplicated within each batch and checked
+against storage on every call; existing rows are never overwritten or re-enqueued.
+Use a DI scope per operation and do not call a scoped service concurrently.
+
+Delivery is **at least once**, in the background, and pending events resume after
+restart. Consumers must tolerate duplicate delivery; acceptance does not guarantee
+exactly-once processing. The outbox maintains sequence with a poll batch size of
+one so later events cannot overtake a failed oldest event. Delivery attempts use
+`int.MaxValue` rather than the three-attempt default. A permanent transport error
+or an unresolvable event type blocks the backlog with logged errors, rather than
+dropping or quarantining the event; operators must repair the underlying cause.
+This orders outbox dispatch, not processing across independent Service Bus sessions.
+
+Idle polling defaults to five seconds. Set `MessageBus:OutboxPollIdleSleep`
+(environment variable `VELOTIME_MessageBus__OutboxPollIdleSleep`, e.g. `00:00:05`)
+to a positive duration. Azure SDK sends use exponential retries with two retries,
+one-second initial delay, five-second maximum delay, and a ten-second timeout per
+try. These bounded transport attempts run in the background, not hardware callbacks.
+Delivered messages are cleaned hourly after three days; pending messages are kept.
+Monitor PostgreSQL disk capacity and error logs during prolonged outages.
+
+Inspect the backlog in the AgentDb database (`ConnectionStrings__AgentDb`):
+
+```sql
+SELECT id, timestamp, message_type, delivery_attempt, delivery_complete, delivery_aborted
+FROM agent.smb_outbox
+WHERE NOT delivery_complete
+ORDER BY timestamp;
+```
+
+**Upgrade:** bump the external concrete agent dependency to
+`VeloTime.Agent` **2.1.0-alpha.25** or later and deploy it with persistent AgentDb
+storage and the existing migrations. No new schema migration or event contract is
+required for this fix. Previously bypassed collection events cannot be recovered
+from the outbox; inspect any rows already marked `delivery_aborted` by older
+versions, since this upgrade does not automatically reset them. Concrete agents
+must still guard hardware SDK callbacks against propagated local persistence,
+serialization, cancellation, and hardware failures, retaining data for retry rather
+than treating a failed enqueue as successful. Do not directly publish event
+collections via `IMessageBus`: SlimMessageBus 3.4 bulk publishing bypasses the outbox.
+Existing public service methods remain available; cancellation-token overloads are
+additive.
+
+Agent outbox integration tests create/drop isolated PostgreSQL databases. Set
+`VELOTIME_TEST_OUTBOX_POSTGRES` to a test connection with those privileges and run:
+
+```sh
+OIDC_AUDIENCE=https://build.invalid dotnet test src/VeloTime.Workers.Test --filter FullyQualifiedName~AgentOutboxTests
+```
+
 ### Transponder Ownership Events
 
 The Timing API queues [TransponderOwnershipChanged](src/Module.Timing.Interface/Messages/TransponderOwnershipChanged.cs)
