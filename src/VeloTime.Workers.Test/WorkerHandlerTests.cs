@@ -90,6 +90,7 @@ public sealed class WorkerHandlerTests
         await service.SendEventsAsync([system]);
 
         Assert.Equal(6, recorder.Published.Count);
+        Assert.All(recorder.Published, message => Assert.False(message.Payload is System.Collections.IEnumerable));
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.InstallationLayoutEvent>(recorder.Published[0].Payload);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopConfigEvent>(recorder.Published[1].Payload);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent>(recorder.Published[2].Payload);

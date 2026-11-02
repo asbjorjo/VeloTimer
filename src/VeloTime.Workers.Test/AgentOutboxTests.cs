@@ -77,6 +77,22 @@ public sealed class AgentOutboxTests : IAsyncLifetime
     }
 
     [PostgreSqlOutboxFact]
+    public async Task HostRemainsRunningAndAcceptsAnotherBatchAfterRepeatedBrokerFailures()
+    {
+        var host = await StartHost(new TestSender());
+        await using var scope = host.Services.CreateAsyncScope();
+        var service = scope.ServiceProvider.GetRequiredService<MessagingService>();
+        await service.SendEventsAsync([Loop("first")]);
+        await WaitUntil(async () => await Scalar("SELECT COALESCE(max(delivery_attempt), 0)::int FROM agent.smb_outbox") >= 4);
+
+        Assert.False(host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping.IsCancellationRequested);
+        await service.SendEventsAsync([Loop("second")]);
+
+        Assert.Equal(2, await Scalar("SELECT count(*)::int FROM agent.smb_outbox WHERE NOT delivery_complete AND NOT delivery_aborted"));
+        Assert.False(host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping.IsCancellationRequested);
+    }
+
+    [PostgreSqlOutboxFact]
     public async Task OldestFailureBlocksLaterEventsAndRecoversAfterRestart()
     {
         var sender = new TestSender { Available = true, RejectedLoop = "first" };
