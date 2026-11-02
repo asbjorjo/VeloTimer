@@ -101,6 +101,88 @@ public sealed class AssociationScheduleRaceRenderingTests
         Assert.Empty(Field<IReadOnlyList<CoursePointTimingAssociationSnapshot>>(resetEditor, "_associationSchedule"));
     }
 
+    [Fact]
+    public async Task CourseLayoutEditor_StaleSuccessCannotReplaceNewSelectionOrFinishItsLoading()
+    {
+        var (facilityId, firstId, secondId) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var first = PendingSchedule();
+        var second = PendingSchedule();
+        var provider = CreateCourseLayoutServices(facilityId, firstId, secondId,
+            (id, _) => id == firstId ? first.Task : second.Task);
+        await using var services = provider;
+        await using var renderer = new HtmlRenderer(services, services.GetRequiredService<ILoggerFactory>());
+        var (root, editor) = await RenderCourseLayoutEditor(renderer, facilityId);
+
+        var firstLoad = await StartCourseLayoutSelection(renderer, editor, firstId);
+        var secondLoad = await StartCourseLayoutSelection(renderer, editor, secondId);
+        Assert.True(Field<bool>(editor, "_scheduleLoading"));
+        Assert.Equal(secondId, Field<Guid?>(editor, "_associationCoursePointId"));
+        Assert.Contains("mud-progress-linear", await renderer.Dispatcher.InvokeAsync(root.ToHtmlString));
+
+        var current = Snapshot(secondId, Guid.NewGuid());
+        second.SetResult([current]);
+        await secondLoad;
+        Assert.False(Field<bool>(editor, "_scheduleLoading"));
+        Assert.Equal(current, Assert.Single(Field<IReadOnlyList<CoursePointTimingAssociationSnapshot>>(editor, "_associationSchedule")));
+
+        first.SetResult([Snapshot(firstId, Guid.NewGuid())]);
+        await firstLoad;
+        Assert.Equal(secondId, Field<Guid?>(editor, "_associationCoursePointId"));
+        Assert.False(Field<bool>(editor, "_scheduleLoading"));
+        Assert.Null(Field<string?>(editor, "_scheduleError"));
+        Assert.Equal(current, Assert.Single(Field<IReadOnlyList<CoursePointTimingAssociationSnapshot>>(editor, "_associationSchedule")));
+        await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+    }
+
+    [Fact]
+    public async Task CourseLayoutEditor_StaleErrorCannotClearCurrentLoading_AndClearInvalidatesPendingRequest()
+    {
+        var (facilityId, firstId, secondId) = (Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var first = PendingSchedule();
+        var second = PendingSchedule();
+        var provider = CreateCourseLayoutServices(facilityId, firstId, secondId,
+            (id, _) => id == firstId ? first.Task : second.Task);
+        await using var services = provider;
+        await using var renderer = new HtmlRenderer(services, services.GetRequiredService<ILoggerFactory>());
+        var (root, editor) = await RenderCourseLayoutEditor(renderer, facilityId);
+
+        var firstLoad = await StartCourseLayoutSelection(renderer, editor, firstId);
+        var secondLoad = await StartCourseLayoutSelection(renderer, editor, secondId);
+        first.SetException(new HttpRequestException("private upstream error", null, HttpStatusCode.Forbidden));
+        await firstLoad;
+        Assert.True(Field<bool>(editor, "_scheduleLoading"));
+        Assert.Equal(secondId, Field<Guid?>(editor, "_associationCoursePointId"));
+        Assert.Null(Field<string?>(editor, "_scheduleError"));
+
+        var current = Snapshot(secondId, Guid.NewGuid());
+        second.SetResult([current]);
+        await secondLoad;
+        Assert.False(Field<bool>(editor, "_scheduleLoading"));
+        Assert.Equal(current, Assert.Single(Field<IReadOnlyList<CoursePointTimingAssociationSnapshot>>(editor, "_associationSchedule")));
+
+        var pendingAfterClear = PendingSchedule();
+        var clearProvider = CreateCourseLayoutServices(facilityId, firstId, secondId,
+            (_, _) => pendingAfterClear.Task);
+        await using var clearServices = clearProvider;
+        await using var clearRenderer = new HtmlRenderer(clearServices, clearServices.GetRequiredService<ILoggerFactory>());
+        var (clearRoot, clearEditor) = await RenderCourseLayoutEditor(clearRenderer, facilityId);
+        var pendingLoad = await StartCourseLayoutSelection(clearRenderer, clearEditor, secondId);
+        var clear = await StartCourseLayoutSelection(clearRenderer, clearEditor, null);
+        await clear;
+        Assert.False(Field<bool>(clearEditor, "_scheduleLoading"));
+        Assert.Null(Field<Guid?>(clearEditor, "_associationCoursePointId"));
+        Assert.Empty(Field<IReadOnlyList<CoursePointTimingAssociationSnapshot>>(clearEditor, "_associationSchedule"));
+        Assert.DoesNotContain("mud-progress-linear", await clearRenderer.Dispatcher.InvokeAsync(clearRoot.ToHtmlString));
+
+        pendingAfterClear.SetException(new HttpRequestException("late failure", null, HttpStatusCode.Forbidden));
+        await pendingLoad;
+        Assert.False(Field<bool>(clearEditor, "_scheduleLoading"));
+        Assert.Null(Field<string?>(clearEditor, "_scheduleError"));
+        Assert.Empty(Field<IReadOnlyList<CoursePointTimingAssociationSnapshot>>(clearEditor, "_associationSchedule"));
+        Assert.Null(Field<Guid?>(clearEditor, "_associationCoursePointId"));
+        await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+    }
+
     private static TaskCompletionSource<IReadOnlyList<CoursePointTimingAssociationSnapshot>> PendingSchedule() =>
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -117,6 +199,29 @@ public sealed class AssociationScheduleRaceRenderingTests
             })));
         await root.QuiescenceTask;
         return (root, captured!);
+    }
+
+    private static async Task<(HtmlRootComponent Root, CourseLayoutEditor Editor)> RenderCourseLayoutEditor(
+        HtmlRenderer renderer, Guid facilityId)
+    {
+        CourseLayoutEditor? captured = null;
+        var root = await renderer.Dispatcher.InvokeAsync(() => renderer.BeginRenderingComponent<CourseLayoutHost>(
+            ParameterView.FromDictionary(new Dictionary<string, object?>
+            {
+                [nameof(CourseLayoutHost.FacilityId)] = facilityId,
+                [nameof(CourseLayoutHost.Capture)] = (Action<CourseLayoutEditor>)(component => captured = component)
+            })));
+        await root.QuiescenceTask;
+        return (root, captured!);
+    }
+
+    private static async Task<Task> StartCourseLayoutSelection(
+        HtmlRenderer renderer, CourseLayoutEditor editor, Guid? id)
+    {
+        Task? pending = null;
+        await renderer.Dispatcher.InvokeAsync((Action)(() => pending = EventCallback.Factory
+            .Create(editor, () => Invoke(editor, "SelectAssociationCoursePoint", id)).InvokeAsync()));
+        return pending!;
     }
 
     private static void PrepareExistingInstallationEditor(
@@ -191,6 +296,55 @@ public sealed class AssociationScheduleRaceRenderingTests
         return proxy;
     }
 
+    private static ServiceProvider CreateCourseLayoutServices(
+        Guid facilityId,
+        Guid firstCoursePointId,
+        Guid secondCoursePointId,
+        Func<Guid, CancellationToken, Task<IReadOnlyList<CoursePointTimingAssociationSnapshot>>> getSchedule)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddLocalization(options => options.ResourcesPath = "Resources");
+        services.AddMudServices(options => options.PopoverOptions.CheckForPopoverProvider = false);
+        services.AddTransient<MudLocalizer, LocalizedMudLocalizer>();
+        services.AddSingleton<IJSRuntime, NoJavaScript>();
+        services.AddSingleton<NavigationManager, TestNavigation>();
+        services.AddSingleton<UnsavedChangesTracker>();
+
+        var proxy = DispatchProxy.Create<IInfrastructureAdministrationService, AdministrationServiceProxy>();
+        ((AdministrationServiceProxy)(object)proxy).Handler = (method, args) => method.Name switch
+        {
+            nameof(IInfrastructureAdministrationService.GetFacilitiesAsync) =>
+                Task.FromResult<IReadOnlyList<FacilityDTO>>([new() { Id = facilityId, Name = "Test facility" }]),
+            nameof(IInfrastructureAdministrationService.GetLayoutsAsync) =>
+                Task.FromResult<IReadOnlyList<CourseLayoutDTO>>(
+                [
+                    new()
+                    {
+                        Id = Guid.NewGuid(),
+                        FacilityId = facilityId,
+                        Segments =
+                        [
+                            new()
+                            {
+                                Id = Guid.NewGuid(),
+                                Start = new() { Id = firstCoursePointId, Name = "First point" },
+                                End = new() { Id = secondCoursePointId, Name = "Second point" },
+                                Length = 100
+                            }
+                        ]
+                    }
+                ]),
+            nameof(IInfrastructureAdministrationService.GetInstallationsAsync) =>
+                Task.FromResult<IReadOnlyList<VeloTime.Module.Timing.Interface.Data.InstallationDTO>>([]),
+            nameof(IInfrastructureAdministrationService.GetCoursePointTimingAssociationsAsync) =>
+                getSchedule((Guid)args[0]!, (CancellationToken)args[1]!),
+            _ => throw new NotSupportedException(method.Name)
+        };
+        services.AddSingleton(proxy);
+        return services.BuildServiceProvider();
+    }
+
     private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
     private static T Field<T>(object instance, string name) =>
         (T)instance.GetType().GetField(name, Private)!.GetValue(instance)!;
@@ -212,6 +366,27 @@ public sealed class AssociationScheduleRaceRenderingTests
             {
                 child.OpenComponent<InstallationEditor>(0);
                 child.AddComponentReferenceCapture(1, value => Capture?.Invoke((InstallationEditor)value));
+                child.CloseComponent();
+            }));
+            builder.CloseComponent();
+        }
+    }
+
+    public sealed class CourseLayoutHost : ComponentBase
+    {
+        [Parameter] public Guid FacilityId { get; set; }
+        [Parameter] public Action<CourseLayoutEditor>? Capture { get; set; }
+
+        protected override void BuildRenderTree(RenderTreeBuilder builder)
+        {
+            builder.OpenComponent<CascadingValue<EffectiveDisplaySettings>>(0);
+            builder.AddAttribute(1, nameof(CascadingValue<EffectiveDisplaySettings>.Value),
+                EffectiveDisplaySettings.Create(new("m", "km/h", "utc", null), "UTC", "en-US"));
+            builder.AddAttribute(2, nameof(CascadingValue<EffectiveDisplaySettings>.ChildContent), (RenderFragment)(child =>
+            {
+                child.OpenComponent<CourseLayoutEditor>(0);
+                child.AddAttribute(1, nameof(CourseLayoutEditor.FacilityId), FacilityId);
+                child.AddComponentReferenceCapture(2, value => Capture?.Invoke((CourseLayoutEditor)value));
                 child.CloseComponent();
             }));
             builder.CloseComponent();
