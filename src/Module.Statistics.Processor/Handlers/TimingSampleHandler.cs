@@ -22,7 +22,12 @@ public class TimingSampleHandler(
 
         activity?.SetTag("TransponderId", message.TransponderId);
 
-        CoursePointDistance distance = await facilities.Distance2Async(message.TimingPointStart, message.TimingPointEnd, cancellationToken: cancellationToken);
+        CoursePointDistance distance = await facilities.Distance2Async(
+            message.TimingPointStart,
+            message.TimingPointEnd,
+            startAt: AsUtcInstant(message.TimeStart),
+            endAt: AsUtcInstant(message.TimeEnd),
+            cancellationToken: cancellationToken);
         
         Sample sample = new()
         {
@@ -54,4 +59,10 @@ public class TimingSampleHandler(
         activity?.SetStatus(ActivityStatusCode.Ok);
         metrics.TimingSampleProcessed((DateTime.UtcNow - activity?.StartTimeUtc)?.TotalMilliseconds ?? 0);
     }
+
+    private static DateTimeOffset AsUtcInstant(DateTime time) =>
+        new(time.Kind == DateTimeKind.Local
+            ? time.ToUniversalTime()
+            // Backend messages use UTC, including values without Kind metadata.
+            : DateTime.SpecifyKind(time, DateTimeKind.Utc));
 }
