@@ -28,6 +28,7 @@ public class CoursePoint
 
     // Temporary source-compatibility bridge only. Never persist or silently serve a stale mapping.
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    [System.Text.Json.Serialization.JsonIgnore]
     [Obsolete("Use TimingAssociations and resolve at an explicit UTC instant. The legacy column has been removed.")]
     public Guid? TimingPoint
     {
