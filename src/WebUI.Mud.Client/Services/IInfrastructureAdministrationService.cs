@@ -12,9 +12,20 @@ public interface IInfrastructureAdministrationService
     Task<Facilities.CourseLayoutDTO> SaveLayoutAsync(Guid facilityId, Guid? id, Facilities.SaveCourseLayoutRequest request, CancellationToken cancellationToken = default);
     Task DeleteLayoutAsync(Guid facilityId, Guid id, CancellationToken cancellationToken = default);
     Task SetTimingLinkAsync(Guid pointId, Guid? timingPointId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Facilities.CoursePointTimingAssociationSnapshot>> GetCoursePointTimingAssociationsAsync(Guid id, CancellationToken cancellationToken = default);
+    Task SetCoursePointTimingAssociationAsync(Guid id, Facilities.SetCoursePointTimingAssociationRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Timing.InstallationDTO>> GetInstallationsAsync(CancellationToken cancellationToken = default);
     Task<Timing.InstallationDTO> SaveInstallationAsync(Guid? id, Timing.SaveInstallationRequest request, CancellationToken cancellationToken = default);
     Task DeleteInstallationAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Timing.TimingPointDTO> SaveTimingPointAsync(Guid installationId, Guid? id, Timing.SaveTimingPointRequest request, CancellationToken cancellationToken = default);
     Task DeleteTimingPointAsync(Guid installationId, Guid id, CancellationToken cancellationToken = default);
+}
+
+public sealed class TimingAssociationConflictException(
+    Facilities.TimingAssociationConflictPreview preview,
+    Exception? innerException = null)
+    : HttpRequestException("The timing-point association conflicts with an existing schedule.", innerException,
+        System.Net.HttpStatusCode.Conflict)
+{
+    public Facilities.TimingAssociationConflictPreview Preview { get; } = preview;
 }

@@ -5,6 +5,7 @@ using VeloTime.Module.Timing.Client;
 using VeloTime.WebUI.Mud.Client.Services;
 using Facilities = VeloTime.Module.Facilities.Interface.Data;
 using Timing = VeloTime.Module.Timing.Interface.Data;
+using System.Text.Json;
 using static VeloTime.WebUI.Mud.Services.AdministrationClientCall;
 
 namespace VeloTime.WebUI.Mud.Services;
@@ -23,11 +24,11 @@ public sealed class InfrastructureAdministrationService(IFacilitiesClient facili
 
     public async Task<IReadOnlyList<Facilities.CourseLayoutDTO>> GetLayoutsAsync(Guid facilityId, CancellationToken cancellationToken = default)
     {
-        var snapshots = await cache.GetAdminAsync(
-            AdministrationAuthorization.ReferencePolicy, "admin-facility-layouts", $"facility:{facilityId:N}:layout-snapshot-v1",
-            async (IFacilitiesClient factoryClient, CancellationToken token) => await Execute(async () =>
-                FacilityLookupSnapshots.Layouts(await factoryClient.LayoutsAllAsync(facilityId, token), facilityId)),
-            [FacilitiesCacheTags.Relationships], cancellationToken);
+        // Layout projections include the current timing association. Do not retain them in the
+        // WebUI cache: a scheduled boundary can change that mapping without another write.
+        await cache.RequirePolicyAsync(AdministrationAuthorization.ReferencePolicy, cancellationToken);
+        var snapshots = await Execute(async () =>
+            FacilityLookupSnapshots.Layouts(await facilities.LayoutsAllAsync(facilityId, cancellationToken), facilityId));
         return snapshots.Select(FacilityLookupSnapshots.ToContract).ToArray();
     }
     public Task<Facilities.FacilityDTO> SaveFacilityAsync(Guid? id, Facilities.SaveFacilityRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
@@ -78,6 +79,44 @@ public sealed class InfrastructureAdministrationService(IFacilitiesClient facili
         if (response is null || response.Id != pointId || response.Id == Guid.Empty ||
             string.IsNullOrWhiteSpace(response.Name) || response.TimingPointId != timingPointId)
             throw new InvalidDataException("The saved course-point timing link is invalid.");
+        return true;
+    });
+    public Task<IReadOnlyList<Facilities.CoursePointTimingAssociationSnapshot>> GetCoursePointTimingAssociationsAsync(Guid id, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.TimingLinkPolicy, cancellationToken);
+        var associations = await facilities.GetCoursePointTimingAssociationsAsync(id, cancellationToken);
+        if (associations is null || associations.Any(association =>
+                association is null || association.CoursePointId != id || association.TimingPointId == Guid.Empty ||
+                (association.ValidFromUtc.HasValue && association.ValidToUtc.HasValue &&
+                 association.ValidFromUtc.Value >= association.ValidToUtc.Value)))
+            throw new InvalidDataException("The coursepoint timing-association schedule is invalid.");
+        return (IReadOnlyList<Facilities.CoursePointTimingAssociationSnapshot>)associations.ToArray();
+    });
+    public Task SetCoursePointTimingAssociationAsync(Guid id, Facilities.SetCoursePointTimingAssociationRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.TimingLinkPolicy, cancellationToken);
+        try
+        {
+            await cache.WriteAndInvalidateAsync(
+                () => facilities.SetCoursePointTimingAssociationAsync(id, request, cancellationToken),
+                FacilitiesCacheTags.Relationships, "updating a course-point timing association");
+        }
+        catch (VeloTime.Module.Facilities.Client.ApiException exception) when (exception.StatusCode == 409)
+        {
+            try
+            {
+                var preview = JsonSerializer.Deserialize<Facilities.TimingAssociationConflictPreview>(
+                    exception.Response, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+                if (preview is not null && !string.IsNullOrWhiteSpace(preview.ConfirmationToken))
+                    throw new TimingAssociationConflictException(preview, exception);
+            }
+            catch (JsonException)
+            {
+                // A malformed structured conflict must remain an explicit upstream failure.
+            }
+            throw new HttpRequestException("The timing-association conflict preview could not be read.", exception,
+                System.Net.HttpStatusCode.BadGateway);
+        }
         return true;
     });
     public async Task<IReadOnlyList<Timing.InstallationDTO>> GetInstallationsAsync(CancellationToken cancellationToken = default)

@@ -1,3 +1,4 @@
+@inherits PresentationComponentBase
 @page "/admin/timing/installations/new"
 @page "/admin/timing/installations/{InstallationId:guid}"
 @page "/admin/installations/{InstallationId:guid}"
@@ -50,13 +51,61 @@
                     <MudGrid>
                         <MudItem xs="12" md="4"><MudTextField @bind-Value="_pointSystemId" Label="@L["HardwareSystemId"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy" /></MudItem>
                         <MudItem xs="12" md="4"><MudTextField @bind-Value="_pointDescription" Label="@L["Description"]" Disabled="_busy" /></MudItem>
-                        <MudItem xs="12" md="4"><MudSelect T="Guid?" @bind-Value="_coursePointId" Label="@L["Coursepoint"]" Clearable="true" Disabled="_busy">
-                            @foreach (var point in _coursePoints.Where(point => !point.TimingPointId.HasValue || point.TimingPointId == _pointId))
+                        <MudItem xs="12" md="4"><MudSelect T="Guid?" Value="_coursePointId" ValueChanged="SelectCoursePoint" Label="@L["Coursepoint"]" Clearable="true" Disabled="@(_busy || _conflictPreview is not null)">
+                            @foreach (var point in _coursePoints)
                             { <MudSelectItem T="Guid?" Value="@((Guid?)point.Id)">@point.Name</MudSelectItem> }
                         </MudSelect></MudItem>
                     </MudGrid>
+                    <MudText Class="mt-3"><strong>@L["CurrentAssociation"]:</strong> @(_originalCoursePointId.HasValue ? _coursePoints.FirstOrDefault(point => point.Id == _originalCoursePointId)?.Name ?? L["Unlinked"] : L["Unlinked"])</MudText>
+                    @if (_scheduleLoading) { <MudProgressLinear Indeterminate="true" Class="my-2" /> }
+                    else if (_scheduleError is not null) { <MudAlert Severity="Severity.Error" role="alert" Class="my-2">@_scheduleError</MudAlert> }
+                    else if (_scheduleCoursePointId.HasValue)
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mt-3">@L["EffectiveAssociationHistory"]</MudText>
+                        <MudTable T="ScheduleRow" Items="BuildScheduleRows()" Dense="true" Hover="true" Elevation="0">
+                            <HeaderContent><MudTh>@L["EffectiveInterval"]</MudTh><MudTh>@L["TimingPoint"]</MudTh><MudTh>@L["AssociationStatus"]</MudTh></HeaderContent>
+                            <RowTemplate>
+                                <MudTd DataLabel="@L["EffectiveInterval"]">@FormatInterval(context.ValidFromUtc, context.ValidToUtc)</MudTd>
+                                <MudTd DataLabel="@L["TimingPoint"]">@(context.TimingPointId.HasValue ? TimingPointName(context.TimingPointId.Value) : L["Unlinked"])</MudTd>
+                                <MudTd DataLabel="@L["AssociationStatus"]">@ScheduleStatus(context.ValidFromUtc, context.ValidToUtc, context.IsGap)</MudTd>
+                            </RowTemplate>
+                            <NoRecordsContent><MudText>@L["NoAssociationHistory"]</MudText></NoRecordsContent>
+                        </MudTable>
+                    }
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.subtitle2">@L["AssociationChangeMode"]</MudText>
+                    <MudRadioGroup T="string" @bind-Value="_associationMode" @bind-Value:after="AssociationInputChanged" Disabled="@(_busy || _conflictPreview is not null)">
+                        <MudRadio T="string" Value="@("interval")">@L["ExplicitEffectiveInterval"]</MudRadio>
+                        <MudRadio T="string" Value="@("immediate")">@L["LegacyImmediateChange"]</MudRadio>
+                    </MudRadioGroup>
+                    @if (_associationMode == "interval")
+                    {
+                        <MudAlert Severity="Severity.Info" Class="my-2">@L["AssociationIntervalHelp"]</MudAlert>
+                        <MudCheckBox T="bool" @bind-Value="_fromUnbounded" @bind-Value:after="AssociationInputChanged" Label="@L["NoLowerBound"]" Disabled="@(_busy || _conflictPreview is not null)" />
+                        @if (!_fromUnbounded) { <ZonedInstantEditor Draft="_fromDraft" EditorSettings="Display" Label="@L["From"]" Required="false" Disabled="@(_busy || _conflictPreview is not null)" Changed="AssociationInputChanged" /> }
+                        <MudCheckBox T="bool" @bind-Value="_toUnbounded" @bind-Value:after="AssociationInputChanged" Label="@L["NoUpperBound"]" Disabled="@(_busy || _conflictPreview is not null)" />
+                        @if (!_toUnbounded) { <ZonedInstantEditor Draft="_toDraft" EditorSettings="Display" Label="@L["ToExclusive"]" Required="false" Disabled="@(_busy || _conflictPreview is not null)" Changed="AssociationInputChanged" /> }
+                        <MudAlert Severity="Severity.Info" Class="my-2">@L["BackdatedAssociationStatisticsGuidance"]</MudAlert>
+                    }
+                    else { <MudAlert Severity="Severity.Info" Class="my-2">@L["LegacyImmediateHelp"]</MudAlert> }
+                    @if (_associationError is not null) { <MudAlert Severity="Severity.Error" role="alert" Class="my-2">@_associationError</MudAlert> }
+                    @if (_conflictPreview is { } preview)
+                    {
+                        <MudAlert Severity="Severity.Warning" role="alert" Class="my-2">
+                            <MudText Typo="Typo.subtitle2">@L["AssociationConflictNeedsConfirmation"]</MudText>
+                            @foreach (var conflict in preview.Conflicts)
+                            {
+                                <MudText>@ConflictDescription(conflict)</MudText>
+                            }
+                            <MudText>@L["ConflictConfirmationRequired"]</MudText>
+                        </MudAlert>
+                        <MudStack Row="true" Wrap="Wrap.Wrap" Class="my-2">
+                            <MudButton Color="Color.Warning" Variant="Variant.Filled" OnClick="ConfirmAssociationConflict" Disabled="_busy">@L["ConfirmExactReplacement"]</MudButton>
+                            <MudButton OnClick="ClearAssociationConflict" Disabled="_busy">@L["Cancel"]</MudButton>
+                        </MudStack>
+                    }
                     <MudStack Row="true" Class="mt-4" Spacing="3">
-                        <MudButton StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary" Variant="Variant.Filled" OnClick="SavePoint" Disabled="_busy">@L["SaveTimingPoint"]</MudButton>
+                        <MudButton StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary" Variant="Variant.Filled" OnClick="SavePoint" Disabled="@(_busy || _conflictPreview is not null || (_associationMode == "interval" && !Display.IsReady))">@L["SaveTimingPoint"]</MudButton>
                         <MudButton OnClick="CancelPoint" Disabled="_busy">@L["Cancel"]</MudButton>
                     </MudStack>
                 </MudForm>
@@ -83,12 +132,21 @@
     private IDisposable? _unsavedRegistration;
     private IReadOnlyList<Facility> _facilities = [];
     private List<CoursePoint> _coursePoints = [];
+    private Dictionary<Guid, string> _timingPointNames = [];
     private InstallationDTO? _installation;
     private MudForm? _installationForm, _pointForm;
     private string _agentId = "", _system = "Unknown", _description = "", _pointSystemId = "", _pointDescription = "";
     private Guid? _facilityId, _pointId, _coursePointId, _originalCoursePointId;
+    private Guid? _scheduleCoursePointId;
     private bool _loading = true, _busy, _dirty, _pointEditing, _found;
     private string? _error;
+    private string? _associationError, _scheduleError;
+    private string _associationMode = "interval";
+    private bool _fromUnbounded = true, _toUnbounded = true, _scheduleLoading, _associationChanged;
+    private readonly ZonedInstantDraft _fromDraft = new(), _toDraft = new();
+    private IReadOnlyList<VeloTime.Module.Facilities.Interface.Data.CoursePointTimingAssociationSnapshot> _associationSchedule = [];
+    private VeloTime.Module.Facilities.Interface.Data.TimingAssociationConflictPreview? _conflictPreview;
+    private VeloTime.Module.Facilities.Interface.Data.SetCoursePointTimingAssociationRequest? _pendingAssociationRequest;
     public override Task SetParametersAsync(ParameterView parameters)
     {
         InstallationId = parameters.TryGetValue<Guid?>(nameof(InstallationId), out var id) ? id : null;
@@ -102,15 +160,22 @@
     private async Task Load()
     {
         _loading = true; _error = null; _found = false;
+        _associationSchedule = []; _scheduleCoursePointId = null; _conflictPreview = null; _pendingAssociationRequest = null;
         try
         {
             _facilities = await Service.GetFacilitiesAsync(_lifetime.Token);
-            _installation = InstallationId.HasValue ? (await Service.GetInstallationsAsync(_lifetime.Token)).FirstOrDefault(installation => installation.Id == InstallationId) : null;
+            var installations = await Service.GetInstallationsAsync(_lifetime.Token);
+            _installation = InstallationId.HasValue ? installations.FirstOrDefault(installation => installation.Id == InstallationId) : null;
             if (InstallationId.HasValue && _installation is null) { _error = L["InstallationNotFound"]; return; }
             _agentId = _installation?.AgentId ?? ""; _system = _installation?.TimingSystem.Name ?? "Unknown"; _description = _installation?.Description ?? "";
             _facilityId = _installation is { FacilityId: var facilityId } && facilityId != Guid.Empty ? facilityId : null;
             _coursePoints = _facilityId.HasValue ? (await Service.GetLayoutsAsync(_facilityId.Value, _lifetime.Token)).SelectMany(layout => layout.Segments)
                 .SelectMany(segment => new[] { segment.Start, segment.End }).DistinctBy(point => point.Id).ToList() : [];
+            _timingPointNames = installations.Where(installation => installation.FacilityId == _facilityId)
+                .SelectMany(installation => installation.TimingPoints.Select(point =>
+                    (point.Id, Name: $"{installation.AgentId}: {(string.IsNullOrWhiteSpace(point.Description) ? point.SystemId : point.Description)}")))
+                .ToDictionary(item => item.Id, item => item.Name);
+            _scheduleCoursePointId = null;
             _dirty = !InstallationId.HasValue; _pointEditing = false; _found = true;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
@@ -134,32 +199,195 @@
         catch (Exception) { _error = L["InstallationSaveFailed"]; }
         finally { _busy = false; }
     }
-    private void EditPoint(TimingPointDTO? point)
+    private async Task EditPoint(TimingPointDTO? point)
     {
         _pointId = point?.Id; _pointSystemId = point?.SystemId ?? ""; _pointDescription = point?.Description ?? "";
         _coursePointId = point is null ? null : _coursePoints.FirstOrDefault(coursePoint => coursePoint.TimingPointId == point.Id)?.Id;
-        _originalCoursePointId = _coursePointId; _pointEditing = true; _error = null;
+        _originalCoursePointId = _coursePointId; _pointEditing = true; _error = _associationError = null;
+        _associationMode = "interval"; _fromUnbounded = false; _toUnbounded = true; _associationChanged = false; _conflictPreview = null; _pendingAssociationRequest = null;
+        _fromDraft.Date = _toDraft.Date = null; _fromDraft.Time = _toDraft.Time = TimeSpan.Zero; _fromDraft.Offset = null;
+        if (Display.IsReady)
+        {
+            var local = Display.Local(DateTimeOffset.UtcNow);
+            _fromDraft.Date = local.Date;
+            _fromDraft.Time = new TimeSpan(local.Hour, local.Minute, 0);
+            _fromDraft.Offset = local.Offset;
+        }
+        await LoadAssociationSchedule(_coursePointId);
     }
     private async Task SavePoint()
     {
         await _pointForm!.ValidateAsync();
         if (!_pointForm.IsValid || _busy) return;
+        if (_associationMode == "immediate" && _originalCoursePointId.HasValue && _coursePointId.HasValue &&
+            _originalCoursePointId != _coursePointId)
+        {
+            _associationError = L["ImmediateMoveRequiresInterval"].Value;
+            return;
+        }
+        if (_associationMode == "interval" && (_associationChanged || _originalCoursePointId != _coursePointId) &&
+            !TryBuildAssociationRequest(null, out _, out var validationError))
+        {
+            _associationError = validationError;
+            return;
+        }
         _busy = true; _error = null; var pointSaved = false;
         try
         {
             var saved = await Service.SaveTimingPointAsync(_installation!.Id, _pointId, new(_pointSystemId, _pointDescription), _lifetime.Token);
             _pointId = saved.Id; pointSaved = true;
-            if (_originalCoursePointId != _coursePointId)
+            if (_associationMode == "interval" && (_associationChanged || _originalCoursePointId != _coursePointId))
             {
-                if (_originalCoursePointId.HasValue) { await Service.SetTimingLinkAsync(_originalCoursePointId.Value, null, _lifetime.Token); _originalCoursePointId = null; }
-                if (_coursePointId.HasValue) { await Service.SetTimingLinkAsync(_coursePointId.Value, saved.Id, _lifetime.Token); _originalCoursePointId = _coursePointId; }
+                var targetCoursePoint = _coursePointId ?? _originalCoursePointId;
+                if (targetCoursePoint.HasValue)
+                {
+                    if (!TryBuildAssociationRequest(null, out var request, out var associationValidationError)) { _associationError = associationValidationError; return; }
+                    request = request! with { TimingPointId = _coursePointId.HasValue ? saved.Id : null };
+                    try { await Service.SetCoursePointTimingAssociationAsync(targetCoursePoint.Value, request, _lifetime.Token); }
+                    catch (TimingAssociationConflictException exception)
+                    {
+                        _pendingAssociationRequest = request;
+                        _conflictPreview = exception.Preview;
+                        _associationError = null;
+                        return;
+                    }
+                }
+            }
+            else if (_associationMode == "immediate" && _originalCoursePointId != _coursePointId)
+            {
+                var targetCoursePoint = _coursePointId ?? _originalCoursePointId;
+                if (targetCoursePoint.HasValue)
+                    await Service.SetTimingLinkAsync(targetCoursePoint.Value, _coursePointId.HasValue ? saved.Id : null, _lifetime.Token);
             }
             _pointEditing = false; Snackbar.Add(L["TimingPointSaved"], Severity.Success); await Load();
         }
+        catch (TimingAssociationConflictException exception) { _pendingAssociationRequest = null; _conflictPreview = exception.Preview; }
         catch (HttpRequestException exception) { _error = pointSaved ? L["PartialTimingPointLink"] : ErrorFor(exception); }
         catch (Exception) { _error = pointSaved ? L["PartialTimingPointLink"] : L["TimingPointSaveFailed"]; }
         finally { _busy = false; }
     }
+    private async Task SelectCoursePoint(Guid? id)
+    {
+        _coursePointId = id;
+        _associationChanged = true;
+        _associationError = null;
+        _conflictPreview = null;
+        _pendingAssociationRequest = null;
+        await LoadAssociationSchedule(id ?? _originalCoursePointId);
+    }
+    private async Task LoadAssociationSchedule(Guid? coursePointId)
+    {
+        _scheduleCoursePointId = coursePointId;
+        _associationSchedule = [];
+        _scheduleError = null;
+        if (!coursePointId.HasValue) return;
+        _scheduleLoading = true;
+        try { _associationSchedule = await Service.GetCoursePointTimingAssociationsAsync(coursePointId.Value, _lifetime.Token); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (HttpRequestException exception) { _scheduleError = AssociationScheduleError(exception); }
+        catch (Exception) { _scheduleError = L["AssociationScheduleLoadFailed"].Value; }
+        finally { _scheduleLoading = false; }
+    }
+    private void AssociationInputChanged()
+    {
+        _associationChanged = true;
+        _associationError = null;
+        _conflictPreview = null;
+        _pendingAssociationRequest = null;
+    }
+    private bool TryBuildAssociationRequest(string? token,
+        out VeloTime.Module.Facilities.Interface.Data.SetCoursePointTimingAssociationRequest? request, out string error)
+    {
+        request = null; error = "";
+        DateTimeOffset? from = null, to = null;
+        try
+        {
+            if (!_fromUnbounded) from = _fromDraft.Resolve(Display);
+            if (!_toUnbounded) to = _toDraft.Resolve(Display);
+        }
+        catch (PresentationValidationException exception) { error = L[exception.ResourceKey].Value; return false; }
+        if (from.HasValue && to.HasValue && from.Value >= to.Value)
+        {
+            error = L["AssociationInvalidRange"].Value;
+            return false;
+        }
+        request = new()
+        {
+            TimingPointId = _coursePointId.HasValue ? _pointId : null,
+            ValidFromUtc = from,
+            ValidToUtc = to,
+            ConfirmationToken = token
+        };
+        return true;
+    }
+    private async Task ConfirmAssociationConflict()
+    {
+        if (_conflictPreview is not { } preview || _pendingAssociationRequest is not { } pending ||
+            !_scheduleCoursePointId.HasValue || _busy) return;
+        _busy = true; _associationError = null;
+        try
+        {
+            await Service.SetCoursePointTimingAssociationAsync(_scheduleCoursePointId.Value,
+                pending with { ConfirmationToken = preview.ConfirmationToken }, _lifetime.Token);
+            _conflictPreview = null; _pendingAssociationRequest = null;
+            Snackbar.Add(L["AssociationSaved"].Value, Severity.Success);
+            await Load();
+        }
+        catch (TimingAssociationConflictException exception)
+        {
+            // Stale previews always require a separate confirmation of the newly returned state.
+            _conflictPreview = exception.Preview;
+        }
+        catch (HttpRequestException exception) { _conflictPreview = null; _associationError = ErrorFor(exception); }
+        catch (Exception) { _conflictPreview = null; _associationError = L["AssociationSaveFailed"].Value; }
+        finally { _busy = false; }
+    }
+    private void ClearAssociationConflict() { _conflictPreview = null; _pendingAssociationRequest = null; _associationError = null; }
+    private string TimingPointName(Guid id) => _timingPointNames.GetValueOrDefault(id) ?? L["MissingItem", id.ToString()];
+    private string AssociationScheduleError(HttpRequestException exception) => exception.StatusCode switch
+    {
+        System.Net.HttpStatusCode.Unauthorized => L["SignInRequired"].Value,
+        System.Net.HttpStatusCode.Forbidden => L["NoPermission"].Value,
+        System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout => L["ServiceUnavailable"].Value,
+        _ => L["AssociationScheduleLoadFailed"].Value
+    };
+    private string FormatInterval(DateTimeOffset? from, DateTimeOffset? to) =>
+        $"{(from.HasValue ? Display.Timestamp(from.Value) : L["NegativeInfinity"].Value)} — {(to.HasValue ? Display.Timestamp(to.Value) : L["PositiveInfinity"].Value)}";
+    private string ScheduleStatus(DateTimeOffset? from, DateTimeOffset? to, bool gap)
+    {
+        if (gap) return L["UnlinkedInterval"].Value;
+        var now = DateTimeOffset.UtcNow;
+        if (to.HasValue && to.Value <= now) return L["HistoricalAssociation"].Value;
+        if (from.HasValue && from.Value > now) return L["ScheduledAssociation"].Value;
+        return L["EffectiveAssociationInterval"].Value;
+    }
+    private IEnumerable<ScheduleRow> BuildScheduleRows()
+    {
+        var items = _associationSchedule.OrderBy(item => item.ValidFromUtc ?? DateTimeOffset.MinValue).ToArray();
+        if (items.Length == 0) { yield return new(null, null, null, true); yield break; }
+        DateTimeOffset? cursor = null;
+        var openStart = true;
+        foreach (var item in items)
+        {
+            if (openStart && item.ValidFromUtc.HasValue)
+                yield return new(null, item.ValidFromUtc, null, true);
+            else if (!openStart && cursor.HasValue && item.ValidFromUtc.HasValue && cursor.Value < item.ValidFromUtc.Value)
+                yield return new(cursor, item.ValidFromUtc, null, true);
+            yield return new(item.ValidFromUtc, item.ValidToUtc, item.TimingPointId, false);
+            cursor = item.ValidToUtc;
+            openStart = false;
+        }
+        if (cursor.HasValue) yield return new(cursor, null, null, true);
+    }
+    private string ConflictDescription(VeloTime.Module.Facilities.Interface.Data.TimingAssociationDestinationConflict conflict)
+    {
+        var point = _coursePoints.FirstOrDefault(item => item.Id == conflict.Association.CoursePointId);
+        return L["AssociationConflictWindow",
+            point?.Name ?? conflict.Association.CoursePointId.ToString(),
+            TimingPointName(conflict.Association.TimingPointId),
+            FormatInterval(conflict.OverlapValidFromUtc, conflict.OverlapValidToUtc)].Value;
+    }
+    private sealed record ScheduleRow(DateTimeOffset? ValidFromUtc, DateTimeOffset? ValidToUtc, Guid? TimingPointId, bool IsGap);
     private async Task DeletePoint(TimingPointDTO point)
     {
         if (await Dialogs.ShowMessageBoxAsync(L["DeleteTimingPointQuestion"], L["DeleteTimingPointConfirm"], yesText: L["Delete"], cancelText: L["Cancel"]) != true) return;

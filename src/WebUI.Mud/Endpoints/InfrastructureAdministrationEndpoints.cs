@@ -23,6 +23,14 @@ internal static class InfrastructureAdministrationEndpoints
         facilities.MapDelete("/{facilityId:guid}/layouts/{id:guid}", async (Guid facilityId, Guid id, IInfrastructureAdministrationService service, CancellationToken cancellationToken) => { await service.DeleteLayoutAsync(facilityId, id, cancellationToken); return Results.NoContent(); });
         endpoints.MapPut("/admin/coursepoints/{id:guid}/timing-link", async (Guid id, Facilities.SetCoursePointTimingLinkRequest request, IInfrastructureAdministrationService service, CancellationToken cancellationToken) =>
         { await service.SetTimingLinkAsync(id, request.TimingPointId, cancellationToken); return Results.NoContent(); }).RequireAuthorization(AdministrationAuthorization.TimingLinkPolicy);
+        endpoints.MapGet("/admin/coursepoints/{id:guid}/timing-associations", async (Guid id, IInfrastructureAdministrationService service, CancellationToken cancellationToken) =>
+            Results.Ok(await service.GetCoursePointTimingAssociationsAsync(id, cancellationToken)))
+            .RequireAuthorization(AdministrationAuthorization.TimingLinkPolicy);
+        endpoints.MapPut("/admin/coursepoints/{id:guid}/timing-association", async (Guid id, Facilities.SetCoursePointTimingAssociationRequest request, IInfrastructureAdministrationService service, CancellationToken cancellationToken) =>
+        {
+            await service.SetCoursePointTimingAssociationAsync(id, request, cancellationToken);
+            return Results.NoContent();
+        }).RequireAuthorization(AdministrationAuthorization.TimingLinkPolicy);
 
         var installations = endpoints.MapGroup("/admin/timing/installations").RequireAuthorization(AdministrationAuthorization.TimingPolicy);
         installations.MapPost("", async (Timing.SaveInstallationRequest request, IInfrastructureAdministrationService service, CancellationToken cancellationToken) => Results.Ok(await service.SaveInstallationAsync(null, request, cancellationToken)));

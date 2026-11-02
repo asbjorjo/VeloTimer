@@ -432,6 +432,39 @@
   <data name="LayoutSaveFailed" xml:space="preserve"><value>The layout could not be saved. Please try again.</value></data>
   <data name="DiscardLayoutChanges" xml:space="preserve"><value>Unsaved layout or link changes will be lost.</value></data>
   <data name="FacilityNotFound" xml:space="preserve"><value>Facility not found.</value></data>
+  <data name="TimingAssociationAdmin" xml:space="preserve"><value>Coursepoint timing associations</value></data>
+  <data name="CurrentAssociation" xml:space="preserve"><value>Current mapping</value></data>
+  <data name="CurrentMappingUnavailable" xml:space="preserve"><value>Current mapping unavailable</value></data>
+  <data name="CurrentMappingRefreshFailed" xml:space="preserve"><value>The change was saved, but the current mapping could not be refreshed. It is not safe to treat the displayed mapping as current.</value></data>
+  <data name="EffectiveAssociationHistory" xml:space="preserve"><value>Effective-time history and schedule (not audit history)</value></data>
+  <data name="EffectiveInterval" xml:space="preserve"><value>Effective interval [from, to)</value></data>
+  <data name="AssociationStatus" xml:space="preserve"><value>Interval status</value></data>
+  <data name="NoAssociationHistory" xml:space="preserve"><value>No recorded association intervals; the coursepoint is unlinked for all time.</value></data>
+  <data name="ChangeTimingAssociation" xml:space="preserve"><value>Change coursepoint association</value></data>
+  <data name="AssociationChangeMode" xml:space="preserve"><value>Change type</value></data>
+  <data name="ExplicitEffectiveInterval" xml:space="preserve"><value>Explicit effective interval</value></data>
+  <data name="LegacyImmediateChange" xml:space="preserve"><value>Legacy immediate change (timestamp omitted; takes effect now)</value></data>
+  <data name="AssociationIntervalHelp" xml:space="preserve"><value>Intervals are half-open [from, to). Select no lower bound and no upper bound for a fully unbounded interval. This is different from the legacy immediate change, which omits the effective time and takes effect now.</value></data>
+  <data name="NoLowerBound" xml:space="preserve"><value>No lower bound (from the beginning)</value></data>
+  <data name="NoUpperBound" xml:space="preserve"><value>No upper bound (no end)</value></data>
+  <data name="LegacyImmediateHelp" xml:space="preserve"><value>This uses the legacy immediate write; it does not create a fully unbounded interval.</value></data>
+  <data name="BackdatedAssociationStatisticsGuidance" xml:space="preserve"><value>Backdated changes may leave existing Statistics results and aggregates stale. A separate recalculation repair follow-up is required; this save does not repair them immediately.</value></data>
+  <data name="AssociationConflictNeedsConfirmation" xml:space="preserve"><value>This interval overlaps assignments to other coursepoints</value></data>
+  <data name="ConflictConfirmationRequired" xml:space="preserve"><value>Review every exact overlap above. Confirming replaces only those overlapping destination intervals. A changed preview requires a new confirmation.</value></data>
+  <data name="ConfirmExactReplacement" xml:space="preserve"><value>Confirm these exact replacements</value></data>
+  <data name="SaveAssociation" xml:space="preserve"><value>Save association</value></data>
+  <data name="AssociationScheduleLoadFailed" xml:space="preserve"><value>The association history and schedule could not be loaded. Retry before making a change.</value></data>
+  <data name="AssociationSaved" xml:space="preserve"><value>Coursepoint timing association saved.</value></data>
+  <data name="AssociationSaveFailed" xml:space="preserve"><value>The coursepoint timing association could not be saved.</value></data>
+  <data name="AssociationInvalidRange" xml:space="preserve"><value>The inclusive start must be earlier than the exclusive end.</value></data>
+  <data name="NegativeInfinity" xml:space="preserve"><value>No lower bound</value></data>
+  <data name="PositiveInfinity" xml:space="preserve"><value>No upper bound</value></data>
+  <data name="UnlinkedInterval" xml:space="preserve"><value>Unlinked gap</value></data>
+  <data name="HistoricalAssociation" xml:space="preserve"><value>Historical</value></data>
+  <data name="ScheduledAssociation" xml:space="preserve"><value>Scheduled</value></data>
+  <data name="EffectiveAssociationInterval" xml:space="preserve"><value>Effective interval</value></data>
+  <data name="AssociationConflictWindow" xml:space="preserve"><value>Coursepoint {0}, assigned to {1}; exact overlap: {2}</value></data>
+  <data name="ImmediateMoveRequiresInterval" xml:space="preserve"><value>Moving a timing point between coursepoints must use one explicit interval write. Select Explicit effective interval; do not unlink and relink separately.</value></data>
   <data name="DisplaySettings" xml:space="preserve"><value>Units and time</value></data>
   <data name="DisplaySettingsHelp" xml:space="preserve"><value>Your saved settings follow your account across devices. Dates and times follow the UI language unless you choose another format. Browser time uses the current device’s time zone. Number formatting is unchanged. Changes take effect only after a successful save.</value></data>
   <data name="DateTimeFormat" xml:space="preserve"><value>Date and time format</value></data>

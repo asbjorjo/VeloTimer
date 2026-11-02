@@ -20,6 +20,11 @@ public sealed class InfrastructureAdministrationHttpService(HttpClient httpClien
         client.SendAsync<object>(HttpMethod.Delete, $"api/admin/facilities/{facilityId}/layouts/{id}", null, cancellationToken);
     public Task SetTimingLinkAsync(Guid pointId, Guid? timingPointId, CancellationToken cancellationToken = default) =>
         client.SendAsync<object>(HttpMethod.Put, $"api/admin/coursepoints/{pointId}/timing-link", new Facilities.SetCoursePointTimingLinkRequest(timingPointId), cancellationToken);
+    public async Task<IReadOnlyList<Facilities.CoursePointTimingAssociationSnapshot>> GetCoursePointTimingAssociationsAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await client.SendAsync<List<Facilities.CoursePointTimingAssociationSnapshot>>(HttpMethod.Get, $"api/admin/coursepoints/{id}/timing-associations", null, cancellationToken)
+        ?? throw new HttpRequestException("The coursepoint timing-association schedule is missing.");
+    public Task SetCoursePointTimingAssociationAsync(Guid id, Facilities.SetCoursePointTimingAssociationRequest request, CancellationToken cancellationToken = default) =>
+        client.SendTimingAssociationAsync($"api/admin/coursepoints/{id}/timing-association", request, cancellationToken);
     public async Task<IReadOnlyList<Timing.InstallationDTO>> GetInstallationsAsync(CancellationToken cancellationToken = default) =>
         await client.SendAsync<List<Timing.InstallationDTO>>(HttpMethod.Get, "api/admin/lookups/installations", null, cancellationToken) ?? [];
     public async Task<Timing.InstallationDTO> SaveInstallationAsync(Guid? id, Timing.SaveInstallationRequest request, CancellationToken cancellationToken = default) =>

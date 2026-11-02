@@ -33,6 +33,10 @@ internal static class BffEndpoints
             {
                 return Results.BadRequest();
             }
+            catch (TimingAssociationConflictException exception)
+            {
+                return Results.Json(exception.Preview, statusCode: StatusCodes.Status409Conflict);
+            }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
                 var status = exception switch

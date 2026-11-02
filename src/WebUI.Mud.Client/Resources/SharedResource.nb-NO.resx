@@ -432,6 +432,39 @@
   <data name="UseEveryCoursepoint" xml:space="preserve"><value>Bruk alle banepunktene i en strekning, eller fjern ubrukte punkter.</value></data>
   <data name="LayoutSaveFailed" xml:space="preserve"><value>Kunne ikke lagre baneløpet. Prøv igjen.</value></data>
   <data name="DiscardLayoutChanges" xml:space="preserve"><value>Ulagrede endringer i baneløpet eller tilknytningene går tapt.</value></data>
+  <data name="TimingAssociationAdmin" xml:space="preserve"><value>Tidtakerkoblinger for banepunkter</value></data>
+  <data name="CurrentAssociation" xml:space="preserve"><value>Gjeldende kobling</value></data>
+  <data name="CurrentMappingUnavailable" xml:space="preserve"><value>Gjeldende kobling er utilgjengelig</value></data>
+  <data name="CurrentMappingRefreshFailed" xml:space="preserve"><value>Endringen ble lagret, men gjeldende kobling kunne ikke oppdateres. Den viste koblingen kan ikke trygt betraktes som gjeldende.</value></data>
+  <data name="EffectiveAssociationHistory" xml:space="preserve"><value>Historikk og plan etter gyldighetstid (ikke revisjonshistorikk)</value></data>
+  <data name="EffectiveInterval" xml:space="preserve"><value>Gyldighetsintervall [fra, til)</value></data>
+  <data name="AssociationStatus" xml:space="preserve"><value>Intervallstatus</value></data>
+  <data name="NoAssociationHistory" xml:space="preserve"><value>Ingen registrerte koblingsintervaller. Banepunktet er frakoblet for all tid.</value></data>
+  <data name="ChangeTimingAssociation" xml:space="preserve"><value>Endre kobling for banepunkt</value></data>
+  <data name="AssociationChangeMode" xml:space="preserve"><value>Endringstype</value></data>
+  <data name="ExplicitEffectiveInterval" xml:space="preserve"><value>Eksplisitt gyldighetsintervall</value></data>
+  <data name="LegacyImmediateChange" xml:space="preserve"><value>Eldre umiddelbar endring (tidspunkt utelatt; gjelder nå)</value></data>
+  <data name="AssociationIntervalHelp" xml:space="preserve"><value>Intervaller er halvåpne [fra, til). Velg ingen nedre og ingen øvre grense for et helt ubegrenset intervall. Dette er forskjellig fra den eldre umiddelbare endringen, som utelater gyldighetstidspunktet og gjelder fra nå.</value></data>
+  <data name="NoLowerBound" xml:space="preserve"><value>Ingen nedre grense (fra begynnelsen)</value></data>
+  <data name="NoUpperBound" xml:space="preserve"><value>Ingen øvre grense (ingen sluttdato)</value></data>
+  <data name="LegacyImmediateHelp" xml:space="preserve"><value>Dette bruker den eldre umiddelbare skriveoperasjonen; den oppretter ikke et helt ubegrenset intervall.</value></data>
+  <data name="BackdatedAssociationStatisticsGuidance" xml:space="preserve"><value>Tilbakedaterte endringer kan gjøre eksisterende statistikkresultater og aggregater utdaterte. En separat oppfølging for omberegning/reparasjon er nødvendig; denne lagringen reparerer dem ikke umiddelbart.</value></data>
+  <data name="AssociationConflictNeedsConfirmation" xml:space="preserve"><value>Dette intervallet overlapper koblinger til andre banepunkter</value></data>
+  <data name="ConflictConfirmationRequired" xml:space="preserve"><value>Kontroller hvert nøyaktige overlapp ovenfor. Bekreftelse erstatter bare de overlappende intervallene for målpunktene. En endret forhåndsvisning krever ny bekreftelse.</value></data>
+  <data name="ConfirmExactReplacement" xml:space="preserve"><value>Bekreft disse nøyaktige erstatningene</value></data>
+  <data name="SaveAssociation" xml:space="preserve"><value>Lagre kobling</value></data>
+  <data name="AssociationScheduleLoadFailed" xml:space="preserve"><value>Kunne ikke hente koblingshistorikk og plan. Prøv igjen før du gjør en endring.</value></data>
+  <data name="AssociationSaved" xml:space="preserve"><value>Koblingen mellom banepunkt og tidtakerpunkt er lagret.</value></data>
+  <data name="AssociationSaveFailed" xml:space="preserve"><value>Kunne ikke lagre koblingen mellom banepunkt og tidtakerpunkt.</value></data>
+  <data name="AssociationInvalidRange" xml:space="preserve"><value>Den inklusive starten må være tidligere enn den eksklusive slutten.</value></data>
+  <data name="NegativeInfinity" xml:space="preserve"><value>Ingen nedre grense</value></data>
+  <data name="PositiveInfinity" xml:space="preserve"><value>Ingen øvre grense</value></data>
+  <data name="UnlinkedInterval" xml:space="preserve"><value>Uten kobling</value></data>
+  <data name="HistoricalAssociation" xml:space="preserve"><value>Historisk</value></data>
+  <data name="ScheduledAssociation" xml:space="preserve"><value>Planlagt</value></data>
+  <data name="EffectiveAssociationInterval" xml:space="preserve"><value>Gyldig intervall</value></data>
+  <data name="AssociationConflictWindow" xml:space="preserve"><value>Banepunkt {0}, koblet til {1}; nøyaktig overlapp: {2}</value></data>
+  <data name="ImmediateMoveRequiresInterval" xml:space="preserve"><value>Flytting av et tidtakerpunkt mellom banepunkter må bruke én eksplisitt intervalloperasjon. Velg Eksplisitt gyldighetsintervall; ikke koble fra og til separat.</value></data>
   <data name="DisplaySettings" xml:space="preserve"><value>Enheter og tid</value></data>
   <data name="DisplaySettingsHelp" xml:space="preserve"><value>Lagrede innstillinger følger kontoen din på tvers av enheter. Datoer og klokkeslett følger grensesnittspråket med mindre du velger et annet format. Nettlesertid bruker tidssonen på enheten du bruker. Tallformatet er uendret. Endringer tas i bruk først når lagringen er vellykket.</value></data>
   <data name="DateTimeFormat" xml:space="preserve"><value>Dato- og klokkeslettformat</value></data>
