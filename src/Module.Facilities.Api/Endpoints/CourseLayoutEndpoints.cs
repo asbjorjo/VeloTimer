@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VeloTime.Module.Facilities.Interface.Data;
 using VeloTime.Module.Facilities.Model;
+using VeloTime.Module.Facilities.Service;
 using VeloTime.Module.Facilities.Storage;
 
 namespace VeloTime.Module.Facilities.Api.Endpoints;
@@ -15,18 +17,25 @@ internal static class CourseLayoutEndpoints
         coursePoints.MapGet("{id}", GetCourseLayoutById);
     }
 
-    async static Task<Results<Ok<CourseLayoutDTO>, NotFound>> GetCourseLayoutById(Guid id, FacilityDbContext storage)
+    async static Task<Results<Ok<CourseLayoutDTO>, NotFound>> GetCourseLayoutById(
+        Guid id, [FromQuery] DateTimeOffset? at, FacilityDbContext storage,
+        CancellationToken cancellationToken)
     {
         var layout = await storage.Set<CourseLayout>()
             .Include(l => l.Segments)
             .ThenInclude(s => s.Start)
             .Include(l => l.Segments)
             .ThenInclude(s => s.End)
-            .FirstOrDefaultAsync(l => l.Id == id);
+            .FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (layout == null)
         {
             return TypedResults.NotFound();
         }
+        var instant = at.HasValue ? TimingAssociationService.Normalize(at.Value) : DateTimeOffset.UtcNow;
+        var associations = new TimingAssociationService(storage);
+        var mappings = await associations.ResolveManyAsync(
+            layout.Segments.SelectMany(segment => new[] { segment.Start.Id, segment.End.Id }),
+            instant, cancellationToken);
         return TypedResults.Ok(new CourseLayoutDTO
         {
             Id = layout.Id,
@@ -40,13 +49,13 @@ internal static class CourseLayoutEndpoints
                 {
                     Id = s.Start.Id,
                     Name = s.Start.Name ?? string.Empty,
-                    TimingPointId = s.Start.TimingPoint
+                    TimingPointId = mappings.GetValueOrDefault(s.Start.Id)
                 },
                 End = new CoursePointDTO
                 {
                     Id = s.End.Id,
                     Name = s.End.Name ?? string.Empty,
-                    TimingPointId = s.End.TimingPoint
+                    TimingPointId = mappings.GetValueOrDefault(s.End.Id)
                 }
             }).ToList()
         });

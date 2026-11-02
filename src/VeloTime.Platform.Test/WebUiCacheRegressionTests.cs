@@ -251,7 +251,7 @@ public sealed class WebUiCacheRegressionTests
         var timing = PlatformServiceTests.TestProxy.Create<Timing.ITimingClient>((_, _) => throw new NotSupportedException());
         using var host = new WebUiCacheTestHost(facilities);
         var admin = new InfrastructureAdministrationService(facilities, timing, host.Cache);
-        var publicService = new FacilityService(timing, host.Cache);
+        var publicService = new FacilityService(facilities, timing, host.Cache);
         var first = Assert.Single(await admin.GetFacilitiesAsync());
         first.Name = "Poisoned";
         first.Layouts.Add(Guid.NewGuid());
@@ -348,6 +348,45 @@ public sealed class WebUiCacheRegressionTests
 
     private static Profiles.DisplayPreferenceDTO Display(string distance = "m") => new()
     { DistanceUnit = distance, SpeedUnit = "km/h", TimeMode = "utc", TimeZoneId = null };
+
+    [Fact]
+    public async Task LayoutDetail_CurrentMappingRefreshesAcrossBoundary_WhileGeometryListRemainsWarm()
+    {
+        var facilityId = Guid.NewGuid();
+        var layoutId = Guid.NewGuid();
+        var before = Guid.NewGuid();
+        var after = Guid.NewGuid();
+        var effectiveMapping = before;
+        var layouts = PlatformServiceTests.TestProxy.Create<Facilities.IFacilitiesClient>((method, arguments) =>
+        {
+            Assert.Null(arguments[1]); // Omitted as-of timestamp always means current, never a pinned instant.
+            var layout = new Facilities.CourseLayoutDTO
+            {
+                Id = layoutId, FacilityId = facilityId,
+                Segments = [new()
+                {
+                    Id = Guid.NewGuid(), Order = 1, Length = 250,
+                    Start = new() { Id = Guid.NewGuid(), Name = "Start", TimingPointId = effectiveMapping },
+                    End = new() { Id = Guid.NewGuid(), Name = "End", TimingPointId = null }
+                }]
+            };
+            return method.Name == nameof(Facilities.IFacilitiesClient.LayoutsAsync)
+                ? (object)layout : new List<Facilities.CourseLayoutDTO> { layout };
+        });
+        var timing = PlatformServiceTests.TestProxy.Create<Timing.ITimingClient>((_, _) => throw new NotSupportedException());
+        using var host = new WebUiCacheTestHost(layouts);
+        var service = new FacilityService(layouts, timing, host.Cache);
+        Assert.Equal(before, Assert.Single((await service.GetCourseLayoutDetailAsync(layoutId)).Segments).StartPoint.TimingPoint);
+        Assert.Equal(250, Assert.Single(Assert.Single(await service.GetFacilityLayoutsAsync(facilityId, default)).Segments).Distance);
+
+        effectiveMapping = after; // Upstream crosses a scheduled boundary, without a mutation/eviction.
+        Assert.Equal(after, Assert.Single((await service.GetCourseLayoutDetailAsync(layoutId)).Segments).StartPoint.TimingPoint);
+        Assert.Equal(250, Assert.Single(Assert.Single(await service.GetFacilityLayoutsAsync(facilityId, default)).Segments).Distance);
+        Assert.Equal(2, ((PlatformServiceTests.TestProxy)(object)layouts).Calls.Count(call =>
+            call.Method.Name == nameof(Facilities.IFacilitiesClient.LayoutsAsync)));
+        Assert.Single(((PlatformServiceTests.TestProxy)(object)layouts).Calls, call =>
+            call.Method.Name == nameof(Facilities.IFacilitiesClient.LayoutsAllAsync));
+    }
     private static Profiles.IProfilesClient ProfilesClient() => PlatformServiceTests.TestProxy.Create<Profiles.IProfilesClient>((method, _) =>
         method.Name == nameof(Profiles.IProfilesClient.GetSupportedTimeZonesAsync)
             ? new List<Profiles.TimeZoneOptionDTO> { new() { Id = "Europe/Oslo", DisplayName = "Oslo" } }

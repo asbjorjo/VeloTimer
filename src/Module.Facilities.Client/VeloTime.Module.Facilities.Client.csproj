@@ -17,7 +17,7 @@
   </ItemGroup>
   <ItemGroup>
 	<OpenApiProjectReference Include="..\Module.Facilities.Api\VeloTime.Module.Facilities.Api.csproj" CodeGenerator="NSwagCSharp" Namespace="VeloTime.Module.Facilities.Client" ClassName="FacilitiesClient">
-	  <Options>/UseBaseUrl:false /GenerateClientInterfaces:true</Options>
+	  <Options>/UseBaseUrl:false /GenerateClientInterfaces:true /GenerateOptionalParameters:true /ParameterDateTimeFormat:o</Options>
 	</OpenApiProjectReference>
   </ItemGroup>
 </Project>

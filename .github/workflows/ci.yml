@@ -4,8 +4,9 @@ on:
   push:
     branches:
       - master
+      - v2
   pull_request:
-    branches: [ master ]
+    branches: [ master, v2 ]
     types:
       - opened
       - synchronize
@@ -23,6 +24,7 @@ jobs:
       OIDC_AUDIENCE: https://build.invalid
       VELOTIME_TEST_OUTBOX_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
       VELOTIME_TEST_STATISTICS_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
+      FACILITIES_TEST_POSTGRES_ADMIN_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
     services:
       postgres:
         image: postgres:17-alpine

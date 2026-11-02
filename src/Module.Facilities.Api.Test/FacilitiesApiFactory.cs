@@ -6,10 +6,13 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using VeloTime.Module.Facilities.Api;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Npgsql;
@@ -26,6 +29,7 @@ public sealed class FacilitiesApiFactory : WebApplicationFactory<Program>
     public string? SqliteFilePath { get; init; }
     public TestReferences References { get; } = new();
     public RecordingOutputCacheStore OutputCache { get; } = new();
+    public RecordingTimingAssociationPublisher Events { get; } = new();
     public bool UseProductionRedisCache { get; init; }
     public string? RedisConnectionString { get; init; }
     // Test-only hook applied after production registrations (for decorating providers beneath FusionCache).
@@ -39,6 +43,9 @@ public sealed class FacilitiesApiFactory : WebApplicationFactory<Program>
     {
         if (SqliteFilePath is null) connection.Open();
         builder.UseEnvironment("Development");
+        // Satisfy production's required setting; replace publisher/startup below.
+        // This is a test credential, never used to connect to a broker.
+        builder.UseSetting("ConnectionStrings:MessageBus", "Endpoint=sb://localhost/;SharedAccessKeyName=test;SharedAccessKey=dGVzdA==");
         var redis = RedisConnectionString ?? Environment.GetEnvironmentVariable("VELOTIME_TEST_REDIS");
         if (UseProductionRedisCache)
         {
@@ -54,6 +61,12 @@ public sealed class FacilitiesApiFactory : WebApplicationFactory<Program>
         }));
         builder.ConfigureServices(services =>
         {
+            foreach (var descriptor in services.Where(descriptor => descriptor.ServiceType == typeof(IHostedService)
+                && (descriptor.ImplementationType?.Namespace?.StartsWith("SlimMessageBus", StringComparison.Ordinal) == true
+                    || descriptor.ImplementationType?.Name == "TimingAssociationOutboxStartup")).ToList())
+                services.Remove(descriptor);
+            services.RemoveAll<ITimingAssociationEventPublisher>();
+            services.AddSingleton<ITimingAssociationEventPublisher>(Events);
             services.RemoveAll<FacilityDbContext>();
             services.RemoveAll<DbContextOptions<FacilityDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<FacilityDbContext>>();
@@ -61,7 +74,9 @@ public sealed class FacilitiesApiFactory : WebApplicationFactory<Program>
             {
                 if (SqliteFilePath is { } file) options.UseSqlite($"Data Source={file}");
                 else if (postgresTestConnectionString is null) options.UseSqlite(connection);
-                else options.UseNpgsql(postgresTestConnectionString);
+                else options.UseNpgsql(postgresTestConnectionString,
+                    pg => pg.MigrationsHistoryTable("__ef_migrations_history", "ef"))
+                    .UseSnakeCaseNamingConvention();
             });
 
             services.RemoveAll<IOutputCacheStore>();
@@ -69,6 +84,8 @@ public sealed class FacilitiesApiFactory : WebApplicationFactory<Program>
             services.AddTransient<Microsoft.AspNetCore.Hosting.IStartupFilter, TestSetCookieStartupFilter>();
             if (!UseProductionRedisCache)
             {
+                services.RemoveAll<IDataProtectionProvider>();
+                services.AddSingleton<IDataProtectionProvider>(new EphemeralDataProtectionProvider());
                 services.RemoveAll<HybridCache>();
                 services.RemoveAll<IDistributedCache>();
                 services.AddDistributedMemoryCache();
@@ -92,17 +109,21 @@ public sealed class FacilitiesApiFactory : WebApplicationFactory<Program>
 
     public async Task InitializeDatabaseAsync()
     {
+        Events.Reset();
         References.Dependencies = 0;
         References.Unavailable = false;
         References.FacilityId = Guid.Empty;
-        var postgres = Environment.GetEnvironmentVariable("VELOTIME_TEST_POSTGRES");
+        var postgres = Environment.GetEnvironmentVariable("FACILITIES_TEST_POSTGRES_ADMIN_CONNECTION");
         if (SqliteFilePath is null && !string.IsNullOrWhiteSpace(postgres) && postgresTestDatabase is null)
         {
-            postgresAdminConnectionString = postgres;
+            var adminSettings = new NpgsqlConnectionStringBuilder(postgres);
+            if (!string.Equals(adminSettings.Database, "postgres", StringComparison.Ordinal))
+                throw new InvalidOperationException("FACILITIES_TEST_POSTGRES_ADMIN_CONNECTION must use the test-only control database 'postgres'.");
+            postgresAdminConnectionString = adminSettings.ConnectionString;
             postgresTestDatabase = $"vt_facilities_api_{Guid.NewGuid():N}";
             await using var admin = new NpgsqlConnection(postgresAdminConnectionString);
             await admin.OpenAsync();
-            await using (var create = new NpgsqlCommand($"CREATE DATABASE \"{postgresTestDatabase}\"", admin))
+            await using (var create = new NpgsqlCommand($"CREATE DATABASE \"{postgresTestDatabase}\" TEMPLATE template0", admin))
                 await create.ExecuteNonQueryAsync();
             postgresTestConnectionString = new NpgsqlConnectionStringBuilder(postgresAdminConnectionString)
             {
@@ -119,7 +140,7 @@ public sealed class FacilitiesApiFactory : WebApplicationFactory<Program>
         }
         else if (!postgresSchemaCreated)
         {
-            await storage.Database.EnsureCreatedAsync();
+            await storage.Database.MigrateAsync();
             postgresSchemaCreated = true;
         }
         else

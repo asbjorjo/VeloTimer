@@ -23,5 +23,16 @@ public class CoursePoint
 {
     public Guid Id { get; init; }
     public String? Name { get; set; }
-    public Guid? TimingPoint {  get; set; }
+    public ICollection<CoursePointTimingAssociation> TimingAssociations { get; set; } =
+        new List<CoursePointTimingAssociation>();
+
+    // Temporary source-compatibility bridge only. Never persist or silently serve a stale mapping.
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    [System.Text.Json.Serialization.JsonIgnore]
+    [Obsolete("Use TimingAssociations and resolve at an explicit UTC instant. The legacy column has been removed.")]
+    public Guid? TimingPoint
+    {
+        get => throw new NotSupportedException("Resolve TimingAssociations at an explicit UTC instant.");
+        set => throw new NotSupportedException("Write TimingAssociations instead of the legacy current mapping.");
+    }
 }

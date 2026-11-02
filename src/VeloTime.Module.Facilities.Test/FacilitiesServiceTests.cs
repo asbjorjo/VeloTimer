@@ -30,7 +30,7 @@ public class FacilitiesServiceTests
         {
             Id = Guid.NewGuid(),
             Name = "Start",
-            TimingPoint = Guid.NewGuid()
+            TimingAssociations = [new() { Id = Guid.NewGuid(), TimingPointId = Guid.NewGuid() }]
         };
         storage.Add(point);
         await storage.SaveChangesAsync();
@@ -50,23 +50,27 @@ public class FacilitiesServiceTests
         Assert.NotNull(result);
         Assert.Equal(point.Id, result.Id);
         Assert.Equal(point.Name, result.Name);
+        var persistedAssociation = await storage.Set<CoursePointTimingAssociation>().SingleAsync();
+        Assert.Equal(point.Id, persistedAssociation.CoursePointId);
+        Assert.Equal(point.TimingAssociations.Single().TimingPointId, persistedAssociation.TimingPointId);
+        Assert.Null(persistedAssociation.ValidFromUtc);
+        Assert.Null(persistedAssociation.ValidToUtc);
     }
 
-    [Fact]
+    [FacilitiesPostgresFact]
     public async Task CreateCourseLayoutAndDistanceMethods_PersistGraphAndCalculateDistances()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-
-        var options = new DbContextOptionsBuilder<FacilityDbContext>()
-            .UseSqlite(connection)
-            .Options;
-        await using var storage = new FacilityDbContext(options);
-        await storage.Database.EnsureCreatedAsync();
+        await using var database = new FacilitiesAssociationDatabase();
+        await database.InitializeAsync();
+        await using var storage = database.CreateContext();
 
         var facility = new Facility { Id = Guid.NewGuid(), Name = "Test facility" };
-        var start = new CoursePoint { Id = Guid.NewGuid(), Name = "Start", TimingPoint = Guid.NewGuid() };
-        var end = new CoursePoint { Id = Guid.NewGuid(), Name = "Finish", TimingPoint = Guid.NewGuid() };
+        var startTiming = Guid.NewGuid();
+        var endTiming = Guid.NewGuid();
+        var start = new CoursePoint { Id = Guid.NewGuid(), Name = "Start",
+            TimingAssociations = [new() { Id = Guid.NewGuid(), TimingPointId = startTiming }] };
+        var end = new CoursePoint { Id = Guid.NewGuid(), Name = "Finish",
+            TimingAssociations = [new() { Id = Guid.NewGuid(), TimingPointId = endTiming }] };
         var layout = new CourseLayout { Id = Guid.NewGuid(), FacilityId = facility.Id, Facility = facility };
         layout.Segments.Add(new CourseSegment
         {
@@ -96,7 +100,7 @@ public class FacilitiesServiceTests
         Assert.Single(segments);
         Assert.Equal(125, await service.CalculateDistanceBetweenCoursePoints(start, end));
         Assert.Equal(125, await service.DistanceBetweenCoursePoints(start, start));
-        Assert.Equal(125, await service.DistanceBetweenTimingPoints(start.TimingPoint!.Value, end.TimingPoint!.Value));
+        Assert.Equal(125, await service.DistanceBetweenTimingPoints(startTiming, endTiming));
         Assert.Equal(facility.Id, (await service.FacilityByCoursePoint(start.Id))?.Id);
     }
 }

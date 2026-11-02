@@ -5,6 +5,7 @@ using VeloTime.Module.Timing.Client;
 using VeloTime.WebUI.Mud.Client.Services;
 using Facilities = VeloTime.Module.Facilities.Interface.Data;
 using Timing = VeloTime.Module.Timing.Interface.Data;
+using System.Text.Json;
 using static VeloTime.WebUI.Mud.Services.AdministrationClientCall;
 
 namespace VeloTime.WebUI.Mud.Services;
@@ -23,11 +24,11 @@ public sealed class InfrastructureAdministrationService(IFacilitiesClient facili
 
     public async Task<IReadOnlyList<Facilities.CourseLayoutDTO>> GetLayoutsAsync(Guid facilityId, CancellationToken cancellationToken = default)
     {
-        var snapshots = await cache.GetAdminAsync(
-            AdministrationAuthorization.ReferencePolicy, "admin-facility-layouts", $"facility:{facilityId:N}:layout-snapshot-v1",
-            async (IFacilitiesClient factoryClient, CancellationToken token) => await Execute(async () =>
-                FacilityLookupSnapshots.Layouts(await factoryClient.LayoutsAllAsync(facilityId, token), facilityId)),
-            [FacilitiesCacheTags.Relationships], cancellationToken);
+        // Layout projections include the current timing association. Do not retain them in the
+        // WebUI cache: a scheduled boundary can change that mapping without another write.
+        await cache.RequirePolicyAsync(AdministrationAuthorization.ReferencePolicy, cancellationToken);
+        var snapshots = await Execute(async () =>
+            FacilityLookupSnapshots.Layouts(await facilities.LayoutsAllAsync(facilityId, cancellationToken: cancellationToken), facilityId));
         return snapshots.Select(FacilityLookupSnapshots.ToContract).ToArray();
     }
     public Task<Facilities.FacilityDTO> SaveFacilityAsync(Guid? id, Facilities.SaveFacilityRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
@@ -72,14 +73,102 @@ public sealed class InfrastructureAdministrationService(IFacilitiesClient facili
     public Task SetTimingLinkAsync(Guid pointId, Guid? timingPointId, CancellationToken cancellationToken = default) => Execute(async () =>
     {
         await cache.RequirePolicyAsync(AdministrationAuthorization.TimingLinkPolicy, cancellationToken);
-        var response = await cache.WriteAndInvalidateAsync(
-            () => facilities.SetCoursePointTimingLinkAsync(pointId, new SetCoursePointTimingLinkRequest { TimingPointId = timingPointId }, cancellationToken),
-            FacilitiesCacheTags.Relationships, "updating a course-point timing link");
-        if (response is null || response.Id != pointId || response.Id == Guid.Empty ||
-            string.IsNullOrWhiteSpace(response.Name) || response.TimingPointId != timingPointId)
-            throw new InvalidDataException("The saved course-point timing link is invalid.");
+        // Intentionally discard the returned CoursePointDTO: this mutation only needs completion,
+        // and callers refresh the authoritative current mapping separately after cache invalidation.
+        await ExecuteNoContent(() => facilities.SetCoursePointTimingLinkAsync(pointId,
+            new SetCoursePointTimingLinkRequest { TimingPointId = timingPointId }, cancellationToken));
+        await cache.InvalidateTagAsync(FacilitiesCacheTags.Relationships, "updating a course-point timing link");
         return true;
     });
+    public Task<IReadOnlyList<Facilities.CoursePointTimingAssociationSnapshot>> GetCoursePointTimingAssociationsAsync(Guid id, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.TimingLinkPolicy, cancellationToken);
+        var associations = await facilities.GetCoursePointTimingAssociationsAsync(id, cancellationToken);
+        if (associations is null || associations.Any(association =>
+                association is null || association.CoursePointId != id || association.TimingPointId == Guid.Empty ||
+                (association.ValidFromUtc.HasValue && association.ValidToUtc.HasValue &&
+                 association.ValidFromUtc.Value >= association.ValidToUtc.Value)))
+            throw new InvalidDataException("The coursepoint timing-association schedule is invalid.");
+        return (IReadOnlyList<Facilities.CoursePointTimingAssociationSnapshot>)associations.Select(association =>
+            new Facilities.CoursePointTimingAssociationSnapshot(association.TimingPointId, association.CoursePointId,
+                association.ValidFromUtc, association.ValidToUtc)).ToArray();
+    });
+    public Task SetCoursePointTimingAssociationAsync(Guid id, Facilities.SetCoursePointTimingAssociationRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.TimingLinkPolicy, cancellationToken);
+        try
+        {
+            var body = new VeloTime.Module.Facilities.Client.SetCoursePointTimingAssociationRequest
+            {
+                TimingPointId = request.TimingPointId,
+                ValidFromUtc = request.ValidFromUtc,
+                ValidToUtc = request.ValidToUtc,
+                ConfirmationToken = request.ConfirmationToken
+            };
+            var response = await cache.WriteAndInvalidateAsync(
+                () => facilities.SetCoursePointTimingAssociationAsync(id, body, cancellationToken),
+                FacilitiesCacheTags.Relationships, "updating a course-point timing association");
+            if (response is null || response.Changes is null ||
+                (response.Changes.Count == 0 ? response.ChangeId.HasValue : !response.ChangeId.HasValue) ||
+                response.ChangeId == Guid.Empty || response.Changes.Any(change =>
+                    change is null || (change.Before is null && change.After is null)))
+                throw new InvalidDataException("The saved timing-association response is invalid.");
+        }
+        catch (VeloTime.Module.Facilities.Client.ApiException exception) when (exception.StatusCode == 409)
+        {
+            try
+            {
+                // NSwag stores a declared 409 body in Result and may leave Response empty.
+                // Retain raw-body handling for undeclared/failed-deserialization responses.
+                var preview = exception is VeloTime.Module.Facilities.Client.ApiException<
+                    VeloTime.Module.Facilities.Client.TimingAssociationConflictPreview> { Result: { } result }
+                    ? ToContract(result)
+                    : JsonSerializer.Deserialize<Facilities.TimingAssociationConflictPreview>(
+                        exception.Response, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+                if (preview is not null && preview.Code is "destination-occupied" or "confirmation-stale" &&
+                    !string.IsNullOrWhiteSpace(preview.ConfirmationToken) &&
+                    preview.Requested is { } requested && requested.CoursePointId == id &&
+                    requested.TimingPointId == request.TimingPointId &&
+                    NormalizeAssociationBound(requested.ValidFromUtc) == NormalizeAssociationBound(request.ValidFromUtc) &&
+                    NormalizeAssociationBound(requested.ValidToUtc) == NormalizeAssociationBound(request.ValidToUtc) &&
+                    preview.Conflicts is not null && preview.Conflicts.All(conflict =>
+                        conflict is not null && conflict.Association is { } association &&
+                        association.CoursePointId != Guid.Empty && association.TimingPointId != Guid.Empty &&
+                        (!conflict.OverlapValidFromUtc.HasValue || !conflict.OverlapValidToUtc.HasValue ||
+                         conflict.OverlapValidFromUtc.Value < conflict.OverlapValidToUtc.Value)))
+                    throw new TimingAssociationConflictException(preview, exception);
+            }
+            catch (JsonException)
+            {
+                // A malformed structured conflict must remain an explicit upstream failure.
+            }
+            throw new HttpRequestException("The timing-association conflict preview could not be read.", exception,
+                System.Net.HttpStatusCode.BadGateway);
+        }
+        return true;
+    });
+    private static DateTimeOffset? NormalizeAssociationBound(DateTimeOffset? value)
+    {
+        if (!value.HasValue) return null;
+        var utc = value.Value.ToUniversalTime();
+        return new DateTimeOffset(utc.Ticks - utc.Ticks % 10, TimeSpan.Zero);
+    }
+
+    private static Facilities.TimingAssociationConflictPreview? ToContract(
+        VeloTime.Module.Facilities.Client.TimingAssociationConflictPreview preview)
+    {
+        if (preview.Requested is null || preview.Conflicts is null ||
+            preview.Conflicts.Any(conflict => conflict is null || conflict.Association is null))
+            return null;
+        return new(preview.Code,
+            new(preview.Requested.CoursePointId, preview.Requested.TimingPointId,
+                preview.Requested.ValidFromUtc, preview.Requested.ValidToUtc),
+            preview.Conflicts.Select(conflict => new Facilities.TimingAssociationDestinationConflict(
+                new(conflict.Association.TimingPointId, conflict.Association.CoursePointId,
+                    conflict.Association.ValidFromUtc, conflict.Association.ValidToUtc),
+                conflict.OverlapValidFromUtc, conflict.OverlapValidToUtc)).ToArray(),
+            preview.ConfirmationToken);
+    }
     public async Task<IReadOnlyList<Timing.InstallationDTO>> GetInstallationsAsync(CancellationToken cancellationToken = default)
     {
         await cache.RequirePolicyAsync(AdministrationAuthorization.ReferencePolicy, cancellationToken);

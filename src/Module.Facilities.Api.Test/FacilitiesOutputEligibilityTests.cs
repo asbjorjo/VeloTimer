@@ -70,8 +70,7 @@ public sealed class FacilitiesOutputEligibilityTests(FacilitiesApiFactory factor
     [Fact]
     public async Task AnonymousRequestCookie_UsesStandardPublicEligibility()
     {
-        // Characterization: the default policy does not exclude request cookies; the five
-        // relationship routes do not read cookies, so the anonymous representation is shared.
+        // The safe geometry routes do not read cookies; their anonymous representation is shared.
         var route = await SeedRouteAsync();
         factory.OutputCache.Reset();
         using var client = factory.CreateClient();
@@ -92,10 +91,12 @@ public sealed class FacilitiesOutputEligibilityTests(FacilitiesApiFactory factor
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var storage = scope.ServiceProvider.GetRequiredService<FacilityDbContext>();
-        var point = new CoursePoint { Id = Guid.NewGuid(), Name = "Eligibility", TimingPoint = Guid.NewGuid() };
-        storage.Add(point);
+        var point = new CoursePoint { Id = Guid.NewGuid(), Name = "Eligibility" };
+        var facility = new Facility { Id = Guid.NewGuid(), Name = "Eligibility track" };
+        storage.Add(new CourseLayout { Id = Guid.NewGuid(), Facility = facility,
+            Segments = [new() { Id = Guid.NewGuid(), Start = point, End = new CoursePoint { Id = Guid.NewGuid() }, Length = 100 }] });
         await storage.SaveChangesAsync();
-        return $"/api/facilities/coursepoint/{point.Id}";
+        return $"/api/facilities/coursepoint/{point.Id}/facility";
     }
 
     private static async Task<HttpResponseMessage> SendAsync(HttpClient client, string path, bool anonymous,

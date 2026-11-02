@@ -14,6 +14,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" />
+    <PackageReference Include="SlimMessageBus.Host.Outbox.PostgreSql.DbContext" />
+    <PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
@@ -24,6 +27,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Module.Facilities\VeloTime.Module.Facilities.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <!-- Compile the actual messaging sources independently of legacy endpoint compile blockers. -->
+    <Compile Include="..\Module.Facilities.Api\MessagingExtensions.cs" Link="Messaging\MessagingExtensions.cs" />
+    <Compile Include="..\Module.Facilities.Api\TimingAssociationEventPublisher.cs" Link="Messaging\TimingAssociationEventPublisher.cs" />
+    <Compile Include="..\Module.Facilities.Api.Test\RecordingTimingAssociationPublisher.cs" Link="Messaging\RecordingTimingAssociationPublisher.cs" />
   </ItemGroup>
 
   <ItemGroup>

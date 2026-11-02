@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "existingSecret": {
+      "type": "string"
+    },
+    "secrets": {
+      "type": "object",
+      "properties": {
+        "MessageBus": {
+          "type": "string",
+          "description": "Message bus connection string emitted as ConnectionStrings__MessageBus; unused when existingSecret is set."
+        }
+      }
+    }
+  }
+}

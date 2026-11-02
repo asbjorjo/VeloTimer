@@ -1,4 +1,6 @@
 module: facilities
+# When set, this Secret replaces the chart-managed Secret. It must include
+# ConnectionStrings__MessageBus alongside the existing database/cache keys.
 existingSecret: ""
 oidcAudience: ""
 cache:
@@ -11,6 +13,9 @@ database:
   user: velotime
   password: ""
 secrets:
+  # Supply through private deployment values, or use existingSecret above.
+  # Umbrella chart path: module-facilities-api.secrets.MessageBus.
+  # Broker topics/subscriptions and retention are provisioned externally.
   MessageBus: ""
 image:
   tag: 3.0.0.alpha.11
