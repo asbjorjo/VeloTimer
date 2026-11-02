@@ -59,6 +59,18 @@ internal static class FacilityLookupSnapshots
         (response ?? throw new InvalidDataException("The course-layout list is missing."))
             .Select(layout => From(layout, null, facilityId)).ToArray();
 
+    // The public layout list displays geometry only. Never retain time-sensitive association
+    // IDs in its cache payload or reuse it as a current mapping projection.
+    public static LayoutLookupSnapshot[] GeometryLayouts(IEnumerable<FacilitiesClient.CourseLayoutDTO>? response, Guid facilityId) =>
+        Layouts(response, facilityId).Select(layout => layout with
+        {
+            Segments = layout.Segments.Select(segment => segment with
+            {
+                Start = segment.Start with { TimingPointId = null },
+                End = segment.End with { TimingPointId = null }
+            }).ToArray()
+        }).ToArray();
+
     public static FacilityLookupSnapshot From(FacilitiesClient.FacilityDTO facility)
     {
         if (facility is null || facility.Id == Guid.Empty || string.IsNullOrWhiteSpace(facility.Name) ||

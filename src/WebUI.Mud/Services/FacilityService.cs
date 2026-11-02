@@ -6,15 +6,14 @@ using VeloTime.Module.Facilities.Interface;
 
 namespace VeloTime.WebUI.Mud.Services
 {
-    public class FacilityService(ITimingClient timing, WebUiCache cache) : IFacilityService
+    public class FacilityService(IFacilitiesClient facilities, ITimingClient timing, WebUiCache cache) : IFacilityService
     {
         public async Task<CourseLayoutDetailView> GetCourseLayoutDetailAsync(Guid layoutId, CancellationToken cancellationToken = default)
         {
-            var layout = await cache.GetPublicAsync(
-                "layout-detail", "course-layout-view-v1", layoutId.ToString("N"),
-                async (IFacilitiesClient factoryClient, CancellationToken token) =>
-                    FacilityLookupSnapshots.From(await factoryClient.LayoutsAsync(layoutId, cancellationToken: token), layoutId),
-                [FacilitiesCacheTags.Relationships], cancellationToken);
+            // Detail views expose current timing-point IDs. A scheduled boundary can change
+            // those IDs without a mutation/cache eviction, so always read the current projection.
+            var layout = FacilityLookupSnapshots.From(
+                await facilities.LayoutsAsync(layoutId, cancellationToken: cancellationToken), layoutId);
 
             return new CourseLayoutDetailView
             {
@@ -59,9 +58,10 @@ namespace VeloTime.WebUI.Mud.Services
         public async Task<IEnumerable<CourseLayoutView>> GetFacilityLayoutsAsync(Guid id, CancellationToken token)
         {
             var layouts = await cache.GetPublicAsync(
-                "facility-layout-list", "course-layout-view-v1", id.ToString("N"),
+                "facility-layout-list", "course-layout-geometry-view-v2", id.ToString("N"),
                 async (IFacilitiesClient factoryClient, CancellationToken factoryToken) =>
-                    FacilityLookupSnapshots.Layouts(await factoryClient.LayoutsAllAsync(id, factoryToken), id),
+                    FacilityLookupSnapshots.GeometryLayouts(
+                        await factoryClient.LayoutsAllAsync(id, cancellationToken: factoryToken), id),
                 [FacilitiesCacheTags.Relationships], token);
 
             return layouts.Select(layout => new CourseLayoutView

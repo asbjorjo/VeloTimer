@@ -460,7 +460,7 @@ public sealed class PlatformServiceTests
             _ => throw new NotSupportedException(method.Name)
         });
         using var cacheHost = new WebUiCacheTestHost(facilities);
-        var service = new FacilityService(timing, cacheHost.Cache);
+        var service = new FacilityService(facilities, timing, cacheHost.Cache);
 
         var allFacilities = (await service.GetFacilitiesAsync(CancellationToken.None)).ToList();
         var layoutDetail = await service.GetCourseLayoutDetailAsync(Guid.NewGuid());

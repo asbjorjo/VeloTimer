@@ -159,7 +159,8 @@ public sealed class NoContentClientCallTests
         await Assert.ThrowsAsync<Timing.ApiException>(() => transponders.SaveTransponderAsync(id, "Label"));
         await Assert.ThrowsAsync<Timing.ApiException>(() => transponders.RegisterAsync("FF-87718", false));
         await Assert.ThrowsAsync<Timing.ApiException>(() => transponders.RegisterOwnershipAsync(new("FF-87718", DateTimeOffset.UtcNow, null), false));
-        await Assert.ThrowsAsync<InvalidDataException>(() => infrastructure.SetTimingLinkAsync(id, id));
+        await Assert.ThrowsAsync<InvalidDataException>(() => infrastructure.SetCoursePointTimingAssociationAsync(id,
+            new() { TimingPointId = id, ValidFromUtc = null, ValidToUtc = null }));
         await Assert.ThrowsAsync<InvalidDataException>(() => infrastructure.SaveFacilityAsync(null, new("Track")));
         await Assert.ThrowsAsync<InvalidDataException>(() => definitions.SaveItemAsync(null, new("Lap", "Description", 250)));
     }

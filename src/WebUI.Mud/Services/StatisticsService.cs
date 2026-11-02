@@ -144,7 +144,7 @@ public class StatisticsService(
             "course-point-name", "string-v1", coursePointId.ToString("N"),
             async (IFacilitiesClient factoryClient, CancellationToken token) =>
             {
-                var point = await factoryClient.CoursepointAsync(coursePointId, token);
+                var point = await factoryClient.CoursepointAsync(coursePointId, cancellationToken: token);
                 if (point is null || point.Id != coursePointId || string.IsNullOrWhiteSpace(point.Name))
                     throw new HttpRequestException("A course-point name could not be resolved.", null, HttpStatusCode.BadGateway);
                 return point.Name;
