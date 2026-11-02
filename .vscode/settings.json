@@ -1,4 +1,7 @@
 {
+    "chat.agentFilesLocations": {
+        ".github/agents": true
+    },
     "chat.tools.terminal.autoApprove": {
         "dotnet build": true,
         "dotnet ef": true,
