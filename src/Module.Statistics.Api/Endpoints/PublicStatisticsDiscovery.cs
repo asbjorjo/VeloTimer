@@ -86,7 +86,7 @@ internal sealed class PublicStatisticsDiscovery(
     public async Task<PublicStatisticsDiscoveryDTO> GetAsync(CancellationToken cancellationToken)
     {
         var items = await storage.Set<StatisticsItem>().AsNoTracking()
-            .Select(item => new StatisticsItemDTO(item.Id, item.Name, item.Description, item.Distance))
+            .Select(item => new StatisticsItemDTO(item.Id, item.Name, item.Description, item.Distance, item.MinDuration, item.MaxDuration))
             .ToListAsync(cancellationToken);
         var definitions = await storage.Set<StatisticsItemConfig>().AsNoTracking().OrderBy(config => config.Id)
             .ToListAsync(cancellationToken);
@@ -196,9 +196,9 @@ internal sealed class PublicStatisticsDiscovery(
     private static StatisticsConfigurationDTO ToDto(StatisticsItemConfig config) => config switch
     {
         SimpleStatisticsItemConfig simple => new(config.Id, config.StatisticsItemId,
-            StatisticsConfigurationType.Simple, simple.CoursePointStart, simple.CoursePointEnd, null, null),
+            StatisticsConfigurationType.Simple, simple.CoursePointStart, simple.CoursePointEnd, null, null, config.MinDuration, config.MaxDuration),
         MultiStatisticsItemConfig multi => new(config.Id, config.StatisticsItemId,
-            StatisticsConfigurationType.Multi, null, null, multi.ParentConfigId, multi.Repetitions),
+            StatisticsConfigurationType.Multi, null, null, multi.ParentConfigId, multi.Repetitions, config.MinDuration, config.MaxDuration),
         _ => throw new InvalidOperationException("Unknown statistics configuration type.")
     };
 }
