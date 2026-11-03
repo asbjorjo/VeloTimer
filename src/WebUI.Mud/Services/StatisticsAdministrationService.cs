@@ -96,11 +96,7 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
     public Task DeleteItemAsync(Guid id, CancellationToken cancellationToken = default) => Execute(async () =>
     {
         await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
-        await AdministrationClientCall.Execute(async () =>
-        {
-            await client.DeleteStatisticsItemAsync(id, cancellationToken);
-            return true;
-        });
+        await AdministrationClientCall.ExecuteNoContent(() => client.DeleteStatisticsItemAsync(id, cancellationToken));
         await cache.InvalidateTagAsync(DefinitionsTag, "deleting a statistics item");
         return true;
     });
