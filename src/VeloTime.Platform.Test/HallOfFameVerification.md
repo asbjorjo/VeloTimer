@@ -1,55 +1,52 @@
 # Hall of Fame Tester handoff — 2026-11-03
 
 Worktree `/workspaces/VeloTimer-hall-of-fame`, branch `feat/hall-of-fame`.
-Only test projects/fixtures changed. No production fixes, assertion suppression,
-dependency installation or delegation.
+This final verification changed no production or test code and weakened no
+assertions. No delegation.
 
 ## Result and next owner
 
-**Coordinator → API/transport developer**, then Tester, then Code Reviewer.
-Hall of Fame's targeted tests pass, but the integrated platform baseline is not
-green: five existing tests expose regressions introduced in transport commit
-`a98c7a61`. Four additional existing rendering tests fail; their precise
-before-feature runtime provenance has not been established.
+**Next owner: Code Reviewer** for the test/feature branch. The current full
+platform run has four failures, all reproduced by the same four existing
+date-rendering cases at pre-feature baseline `e05b52c0`; no feature-introduced
+failures remain unclassified. The five transport failures from the initial
+pre-fix run were addressed by commits `d6a32b65` and `aad11d28` and pass the
+focused rerun below. No production defect was found in the current feature
+changes during this verification.
 
-### Production regressions to route
+### Transport fix regression coverage
 
-1. `StatisticsAdministrationService.DeleteItemAsync` now uses
-   `AdministrationClientCall.Execute` instead of `ExecuteNoContent`
-   (`a98c7a61`, lines 99–103). An upstream successful empty 200/202/299 response
-   throws generated `Statistics.Client.ApiException` instead of completing.
-   The unchanged `NoContentClientCallTests.NoBodyMutations_AcceptSuccessAcrossAllAdapters`
-   fails for those three statuses, at its `definitions.DeleteItemAsync` call
-   (line 99). Empty 204 still passes. Preserve successful mutation handling while
-   retaining explicit dependency errors; do not change the test expectations.
-2. `a98c7a61` also added 500 to the **global** BFF error filter's preserved statuses
-   (`BffEndpoints.cs:61–62`). Unrelated timing/admin upstream 500 responses now
-   return 500 instead of the existing sanitized 502 contract.
-   `WebUiBffTests.UpstreamFailures_ReturnSanitizedErrors(500,502)` and
-   `OwnershipUpdate_RealGeneratedClientPreservesBffResponse(500,BadGateway)` fail.
-   Hall of Fame's explicit invalid-settings 500 is intentional; its special case
-   must not change unrelated endpoints.
-
-Minimal reproduction, from the assigned worktree:
+The initial focused run before `d6a32b65` and `aad11d28` had **15 passed, 5
+failed**. The first failures were successful empty DELETE responses with 200,
+202, and 299, which threw a generated API exception; the other two were
+unrelated upstream 500 errors returning 500 instead of the established
+sanitized 502 contract. Current focused regression run:
 
 ```bash
-OIDC_AUDIENCE=https://build.invalid dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --no-build --no-restore --filter 'FullyQualifiedName~NoContentClientCallTests.NoBodyMutations|FullyQualifiedName~UpstreamFailures_ReturnSanitizedErrors|FullyQualifiedName~OwnershipUpdate_RealGeneratedClientPreservesBffResponse' --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov -v quiet
+OIDC_AUDIENCE=https://build.invalid dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --no-restore --filter 'FullyQualifiedName~NoContentClientCallTests.NoBodyMutations|FullyQualifiedName~WebUiBffTests.UpstreamFailures_ReturnSanitizedErrors|FullyQualifiedName~WebUiBffTests.OwnershipUpdate_RealGeneratedClientPreservesBffResponse|FullyQualifiedName~HallOfFameTransportTests|FullyQualifiedName~WebUiBffTests.HallOfFame_' --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov -v quiet
 ```
 
-Result: **15 passed, 5 failed, 0 skipped**.
+Result: **35 passed, 0 failed, 0 skipped**.
 
-Other failures in the full platform run:
+### Remaining date-rendering failures and baseline
 
-- `TransponderStatusRenderingTests.Page_RendersIdentityLocationsWarningsAndScopedOwnership`:
-  both administration values (2 failures).
-- `TransponderOwnerRenderingTests.List_RendersProfileNamesAndRestrictsKeycloakNamesToAdministrators`:
-  administration=true with null/private-profile names (2 failures).
-- All four expect en-US AM/PM date text. The shared static fixture supplies
-  browser number locale but no explicit UI/date culture; date defaults switched
-  to UI culture in pre-feature `d48eafe2`. Those tests and relevant date-selection
-  code are unchanged by this testing work. This is evidence of likely fixture
-  drift, not a verified before-feature baseline run. Leave classification/fix
-  with Coordinator; no assertions were weakened.
+Full platform run: **506 passed, 4 failed, 12 skipped** (522 total). The four
+failures are:
+
+- `TransponderStatusRenderingTests.Page_RendersIdentityLocationsWarningsAndScopedOwnership`
+  with `administration=true` and `false`.
+- `TransponderOwnerRenderingTests.List_RendersProfileNamesAndRestrictsKeycloakNamesToAdministrators`
+  with `administration=true` and `profile=null` or `"Private profile"`.
+
+All four assert fixed en-US AM/PM timestamp strings. The shared
+`DisplayTestRendering` fixture supplies the browser number locale, but not an
+explicit date/UI culture; date formatting now defaults to UI culture since
+pre-feature commit `d48eafe2`. Confirmed on the pre-feature baseline in a
+detached worktree at `e05b52c0`: the same filter produced **2 passed, 4 failed,
+0 skipped**, with the same four date assertions failing. Thus these are
+pre-existing test/fixture mismatches, not feature regressions. No production
+change or assertion weakening is requested; if addressed later, align the
+fixture's explicit date culture with its hard-coded en-US assertions.
 
 ## Persistent coverage
 
@@ -110,7 +107,7 @@ dotnet test src/VeloTime.Module.Statistics.Test/VeloTime.Module.Statistics.Test.
 dotnet test src/Module.Statistics.Api.Test/VeloTime.Module.Statistics.Api.Test.csproj --no-restore --filter 'FullyQualifiedName~HallOfFame' --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov -v quiet
 dotnet test src/Module.Statistics.Api.Test/VeloTime.Module.Statistics.Api.Test.csproj --no-restore --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov -v quiet
 dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --no-restore --filter 'FullyQualifiedName~HallOfFame|FullyQualifiedName~PublicStatisticsBrowserHarnessTests|FullyQualifiedName~StatisticsTableRenderingTests' --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov -v quiet
-dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --no-build --no-restore --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov -v quiet
+OIDC_AUDIENCE=https://build.invalid VELOTIMER_HALL_OF_FAME_BROWSER=1 VELOTIMER_PUBLIC_STATISTICS_BROWSER=1 VELOTIMER_PLAYWRIGHT_MODULE=/home/vscode/.npm/_npx/e41f203b7505f1fb/node_modules/playwright/index.mjs dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --no-build --no-restore --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov -v quiet
 node --test src/VeloTime.Platform.Test/RegistrationDates.test.mjs
 ```
 
@@ -120,13 +117,32 @@ node --test src/VeloTime.Platform.Test/RegistrationDates.test.mjs
 | Hall of Fame API slice | 25 | 0 | 0 |
 | Statistics API, full, both PG fixtures enabled | 185 | 0 | 0 |
 | Platform feature + repaired fake + existing browser slice | 49 | 0 | 0 |
-| Platform full, both browser tests enabled | 501 | 9 | 12 |
+| Platform full before transport fixes | 501 | 9 | 12 |
+| Platform full after `d6a32b65` and `aad11d28`, both browser tests enabled | 506 | 4 | 12 |
+| Focused Hall of Fame/transport/BFF/no-body regressions after fixes | 35 | 0 | 0 |
 | Registration-date JavaScript | 4 | 0 | 0 |
 
 The 12 platform skips are ten Redis integration tests (no
 `VELOTIME_TEST_REDIS`), one opt-in external display-settings browser host, and
 the existing bootstrap seed test blocked on removed `CoursePoint.TimingPoint`.
-None is counted as a pass.
+None is counted as a pass. The four current platform failures are the four
+date-rendering assertions classified above and reproduced at `e05b52c0`.
+
+The focused regressions were rerun with:
+
+```bash
+OIDC_AUDIENCE=https://build.invalid dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --no-restore --filter 'FullyQualifiedName~NoContentClientCallTests.NoBodyMutations|FullyQualifiedName~WebUiBffTests.UpstreamFailures_ReturnSanitizedErrors|FullyQualifiedName~WebUiBffTests.OwnershipUpdate_RealGeneratedClientPreservesBffResponse|FullyQualifiedName~HallOfFameTransportTests|FullyQualifiedName~WebUiBffTests.HallOfFame_' --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov -v quiet
+```
+
+Baseline reproduction used a temporary detached worktree at `e05b52c0`:
+
+```bash
+dotnet restore VeloTimer.sln -v quiet
+OIDC_AUDIENCE=https://build.invalid dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --no-restore --filter 'FullyQualifiedName~TransponderStatusRenderingTests.Page_RendersIdentityLocationsWarningsAndScopedOwnership|FullyQualifiedName~TransponderOwnerRenderingTests.List_RendersProfileNamesAndRestrictsKeycloakNamesToAdministrators' --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov -v quiet
+```
+
+Result: **2 passed, 4 failed, 0 skipped**; exactly the same four date assertions
+failed as on the feature branch.
 
 Release builds (each prefixed with `OIDC_AUDIENCE=https://build.invalid`):
 
@@ -145,6 +161,19 @@ All seven pass, zero errors. Recorded warning counts respectively:
 nullability, duplicate-using and TransponderManagement BL0005 warnings remain.
 The updated API test project's final Release rebuild also passes without warnings.
 
+Post-fix Release rebuilds were rerun for the affected UI/server, API, and
+platform test projects (all pass, zero errors):
+
+```bash
+OIDC_AUDIENCE=https://build.invalid dotnet build src/WebUI.Mud/VeloTime.WebUI.Mud.csproj --configuration Release --no-restore -v quiet
+OIDC_AUDIENCE=https://build.invalid dotnet build src/WebUI.Mud.Client/VeloTime.WebUI.Mud.Client.csproj --configuration Release --no-restore -v quiet
+OIDC_AUDIENCE=https://build.invalid dotnet build src/Module.Statistics.Api/VeloTime.Module.Statistics.Api.csproj --configuration Release --no-restore -v quiet
+OIDC_AUDIENCE=https://build.invalid dotnet build src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --configuration Release --no-restore -v quiet
+```
+
+Warnings for these four commands respectively: 2, 0, 0, and 21. They are
+existing package vulnerability and dependency/model warnings.
+
 ## Remaining verification limits
 
 - Chromium interaction/layout assertions are real, but this is an in-process
@@ -155,6 +184,6 @@ The updated API test project's final Release rebuild also passes without warning
   were not comprehensively exercised.
 - No complete solution build or unrelated domain suites were run; affected
   projects/dependencies were built.
-- Do not approve the integrated feature until Coordinator routes the five
-  transport regression failures and resolves/classifies the four date-fixture
-  failures, then reruns the affected platform suite.
+- The full platform suite is not entirely green because the four documented
+  date-rendering failures already reproduce on the pre-feature baseline. No
+  failures remain unclassified as feature-caused.
