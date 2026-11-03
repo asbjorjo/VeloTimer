@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Model;
-using VeloTime.Module.Statistics.Service;
 using VeloTime.Module.Statistics.Storage;
 using Xunit.Abstractions;
 
@@ -42,10 +41,10 @@ public sealed class HallOfFamePostgreSqlTests(ITestOutputHelper output)
         entries.Add(Entry(16, secondConfig, null, 1, Completed(16), PublicStatisticsTestHost.Facility, 10));
         await host.SeedAsync(new object[] { firstConfig, secondConfig }.Concat(entries).ToArray());
 
-        await using (var scope = host.App.Services.CreateAsyncScope())
-        {
-            var store = scope.ServiceProvider.GetRequiredService<HallOfFameSettingsStore>();
-            var saved = await store.TryReplaceAsync(new SaveHallOfFameSettingsRequest(0,
+        using var admin = host.App.CreateClient();
+        admin.DefaultRequestHeaders.Add("X-Test-Role", "statistics-admin");
+        var savedResponse = await admin.PutAsJsonAsync("/api/admin/statistics/hall-of-fame",
+            new SaveHallOfFameSettingsRequest(0,
             [
                 new(item.Id, HallOfFameRankingMode.BestTime, true, 3,
                     [HallOfFameColumn.BestTime, HallOfFameColumn.SpeedOfBestResult,
@@ -54,9 +53,8 @@ public sealed class HallOfFamePostgreSqlTests(ITestOutputHelper output)
                 new(item.Id, HallOfFameRankingMode.MostPassings, true, 2,
                     [HallOfFameColumn.PassingCount])
             ]));
-            Assert.NotNull(saved);
-            Assert.Equal(1, saved.Version);
-        }
+        Assert.Equal(HttpStatusCode.OK, savedResponse.StatusCode);
+        Assert.Equal(1, (await savedResponse.Content.ReadFromJsonAsync<HallOfFameSettingsDTO>())!.Version);
 
         using var client = PublicStatisticsDiscoveryTests.Anonymous(host);
         using var response = await client.GetAsync("/api/statistics/hall-of-fame");
