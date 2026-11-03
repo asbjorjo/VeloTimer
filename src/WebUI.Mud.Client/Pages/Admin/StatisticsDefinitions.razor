@@ -85,6 +85,11 @@ else if (_editing)
                     <MudItem xs="12" md="4"><MudNumericField T="int" @bind-Value="_repetitions" Min="1" Label="@L["Repetitions"]" Required="true" RequiredError="@L["RequiredError"]" /></MudItem>
                 }
             }
+            <MudItem xs="12">
+                <StatisticsThresholdEditor Draft="_thresholds" Distance="ThresholdDistance" Local="_configurationEditor"
+                                           GlobalMinimum="@(_configurationEditor ? SelectedItem?.MinDuration : null)"
+                                           GlobalMaximum="@(_configurationEditor ? SelectedItem?.MaxDuration : null)" Disabled="_busy" />
+            </MudItem>
         </MudGrid>
         <MudStack Row="true" Class="mt-6" Spacing="3">
             <MudButton OnClick="Save" Disabled="_busy" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save">@L["Save"]</MudButton>
@@ -156,6 +161,9 @@ else
     private string _search = "", _name = "", _description = "";
     private string? _error;
     private DistanceEditorValue _distanceDraft = default!;
+    private StatisticsThresholdDraft _thresholds = default!;
+    private StatisticsItemDTO? SelectedItem => _items.FirstOrDefault(item => item.Id == _itemId);
+    private double ThresholdDistance => _configurationEditor ? SelectedItem?.Distance ?? 0 : _distanceDraft.Metres;
     private int _repetitions = 2;
     private StatisticsConfigurationType _type;
     private bool IsConfigurations => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("admin/statistics/configurations", StringComparison.OrdinalIgnoreCase);
@@ -203,6 +211,7 @@ else
         _type = StatisticsConfigurationType.Simple;
         _name = _description = "";
         _distanceDraft = new(250, Display);
+        _thresholds = new(null, null, ThresholdDistance, Display);
         _repetitions = 2;
         _layouts = [];
         _points = [];
@@ -217,6 +226,7 @@ else
         _name = item.Name;
         _description = item.Description;
         _distanceDraft = new(item.Distance, Display);
+        _thresholds = new(item.MinDuration, item.MaxDuration, item.Distance, Display);
     }
 
     private async Task EditConfiguration(StatisticsConfigurationDTO config)
@@ -227,6 +237,7 @@ else
         _type = config.Type;
         _parentId = config.ParentConfigId;
         _repetitions = config.Repetitions ?? 2;
+        _thresholds = new(config.MinDuration, config.MaxDuration, ThresholdDistance, Display);
         if (config.CoursePointStart.HasValue && _pointFacilities.TryGetValue(config.CoursePointStart.Value, out var facilityId))
         {
             await SelectFacility(facilityId);
@@ -272,6 +283,21 @@ else
         await _form!.ValidateAsync();
         if (!_valid || _busy) return;
         if (!_configurationEditor && (!_distanceDraft.IsValid || !float.IsFinite((float)_distanceDraft.Metres))) { _error = L["InvalidDistance", _distanceDraft.Settings.Distance(0.001)]; return; }
+        if (!_thresholds.IsValid) { _error = L["ThresholdInputOrRangeInvalid"]; return; }
+        if (_configurationEditor)
+        {
+            var effective = StatisticsThresholdDraft.Effective(SelectedItem?.MinDuration, SelectedItem?.MaxDuration, _thresholds.Minimum, _thresholds.Maximum);
+            if (!StatisticsThresholdDraft.ValidRange(effective.Minimum, effective.Maximum)) { _error = L["ThresholdRangeInvalid"]; return; }
+        }
+        else
+        {
+            foreach (var config in _configs.Where(config => config.StatisticsItemId == _id))
+            {
+                var effective = StatisticsThresholdDraft.Effective(_thresholds.Minimum, _thresholds.Maximum, config.MinDuration, config.MaxDuration);
+                if (!StatisticsThresholdDraft.ValidRange(effective.Minimum, effective.Maximum))
+                { _error = L["ThresholdConfigurationDisjoint", ConfigurationLabel(config)]; return; }
+            }
+        }
         _busy = true;
         _error = null;
         try
@@ -279,11 +305,12 @@ else
             if (_configurationEditor)
                 await Administration.SaveConfigurationAsync(_id, new(_itemId!.Value, _type,
                     _type == StatisticsConfigurationType.Simple ? _startId : null, _type == StatisticsConfigurationType.Simple ? _endId : null,
-                    _type == StatisticsConfigurationType.Multi ? _parentId : null, _type == StatisticsConfigurationType.Multi ? _repetitions : null), _lifetime.Token);
+                    _type == StatisticsConfigurationType.Multi ? _parentId : null, _type == StatisticsConfigurationType.Multi ? _repetitions : null,
+                    _thresholds.Minimum, _thresholds.Maximum), _lifetime.Token);
             else
-                await Administration.SaveItemAsync(_id, new(_name, _description, (float)_distanceDraft.Metres), _lifetime.Token);
+                await Administration.SaveItemAsync(_id, new(_name, _description, (float)_distanceDraft.Metres, _thresholds.Minimum, _thresholds.Maximum), _lifetime.Token);
             _editing = false;
-            Snackbar.Add(L["Saved"], Severity.Success);
+            Snackbar.Add(L["ThresholdSettingsSaved"], Severity.Success);
             await Load();
         }
         catch (HttpRequestException exception) { _error = ErrorFor(exception); }
