@@ -9,6 +9,9 @@ public interface IStatisticsService
     Task<PublicStatisticsResultsPageDTO> GetPublicResultsAsync(GetPublicStatisticsResultsRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<HallOfFameDTO> GetHallOfFameAsync(CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException("Hall of Fame transport is not implemented yet.");
+
     Task<IReadOnlyList<BestStatisticsResultView>> GetBestResultsAsync(Guid? facilityId = null, DateTimeOffset? from = null,
         DateTimeOffset? to = null, CancellationToken cancellationToken = default);
 

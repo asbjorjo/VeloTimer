@@ -10,4 +10,11 @@ public interface IStatisticsAdministrationService
     Task DeleteItemAsync(Guid id, CancellationToken cancellationToken = default);
     Task SaveConfigurationAsync(Guid? id, SaveStatisticsConfigurationRequest request, CancellationToken cancellationToken = default);
     Task DeleteConfigurationAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<HallOfFameSettingsDTO> GetHallOfFameSettingsAsync(CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException("Hall of Fame settings transport is not implemented yet.");
+
+    Task<HallOfFameSettingsDTO> SaveHallOfFameSettingsAsync(
+        SaveHallOfFameSettingsRequest request, CancellationToken cancellationToken = default) =>
+        throw new NotImplementedException("Hall of Fame settings transport is not implemented yet.");
 }
