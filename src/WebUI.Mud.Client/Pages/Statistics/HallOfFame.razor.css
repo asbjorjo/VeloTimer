@@ -1,0 +1,20 @@
+.hall-of-fame-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.hall-of-fame-table caption {
+    text-align: left;
+    padding: 0.5rem;
+}
+
+.hall-of-fame-table th,
+.hall-of-fame-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--mud-palette-divider);
+}
+
+.hall-of-fame-table td {
+    white-space: nowrap;
+}

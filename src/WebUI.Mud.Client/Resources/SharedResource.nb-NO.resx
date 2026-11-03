@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="HallOfFame" xml:space="preserve"><value>Ærestavle</value></data>
+  <data name="HallOfFameDescription" xml:space="preserve"><value>Rangering av offentlige rytterprofiler for alle tider, på tvers av konfigurasjoner og anlegg for hver øvelse. Antallet omfatter bare fullførte statistikkresultater. Like verdier deler plassering; delte plasseringer øker ikke radgrensen. Kolonnene for beste resultat beskriver samme raskeste resultat.</value></data>
+  <data name="HallOfFameNoSections" xml:space="preserve"><value>Ingen seksjoner på ærestavlen er aktivert.</value></data>
+  <data name="HallOfFameNoResults" xml:space="preserve"><value>Ingen fullførte resultater fra offentlige profiler er tilgjengelige for denne seksjonen.</value></data>
+  <data name="HallOfFameLoadFailed" xml:space="preserve"><value>Ærestavlen kunne ikke lastes. Prøv igjen.</value></data>
+  <data name="HallOfFameInvalidSettings" xml:space="preserve"><value>Innstillingene for ærestavlen er ugyldige eller viser til en utilgjengelig øvelse. Kontakt en statistikkadministrator.</value></data>
+  <data name="HallOfFameRank" xml:space="preserve"><value>Plassering</value></data>
+  <data name="HallOfFameBestTime" xml:space="preserve"><value>Beste tid</value></data>
+  <data name="HallOfFameMostPassings" xml:space="preserve"><value>Flest fullførte resultater</value></data>
+  <data name="HallOfFameSpeedOfBestResult" xml:space="preserve"><value>Hastighet for beste resultat</value></data>
+  <data name="HallOfFamePassingCount" xml:space="preserve"><value>Antall fullførte resultater</value></data>
+  <data name="HallOfFameFacilityOfBestResult" xml:space="preserve"><value>Anlegg for beste resultat</value></data>
+  <data name="HallOfFameDateOfBestResult" xml:space="preserve"><value>Dato for beste resultat</value></data>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>

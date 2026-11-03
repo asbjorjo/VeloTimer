@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="HallOfFame" xml:space="preserve"><value>Hall of Fame</value></data>
+  <data name="HallOfFameDescription" xml:space="preserve"><value>All-time rankings of public rider profiles across all configurations and facilities for each item. Passing counts include completed statistics results only. Equal values share a rank; ties do not expand the row limit. Best-result columns describe the same fastest result.</value></data>
+  <data name="HallOfFameNoSections" xml:space="preserve"><value>No Hall of Fame sections have been enabled.</value></data>
+  <data name="HallOfFameNoResults" xml:space="preserve"><value>No completed results from public profiles are available for this section.</value></data>
+  <data name="HallOfFameLoadFailed" xml:space="preserve"><value>The Hall of Fame could not be loaded. Please try again.</value></data>
+  <data name="HallOfFameInvalidSettings" xml:space="preserve"><value>Hall of Fame settings are invalid or reference an unavailable item. Contact a statistics administrator.</value></data>
+  <data name="HallOfFameRank" xml:space="preserve"><value>Rank</value></data>
+  <data name="HallOfFameBestTime" xml:space="preserve"><value>Best time</value></data>
+  <data name="HallOfFameMostPassings" xml:space="preserve"><value>Most completed results</value></data>
+  <data name="HallOfFameSpeedOfBestResult" xml:space="preserve"><value>Speed of best result</value></data>
+  <data name="HallOfFamePassingCount" xml:space="preserve"><value>Completed-result count</value></data>
+  <data name="HallOfFameFacilityOfBestResult" xml:space="preserve"><value>Facility of best result</value></data>
+  <data name="HallOfFameDateOfBestResult" xml:space="preserve"><value>Date of best result</value></data>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>

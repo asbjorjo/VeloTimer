@@ -1,0 +1,108 @@
+@page "/hall-of-fame"
+@inherits PresentationComponentBase
+@using System.Net
+@using VeloTime.Module.Statistics.Interface.Data
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@inject IStatisticsService Statistics
+@inject ILogger<HallOfFame> Logger
+@implements IDisposable
+
+<PageTitle>@L["HallOfFame"]</PageTitle>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+    <MudText Typo="Typo.h4" HtmlTag="h1" Class="mb-2">@L["HallOfFame"]</MudText>
+    <MudText Class="mb-4">@L["HallOfFameDescription"]</MudText>
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" aria-label="@L["Loading"]" />
+    }
+    else if (_error is not null)
+    {
+        <div role="alert"><MudAlert Severity="Severity.Error">@L[_error]</MudAlert></div>
+        <MudButton OnClick="LoadAsync" Class="mt-2">@L["Retry"]</MudButton>
+    }
+    else if (_results is not null)
+    {
+        @if (_results.Sections.Count == 0)
+        {
+            <div role="status"><MudAlert Severity="Severity.Info">@L["HallOfFameNoSections"]</MudAlert></div>
+        }
+        @foreach (var section in _results.Sections)
+        {
+            var caption = $"{section.StatisticsItemName} — {L[HallOfFamePresentation.ModeKey(section.RankingMode)]}";
+            <section class="mb-6" aria-label="@caption">
+                <MudText Typo="Typo.h5" HtmlTag="h2" Class="mb-2">@caption</MudText>
+                @if (section.Entries.Count == 0)
+                {
+                    <div role="status"><MudAlert Severity="Severity.Info">@L["HallOfFameNoResults"]</MudAlert></div>
+                }
+                else
+                {
+                    <div role="region" aria-label="@caption" tabindex="0" style="overflow-x:auto; width:100%;">
+                        <table class="hall-of-fame-table">
+                            <caption>@caption</caption>
+                            <thead><tr>
+                                <th scope="col">@L["HallOfFameRank"]</th>
+                                <th scope="col">@L["Name"]</th>
+                                @foreach (var column in section.Columns)
+                                {
+                                    <th scope="col">@L[HallOfFamePresentation.ColumnKey(column)]</th>
+                                }
+                            </tr></thead>
+                            <tbody>
+                                @foreach (var entry in section.Entries)
+                                {
+                                    <tr>
+                                        <td>@entry.Rank.ToString("N0", Display.NumberCulture)</td>
+                                        <th scope="row">@entry.ProfileName</th>
+                                        @foreach (var column in section.Columns)
+                                        {
+                                            <td>@HallOfFamePresentation.Value(entry, column, Display)</td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        }
+    }
+</MudContainer>
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private HallOfFameDTO? _results;
+    private bool _loading;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (_loading || _lifetime.IsCancellationRequested) return;
+        _loading = true;
+        _error = null;
+        _results = null;
+        try
+        {
+            var results = await Statistics.GetHallOfFameAsync(_lifetime.Token);
+            if (!_lifetime.IsCancellationRequested) _results = results;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            if (_lifetime.IsCancellationRequested) return;
+            Logger.LogWarning(exception, "Could not load Hall of Fame");
+            _error = exception is HttpRequestException request ? request.StatusCode switch
+            {
+                HttpStatusCode.Unauthorized => "SignInRequired",
+                HttpStatusCode.Forbidden => "NoPermission",
+                HttpStatusCode.InternalServerError => "HallOfFameInvalidSettings",
+                _ => "HallOfFameLoadFailed"
+            } : "HallOfFameLoadFailed";
+        }
+        finally { _loading = false; }
+    }
+
+    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+}
