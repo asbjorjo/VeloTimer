@@ -117,6 +117,51 @@ public sealed class StatisticsEndpointTests(StatisticsApiFactory factory) : ICla
             (await storage.HallOfFameSettingsDocuments.SingleAsync()).Version);
     }
 
+    [Theory]
+    [InlineData("zero", "sections[0].rowCount")]
+    [InlineData("oversize", "sections[0].rowCount")]
+    [InlineData("mode", "sections[0].rankingMode")]
+    [InlineData("column", "sections[0].columns[0]")]
+    [InlineData("duplicateColumn", "sections[0].columns[1]")]
+    [InlineData("duplicatePair", "sections[1]")]
+    [InlineData("columnsMissing", "sections[0].columns")]
+    [InlineData("sectionsMissing", "sections")]
+    [InlineData("negativeVersion", "expectedVersion")]
+    public async Task HallOfFameSettings_ValidationProblemsUseJsonPropertyKeysAndNeverAdvanceVersion(string kind, string key)
+    {
+        var item = new StatisticsItem { Id = Guid.NewGuid(), Name = "Validation item", Description = "", Distance = 100 };
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var storage = scope.ServiceProvider.GetRequiredService<StatisticsDbContext>();
+            storage.Add(item);
+            await storage.SaveChangesAsync();
+        }
+        var section = new HallOfFameSectionSettingsDTO(item.Id, HallOfFameRankingMode.BestTime, true, 10, []);
+        section = kind switch
+        {
+            "zero" => section with { RowCount = 0 },
+            "oversize" => section with { RowCount = 101 },
+            "mode" => section with { RankingMode = (HallOfFameRankingMode)99 },
+            "column" => section with { Columns = [(HallOfFameColumn)99] },
+            "duplicateColumn" => section with { Columns = [HallOfFameColumn.BestTime, HallOfFameColumn.BestTime] },
+            "columnsMissing" => section with { Columns = null! },
+            _ => section
+        };
+        var request = new SaveHallOfFameSettingsRequest(kind == "negativeVersion" ? -1 : 0,
+            kind == "sectionsMissing" ? null! : kind == "duplicatePair" ? [section, section with { IsEnabled = false }] : [section]);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-Role", "statistics-admin");
+        using var response = await client.PutAsJsonAsync("/api/admin/statistics/hall-of-fame", request);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.True(response.Headers.CacheControl?.NoStore);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(json.RootElement.GetProperty("errors").TryGetProperty(key, out _));
+        var unchanged = (await client.GetFromJsonAsync<HallOfFameSettingsDTO>("/api/admin/statistics/hall-of-fame"))!;
+        Assert.Equal(0, unchanged.Version);
+        Assert.Empty(unchanged.Sections);
+    }
+
     [Fact]
     public async Task HallOfFame_InvalidPersistedJsonIsExplicitAndBlocksItemDeletion()
     {
