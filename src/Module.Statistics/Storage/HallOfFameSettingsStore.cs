@@ -15,7 +15,8 @@ public sealed class HallOfFameSettingsStore(StatisticsDbContext storage)
     {
         var settings = await storage.HallOfFameSettingsDocuments
             .AsNoTracking()
-            .SingleAsync(s => s.Id == HallOfFameSettings.SingletonId, cancellationToken);
+            .SingleOrDefaultAsync(s => s.Id == HallOfFameSettings.SingletonId, cancellationToken)
+            ?? throw new InvalidDataException("The Hall of Fame settings singleton is missing.");
 
         return new HallOfFameSettingsDTO(
             settings.Version,
@@ -39,7 +40,8 @@ public sealed class HallOfFameSettingsStore(StatisticsDbContext storage)
         else
             query = storage.HallOfFameSettingsDocuments.AsNoTracking();
 
-        var settings = await query.SingleAsync(cancellationToken);
+        var settings = await query.SingleOrDefaultAsync(cancellationToken)
+            ?? throw new InvalidDataException("The Hall of Fame settings singleton is missing.");
         return new HallOfFameSettingsDTO(settings.Version, DeserializeSections(settings.SectionsJson));
     }
 

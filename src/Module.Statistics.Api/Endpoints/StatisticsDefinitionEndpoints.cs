@@ -73,12 +73,24 @@ internal static class StatisticsDefinitionEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteItem(
-        Guid id, StatisticsDbContext storage, HallOfFameSettingsStore settingsStore, CancellationToken cancellationToken)
+        Guid id, StatisticsDbContext storage, HallOfFameSettingsStore settingsStore,
+        ILogger<StatisticsDbContext> logger, CancellationToken cancellationToken)
     {
         var item = await storage.Set<StatisticsItem>().FindAsync([id], cancellationToken);
         if (item is null) return TypedResults.NotFound();
         await using var transaction = await storage.Database.BeginTransactionAsync(cancellationToken);
-        var settings = await settingsStore.GetForUpdateAsync(cancellationToken);
+        HallOfFameSettingsDTO settings;
+        try
+        {
+            settings = await settingsStore.GetForUpdateAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is System.Text.Json.JsonException or InvalidDataException)
+        {
+            logger.LogError(exception, "Statistics item {StatisticsItemId} deletion was blocked by invalid Hall of Fame settings.", id);
+            return TypedResults.Problem(
+                detail: "Persisted Hall of Fame settings are invalid. An administrator must review the settings.",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
         if (settings.Sections.Any(section => section.StatisticsItemId == id))
         {
             return Conflict("This item is referenced by Hall of Fame settings. Remove every section for this item, including disabled sections, before deleting it.");

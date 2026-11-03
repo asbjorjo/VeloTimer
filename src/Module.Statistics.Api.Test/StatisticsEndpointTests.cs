@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using VeloTime.Module.Statistics.Api.Endpoints;
 using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Model;
@@ -93,6 +94,39 @@ public sealed class StatisticsEndpointTests(StatisticsApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.OK, cleared.StatusCode);
         Assert.Equal(2, (await cleared.Content.ReadFromJsonAsync<HallOfFameSettingsDTO>())!.Version);
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/statistics/admin/items/{item.Id}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task HallOfFame_InvalidPersistedJsonIsExplicitAndBlocksItemDeletion()
+    {
+        var item = new StatisticsItem
+        {
+            Id = Guid.NewGuid(), Name = "Referenced item", Description = "", Distance = 100
+        };
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var storage = scope.ServiceProvider.GetRequiredService<StatisticsDbContext>();
+            storage.Add(item);
+            var settings = await storage.HallOfFameSettingsDocuments.SingleAsync();
+            settings.SectionsJson = "{}";
+            await storage.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Test-Anonymous", "true");
+        using var publicResponse = await client.GetAsync("/api/statistics/hall-of-fame");
+        Assert.Equal(HttpStatusCode.InternalServerError, publicResponse.StatusCode);
+        Assert.True(publicResponse.Headers.CacheControl?.NoStore);
+        using (var problem = System.Text.Json.JsonDocument.Parse(await publicResponse.Content.ReadAsStringAsync()))
+            Assert.Contains("settings are invalid", problem.RootElement.GetProperty("detail").GetString(),
+                StringComparison.OrdinalIgnoreCase);
+
+        client.DefaultRequestHeaders.Remove("X-Test-Anonymous");
+        client.DefaultRequestHeaders.Add("X-Test-Role", "statistics-admin");
+        using var deleteResponse = await client.DeleteAsync($"/api/statistics/admin/items/{item.Id}");
+        Assert.Equal(HttpStatusCode.InternalServerError, deleteResponse.StatusCode);
+        Assert.Contains("settings are invalid", await deleteResponse.Content.ReadAsStringAsync(),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

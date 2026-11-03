@@ -47,7 +47,16 @@ internal static class HallOfFameEndpoints
     {
         http.Response.Headers.CacheControl = "no-store";
         var logger = loggerFactory.CreateLogger("HallOfFame");
-        var settings = await settingsStore.GetAsync(cancellationToken);
+        HallOfFameSettingsDTO settings;
+        try
+        {
+            settings = await settingsStore.GetAsync(cancellationToken);
+        }
+        catch (Exception exception) when (IsInvalidStoredSettings(exception))
+        {
+            logger.LogError(exception, "Persisted Hall of Fame settings could not be read.");
+            return InvalidStoredSettings();
+        }
         if (GetSettingsErrors(settings).Count != 0)
         {
             logger.LogError("Persisted Hall of Fame settings are structurally invalid at version {Version}.", settings.Version);
@@ -179,7 +188,16 @@ internal static class HallOfFameEndpoints
         CancellationToken cancellationToken)
     {
         http.Response.Headers.CacheControl = "no-store";
-        var settings = await settingsStore.GetAsync(cancellationToken);
+        HallOfFameSettingsDTO settings;
+        try
+        {
+            settings = await settingsStore.GetAsync(cancellationToken);
+        }
+        catch (Exception exception) when (IsInvalidStoredSettings(exception))
+        {
+            logger.LogError(exception, "Persisted Hall of Fame settings could not be read.");
+            return InvalidStoredSettings();
+        }
         if (GetSettingsErrors(settings).Count == 0)
             return TypedResults.Ok(settings);
 
@@ -205,7 +223,16 @@ internal static class HallOfFameEndpoints
             return TypedResults.ValidationProblem(errors);
 
         await using var transaction = await storage.Database.BeginTransactionAsync(cancellationToken);
-        var current = await settingsStore.GetForUpdateAsync(cancellationToken);
+        HallOfFameSettingsDTO current;
+        try
+        {
+            current = await settingsStore.GetForUpdateAsync(cancellationToken);
+        }
+        catch (Exception exception) when (IsInvalidStoredSettings(exception))
+        {
+            logger.LogError(exception, "Persisted Hall of Fame settings could not be read for replacement.");
+            return InvalidStoredSettings();
+        }
         if (current.Version != request.ExpectedVersion)
             return SettingsConflict();
 
@@ -237,8 +264,16 @@ internal static class HallOfFameEndpoints
             detail: "Hall of Fame settings changed since they were loaded. Reload the latest settings before saving again.",
             statusCode: StatusCodes.Status409Conflict);
 
+    private static ProblemHttpResult InvalidStoredSettings() =>
+        TypedResults.Problem(
+            detail: "Persisted Hall of Fame settings are invalid. An administrator must review the settings.",
+            statusCode: StatusCodes.Status500InternalServerError);
+
     private static Dictionary<string, string[]> GetSettingsErrors(HallOfFameSettingsDTO settings) =>
         HallOfFameQuery.Validate(new SaveHallOfFameSettingsRequest(settings.Version, settings.Sections));
+
+    private static bool IsInvalidStoredSettings(Exception exception) =>
+        exception is JsonException or InvalidDataException;
 
     private static bool IsFacilityFailure(Exception exception, CancellationToken cancellationToken) =>
         exception is FacilitiesApiException or HttpRequestException or JsonException or InvalidDataException ||
