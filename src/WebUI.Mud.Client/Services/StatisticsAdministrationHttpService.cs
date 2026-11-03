@@ -13,6 +13,13 @@ public sealed class StatisticsAdministrationHttpService(HttpClient client) : ISt
     public async Task<IReadOnlyList<StatisticsConfigurationDTO>> GetConfigurationsAsync(CancellationToken cancellationToken = default) =>
         await client.GetFromJsonAsync<List<StatisticsConfigurationDTO>>($"{Root}/configurations", cancellationToken) ?? [];
 
+    public async Task<HallOfFameSettingsDTO> GetHallOfFameSettingsAsync(CancellationToken cancellationToken = default) =>
+        await GetRequiredJsonAsync<HallOfFameSettingsDTO>($"{Root}/hall-of-fame", cancellationToken);
+
+    public async Task<HallOfFameSettingsDTO> SaveHallOfFameSettingsAsync(
+        SaveHallOfFameSettingsRequest request, CancellationToken cancellationToken = default) =>
+        await SendForJsonAsync<HallOfFameSettingsDTO>($"{Root}/hall-of-fame", request, cancellationToken);
+
     public Task SaveItemAsync(Guid? id, SaveStatisticsItemRequest request, CancellationToken cancellationToken = default) =>
         SendAsync(id.HasValue ? HttpMethod.Put : HttpMethod.Post, $"{Root}/items{(id.HasValue ? $"/{id}" : "")}", request, cancellationToken);
 
@@ -42,5 +49,24 @@ public sealed class StatisticsAdministrationHttpService(HttpClient client) : ISt
         {
         }
         throw new HttpRequestException(message, null, response.StatusCode);
+    }
+
+    private async Task<T> GetRequiredJsonAsync<T>(string path, CancellationToken cancellationToken)
+    {
+        using var response = await client.GetAsync(path, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw await StatisticsHttpService.CreateRequestExceptionAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<T>(cancellationToken)
+            ?? throw new HttpRequestException("The Hall of Fame settings response was empty.");
+    }
+
+    private async Task<TResponse> SendForJsonAsync<TResponse>(
+        string path, SaveHallOfFameSettingsRequest request, CancellationToken cancellationToken)
+    {
+        using var response = await client.PutAsJsonAsync(path, request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw await StatisticsHttpService.CreateRequestExceptionAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<TResponse>(cancellationToken)
+            ?? throw new HttpRequestException("The saved Hall of Fame settings response was empty.");
     }
 }

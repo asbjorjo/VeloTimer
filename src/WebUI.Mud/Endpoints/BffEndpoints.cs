@@ -58,8 +58,8 @@ internal static class BffEndpoints
                     return Results.Content(profileError.Response, "application/problem+json", statusCode: StatusCodes.Status400BadRequest);
                 }
                 return Results.Problem(
-                    detail: exception is HttpRequestException && status is 400 or 409 or 422 or 503 ? exception.Message : null,
-                    statusCode: status is 400 or 401 or 403 or 404 or 409 or 422 or 503 ? status : 502);
+                    detail: exception is HttpRequestException && status is 400 or 409 or 422 or 500 or 503 ? exception.Message : null,
+                    statusCode: status is 400 or 401 or 403 or 404 or 409 or 422 or 500 or 503 ? status : 502);
             }
         });
 
