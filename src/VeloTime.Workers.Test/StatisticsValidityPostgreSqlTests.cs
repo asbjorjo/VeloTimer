@@ -1,6 +1,8 @@
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -216,6 +218,48 @@ public sealed class StatisticsValidityPostgreSqlTests : IAsyncLifetime
     }
 
     [PostgreSqlStatisticsFact]
+    public async Task SupersedingEditWaitsForLockedBatchAndWinsAfterItsCommit()
+    {
+        var config = Simple();
+        await using (var db = Db())
+        {
+            db.Add(config);
+            db.AddRange(Enumerable.Range(1, 3).Select(i => Entry(config, i)));
+            await db.SaveChangesAsync();
+        }
+        await Change(config.StatisticsItemId, TimeSpan.FromSeconds(11));
+        var generation = (await Job(config.StatisticsItemId)).Generation;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var gate = new PageGate();
+        using var services = new ServiceCollection().AddMetrics().AddSingleton<Metrics>().BuildServiceProvider();
+        await using var batchStorage = new StatisticsDbContext(new DbContextOptionsBuilder<StatisticsDbContext>()
+            .UseNpgsql(connection).UseSnakeCaseNamingConvention().AddInterceptors(gate).Options);
+        var batch = new StatisticsRevalidationService(batchStorage, new(batchStorage), services.GetRequiredService<Metrics>(),
+            NullLogger<StatisticsRevalidationService>.Instance).ProcessBatchAsync(config.StatisticsItemId, 2, timeout.Token);
+        await gate.Entered.Task.WaitAsync(timeout.Token);
+        var save = Change(config.StatisticsItemId, null);
+        try
+        {
+            await using var probe = Db();
+            while (await probe.Database.SqlQueryRaw<int>("""
+                SELECT count(*)::int AS "Value" FROM pg_stat_activity
+                WHERE datname = current_database() AND wait_event_type = 'Lock'
+                """).SingleAsync(timeout.Token) == 0)
+                await Task.Delay(20, timeout.Token);
+            Assert.False(save.IsCompleted);
+        }
+        finally { gate.Release.TrySetResult(); }
+        Assert.Equal(2, (await batch).Reclassified);
+        await save;
+        var superseding = await Job(config.StatisticsItemId);
+        Assert.True(superseding.Generation > generation);
+        Assert.Null(superseding.LastEntryId);
+        await Drain(config.StatisticsItemId, 2);
+        await using var verify = Db();
+        Assert.Equal(3, await verify.Set<StatisticsEntry>().CountAsync(e => e.IsValid));
+    }
+
+    [PostgreSqlStatisticsFact]
     public async Task FailedBatchCommitRollsBackValidityAndCheckpointAndRestartRetries()
     {
         var config = Simple();
@@ -282,6 +326,60 @@ public sealed class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         Assert.Equal(DateTimeKind.Utc, persisted.TimeStart.Kind);
         Assert.Equal(DateTimeKind.Utc, persisted.TimeEnd.Kind);
         Assert.False((await Job(config.StatisticsItemId)).IsPending);
+    }
+
+    [PostgreSqlStatisticsFact]
+    public async Task UpgradeRetainsLegacyNonpositiveMeasurementsAndDefaultsWithoutHistoricalReclassification()
+    {
+        var upgradeDatabase = $"threshold_upgrade_{Guid.NewGuid():N}";
+        await Sql(admin, $"CREATE DATABASE \"{upgradeDatabase}\"");
+        var upgradeConnection = new NpgsqlConnectionStringBuilder(admin) { Database = upgradeDatabase }.ConnectionString;
+        try
+        {
+            await using var db = new StatisticsDbContext(new DbContextOptionsBuilder<StatisticsDbContext>()
+                .UseNpgsql(upgradeConnection, o => o.MigrationsHistoryTable("__ef_migrations_history", "ef"))
+                .UseSnakeCaseNamingConvention().Options);
+            await db.GetService<IMigrator>().MigrateAsync("20261031085933_statistics_public_indexes");
+            var item = Guid.NewGuid();
+            var config = Guid.NewGuid();
+            var point = Guid.NewGuid();
+            var entry = Guid.NewGuid();
+            var rider = Guid.NewGuid();
+            var facility = Guid.NewGuid();
+            await db.Database.ExecuteSqlAsync($"""
+                INSERT INTO statistics.statistics_item (id, name, description, distance) VALUES ({item}, 'Legacy', '', 250);
+                INSERT INTO statistics.statistics_item_config
+                (id, statistics_item_id, discriminator, course_point_start, course_point_end)
+                VALUES ({config}, {item}, 'SimpleStatisticsItemConfig', {point}, {point});
+                INSERT INTO statistics.statistics_entry
+                (id, statistics_item_id, statistics_item_config_id, transponder_id, facility_id, time_start, time_end, duration, speed)
+                VALUES ({entry}, {item}, {config}, {rider}, {facility}, {Start}, {Start}, {TimeSpan.Zero}, {double.PositiveInfinity});
+                """);
+            await db.Database.MigrateAsync();
+            var persisted = await db.Set<StatisticsEntry>().SingleAsync();
+            Assert.Equal(entry, persisted.Id);
+            Assert.True(persisted.IsValid); // Migration is metadata only; worker classifies later.
+            Assert.Null(persisted.InvalidReason);
+            Assert.False(persisted.HasCompleteContributorLineage);
+            Assert.Equal(TimeSpan.Zero, persisted.Duration);
+            Assert.True(double.IsPositiveInfinity(persisted.Speed));
+            Assert.Equal(Start, persisted.TimeStart);
+            Assert.Equal(DateTimeKind.Utc, persisted.TimeEnd.Kind);
+            Assert.Equal(rider, persisted.TransponderId);
+            Assert.Equal(facility, persisted.FacilityId);
+            Assert.Null((await db.Set<StatisticsItem>().SingleAsync()).MinDuration);
+            Assert.Null((await db.Set<StatisticsItemConfig>().SingleAsync()).MaxDuration);
+            Assert.Empty(await db.Set<StatisticsEntryContributor>().ToListAsync());
+            Assert.Empty(await db.Set<StatisticsValidityRevalidation>().ToListAsync());
+            Assert.False(db.Database.HasPendingModelChanges());
+            Assert.Empty(await db.Database.GetPendingMigrationsAsync());
+        }
+        finally
+        {
+            using var pool = new NpgsqlConnection(upgradeConnection);
+            NpgsqlConnection.ClearPool(pool);
+            await Sql(admin, $"DROP DATABASE \"{upgradeDatabase}\" WITH (FORCE)");
+        }
     }
 
     [PostgreSqlStatisticsFact]
@@ -413,5 +511,20 @@ public sealed class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         public override ValueTask<InterceptionResult> TransactionCommittingAsync(DbTransaction transaction,
             TransactionEventData eventData, InterceptionResult result, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("injected batch commit failure");
+    }
+    private sealed class PageGate : DbCommandInterceptor
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public override async ValueTask<DbDataReader> ReaderExecutedAsync(DbCommand command,
+            CommandExecutedEventData eventData, DbDataReader result, CancellationToken cancellationToken = default)
+        {
+            if (command.CommandText.Contains("ORDER BY e.") && command.CommandText.Contains("LIMIT @limit"))
+            {
+                Entered.TrySetResult();
+                await Release.Task.WaitAsync(cancellationToken);
+            }
+            return result;
+        }
     }
 }
