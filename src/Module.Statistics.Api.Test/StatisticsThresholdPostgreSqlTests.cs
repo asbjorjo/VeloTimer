@@ -168,6 +168,31 @@ public sealed class StatisticsThresholdPostgreSqlTests
     }
 
     [PublicStatisticsPostgreSqlFact]
+    public async Task RealOutboxInitializationDdlFailurePropagatesInsteadOfStartingWithoutDurability()
+    {
+        var exception = await Assert.ThrowsAnyAsync<SlimMessageBus.MessageBusException>(() => Harness.Create(incompatibleSchema: true));
+        Assert.Contains("Outbox schema migration failed", exception.ToString());
+    }
+
+    [PublicStatisticsPostgreSqlFact]
+    public async Task OutboxInsertFailureRollsBackDefinitionAndGeneration()
+    {
+        await using var h = await Harness.Create();
+        var item = await h.CreateItem();
+        var job = await h.Job(item.Id);
+        await using (var scope = h.Host.App.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<StatisticsDbContext>().Database.ExecuteSqlRawAsync(
+                "ALTER TABLE statistics.smb_outbox ADD CONSTRAINT injected_enqueue_failure CHECK (false) NOT VALID");
+        Assert.Equal(HttpStatusCode.InternalServerError, (await h.Client.PutAsJsonAsync(ItemUrl(item.Id),
+            new SaveStatisticsItemRequest("Changed", "", 250, TimeSpan.FromSeconds(1)))).StatusCode);
+        Assert.Equal(item, Assert.Single((await h.Client.GetFromJsonAsync<List<StatisticsItemDTO>>("/api/statistics/admin/items"))!));
+        Assert.Equal(job.Generation, (await h.Job(item.Id)).Generation);
+        Assert.Equal(job.LastEntryId, (await h.Job(item.Id)).LastEntryId);
+        Assert.Equal(0, await h.OutboxCount());
+        Assert.Empty(h.Sender.Messages);
+    }
+
+    [PublicStatisticsPostgreSqlFact]
     public async Task GuardedPublisherCannotSendOutsideTransactionAndUncommittedWorkIsInvisible()
     {
         await using var h = await Harness.Create();
@@ -241,7 +266,7 @@ public sealed class StatisticsThresholdPostgreSqlTests
         public readonly ControlledSender Sender = new();
         public readonly CommitFailure CommitFailure = new();
 
-        public static async Task<Harness> Create()
+        public static async Task<Harness> Create(bool incompatibleSchema = false)
         {
             var h = new Harness();
             try
@@ -259,6 +284,12 @@ public sealed class StatisticsThresholdPostgreSqlTests
                 });
                 h.Client = h.Host.App.CreateClient();
                 h.Client.DefaultRequestHeaders.Add("X-Test-Role", "statistics-admin");
+                if (incompatibleSchema)
+                {
+                    await using var scope = h.Host.App.Services.CreateAsyncScope();
+                    await scope.ServiceProvider.GetRequiredService<StatisticsDbContext>().Database.ExecuteSqlRawAsync(
+                        "CREATE TABLE statistics.smb_outbox (incompatible integer)");
+                }
                 h.Host.App.Services.GetRequiredService<PostgreSqlOutboxSettings>().PollIdleSleep = TimeSpan.FromMilliseconds(50);
                 await h.Host.App.Services.GetRequiredService<IMasterMessageBus>().Start();
                 return h;
