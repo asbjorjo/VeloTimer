@@ -16,15 +16,16 @@ internal static class HallOfFameEndpoints
 {
     internal static void MapHallOfFameEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/hall-of-fame", GetPublicHallOfFame)
+        endpoints.MapGet("/api/statistics/hall-of-fame", GetPublicHallOfFame)
             .AllowAnonymous()
+            .WithTags("Statistics")
             .WithName("GetHallOfFame")
             .WithSummary("Get configured all-time public Hall of Fame rankings")
             .ProducesProblem(StatusCodes.Status500InternalServerError)
             .ProducesProblem(StatusCodes.Status502BadGateway)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
-        var settings = endpoints.MapGroup("/admin/statistics/hall-of-fame")
+        var settings = endpoints.MapGroup("/api/admin/statistics/hall-of-fame")
             .RequireAuthorization(AdministrationAuthorization.StatisticsPolicy);
         settings.MapGet("", GetSettings)
             .WithName("GetHallOfFameSettings")

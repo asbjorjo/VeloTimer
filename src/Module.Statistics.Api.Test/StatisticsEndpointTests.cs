@@ -49,12 +49,12 @@ public sealed class StatisticsEndpointTests(StatisticsApiFactory factory) : ICla
         using var anonymous = factory.CreateClient();
         anonymous.DefaultRequestHeaders.Add("X-Test-Anonymous", "true");
         Assert.Equal(HttpStatusCode.Unauthorized,
-            (await anonymous.GetAsync("/api/statistics/admin/statistics/hall-of-fame")).StatusCode);
+            (await anonymous.GetAsync("/api/admin/statistics/hall-of-fame")).StatusCode);
 
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Test-Role", "statistics-admin");
         var initial = (await client.GetFromJsonAsync<HallOfFameSettingsDTO>(
-            "/api/statistics/admin/statistics/hall-of-fame"))!;
+            "/api/admin/statistics/hall-of-fame"))!;
         Assert.Equal(0, initial.Version);
         Assert.Empty(initial.Sections);
 
@@ -67,26 +67,26 @@ public sealed class StatisticsEndpointTests(StatisticsApiFactory factory) : ICla
             item.Id, HallOfFameRankingMode.BestTime, IsEnabled: false,
             HallOfFameQuery.DefaultRowCount, Array.Empty<HallOfFameColumn>());
         var request = new SaveHallOfFameSettingsRequest(0, [section with { StatisticsItemId = Guid.NewGuid() }]);
-        var unknown = await client.PutAsJsonAsync("/api/statistics/admin/statistics/hall-of-fame", request);
+        var unknown = await client.PutAsJsonAsync("/api/admin/statistics/hall-of-fame", request);
         Assert.Equal(HttpStatusCode.BadRequest, unknown.StatusCode);
         using (var validation = System.Text.Json.JsonDocument.Parse(await unknown.Content.ReadAsStringAsync()))
             Assert.True(validation.RootElement.GetProperty("errors").TryGetProperty("sections[0].statisticsItemId", out _));
 
         request = new SaveHallOfFameSettingsRequest(0, [section]);
-        var savedResponse = await client.PutAsJsonAsync("/api/statistics/admin/statistics/hall-of-fame", request);
+        var savedResponse = await client.PutAsJsonAsync("/api/admin/statistics/hall-of-fame", request);
         Assert.Equal(HttpStatusCode.OK, savedResponse.StatusCode);
         var saved = (await savedResponse.Content.ReadFromJsonAsync<HallOfFameSettingsDTO>())!;
         Assert.Equal(1, saved.Version);
         Assert.False(Assert.Single(saved.Sections).IsEnabled);
 
         Assert.Equal(HttpStatusCode.Conflict,
-            (await client.PutAsJsonAsync("/api/statistics/admin/statistics/hall-of-fame", request)).StatusCode);
+            (await client.PutAsJsonAsync("/api/admin/statistics/hall-of-fame", request)).StatusCode);
         var deleteConflict = await client.DeleteAsync($"/api/statistics/admin/items/{item.Id}");
         Assert.Equal(HttpStatusCode.Conflict, deleteConflict.StatusCode);
         Assert.Contains("disabled sections", await deleteConflict.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
 
         var cleared = await client.PutAsJsonAsync(
-            "/api/statistics/admin/statistics/hall-of-fame", new SaveHallOfFameSettingsRequest(1, []));
+            "/api/admin/statistics/hall-of-fame", new SaveHallOfFameSettingsRequest(1, []));
         Assert.Equal(HttpStatusCode.OK, cleared.StatusCode);
         Assert.Equal(2, (await cleared.Content.ReadFromJsonAsync<HallOfFameSettingsDTO>())!.Version);
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/statistics/admin/items/{item.Id}")).StatusCode);
