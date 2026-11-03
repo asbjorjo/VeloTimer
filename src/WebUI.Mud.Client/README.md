@@ -1,5 +1,8 @@
 # Display preferences
 
+For public rankings and statistics-administrator setup, see the
+[Hall of Fame user guide](../../docs/hall-of-fame.md).
+
 Signed-in users can choose **Profile → Units and time**. Distance (m/ft), speed
 (km/h/mph/m/s), and time display are independent. Save persists one complete
 snapshot to the account, without changing its language setting. Browser time

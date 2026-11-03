@@ -1,6 +1,6 @@
 # Hall of Fame implementation plan
 
-Status: Finalized with user-confirmed requirements. Saved to the repository by request; feature implementation awaits explicit authorization.
+Status: Implementation authorized by the user. Contracts, persistence, API and transports are committed; public/admin UI is implemented and targeted Release builds pass. Tester verification and read-only review remain pending.
 
 ## Problem and approach
 
@@ -26,8 +26,8 @@ Add a dedicated Hall of Fame page showing overall top rankings for selected stat
 
 ## Todos
 
-1. Requirements and acceptance criteria finalized from user confirmation; this planning prerequisite is complete. Await explicit implementation authorization before step 2.
-2. Create an isolated worktree and dedicated branch from the agreed up-to-date base. Preserve other worktrees and user changes.
+1. Complete: requirements and acceptance criteria finalized; explicit implementation authorization received.
+2. Complete: assigned worktree `/workspaces/VeloTimer-hall-of-fame`, branch `feat/hall-of-fame`. Other worktrees preserved.
 3. Contract-first (.NET API Developer): define additive persisted-section settings/save contracts, ranking-mode/column enums, public leaderboard DTOs and shared service signatures. Specify limits, ordering, tie rules, optional column payloads and concurrent-admin save semantics. Validate actual contracts before dependent implementation. Exclude internal user/transponder identifiers from public DTOs. New backend quantities are base SI and times UTC; do not change legacy km/h contracts.
 4. Persistence (Data & Migrations Developer): store ordered sections, item references, ranking modes, enabled state, row limit and ordered columns in the Statistics service. Use the simplest compatible schema, migration/snapshot and clear item-deletion rules. Save/reorder atomically. Add indexes based on actual ranking SQL and PostgreSQL evidence, not assumption that chronological indexes suffice.
 5. API and transports (.NET API Developer): implement anonymous Hall of Fame reads and statistics-admin settings reads/saves. Validate unsupported values, references, column combinations and bounds; surface errors explicitly. Compute per-profile rankings and top-N in SQL with deterministic ordering and current visibility checks. Avoid per-rider dependency lookups. Wire route registration, BFF, both service transports and generated client/OpenAPI. Honor optional-column selections at the public payload boundary. Resolve facility names through existing HTTP clients, never another service's database. Prevent unnoticed lost admin updates.
@@ -35,7 +35,25 @@ Add a dedicated Hall of Fame page showing overall top rankings for selected stat
 7. Verification (Tester): cover persisted section/column order, both modes for the same item, exact row limits, ties, multiple transponders per rider, duplicate profile names, consistent best-result columns, public visibility changes, unlinked/private exclusions, authorization, validation, concurrency, dependency failures and browser/server compatibility. Exercise real PostgreSQL aggregation/translation and query plans. Run smallest affected Statistics/API/platform suites using run-tests skill, OIDC_AUDIENCE=https://build.invalid and required PostgreSQL; run relevant Release builds. Report unavailable/unrun checks explicitly.
 8. Review and completion (Code Reviewer, read-only): review substantial changes and regression evidence; send fixes to original owners and rerun affected checks. Update directly related API and user documentation. Inspect final diff, migration and generated artifacts. Make focused verified Conventional Commits with required co-author trailer as work progresses.
 
-Dependencies: decisions -> worktree -> contracts -> persistence -> API/transports -> UI -> tests -> review/final acceptance. Prefer sequential specialist handoffs for this tightly coupled feature. Parallel editing would require distinct worktrees and explicit integration. This document records the approved requirements, not authorization to implement. Implement only after the user explicitly requests it.
+Dependencies: decisions -> worktree -> contracts -> persistence -> API/transports -> UI -> tests -> review/final acceptance. Prefer sequential specialist handoffs for this tightly coupled feature. Parallel editing would require distinct worktrees and explicit integration.
+
+### Progress and next owner (2026-11-03)
+
+- Steps 3–5 complete in prerequisite commits, confirmed by the incoming handoff:
+  API 159 passed / 3 skipped, domain 10 passed, PostgreSQL 17 queries validated.
+  These backend results were reported, not rerun by the UI owner.
+- Step 6 implemented: anonymous `/hall-of-fame`, statistics-policy
+  `/admin/statistics/hall-of-fame`, ordered results and editor, accessible reorder
+  buttons, full-document/versioned save, conflict reload/reapply/retry,
+  unsaved-change protection, presentation helpers, and English/Norwegian resources.
+  No contract, API/storage, transport or test-fake changes.
+- UI and BFF targeted Release builds pass. Resource checks and 41 temporary
+  helper/static-render/editor-lifecycle smoke assertions pass. Browser visual
+  and live interaction verification is unavailable, not claimed.
+- Step 7 remains with **Tester**: add persistent rendering/interaction coverage,
+  address the previously reported platform fake-service missing-method compile
+  blocker, and verify browser/server behavior. Step 8 remains with **Code Reviewer**.
+- [User guide and exact UI checks / Tester scenarios](hall-of-fame.md).
 
 ## Acceptance criteria
 
