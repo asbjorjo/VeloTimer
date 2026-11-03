@@ -66,6 +66,9 @@ public sealed class StatisticsEndpointTests(StatisticsApiFactory factory) : ICla
         var section = new HallOfFameSectionSettingsDTO(
             item.Id, HallOfFameRankingMode.BestTime, IsEnabled: false,
             HallOfFameQuery.DefaultRowCount, Array.Empty<HallOfFameColumn>());
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync(
+            "/api/admin/statistics/hall-of-fame",
+            new SaveHallOfFameSettingsRequest(long.MaxValue, []))).StatusCode);
         var request = new SaveHallOfFameSettingsRequest(0, [section with { StatisticsItemId = Guid.NewGuid() }]);
         var unknown = await client.PutAsJsonAsync("/api/admin/statistics/hall-of-fame", request);
         Assert.Equal(HttpStatusCode.BadRequest, unknown.StatusCode);

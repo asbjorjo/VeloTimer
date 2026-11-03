@@ -199,6 +199,8 @@ internal static class HallOfFameEndpoints
     {
         http.Response.Headers.CacheControl = "no-store";
         var errors = HallOfFameQuery.Validate(request);
+        if (request.ExpectedVersion == long.MaxValue)
+            errors["expectedVersion"] = ["The settings version cannot be incremented further."];
         if (errors.Count != 0)
             return TypedResults.ValidationProblem(errors);
 
