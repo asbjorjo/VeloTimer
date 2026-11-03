@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Data.Common;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -18,7 +19,7 @@ namespace VeloTime.Module.Statistics.Api.Test;
 
 // Representative explicit-commit Statistics writer: PUT /admin/items/{id} (UpdateItem).
 // The request is aborted (HttpContext.Abort => RequestAborted) from a test EF SaveChanges
-// interceptor; the real FusionCache HybridCache is wrapped only to record eviction calls.
+// or transaction interceptor; the real FusionCache HybridCache is wrapped only to record eviction calls.
 public sealed class StatisticsWriterCommitBoundaryTests(StatisticsApiFactory factory) : IClassFixture<StatisticsApiFactory>, IAsyncLifetime
 {
     public Task InitializeAsync() => factory.InitializeDatabaseAsync();
@@ -44,11 +45,11 @@ public sealed class StatisticsWriterCommitBoundaryTests(StatisticsApiFactory fac
     {
         await using var harness = Harness.Create(factory);
         var id = await harness.CreateItemAsync();
-        harness.Boundary.Arm(BoundaryMode.AbortAfterSave);
+        harness.Boundary.Arm(BoundaryMode.AbortAfterCommit);
 
         await harness.UpdateAndWaitAsync(id);
 
-        Assert.Equal(BoundaryMode.AbortAfterSave, harness.Boundary.Fired);
+        Assert.Equal(BoundaryMode.AbortAfterCommit, harness.Boundary.Fired);
         // The client has gone (TestServer reports 499); the handler itself completed without an
         // escaped exception after committing and evicting.
         Assert.Null(harness.Probe.Failure);
@@ -78,7 +79,7 @@ public sealed class StatisticsWriterCommitBoundaryTests(StatisticsApiFactory fac
         Assert.Empty(harness.Cache.Operations);
     }
 
-    public enum BoundaryMode { None, AbortBeforeSave, AbortAfterSave, FailSave }
+    public enum BoundaryMode { None, AbortBeforeSave, AbortAfterCommit, FailSave }
 
     public sealed class BoundaryInterceptor(IHttpContextAccessor accessor) : SaveChangesInterceptor
     {
@@ -94,11 +95,19 @@ public sealed class StatisticsWriterCommitBoundaryTests(StatisticsApiFactory fac
             return ValueTask.FromResult(result);
         }
 
-        public override ValueTask<int> SavedChangesAsync(
-            SaveChangesCompletedEventData eventData, int result, CancellationToken cancellationToken = default)
+        public void AfterCommit()
         {
-            if (armed == BoundaryMode.AbortAfterSave) Fire(() => accessor.HttpContext!.Abort());
-            return ValueTask.FromResult(result);
+            if (armed == BoundaryMode.AbortAfterCommit) Fire(() => accessor.HttpContext!.Abort());
+        }
+
+        public sealed class CommitBoundaryInterceptor(BoundaryInterceptor boundary) : DbTransactionInterceptor
+        {
+            public override Task TransactionCommittedAsync(DbTransaction transaction, TransactionEndEventData eventData,
+                CancellationToken cancellationToken = default)
+            {
+                boundary.AfterCommit();
+                return Task.CompletedTask;
+            }
         }
 
         private void Fire(Action action)
@@ -154,9 +163,11 @@ public sealed class StatisticsWriterCommitBoundaryTests(StatisticsApiFactory fac
             {
                 services.AddHttpContextAccessor();
                 services.AddSingleton<BoundaryInterceptor>();
+                services.AddSingleton<BoundaryInterceptor.CommitBoundaryInterceptor>();
                 services.AddSingleton<CompletionProbe>();
                 services.ConfigureDbContext<StatisticsDbContext>((provider, options) =>
-                    options.AddInterceptors(provider.GetRequiredService<BoundaryInterceptor>()));
+                    options.AddInterceptors(provider.GetRequiredService<BoundaryInterceptor>(),
+                        provider.GetRequiredService<BoundaryInterceptor.CommitBoundaryInterceptor>()));
                 var inner = services.Last(descriptor => descriptor.ServiceType == typeof(HybridCache));
                 foreach (var descriptor in services.Where(descriptor => descriptor.ServiceType == typeof(HybridCache)).ToList()) services.Remove(descriptor);
                 services.AddSingleton<HybridCache>(provider => new RecordingHybridCache(Resolve(provider, inner)));
