@@ -21,7 +21,26 @@ public class StatisticsDbContext : BaseDbContext
         }
 
         modelBuilder.Entity<Sample>();
-        modelBuilder.Entity<StatisticsItem>();
+        modelBuilder.Entity<StatisticsItem>(e =>
+        {
+            if (Database.IsNpgsql())
+            {
+                e.ToTable(t => t.HasCheckConstraint("ck_statistics_item_duration_bounds",
+                    "(min_duration IS NULL OR min_duration > INTERVAL '0 seconds') AND " +
+                    "(max_duration IS NULL OR max_duration > INTERVAL '0 seconds') AND " +
+                    "(min_duration IS NULL OR max_duration IS NULL OR min_duration <= max_duration)"));
+            }
+        });
+        modelBuilder.Entity<StatisticsItemConfig>(e =>
+        {
+            if (Database.IsNpgsql())
+            {
+                e.ToTable(t => t.HasCheckConstraint("ck_statistics_item_config_duration_bounds",
+                    "(min_duration IS NULL OR min_duration > INTERVAL '0 seconds') AND " +
+                    "(max_duration IS NULL OR max_duration > INTERVAL '0 seconds') AND " +
+                    "(min_duration IS NULL OR max_duration IS NULL OR min_duration <= max_duration)"));
+            }
+        });
         modelBuilder.Entity<SimpleStatisticsItemConfig>(e =>
         {
             e.HasOne(s => s.StatisticsItem)
@@ -41,6 +60,16 @@ public class StatisticsDbContext : BaseDbContext
         });
         modelBuilder.Entity<StatisticsEntry>(e =>
         {
+            e.Property(s => s.IsValid).HasDefaultValue(true);
+            e.Property(s => s.HasCompleteContributorLineage).HasDefaultValue(false);
+            if (Database.IsNpgsql())
+            {
+                e.ToTable(t => t.HasCheckConstraint("ck_statistics_entry_validity",
+                    "(is_valid AND invalid_reason IS NULL) OR " +
+                    "(NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3))"));
+            }
+            e.HasIndex(s => new { s.StatisticsItemId, s.Id })
+                .IsCreatedConcurrently();
             e.HasOne(e => e.StatisticsItem)
                 .WithMany()
                 .IsRequired()
@@ -62,6 +91,39 @@ public class StatisticsDbContext : BaseDbContext
                 .IsDescending(false, false, false, true, true)
                 .IsCreatedConcurrently()
                 .HasDatabaseName("ix_statistics_entry_facility_item_config_time_end_id");
+        });
+        modelBuilder.Entity<StatisticsEntryContributor>(e =>
+        {
+            e.HasKey(c => new { c.StatisticsEntryId, c.Position });
+            e.HasIndex(c => new { c.StatisticsEntryId, c.ContributorEntryId }).IsUnique();
+            e.HasOne(c => c.StatisticsEntry)
+                .WithMany(s => s.Contributors)
+                .HasForeignKey(c => c.StatisticsEntryId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.ContributorEntry)
+                .WithMany()
+                .HasForeignKey(c => c.ContributorEntryId)
+                .OnDelete(DeleteBehavior.Restrict);
+            if (Database.IsNpgsql())
+            {
+                e.ToTable(t => t.HasCheckConstraint("ck_statistics_entry_contributor",
+                    "position >= 0 AND statistics_entry_id <> contributor_entry_id"));
+            }
+        });
+        modelBuilder.Entity<StatisticsValidityRevalidation>(e =>
+        {
+            e.HasKey(r => r.StatisticsItemId);
+            e.HasOne(r => r.StatisticsItem)
+                .WithMany()
+                .HasForeignKey(r => r.StatisticsItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.Property(r => r.Generation).IsConcurrencyToken();
+            e.HasIndex(r => new { r.IsPending, r.StatisticsItemId });
+            if (Database.IsNpgsql())
+            {
+                e.ToTable(t => t.HasCheckConstraint("ck_statistics_validity_revalidation",
+                    "generation > 0 AND phase IN (0, 1)"));
+            }
         });
         modelBuilder.Entity<StatsProfile>(p =>
         {

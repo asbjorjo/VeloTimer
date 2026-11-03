@@ -6,4 +6,6 @@ public class StatisticsItem
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public float Distance { get; set; }
+    public TimeSpan? MinDuration { get; set; }
+    public TimeSpan? MaxDuration { get; set; }
 }

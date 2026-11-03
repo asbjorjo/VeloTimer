@@ -88,6 +88,22 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("facility_id");
 
+                    b.Property<bool>("HasCompleteContributorLineage")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("has_complete_contributor_lineage");
+
+                    b.Property<int?>("InvalidReason")
+                        .HasColumnType("integer")
+                        .HasColumnName("invalid_reason");
+
+                    b.Property<bool>("IsValid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_valid");
+
                     b.Property<double>("Speed")
                         .HasColumnType("double precision")
                         .HasColumnName("speed");
@@ -125,6 +141,10 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.HasIndex("StatsProfileUserId")
                         .HasDatabaseName("ix_statistics_entry_stats_profile_user_id");
 
+                    b.HasIndex("StatisticsItemId", "Id")
+                        .HasDatabaseName("ix_statistics_entry_statistics_item_id_id")
+                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+
                     b.HasIndex("StatisticsItemId", "TransponderId", "TimeStart", "TimeEnd")
                         .HasDatabaseName("ix_statistics_entry_statistics_item_id_transponder_id_time_sta");
 
@@ -133,7 +153,40 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasDatabaseName("ix_statistics_entry_facility_item_config_time_end_id")
                         .HasAnnotation("Npgsql:CreatedConcurrently", true);
 
-                    b.ToTable("statistics_entry", "statistics");
+                    b.ToTable("statistics_entry", "statistics", t =>
+                        {
+                            t.HasCheckConstraint("ck_statistics_entry_validity", "(is_valid AND invalid_reason IS NULL) OR (NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3))");
+                        });
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsEntryContributor", b =>
+                {
+                    b.Property<Guid>("StatisticsEntryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("statistics_entry_id");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer")
+                        .HasColumnName("position");
+
+                    b.Property<Guid>("ContributorEntryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("contributor_entry_id");
+
+                    b.HasKey("StatisticsEntryId", "Position")
+                        .HasName("pk_statistics_entry_contributor");
+
+                    b.HasIndex("ContributorEntryId")
+                        .HasDatabaseName("ix_statistics_entry_contributor_contributor_entry_id");
+
+                    b.HasIndex("StatisticsEntryId", "ContributorEntryId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_statistics_entry_contributor_statistics_entry_id_contributo");
+
+                    b.ToTable("statistics_entry_contributor", "statistics", t =>
+                        {
+                            t.HasCheckConstraint("ck_statistics_entry_contributor", "position >= 0 AND statistics_entry_id <> contributor_entry_id");
+                        });
                 });
 
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsItem", b =>
@@ -152,6 +205,14 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("real")
                         .HasColumnName("distance");
 
+                    b.Property<TimeSpan?>("MaxDuration")
+                        .HasColumnType("interval")
+                        .HasColumnName("max_duration");
+
+                    b.Property<TimeSpan?>("MinDuration")
+                        .HasColumnType("interval")
+                        .HasColumnName("min_duration");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
@@ -160,7 +221,10 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.HasKey("Id")
                         .HasName("pk_statistics_item");
 
-                    b.ToTable("statistics_item", "statistics");
+                    b.ToTable("statistics_item", "statistics", t =>
+                        {
+                            t.HasCheckConstraint("ck_statistics_item_duration_bounds", "(min_duration IS NULL OR min_duration > INTERVAL '0 seconds') AND (max_duration IS NULL OR max_duration > INTERVAL '0 seconds') AND (min_duration IS NULL OR max_duration IS NULL OR min_duration <= max_duration)");
+                        });
                 });
 
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsItemConfig", b =>
@@ -176,6 +240,14 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("character varying(34)")
                         .HasColumnName("discriminator");
 
+                    b.Property<TimeSpan?>("MaxDuration")
+                        .HasColumnType("interval")
+                        .HasColumnName("max_duration");
+
+                    b.Property<TimeSpan?>("MinDuration")
+                        .HasColumnType("interval")
+                        .HasColumnName("min_duration");
+
                     b.Property<Guid>("StatisticsItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("statistics_item_id");
@@ -183,11 +255,52 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.HasKey("Id")
                         .HasName("pk_statistics_item_config");
 
-                    b.ToTable("statistics_item_config", "statistics");
+                    b.HasIndex("StatisticsItemId")
+                        .HasDatabaseName("ix_statistics_item_config_statistics_item_id");
+
+                    b.ToTable("statistics_item_config", "statistics", t =>
+                        {
+                            t.HasCheckConstraint("ck_statistics_item_config_duration_bounds", "(min_duration IS NULL OR min_duration > INTERVAL '0 seconds') AND (max_duration IS NULL OR max_duration > INTERVAL '0 seconds') AND (min_duration IS NULL OR max_duration IS NULL OR min_duration <= max_duration)");
+                        });
 
                     b.HasDiscriminator<string>("Discriminator").HasValue("StatisticsItemConfig");
 
                     b.UseTphMappingStrategy();
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsValidityRevalidation", b =>
+                {
+                    b.Property<Guid>("StatisticsItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("statistics_item_id");
+
+                    b.Property<long>("Generation")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("generation");
+
+                    b.Property<bool>("IsPending")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_pending");
+
+                    b.Property<Guid?>("LastEntryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("last_entry_id");
+
+                    b.Property<int>("Phase")
+                        .HasColumnType("integer")
+                        .HasColumnName("phase");
+
+                    b.HasKey("StatisticsItemId")
+                        .HasName("pk_statistics_validity_revalidation");
+
+                    b.HasIndex("IsPending", "StatisticsItemId")
+                        .HasDatabaseName("ix_statistics_validity_revalidation_is_pending_statistics_item");
+
+                    b.ToTable("statistics_validity_revalidation", "statistics", t =>
+                        {
+                            t.HasCheckConstraint("ck_statistics_validity_revalidation", "generation > 0 AND phase IN (0, 1)");
+                        });
                 });
 
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatsProfile", b =>
@@ -238,7 +351,10 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.HasIndex("StatisticsItemId", "ParentConfigId")
                         .HasDatabaseName("ix_statistics_item_config_statistics_item_id_parent_config_id");
 
-                    b.ToTable("statistics_item_config", "statistics");
+                    b.ToTable("statistics_item_config", "statistics", t =>
+                        {
+                            t.HasCheckConstraint("ck_statistics_item_config_duration_bounds", "(min_duration IS NULL OR min_duration > INTERVAL '0 seconds') AND (max_duration IS NULL OR max_duration > INTERVAL '0 seconds') AND (min_duration IS NULL OR max_duration IS NULL OR min_duration <= max_duration)");
+                        });
 
                     b.HasDiscriminator().HasValue("MultiStatisticsItemConfig");
                 });
@@ -258,7 +374,10 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.HasIndex("StatisticsItemId", "CoursePointStart", "CoursePointEnd")
                         .HasDatabaseName("ix_statistics_item_config_statistics_item_id_course_point_star");
 
-                    b.ToTable("statistics_item_config", "statistics");
+                    b.ToTable("statistics_item_config", "statistics", t =>
+                        {
+                            t.HasCheckConstraint("ck_statistics_item_config_duration_bounds", "(min_duration IS NULL OR min_duration > INTERVAL '0 seconds') AND (max_duration IS NULL OR max_duration > INTERVAL '0 seconds') AND (min_duration IS NULL OR max_duration IS NULL OR min_duration <= max_duration)");
+                        });
 
                     b.HasDiscriminator().HasValue("SimpleStatisticsItemConfig");
                 });
@@ -292,6 +411,51 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.Navigation("StatsProfile");
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsEntryContributor", b =>
+                {
+                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsEntry", "ContributorEntry")
+                        .WithMany()
+                        .HasForeignKey("ContributorEntryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_statistics_entry_contributor_statistics_entry_contributor_e");
+
+                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsEntry", "StatisticsEntry")
+                        .WithMany("Contributors")
+                        .HasForeignKey("StatisticsEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_statistics_entry_contributor_statistics_entry_statistics_en");
+
+                    b.Navigation("ContributorEntry");
+
+                    b.Navigation("StatisticsEntry");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsItemConfig", b =>
+                {
+                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItem", "StatisticsItem")
+                        .WithMany()
+                        .HasForeignKey("StatisticsItemId")
+                        .OnDelete(DeleteBehavior.ClientNoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_statistics_item_config_statistics_item_statistics_item_id");
+
+                    b.Navigation("StatisticsItem");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsValidityRevalidation", b =>
+                {
+                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItem", "StatisticsItem")
+                        .WithMany()
+                        .HasForeignKey("StatisticsItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_statistics_validity_revalidation_statistics_item_statistics");
+
+                    b.Navigation("StatisticsItem");
+                });
+
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.MultiStatisticsItemConfig", b =>
                 {
                     b.HasOne("VeloTime.Module.Statistics.Model.SimpleStatisticsItemConfig", "ParentConfig")
@@ -301,28 +465,12 @@ namespace VeloTime.Module.Statistics.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_statistics_item_config_statistics_item_config_parent_config");
 
-                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItem", "StatisticsItem")
-                        .WithMany()
-                        .HasForeignKey("StatisticsItemId")
-                        .OnDelete(DeleteBehavior.ClientNoAction)
-                        .IsRequired()
-                        .HasConstraintName("fk_statistics_item_config_statistics_item_statistics_item_id");
-
                     b.Navigation("ParentConfig");
-
-                    b.Navigation("StatisticsItem");
                 });
 
-            modelBuilder.Entity("VeloTime.Module.Statistics.Model.SimpleStatisticsItemConfig", b =>
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsEntry", b =>
                 {
-                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItem", "StatisticsItem")
-                        .WithMany()
-                        .HasForeignKey("StatisticsItemId")
-                        .OnDelete(DeleteBehavior.ClientNoAction)
-                        .IsRequired()
-                        .HasConstraintName("fk_statistics_item_config_statistics_item_statistics_item_id");
-
-                    b.Navigation("StatisticsItem");
+                    b.Navigation("Contributors");
                 });
 #pragma warning restore 612, 618
         }
