@@ -23,6 +23,27 @@ public sealed class HallOfFameSettingsStore(StatisticsDbContext storage)
     }
 
     /// <summary>
+    /// Locks the singleton settings row until the current transaction completes. The item
+    /// deletion and settings replacement endpoints share this lock to avoid dangling JSON
+    /// references during concurrent administrator writes.
+    /// </summary>
+    public async Task<HallOfFameSettingsDTO> GetForUpdateAsync(CancellationToken cancellationToken = default)
+    {
+        IQueryable<HallOfFameSettings> query;
+        if (storage.Database.IsNpgsql())
+        {
+            query = storage.HallOfFameSettingsDocuments
+                .FromSqlRaw("SELECT * FROM statistics.hall_of_fame_settings WHERE id = 1 FOR UPDATE")
+                .AsNoTracking();
+        }
+        else
+            query = storage.HallOfFameSettingsDocuments.AsNoTracking();
+
+        var settings = await query.SingleAsync(cancellationToken);
+        return new HallOfFameSettingsDTO(settings.Version, DeserializeSections(settings.SectionsJson));
+    }
+
+    /// <summary>
     /// Replaces all settings in one conditional UPDATE. A null result means that the expected
     /// version was stale; only one concurrent writer can update a given version.
     /// </summary>

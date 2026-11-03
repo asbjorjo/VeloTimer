@@ -11,6 +11,13 @@ section identifies its statistics item and ranking mode and includes the
 configured row limit, optional columns in display order, and at most that many
 entries. Empty settings produce an empty section list; a configured section with
 no eligible profiles has an empty `Entries` list.
+The response is always `Cache-Control: no-store`; public visibility is checked
+against the current profile row on each request. When at least one returned
+section requests `FacilityOfBestResult`, the API resolves the required facility
+names through one Facilities service-client request; it makes no facility
+request otherwise. A stale enabled item reference or malformed persisted
+settings returns an explicit HTTP 500 problem rather than silently dropping a
+section. A failed facility lookup returns an explicit 502 or 503 problem.
 
 Entries always contain `Rank` and `ProfileName`. The other values are nullable
 and are returned only when their matching optional column is enabled:
@@ -69,7 +76,11 @@ once. A stale version is rejected with HTTP 409 Conflict and must not overwrite
 newer settings. Structural validation failures return HTTP 400
 ValidationProblem details keyed by request JSON properties. Unknown item
 references are also rejected by the API. Unauthorized writes are rejected by
-the API's existing statistics-administrator authorization policy.
+the API's existing statistics-administrator authorization policy. Settings
+reads and writes are `Cache-Control: no-store`. Item deletion returns HTTP 409
+while any settings section references the item, including disabled sections;
+deletion and settings replacement serialize on the singleton settings row so
+concurrent writes cannot create a dangling reference.
 
 The shared `HallOfFameQuery.Validate` contract checks nonnegative expected
 version, required section and column collections (empty lists are valid),

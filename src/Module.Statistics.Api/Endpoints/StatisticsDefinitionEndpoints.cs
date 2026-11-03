@@ -73,15 +73,23 @@ internal static class StatisticsDefinitionEndpoints
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteItem(
-        Guid id, StatisticsDbContext storage, CancellationToken cancellationToken)
+        Guid id, StatisticsDbContext storage, HallOfFameSettingsStore settingsStore, CancellationToken cancellationToken)
     {
         var item = await storage.Set<StatisticsItem>().FindAsync([id], cancellationToken);
         if (item is null) return TypedResults.NotFound();
+        await using var transaction = await storage.Database.BeginTransactionAsync(cancellationToken);
+        var settings = await settingsStore.GetForUpdateAsync(cancellationToken);
+        if (settings.Sections.Any(section => section.StatisticsItemId == id))
+        {
+            return Conflict("This item is referenced by Hall of Fame settings. Remove every section for this item, including disabled sections, before deleting it.");
+        }
+
         var configs = await storage.Set<StatisticsItemConfig>().CountAsync(config => config.StatisticsItemId == id, cancellationToken);
         var results = await storage.Set<StatisticsEntry>().CountAsync(entry => entry.StatisticsItemId == id, cancellationToken);
         if (configs > 0 || results > 0) return Conflict($"This item is referenced by {configs} configuration(s) and {results} result(s).");
         storage.Remove(item);
         await storage.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return TypedResults.NoContent();
     }
 
