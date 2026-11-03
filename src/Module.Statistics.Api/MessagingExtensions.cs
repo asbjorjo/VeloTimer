@@ -23,6 +23,7 @@ public static class MessagingExtensions
             throw new InvalidOperationException("ConnectionStrings:MessageBus is required for Statistics validity-threshold events.");
 
         builder.Services.ConfigureOpenTelemetryTracerProvider(tracer => tracer.AddSource("Azure.Messaging.*"));
+        builder.Services.AddScoped<IStatisticsThresholdEnqueue, StatisticsThresholdEnqueue>();
         builder.Services.AddSlimMessageBus(mbb =>
         {
             mbb.AutoStartConsumersEnabled(false);
