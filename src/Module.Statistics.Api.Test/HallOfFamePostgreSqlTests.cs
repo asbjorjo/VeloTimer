@@ -110,6 +110,19 @@ public sealed class HallOfFamePostgreSqlTests(ITestOutputHelper output)
         var plan = await ExplainAsync(host, query);
         output.WriteLine("Hall of Fame PostgreSQL ranking query plan:\n{0}", plan);
         Assert.Contains("Execution Time", plan, StringComparison.OrdinalIgnoreCase);
+
+        await host.MutateAsync(async storage =>
+        {
+            var rider = await storage.Set<StatsProfile>().SingleAsync(profile => profile.UserId == riderC.UserId);
+            rider.IsPublic = false;
+        });
+        using var refreshed = await client.GetAsync("/api/statistics/hall-of-fame");
+        Assert.Equal(HttpStatusCode.OK, refreshed.StatusCode);
+        var afterVisibilityChange = (await refreshed.Content.ReadFromJsonAsync<HallOfFameDTO>())!;
+        Assert.All(afterVisibilityChange.Sections, section => Assert.Equal(2, section.Entries.Count));
+        Assert.All(afterVisibilityChange.Sections.SelectMany(section => section.Entries),
+            entry => Assert.Equal("Rider", entry.ProfileName));
+        Assert.Equal(2, host.Facilities.Calls);
     }
 
     private static StatsProfile Profile(string name, string id, bool isPublic = true) =>
