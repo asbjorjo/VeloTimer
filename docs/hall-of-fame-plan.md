@@ -1,6 +1,6 @@
 # Hall of Fame implementation plan
 
-Status: Implementation authorized by the user. Contracts, persistence, API and transports are committed; public/admin UI is implemented and targeted Release builds pass. Tester verification and read-only review remain pending.
+Status: Implemented and committed. Targeted domain/API/platform tests, live Chromium interactions, migration execution and affected Release builds passed. Read-only focused review found no actionable bugs. The full platform suite retains four failures reproduced before this feature; see final verification evidence below.
 
 ## Problem and approach
 
@@ -37,23 +37,23 @@ Add a dedicated Hall of Fame page showing overall top rankings for selected stat
 
 Dependencies: decisions -> worktree -> contracts -> persistence -> API/transports -> UI -> tests -> review/final acceptance. Prefer sequential specialist handoffs for this tightly coupled feature. Parallel editing would require distinct worktrees and explicit integration.
 
-### Progress and next owner (2026-11-03)
+### Completion and verification
 
-- Steps 3–5 complete in prerequisite commits, confirmed by the incoming handoff:
-  API 159 passed / 3 skipped, domain 10 passed, PostgreSQL 17 queries validated.
-  These backend results were reported, not rerun by the UI owner.
-- Step 6 implemented: anonymous `/hall-of-fame`, statistics-policy
-  `/admin/statistics/hall-of-fame`, ordered results and editor, accessible reorder
-  buttons, full-document/versioned save, conflict reload/reapply/retry,
-  unsaved-change protection, presentation helpers, and English/Norwegian resources.
-  No contract, API/storage, transport or test-fake changes.
-- UI and BFF targeted Release builds pass. Resource checks and 41 temporary
-  helper/static-render/editor-lifecycle smoke assertions pass. Browser visual
-  and live interaction verification is unavailable, not claimed.
-- Step 7 remains with **Tester**: add persistent rendering/interaction coverage,
-  address the previously reported platform fake-service missing-method compile
-  blocker, and verify browser/server behavior. Step 8 remains with **Code Reviewer**.
-- [User guide and exact UI checks / Tester scenarios](hall-of-fame.md).
+- Steps 3-8 completed in focused atomic commits. Shared contracts, persistence,
+  API/transports, public/admin UI, permanent regression coverage and documentation
+  are implemented. The initially reported transport regressions were fixed and retested.
+- Statistics domain: 22 passed. Statistics API using PostgreSQL 17: 185 passed.
+  Targeted platform including live Chromium: 49 passed. Registration-date JS: 4 passed.
+- Final full platform: 506 passed, 4 failed, 12 skipped. The same four date-rendering
+  assertions failed at pre-feature baseline `e05b52c0`; no feature-related failures remain.
+- Affected Release builds passed; full solution build and deployed OIDC/BFF/database
+  end-to-end browser validation were not performed. Live browser tests use the test harness.
+- Focused read-only correctness review found no actionable issues. The reviewer
+  inspected relevant implementation files but could not inspect the exact Git diff;
+  the coordinator checked final change scope, clean status and diff whitespace.
+- Apply the Statistics migration before deploying the new endpoints.
+- [User guide](hall-of-fame.md) and
+  [detailed verification evidence](../src/VeloTime.Platform.Test/HallOfFameVerification.md).
 
 ## Acceptance criteria
 
