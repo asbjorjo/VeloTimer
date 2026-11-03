@@ -1,8 +1,10 @@
 using System.Text.Json;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using IMasterMessageBus = SlimMessageBus.Host.IMasterMessageBus;
 using SlimMessageBus.Host.Outbox.PostgreSql.Configuration;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
 using VeloTime.Module.Statistics.Api;
@@ -53,6 +55,64 @@ public sealed class StatisticsValidityThresholdsMessagingTests
             var message = new StatisticsValidityThresholdsChangedV1(Guid.NewGuid(), Guid.NewGuid(), configId);
             var json = JsonSerializer.Serialize(message, serializer.Options);
             Assert.Equal(message, JsonSerializer.Deserialize<StatisticsValidityThresholdsChangedV1>(json, serializer.Options));
+        }
+    }
+
+    [Fact]
+    public async Task ExplicitStartupPropagatesOutboxInitializationFailure()
+    {
+        var bus = DispatchProxy.Create<IMasterMessageBus, LifecycleBus>();
+        var recorder = (LifecycleBus)bus;
+        var failure = new InvalidOperationException("injected outbox initialization failure");
+        recorder.StartFailure = failure;
+        var startup = CreateStartup(bus);
+
+        Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            startup.StartAsync(CancellationToken.None)));
+        Assert.Equal(["Start"], recorder.Calls);
+    }
+
+    [Fact]
+    public async Task ExplicitStartupAndShutdownAwaitBusLifecycle()
+    {
+        var bus = DispatchProxy.Create<IMasterMessageBus, LifecycleBus>();
+        var recorder = (LifecycleBus)bus;
+        recorder.StartCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startup = CreateStartup(bus);
+        var starting = startup.StartAsync(CancellationToken.None);
+        Assert.False(starting.IsCompleted);
+        recorder.StartCompletion.SetResult();
+        await starting;
+        await startup.StopAsync(CancellationToken.None);
+        Assert.Equal(["Start", "Stop"], recorder.Calls);
+    }
+
+    private static IHostedService CreateStartup(IMasterMessageBus bus)
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration["ConnectionStrings:MessageBus"] = "Endpoint=sb://localhost/";
+        builder.AddStatisticsValidityThresholdsMessaging();
+        var registration = Assert.Single(builder.Services, service => service.ServiceType == typeof(IHostedService)
+            && service.ImplementationType?.Name == "StatisticsValidityThresholdsOutboxStartup");
+        return (IHostedService)Activator.CreateInstance(registration.ImplementationType!, bus)!;
+    }
+
+    public class LifecycleBus : DispatchProxy
+    {
+        public List<string> Calls { get; } = [];
+        public Exception? StartFailure { get; set; }
+        public TaskCompletionSource? StartCompletion { get; set; }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            Calls.Add(targetMethod!.Name);
+            return targetMethod.Name switch
+            {
+                "Start" when StartFailure is { } failure => Task.FromException(failure),
+                "Start" => StartCompletion?.Task ?? Task.CompletedTask,
+                "Stop" => Task.CompletedTask,
+                _ => throw new NotSupportedException(targetMethod.Name)
+            };
         }
     }
 }
