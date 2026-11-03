@@ -1,5 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="HallOfFameAdministration" xml:space="preserve"><value>Hall of Fame administration</value></data>
+  <data name="HallOfFameEditorHelp" xml:space="preserve"><value>Configure sections in public display order. Each item may have one section per ranking mode. New sections start with 10 rows and no optional columns. Disabled sections remain saved but are hidden publicly. Save replaces the entire document atomically.</value></data>
+  <data name="HallOfFameReloadSettings" xml:space="preserve"><value>Reload settings / retry</value></data>
+  <data name="HallOfFameAddSection" xml:space="preserve"><value>Add section</value></data>
+  <data name="HallOfFameRemoveSection" xml:space="preserve"><value>Remove section</value></data>
+  <data name="HallOfFameSectionLabel" xml:space="preserve"><value>Section {0}: {1}</value></data>
+  <data name="HallOfFameMoveUp" xml:space="preserve"><value>Move up</value></data>
+  <data name="HallOfFameMoveDown" xml:space="preserve"><value>Move down</value></data>
+  <data name="HallOfFameMoveUpLabel" xml:space="preserve"><value>Move {0} up</value></data>
+  <data name="HallOfFameMoveDownLabel" xml:space="preserve"><value>Move {0} down</value></data>
+  <data name="HallOfFameRemoveLabel" xml:space="preserve"><value>Remove {0}</value></data>
+  <data name="HallOfFameEnabled" xml:space="preserve"><value>Enabled publicly</value></data>
+  <data name="HallOfFameRankingMode" xml:space="preserve"><value>Ranking mode</value></data>
+  <data name="HallOfFameRowCount" xml:space="preserve"><value>Row limit (1–100)</value></data>
+  <data name="HallOfFameOptionalColumns" xml:space="preserve"><value>Optional columns in display order</value></data>
+  <data name="HallOfFameFixedColumns" xml:space="preserve"><value>Rank and name always come first. Selected columns are appended; use Move up / Move down to reorder them.</value></data>
+  <data name="HallOfFameNoItems" xml:space="preserve"><value>Create a statistics item before adding sections.</value></data>
+  <data name="HallOfFameEmptySettings" xml:space="preserve"><value>No sections configured. Saving this empty document clears the public Hall of Fame.</value></data>
+  <data name="HallOfFameMissingItem" xml:space="preserve"><value>Unavailable statistics item — select another item or remove this section</value></data>
+  <data name="HallOfFameSettingsLoadFailed" xml:space="preserve"><value>Settings or statistics items could not be loaded. Reload to retry; unsaved changes are retained until a successful reload.</value></data>
+  <data name="HallOfFameSaveFailed" xml:space="preserve"><value>Settings could not be saved. Your changes are retained. Retry Save; if another save succeeded, reload the latest settings before editing again.</value></data>
+  <data name="HallOfFameValidationFailed" xml:space="preserve"><value>Check required fields, row limits (1–100), item availability, and unique item/mode pairs. Settings were not saved.</value></data>
+  <data name="HallOfFameConflict" xml:space="preserve"><value>These settings have changed since you loaded them. Your draft has not overwritten them. Reload the latest settings (discarding this draft), reapply your changes, then retry Save.</value></data>
+  <data name="HallOfFameSaving" xml:space="preserve"><value>Saving all sections…</value></data>
+  <data name="HallOfFameSaved" xml:space="preserve"><value>All Hall of Fame settings saved.</value></data>
+  <data name="HallOfFameUnsaved" xml:space="preserve"><value>Unsaved changes</value></data>
+  <data name="HallOfFameUpToDate" xml:space="preserve"><value>No unsaved changes</value></data>
+  <data name="HallOfFameDiscard" xml:space="preserve"><value>Discard changes</value></data>
   <data name="HallOfFame" xml:space="preserve"><value>Hall of Fame</value></data>
   <data name="HallOfFameDescription" xml:space="preserve"><value>All-time rankings of public rider profiles across all configurations and facilities for each item. Passing counts include completed statistics results only. Equal values share a rank; ties do not expand the row limit. Best-result columns describe the same fastest result.</value></data>
   <data name="HallOfFameNoSections" xml:space="preserve"><value>No Hall of Fame sections have been enabled.</value></data>

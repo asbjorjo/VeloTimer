@@ -1,5 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="HallOfFameAdministration" xml:space="preserve"><value>Administrasjon av ærestavlen</value></data>
+  <data name="HallOfFameEditorHelp" xml:space="preserve"><value>Konfigurer seksjonene i offentlig visningsrekkefølge. Hver øvelse kan ha én seksjon per rangeringsmåte. Nye seksjoner starter med 10 rader og ingen valgfrie kolonner. Deaktiverte seksjoner lagres, men skjules offentlig. Lagring erstatter hele dokumentet atomisk.</value></data>
+  <data name="HallOfFameReloadSettings" xml:space="preserve"><value>Last inn innstillinger på nytt / prøv igjen</value></data>
+  <data name="HallOfFameAddSection" xml:space="preserve"><value>Legg til seksjon</value></data>
+  <data name="HallOfFameRemoveSection" xml:space="preserve"><value>Fjern seksjon</value></data>
+  <data name="HallOfFameSectionLabel" xml:space="preserve"><value>Seksjon {0}: {1}</value></data>
+  <data name="HallOfFameMoveUp" xml:space="preserve"><value>Flytt opp</value></data>
+  <data name="HallOfFameMoveDown" xml:space="preserve"><value>Flytt ned</value></data>
+  <data name="HallOfFameMoveUpLabel" xml:space="preserve"><value>Flytt {0} opp</value></data>
+  <data name="HallOfFameMoveDownLabel" xml:space="preserve"><value>Flytt {0} ned</value></data>
+  <data name="HallOfFameRemoveLabel" xml:space="preserve"><value>Fjern {0}</value></data>
+  <data name="HallOfFameEnabled" xml:space="preserve"><value>Aktivert offentlig</value></data>
+  <data name="HallOfFameRankingMode" xml:space="preserve"><value>Rangeringsmåte</value></data>
+  <data name="HallOfFameRowCount" xml:space="preserve"><value>Radgrense (1–100)</value></data>
+  <data name="HallOfFameOptionalColumns" xml:space="preserve"><value>Valgfrie kolonner i visningsrekkefølge</value></data>
+  <data name="HallOfFameFixedColumns" xml:space="preserve"><value>Plassering og navn kommer alltid først. Valgte kolonner legges til sist; bruk Flytt opp / Flytt ned for å endre rekkefølgen.</value></data>
+  <data name="HallOfFameNoItems" xml:space="preserve"><value>Opprett en statistikkøvelse før du legger til seksjoner.</value></data>
+  <data name="HallOfFameEmptySettings" xml:space="preserve"><value>Ingen seksjoner konfigurert. Lagring av dette tomme dokumentet tømmer den offentlige ærestavlen.</value></data>
+  <data name="HallOfFameMissingItem" xml:space="preserve"><value>Utilgjengelig statistikkøvelse — velg en annen øvelse eller fjern seksjonen</value></data>
+  <data name="HallOfFameSettingsLoadFailed" xml:space="preserve"><value>Innstillinger eller statistikkøvelser kunne ikke lastes. Last inn på nytt for å prøve igjen; ulagrede endringer beholdes til en vellykket innlasting.</value></data>
+  <data name="HallOfFameSaveFailed" xml:space="preserve"><value>Innstillingene kunne ikke lagres. Endringene beholdes. Prøv å lagre igjen; hvis en annen lagring lyktes, last inn de nyeste innstillingene før du redigerer videre.</value></data>
+  <data name="HallOfFameValidationFailed" xml:space="preserve"><value>Kontroller obligatoriske felt, radgrenser (1–100), tilgjengelige øvelser og unike kombinasjoner av øvelse og rangeringsmåte. Innstillingene ble ikke lagret.</value></data>
+  <data name="HallOfFameConflict" xml:space="preserve"><value>Innstillingene er endret siden du lastet dem inn. Utkastet har ikke overskrevet dem. Last inn de nyeste innstillingene (forkast utkastet), legg inn endringene på nytt og prøv å lagre igjen.</value></data>
+  <data name="HallOfFameSaving" xml:space="preserve"><value>Lagrer alle seksjoner…</value></data>
+  <data name="HallOfFameSaved" xml:space="preserve"><value>Alle innstillinger for ærestavlen er lagret.</value></data>
+  <data name="HallOfFameUnsaved" xml:space="preserve"><value>Ulagrede endringer</value></data>
+  <data name="HallOfFameUpToDate" xml:space="preserve"><value>Ingen ulagrede endringer</value></data>
+  <data name="HallOfFameDiscard" xml:space="preserve"><value>Forkast endringer</value></data>
   <data name="HallOfFame" xml:space="preserve"><value>Ærestavle</value></data>
   <data name="HallOfFameDescription" xml:space="preserve"><value>Rangering av offentlige rytterprofiler for alle tider, på tvers av konfigurasjoner og anlegg for hver øvelse. Antallet omfatter bare fullførte statistikkresultater. Like verdier deler plassering; delte plasseringer øker ikke radgrensen. Kolonnene for beste resultat beskriver samme raskeste resultat.</value></data>
   <data name="HallOfFameNoSections" xml:space="preserve"><value>Ingen seksjoner på ærestavlen er aktivert.</value></data>
