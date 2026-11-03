@@ -165,6 +165,7 @@ internal sealed class PublicStatisticsTestHost : IAsyncDisposable
     {
         private int calls;
         public int Calls => Volatile.Read(ref calls);
+        public System.Net.HttpStatusCode StatusCode { get; set; } = System.Net.HttpStatusCode.OK;
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
@@ -176,7 +177,7 @@ internal sealed class PublicStatisticsTestHost : IAsyncDisposable
                   { "id": "10000000-0000-0000-0000-000000000002", "name": "Road Course", "layouts": [] }
                 ]
                 """;
-            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            return Task.FromResult(new HttpResponseMessage(StatusCode)
             {
                 Content = new StringContent(response, Encoding.UTF8, "application/json")
             });

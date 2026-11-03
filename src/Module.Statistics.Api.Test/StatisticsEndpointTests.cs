@@ -96,6 +96,27 @@ public sealed class StatisticsEndpointTests(StatisticsApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/statistics/admin/items/{item.Id}")).StatusCode);
     }
 
+    [Theory]
+    [InlineData(null, HttpStatusCode.Unauthorized)]
+    [InlineData("user", HttpStatusCode.Forbidden)]
+    [InlineData("timing-admin", HttpStatusCode.Forbidden)]
+    [InlineData("facilities-admin", HttpStatusCode.Forbidden)]
+    [InlineData("statistics-admin", HttpStatusCode.OK)]
+    [InlineData("velotime-admin", HttpStatusCode.OK)]
+    public async Task HallOfFameSettings_GetAndPutEnforceStatisticsPolicy(string? role, HttpStatusCode expected)
+    {
+        using var client = factory.CreateClient();
+        if (role is null) client.DefaultRequestHeaders.Add("X-Test-Anonymous", "true");
+        else client.DefaultRequestHeaders.Add("X-Test-Role", role);
+        Assert.Equal(expected, (await client.GetAsync("/api/admin/statistics/hall-of-fame")).StatusCode);
+        Assert.Equal(expected, (await client.PutAsJsonAsync("/api/admin/statistics/hall-of-fame",
+            new SaveHallOfFameSettingsRequest(0, []))).StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var storage = scope.ServiceProvider.GetRequiredService<StatisticsDbContext>();
+        Assert.Equal(expected == HttpStatusCode.OK ? 1 : 0,
+            (await storage.HallOfFameSettingsDocuments.SingleAsync()).Version);
+    }
+
     [Fact]
     public async Task HallOfFame_InvalidPersistedJsonIsExplicitAndBlocksItemDeletion()
     {
