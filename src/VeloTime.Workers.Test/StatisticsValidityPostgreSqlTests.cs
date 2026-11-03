@@ -43,6 +43,163 @@ public sealed class StatisticsValidityPostgreSqlTests : IAsyncLifetime
     }
 
     [PostgreSqlStatisticsFact]
+    public async Task CreationPrecisionSimpleBoundariesMatchReloadAndRemainStableAfterRevalidation()
+    {
+        var config = Simple();
+        config.StatisticsItem.MaxDuration = TimeSpan.FromSeconds(10);
+        await using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
+        var created = new List<StatisticsEntry>();
+        await using (var db = Db())
+        {
+            db.Add(config);
+            await db.SaveChangesAsync();
+            foreach (var ticks in new long[] { 100_000_001, 100_000_009, 100_000_010, 1, 9, -1, -9 })
+            {
+                var rider = Guid.NewGuid();
+                db.Add(new Sample
+                {
+                    Id = Guid.NewGuid(), TransponderId = rider, FacilityId = Guid.NewGuid(),
+                    CoursePointStartId = config.CoursePointStart, CoursePointEndId = Guid.NewGuid(),
+                    TimeStart = Start, TimeEnd = Start.AddSeconds(1), Duration = TimeSpan.FromSeconds(1),
+                    Distance = 250, Speed = 250
+                });
+                await db.SaveChangesAsync();
+                await using var tx = await db.Database.BeginTransactionAsync();
+                var entry = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
+                    .ProcessCompletedAsync(rider, Start.AddSeconds(2), Start.AddTicks(ticks),
+                        config.CoursePointStart, config.CoursePointEnd));
+                // Modern timestamps truncate their positive offset from the 2000 epoch.
+                // An end just before Start therefore persists one microsecond before it;
+                // this differs from truncating the negative elapsed interval toward zero.
+                var expectedTicks = ticks < 0 ? -10 : ticks / 10 * 10;
+                var expectedReason = expectedTicks <= 0 ? StatisticsEntryInvalidReason.NonPositiveDuration
+                    : expectedTicks > 100_000_000 ? StatisticsEntryInvalidReason.AboveMaximumDuration
+                    : (StatisticsEntryInvalidReason?)null;
+                Assert.Equal(Start, entry.TimeStart);
+                Assert.Equal(Start.AddTicks(expectedTicks), entry.TimeEnd);
+                Assert.Equal(TimeSpan.FromTicks(expectedTicks), entry.Duration);
+                Assert.Equal(250 / entry.Duration.TotalSeconds, entry.Speed);
+                Assert.Equal(expectedReason, entry.InvalidReason);
+                Assert.Equal(expectedReason is null, entry.IsValid);
+                await tx.CommitAsync();
+                created.Add(entry);
+            }
+        }
+        await AssertReloadMatches(created);
+        await Change(config.StatisticsItemId, null);
+        Assert.All(await Drain(config.StatisticsItemId, 2), batch => Assert.Equal(0, batch.Reclassified));
+        await AssertReloadMatches(created);
+    }
+
+    [PostgreSqlStatisticsFact]
+    public async Task CreationPrecisionMultiAtExactMaximumRetainsFixedLineageAndStableMeasurements()
+    {
+        var parent = Simple();
+        parent.StatisticsItem.MaxDuration = TimeSpan.FromSeconds(10);
+        var item = new StatisticsItem { Id = Guid.NewGuid(), Name = "Double", Distance = 500,
+            MaxDuration = TimeSpan.FromSeconds(20) };
+        var multi = new MultiStatisticsItemConfig
+        {
+            Id = Guid.NewGuid(), StatisticsItem = item, StatisticsItemId = item.Id,
+            ParentConfig = parent, ParentConfigId = parent.Id, Repetitions = 2
+        };
+        var rider = Guid.NewGuid();
+        var created = new List<StatisticsEntry>();
+        await using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
+        await using (var db = Db())
+        {
+            db.AddRange(parent, multi);
+            await db.SaveChangesAsync();
+            for (var lap = 0; lap < 2; lap++)
+            {
+                var start = Start.AddSeconds(lap * 10);
+                db.Add(new Sample
+                {
+                    Id = Guid.NewGuid(), TransponderId = rider, FacilityId = Guid.NewGuid(),
+                    CoursePointStartId = parent.CoursePointStart, CoursePointEndId = Guid.NewGuid(),
+                    TimeStart = start, TimeEnd = start.AddSeconds(1), Duration = TimeSpan.FromSeconds(1),
+                    Distance = 250, Speed = 250
+                });
+                await db.SaveChangesAsync();
+                await using var tx = await db.Database.BeginTransactionAsync();
+                var entry = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
+                    .ProcessCompletedAsync(rider, start.AddSeconds(2), start.AddSeconds(10).AddTicks(9),
+                        parent.CoursePointStart, parent.CoursePointEnd));
+                Assert.True(entry.IsValid);
+                Assert.Equal(TimeSpan.FromSeconds(10), entry.Duration);
+                created.Add(entry);
+                await tx.CommitAsync();
+            }
+            await using var aggregateTx = await db.Database.BeginTransactionAsync();
+            var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
+                .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, Start, Start.AddSeconds(20).AddTicks(9)));
+            Assert.True(aggregate.IsValid);
+            Assert.Null(aggregate.InvalidReason);
+            Assert.Equal(Start, aggregate.TimeStart);
+            Assert.Equal(Start.AddSeconds(20), aggregate.TimeEnd);
+            Assert.Equal(TimeSpan.FromSeconds(20), aggregate.Duration);
+            Assert.Equal(25, aggregate.Speed);
+            Assert.True(aggregate.HasCompleteContributorLineage);
+            Assert.Equal(created.AsEnumerable().Reverse().Select(e => e.Id),
+                aggregate.Contributors.OrderBy(c => c.Position).Select(c => c.ContributorEntryId));
+            created.Add(aggregate);
+            await aggregateTx.CommitAsync();
+        }
+        await AssertReloadMatches(created);
+        await Change(parent.StatisticsItemId, null);
+        await Change(item.Id, null);
+        Assert.All(await Drain(parent.StatisticsItemId, 2), batch => Assert.Equal(0, batch.Reclassified));
+        Assert.All(await Drain(item.Id, 2), batch => Assert.Equal(0, batch.Reclassified));
+        await AssertReloadMatches(created);
+        await using var verify = Db();
+        var links = await verify.Set<StatisticsEntryContributor>().OrderBy(c => c.Position).ToListAsync();
+        Assert.Equal(created.Take(2).Reverse().Select(e => e.Id), links.Select(c => c.ContributorEntryId));
+        Assert.Equal(new[] { 0, 1 }, links.Select(c => c.Position));
+        Assert.All(links, link => Assert.Equal(created[2].Id, link.StatisticsEntryId));
+    }
+
+    [PostgreSqlStatisticsFact]
+    public async Task CreationPrecisionHelpersAgreeWithNpgsqlOnBothSidesOfPostgresEpoch()
+    {
+        var epoch = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        await using var raw = new NpgsqlConnection(connection);
+        await raw.OpenAsync();
+        foreach (var ticks in new long[] { -11, -10, -9, -1, 0, 1, 9, 10, 11 })
+        {
+            var timestamp = epoch.AddTicks(ticks);
+            var interval = TimeSpan.FromTicks(ticks);
+            await using var command = new NpgsqlCommand("SELECT @timestamp::timestamptz, @duration::interval", raw);
+            command.Parameters.AddWithValue("timestamp", timestamp);
+            command.Parameters.AddWithValue("duration", interval);
+            await using var reader = await command.ExecuteReaderAsync();
+            Assert.True(await reader.ReadAsync());
+            var storedTimestamp = reader.GetDateTime(0);
+            var storedInterval = reader.GetFieldValue<TimeSpan>(1);
+            Assert.Equal(epoch.AddTicks(ticks / 10 * 10), storedTimestamp);
+            Assert.Equal(TimeSpan.FromTicks(ticks / 10 * 10), storedInterval);
+            Assert.Equal(storedTimestamp, StatisticsStoragePrecision.Timestamp(timestamp));
+            Assert.Equal(storedInterval, StatisticsStoragePrecision.Interval(interval));
+            Assert.Equal(DateTimeKind.Utc, storedTimestamp.Kind);
+            Assert.Equal(timestamp.Kind, StatisticsStoragePrecision.Timestamp(timestamp).Kind);
+        }
+    }
+
+    private async Task AssertReloadMatches(IEnumerable<StatisticsEntry> entries)
+    {
+        await using var verify = Db();
+        var stored = await verify.Set<StatisticsEntry>().AsNoTracking().ToDictionaryAsync(e => e.Id);
+        foreach (var entry in entries)
+        {
+            var reload = stored[entry.Id];
+            Assert.Equal((entry.TimeStart, entry.TimeEnd, entry.Duration, entry.Speed, entry.IsValid, entry.InvalidReason),
+                (reload.TimeStart, reload.TimeEnd, reload.Duration, reload.Speed, reload.IsValid, reload.InvalidReason));
+            Assert.Equal(entry.TimeEnd - entry.TimeStart, reload.Duration);
+            Assert.Equal(DateTimeKind.Utc, reload.TimeStart.Kind);
+            Assert.Equal(DateTimeKind.Utc, reload.TimeEnd.Kind);
+        }
+    }
+
+    [PostgreSqlStatisticsFact]
     public async Task TightenLoosenBoundedRestartSupersedingEditAndDuplicateEventsWith4096Rows()
     {
         var config = Simple();
