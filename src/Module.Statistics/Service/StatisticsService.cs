@@ -41,12 +41,16 @@ public class StatisticsService(
                     .FirstOrDefaultAsync(cancellationToken);
                 if (start != null)
                 {
-                    var duration = endTime - start.TimeStart;
+                    // Derive duration, speed and validity from the persisted (microsecond) endpoints so the
+                    // stored classification matches what readers and revalidation observe.
+                    var timeStart = Persisted(start.TimeStart);
+                    var timeEnd = Persisted(endTime);
+                    var duration = timeEnd - timeStart;
                     StatisticsEntry entry = new()
                     {
                         TransponderId = transponderId,
-                        TimeStart = start.TimeStart,
-                        TimeEnd = endTime,
+                        TimeStart = timeStart,
+                        TimeEnd = timeEnd,
                         StatisticsItemId = statsItem.StatisticsItem.Id,
                         Duration = duration,
                         // Raw SI speed is retained even when nonfinite (zero duration); validity excludes it.
@@ -100,12 +104,16 @@ public class StatisticsService(
             foreach (var multiItem in multiItems.Where(i => i.Repetitions <= allEntries.Count))
             {
                 var relevantEntries = allEntries.Take(multiItem.Repetitions).ToList();
-                var duration = relevantEntries.First().TimeEnd - relevantEntries.Last().TimeStart;
+                // Contributor endpoints come from storage; normalization is idempotent and keeps the Multi
+                // duration equal to the persisted endpoint difference.
+                var timeStart = Persisted(relevantEntries.Last().TimeStart);
+                var timeEnd = Persisted(relevantEntries.First().TimeEnd);
+                var duration = timeEnd - timeStart;
                 StatisticsEntry entry = new()
                 {
                     TransponderId = transponderId,
-                    TimeStart = relevantEntries.Last().TimeStart,
-                    TimeEnd = relevantEntries.First().TimeEnd,
+                    TimeStart = timeStart,
+                    TimeEnd = timeEnd,
                     StatisticsItemId = multiItem.StatisticsItem.Id,
                     Duration = duration,
                     Speed = multiItem.StatisticsItem.Distance / duration.TotalSeconds,
@@ -155,6 +163,13 @@ public class StatisticsService(
         return rows.ToDictionary(r => r.Id,
             r => StatisticsDurationBounds.Effective(r.GlobalMin, r.GlobalMax, r.LocalMin, r.LocalMax));
     }
+
+    /// <summary>
+    /// The timestamp exactly as the configured store persists it. Differences of normalized endpoints are
+    /// whole microseconds on PostgreSQL, so the stored interval equals the classified duration.
+    /// </summary>
+    private DateTime Persisted(DateTime value) =>
+        StatisticsStoragePrecision.UsesMicrosecondPrecision(storage.Database) ? StatisticsStoragePrecision.Timestamp(value) : value;
 
     private static StatisticsDurationBounds Bounds(IReadOnlyDictionary<Guid, StatisticsDurationBounds> bounds, Guid configId) =>
         bounds.TryGetValue(configId, out var value)
