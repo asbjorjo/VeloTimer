@@ -112,8 +112,21 @@ public sealed partial class PublicStatisticsBrowserHarnessTests
             lock (gate)
                 return new HallOfFameDTO(Settings.Sections.Where(section => section.IsEnabled).Select(section =>
                     new HallOfFameSectionDTO(section.StatisticsItemId, "Browser lap", section.RankingMode,
-                        section.RowCount, section.Columns, [HallOfFameTransportTests.FullEntry])).ToArray());
+                        section.RowCount, section.Columns, [SelectColumns(section.Columns)])).ToArray());
         });
+
+        private static HallOfFameEntryDTO SelectColumns(IReadOnlyList<HallOfFameColumn> columns)
+        {
+            var entry = HallOfFameTransportTests.FullEntry;
+            return entry with
+            {
+                BestTime = columns.Contains(HallOfFameColumn.BestTime) ? entry.BestTime : null,
+                SpeedOfBestResult = columns.Contains(HallOfFameColumn.SpeedOfBestResult) ? entry.SpeedOfBestResult : null,
+                PassingCount = columns.Contains(HallOfFameColumn.PassingCount) ? entry.PassingCount : null,
+                FacilityOfBestResult = columns.Contains(HallOfFameColumn.FacilityOfBestResult) ? entry.FacilityOfBestResult : null,
+                DateOfBestResult = columns.Contains(HallOfFameColumn.DateOfBestResult) ? entry.DateOfBestResult : null
+            };
+        }
     }
 }
 
