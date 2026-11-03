@@ -317,6 +317,70 @@ public sealed class PublicStatisticsPostgreSqlTests
 
     private static SimpleStatisticsItemConfig Config() =>
         PublicStatisticsDiscoveryTests.Simple(new StatisticsItem { Id = Guid.NewGuid(), Name = "Lap", Distance = 250 });
+
+    [PublicStatisticsPostgreSqlFact]
+    public async Task StoredValidityAloneFiltersPagingLookaheadCursorExistenceAndWinnersWhileJobPending()
+    {
+        await using var host = await PublicStatisticsTestHost.CreateAsync(postgres: true);
+        var config = Config();
+        // These current bounds reject the measurements, but pending revalidation must not hide
+        // their old stored classification. No query-time bound/generation/revision gate.
+        config.StatisticsItem.MinDuration = TimeSpan.FromSeconds(100);
+        var valid = Enumerable.Range(1, 26).Select(i => Entry(config, i, Profile("Visible"))).ToArray();
+        var invalid = Enumerable.Range(27, 30).Select(i => Entry(config, i, Profile("Rejected"),
+            duration: TimeSpan.FromTicks(10))).ToArray();
+        foreach (var row in invalid)
+        {
+            row.IsValid = false;
+            row.InvalidReason = StatisticsEntryInvalidReason.BelowMinimumDuration;
+        }
+        await host.SeedAsync(valid.Cast<object>().Concat(invalid).Append(new StatisticsValidityRevalidation
+        {
+            StatisticsItemId = config.StatisticsItem.Id, StatisticsItem = config.StatisticsItem, Generation = 99, IsPending = true,
+            Phase = StatisticsValidityRevalidationPhase.Simple
+        }).ToArray());
+        using var client = PublicStatisticsDiscoveryTests.Anonymous(host);
+        host.Sql.Commands.Clear();
+        var first = await Get(client, Request(config));
+        Assert.Equal(25, first.Items.Count);
+        Assert.NotNull(first.Next);
+        Assert.Null(first.Previous);
+        Assert.All(first.Items, row => Assert.Contains(row.Id, valid.Select(e => e.Id)));
+        var last = await Get(client, Request(config) with { Cursor = first.Next, Direction = PublicStatisticsPageDirection.Next });
+        Assert.Single(last.Items);
+        Assert.Null(last.Next); // Invalid rows must not create a false lookahead.
+        Assert.NotNull(last.Previous);
+        var winners = (await client.GetFromJsonAsync<List<BestStatisticsResultDTO>>("/api/statistics/best-results"))!;
+        Assert.Contains(Assert.Single(winners).Id, valid.Select(e => e.Id));
+        await host.MutateAsync(async db =>
+        {
+            var anchor = await db.Set<StatisticsEntry>().SingleAsync(e => e.Id == first.Next!.Id);
+            anchor.IsValid = false;
+            anchor.InvalidReason = StatisticsEntryInvalidReason.BelowMinimumDuration;
+        });
+        var afterInvalidation = await Get(client, Request(config) with { Cursor = first.Next, Direction = PublicStatisticsPageDirection.Next });
+        Assert.Equal(last.Items, afterInvalidation.Items); // Cursor anchor need not remain valid.
+        await host.MutateAsync(async db =>
+        {
+            foreach (var entry in await db.Set<StatisticsEntry>().Where(e => e.Id != last.Items[0].Id).ToListAsync())
+            {
+                entry.IsValid = false;
+                entry.InvalidReason = StatisticsEntryInvalidReason.BelowMinimumDuration;
+            }
+        });
+        var only = await Get(client, Request(config) with { Cursor = first.Next, Direction = PublicStatisticsPageDirection.Next });
+        Assert.Single(only.Items);
+        Assert.Null(only.Previous); // Invalid rows cannot establish cursor existence.
+        Assert.Null(only.Next);
+        var queries = EntryCommands(host).Where(c => c.Text.TrimStart().StartsWith("SELECT")).ToArray();
+        Assert.NotEmpty(queries);
+        Assert.All(queries, command =>
+        {
+            Assert.Contains("is_valid", command.Text);
+            Assert.DoesNotContain("statistics_validity_revalidation", command.Text);
+            Assert.DoesNotContain("OFFSET", command.Text, StringComparison.OrdinalIgnoreCase);
+        });
+    }
     private static StatsProfile Profile(string name, bool isPublic = true) =>
         new() { UserId = Guid.NewGuid(), ProfileName = name, IsPublic = isPublic };
     private static StatisticsEntry Entry(SimpleStatisticsItemConfig config, int index, StatsProfile? profile,
