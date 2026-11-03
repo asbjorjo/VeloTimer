@@ -1,4 +1,6 @@
+using System.Reflection;
 using VeloTime.Module.Statistics;
+using VeloTime.Module.Statistics.Api;
 using VeloTime.Module.Statistics.Api.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,6 +27,9 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 builder.AddModuleStatistics();
+// OpenAPI extraction must not initialize the outbox or start live messaging.
+if (Assembly.GetEntryAssembly()?.GetName().Name != "GetDocument.Insider")
+    builder.AddStatisticsValidityThresholdsMessaging();
 
 var app = builder.Build();
 

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Npgsql;
@@ -32,6 +33,8 @@ public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
         if (PostgreSqlConnectionString is null && ownedPostgresConnectionString is null)
             connection.Open();
         builder.UseEnvironment("Development");
+        // Synthetic configuration only; all message-bus startup is removed below.
+        builder.UseSetting("ConnectionStrings:MessageBus", "Endpoint=sb://localhost/");
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:velotimedb"] = "Host=localhost;Database=statistics-tests;Username=test;Password=test",
@@ -39,6 +42,13 @@ public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
         }));
         builder.ConfigureServices(services =>
         {
+            // Endpoint tests use SQLite/in-memory services, not the PostgreSQL
+            // outbox. Real transactional messaging tests must keep these services.
+            foreach (var descriptor in services.Where(descriptor => descriptor.ServiceType == typeof(IHostedService)
+                && (descriptor.ImplementationType?.Namespace?.StartsWith("SlimMessageBus", StringComparison.Ordinal) == true
+                    || descriptor.ImplementationType?.Name == "StatisticsValidityThresholdsOutboxStartup")).ToList())
+                services.Remove(descriptor);
+
             RemoveServices<StatisticsDbContext>(services);
             RemoveServices<DbContextOptions<StatisticsDbContext>>(services);
             RemoveServices<IDbContextOptionsConfiguration<StatisticsDbContext>>(services);
