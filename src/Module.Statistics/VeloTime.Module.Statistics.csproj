@@ -15,6 +15,7 @@
 	<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="MR.AspNetCore.Pagination" />
 	<PackageReference Include="SlimMessageBus.Host" />
+    <PackageReference Include="SlimMessageBus.Host.Outbox.PostgreSql.DbContext" />
     <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" />
     <PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" />
   </ItemGroup>

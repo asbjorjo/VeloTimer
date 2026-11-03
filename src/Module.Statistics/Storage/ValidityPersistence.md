@@ -161,6 +161,10 @@ Executed in the assigned worktree:
   microsecond TimeSpan materialization, exact ordered lineage, all CHECK categories,
   duplicate contributor rejection (23505), contributor deletion restriction (23503),
   stale generation rejection and checkpoint recovery using new DbContexts.
+* Follow-up PostgreSQL checks proved new-row false validity is not overwritten by
+  the true database default, negative duration/speed remain retained, omitted fields
+  retain compatible defaults, and repeated EF update applies no migrations.
+  Outbox registration and real transaction checks are detailed in OutboxPersistence.md.
 
 Tester: add maintained PostgreSQL migrations/model tests and representative-volume
 EXPLAIN/keyset checks; test submicrosecond rounding, negative durations, all four reasons,
