@@ -41,12 +41,14 @@ test('real Hall of Fame router, ordered public table and administrator draft/con
     const save = page.getByRole('button', { name: 'Save', exact: true });
     assert.equal(await save.isDisabled(), true);
 
-    // Blank numeric input must retain the draft and may not advance persisted settings.
-    await rows.first().fill('');
-    await rows.first().press('Tab');
-    await save.click();
-    await page.getByRole('alert').waitFor();
-    assert.equal((await (await context.request.get('/__test/hall/state')).json()).version, 7);
+    // Missing and nonnumeric input must retain the draft, never silently save a default.
+    for (const invalid of ['', 'nonsense']) {
+      await rows.first().fill(invalid);
+      await rows.first().press('Tab');
+      await save.click();
+      await page.getByRole('alert').waitFor();
+      assert.equal((await (await context.request.get('/__test/hall/state')).json()).version, 7);
+    }
     await rows.first().fill('100');
     await rows.first().press('Tab');
     await save.click();
@@ -77,6 +79,37 @@ test('real Hall of Fame router, ordered public table and administrator draft/con
     settings = await (await context.request.get('/__test/hall/state')).json();
     assert.equal(settings.version, 10);
     assert.equal(settings.sections[0].rowCount, 1);
+
+    // Keyboard-operable reordering changes the whole saved document and public rendering.
+    const editors = page.locator('section[aria-label^="Section "]');
+    const moveSpeed = editors.first().getByRole('button', { name: 'Move Section 1: Browser lap: Speed of best result up', exact: true });
+    await moveSpeed.focus();
+    await page.keyboard.press('Enter');
+    await editors.nth(1).getByRole('button', { name: 'Move Section 2: Browser lap up', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    await page.getByRole('link', { name: 'Hall of Fame', exact: true }).click();
+    await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
+    assert.match(page.url(), /\/admin\/statistics\/hall-of-fame$/);
+
+    // Failed reload after confirmed discard must still preserve the draft.
+    await context.request.post('/__test/hall/load-failure/true');
+    await page.getByRole('button', { name: /Reload settings/ }).click();
+    await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
+    await page.getByRole('alert').waitFor();
+    assert.equal(await save.isDisabled(), false);
+    assert.equal(await rows.nth(1).inputValue(), '1'); // The edited section remains second.
+    await context.request.post('/__test/hall/load-failure/false');
+    await save.click();
+    await page.getByRole('status').filter({ hasText: /^All Hall of Fame settings saved\.$/ }).waitFor();
+    settings = await (await context.request.get('/__test/hall/state')).json();
+    assert.equal(settings.version, 11);
+    assert.deepEqual(settings.sections.map(section => section.rankingMode), [0, 1]);
+    assert.deepEqual(settings.sections[1].columns, [1, 2, 4]);
+    await page.getByRole('link', { name: 'Hall of Fame', exact: true }).click();
+    await page.getByRole('table').first().waitFor();
+    assert.deepEqual(await page.getByRole('table').first().locator('thead th').allTextContents(), ['Rank', 'Name', 'Best time']);
+    assert.deepEqual(await page.getByRole('table').nth(1).locator('thead th').allTextContents(),
+      ['Rank', 'Name', 'Speed of best result', 'Completed-result count', 'Date of best result']);
     assert.deepEqual(errors, []);
   } catch (error) {
     console.error('Browser errors:', errors);
