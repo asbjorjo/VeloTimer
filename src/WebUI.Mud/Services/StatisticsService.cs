@@ -19,7 +19,8 @@ public class StatisticsService(
             var response = await statistics.GetPublicStatisticsDiscoveryAsync(cancellationToken);
             return new Contracts.PublicStatisticsDiscoveryDTO(
                 response.Items.Select(item => new Contracts.StatisticsItemDTO(
-                    item.Id, item.Name, item.Description, item.Distance)).ToList(),
+                    item.Id, item.Name, item.Description, item.Distance,
+                    StatisticsDurationTransport.Parse(item.MinDuration), StatisticsDurationTransport.Parse(item.MaxDuration))).ToList(),
                 response.Configurations.Select(config => new Contracts.PublicStatisticsConfigurationDTO(
                     config.Id, config.StatisticsItemId, config.FacilityId, (Contracts.StatisticsConfigurationType)config.Type,
                     config.CoursePointStart, config.CoursePointStartName, config.CoursePointEnd, config.CoursePointEndName,
@@ -27,7 +28,9 @@ public class StatisticsService(
                 response.UnavailableConfigurations.Select(option => new Contracts.UnavailablePublicStatisticsConfigurationDTO(
                     new Contracts.StatisticsConfigurationDTO(option.Configuration.Id, option.Configuration.StatisticsItemId,
                         (Contracts.StatisticsConfigurationType)option.Configuration.Type, option.Configuration.CoursePointStart,
-                        option.Configuration.CoursePointEnd, option.Configuration.ParentConfigId, option.Configuration.Repetitions),
+                        option.Configuration.CoursePointEnd, option.Configuration.ParentConfigId, option.Configuration.Repetitions,
+                        StatisticsDurationTransport.Parse(option.Configuration.MinDuration),
+                        StatisticsDurationTransport.Parse(option.Configuration.MaxDuration)),
                     (Contracts.PublicStatisticsConfigurationUnavailableReason)option.Reason)).ToList());
         }, cancellationToken);
 
@@ -82,7 +85,7 @@ public class StatisticsService(
         {
             throw new HttpRequestException("Public statistics is temporarily unavailable.", exception, HttpStatusCode.ServiceUnavailable);
         }
-        catch (Exception exception) when (exception is FormatException or ArgumentException or Newtonsoft.Json.JsonException)
+        catch (Exception exception) when (exception is FormatException or ArgumentException or InvalidDataException or Newtonsoft.Json.JsonException)
         {
             throw new HttpRequestException("The public statistics response was invalid.", exception, HttpStatusCode.BadGateway);
         }

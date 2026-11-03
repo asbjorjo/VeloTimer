@@ -44,7 +44,12 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
     public Task SaveItemAsync(Guid? id, Contracts.SaveStatisticsItemRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
     {
         await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
-        var body = new SaveStatisticsItemRequest { Name = request.Name, Description = request.Description, Distance = request.Distance };
+        var body = new SaveStatisticsItemRequest
+        {
+            Name = request.Name, Description = request.Description, Distance = request.Distance,
+            MinDuration = StatisticsDurationTransport.Format(request.MinDuration),
+            MaxDuration = StatisticsDurationTransport.Format(request.MaxDuration)
+        };
         var response = await cache.WriteAndInvalidateAsync(
             () => id.HasValue ? client.UpdateStatisticsItemAsync(id.Value, body, cancellationToken) : client.CreateStatisticsItemAsync(body, cancellationToken),
             DefinitionsTag, "saving a statistics item");
@@ -66,7 +71,9 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
         var body = new SaveStatisticsConfigurationRequest
         {
             StatisticsItemId = request.StatisticsItemId, Type = (int)request.Type, CoursePointStart = request.CoursePointStart,
-            CoursePointEnd = request.CoursePointEnd, ParentConfigId = request.ParentConfigId, Repetitions = request.Repetitions
+            CoursePointEnd = request.CoursePointEnd, ParentConfigId = request.ParentConfigId, Repetitions = request.Repetitions,
+            MinDuration = StatisticsDurationTransport.Format(request.MinDuration),
+            MaxDuration = StatisticsDurationTransport.Format(request.MaxDuration)
         };
         var response = await cache.WriteAndInvalidateAsync(
             () => id.HasValue ? client.UpdateStatisticsConfigurationAsync(id.Value, body, cancellationToken) : client.CreateStatisticsConfigurationAsync(body, cancellationToken),
@@ -90,7 +97,8 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
         if (item is null || item.Id == Guid.Empty || (expectedId.HasValue && item.Id != expectedId.Value) ||
             string.IsNullOrWhiteSpace(item.Name) || !double.IsFinite(item.Distance) || item.Distance <= 0)
             throw new InvalidDataException("The statistics item response is invalid.");
-        return new(item.Id, item.Name, item.Description, item.Distance);
+        return new(item.Id, item.Name, item.Description, item.Distance,
+            StatisticsDurationTransport.Parse(item.MinDuration), StatisticsDurationTransport.Parse(item.MaxDuration));
     }
 
     private static Contracts.StatisticsConfigurationDTO Map(StatisticsConfigurationDTO config, Guid? expectedId = null)
@@ -108,7 +116,8 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
               config.ParentConfigId is null || config.Repetitions is null or <= 0)))
             throw new InvalidDataException("The statistics configuration response has an invalid shape.");
         return new(config.Id, config.StatisticsItemId, (Contracts.StatisticsConfigurationType)config.Type,
-            config.CoursePointStart, config.CoursePointEnd, config.ParentConfigId, config.Repetitions);
+            config.CoursePointStart, config.CoursePointEnd, config.ParentConfigId, config.Repetitions,
+            StatisticsDurationTransport.Parse(config.MinDuration), StatisticsDurationTransport.Parse(config.MaxDuration));
     }
 
     private static async Task<TResult> Execute<TResult>(Func<Task<TResult>> action)
