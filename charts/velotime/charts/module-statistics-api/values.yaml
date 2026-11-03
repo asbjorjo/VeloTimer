@@ -11,6 +11,7 @@ database:
   user: velotime
   password: ""
 secrets:
+  # Required at runtime; use existingSecret for externally managed credentials.
   MessageBus: ""
 image:
   tag: 3.0.0.alpha.11
