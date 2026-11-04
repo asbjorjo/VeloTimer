@@ -31,6 +31,7 @@ public sealed record StatisticsRevalidationBatchResult(
     int Scanned,
     int Reclassified,
     int DependentItemsScheduled,
+    // Retained for diagnostic caller compatibility; window-based processing always returns zero.
     int UnprovenLegacyLineage,
     int InconsistentLineage);
 
@@ -49,7 +50,6 @@ public sealed class StatisticsRevalidationService(
 {
     /// <summary>Maximum time to wait for an item or entry lock before treating the attempt as transient.</summary>
     public static readonly TimeSpan LockTimeout = TimeSpan.FromSeconds(10);
-    private const int LoggedEntrySample = 5;
 
     /// <summary>Creates pending jobs for items without one; never resets existing jobs.</summary>
     public Task<int> BootstrapAsync(CancellationToken cancellationToken) =>
@@ -106,8 +106,6 @@ public sealed class StatisticsRevalidationService(
 
         var rows = phaseHasConfigs ? await ReadPageAsync(itemId, job.LastEntryId, batchSize, cancellationToken) : [];
         var classified = new List<(EntryRow Entry, StatisticsEntryInvalidReason? Reason)>();
-        var unproven = new List<Guid>();
-        var inconsistent = new List<Guid>();
         foreach (var row in rows)
         {
             if (!configs.TryGetValue(row.StatisticsItemConfigId, out var config))
@@ -119,7 +117,8 @@ public sealed class StatisticsRevalidationService(
         if (phase == StatisticsValidityRevalidationPhase.Multi)
         {
             var multiRows = rows.Where(r => configs[r.StatisticsItemConfigId] is MultiStatisticsItemConfig).ToList();
-            var contributorsValid = await EvaluateContributorsAsync(multiRows, configs, unproven, inconsistent, cancellationToken);
+            var contributorsValid = await StatisticsService.ReadMultiContributorValidityAsync(
+                storage, multiRows.Select(r => r.Id), cancellationToken);
             classified.AddRange(multiRows.Select(r => (r, StatisticsValidityEvaluator.Evaluate(
                 r.Duration, contributorsValid[r.Id], bounds[r.StatisticsItemConfigId]))));
         }
@@ -130,7 +129,7 @@ public sealed class StatisticsRevalidationService(
             var ids = group.Select(c => c.Entry.Id).ToList();
             var reason = group.Key;
             var valid = reason is null;
-            // Validity only: measurements, ownership, lineage and creation events are untouched.
+            // Validity only: measurements, ownership and creation events are untouched.
             var updated = await storage.Set<StatisticsEntry>().Where(e => ids.Contains(e.Id))
                 .ExecuteUpdateAsync(s => s.SetProperty(e => e.IsValid, valid).SetProperty(e => e.InvalidReason, reason), cancellationToken);
             if (updated != ids.Count)
@@ -167,19 +166,11 @@ public sealed class StatisticsRevalidationService(
 
         await transaction.CommitAsync(cancellationToken);
 
-        metrics.RevalidationBatchCommitted(rows.Count, changed.Count, dependentsScheduled, unproven.Count, inconsistent.Count);
-        if (unproven.Count > 0)
-            logger.LogWarning(
-                "Classified {Count} legacy Multi entries of item {StatisticsItemId} as InvalidContributor: contributors without recorded lineage could not be proven (sample: {EntryIds})",
-                unproven.Count, itemId, string.Join(", ", unproven.Take(LoggedEntrySample)));
-        if (inconsistent.Count > 0)
-            logger.LogWarning(
-                "Classified {Count} Multi entries of item {StatisticsItemId} as InvalidContributor: recorded lineage is inconsistent with the configuration (sample: {EntryIds})",
-                inconsistent.Count, itemId, string.Join(", ", inconsistent.Take(LoggedEntrySample)));
+        metrics.RevalidationBatchCommitted(rows.Count, changed.Count, dependentsScheduled, 0, 0);
         logger.LogDebug(
             "Revalidation of item {StatisticsItemId} generation {Generation} phase {Phase}: scanned {Scanned}, reclassified {Reclassified}, dependents scheduled {Dependents}, outcome {Outcome}",
             itemId, expectedGeneration, phase, rows.Count, changed.Count, dependentsScheduled, outcome);
-        return new(outcome, expectedGeneration, rows.Count, changed.Count, dependentsScheduled, unproven.Count, inconsistent.Count);
+        return new(outcome, expectedGeneration, rows.Count, changed.Count, dependentsScheduled, 0, 0);
     }
 
     private async Task<JobRow?> LockJobAsync(Guid itemId, CancellationToken cancellationToken)
@@ -198,117 +189,16 @@ public sealed class StatisticsRevalidationService(
     {
         var names = Names();
         // Native PostgreSQL uuid comparison/order on the (statistics_item_id, id) index; no OFFSET.
-        var sql = $"SELECT e.{names.EntryId}, e.{names.EntryConfig}, " +
-            $"e.{names.EntryTransponder}, e.{names.EntryStart}, " +
-            $"e.{names.EntryEnd}, e.{names.EntryDuration}, " +
-            $"e.{names.EntryValid}, e.{names.EntryReason}, " +
-            $"e.{names.EntryLineage} " +
+        var sql = $"SELECT e.{names.EntryId}, e.{names.EntryConfig}, e.{names.EntryDuration}, " +
+            $"e.{names.EntryValid}, e.{names.EntryReason} " +
             $"FROM {names.EntryTable} AS e WHERE e.{names.EntryItem} = @item " +
             (cursor.HasValue ? $"AND e.{names.EntryId} > @cursor " : "") +
             $"ORDER BY e.{names.EntryId} LIMIT @limit";
         var parameters = new List<object> { new NpgsqlParameter("item", itemId), new NpgsqlParameter("limit", batchSize) };
         if (cursor.HasValue) parameters.Add(new NpgsqlParameter("cursor", cursor.Value));
         var rows = await storage.Database.SqlQueryRaw<EntryRowData>(sql, parameters.ToArray()).ToListAsync(cancellationToken);
-        return rows.Select(r => new EntryRow(r.Id, r.StatisticsItemConfigId, r.TransponderId,
-            DateTime.SpecifyKind(r.TimeStart, DateTimeKind.Utc), DateTime.SpecifyKind(r.TimeEnd, DateTimeKind.Utc), r.Duration,
-            r.IsValid, r.InvalidReason is null ? null : (StatisticsEntryInvalidReason)r.InvalidReason.Value,
-            r.HasCompleteContributorLineage)).ToList();
-    }
-
-    /// <summary>
-    /// Contributor validity for Multi entries. Recorded lineage is used when complete and consistent.
-    /// Legacy rows (no lineage) are reconstructed only when provable; otherwise they are treated as having
-    /// an invalid contributor and reported. Never substitutes or skips contributors.
-    /// </summary>
-    private async Task<Dictionary<Guid, bool>> EvaluateContributorsAsync(List<EntryRow> multiRows,
-        IReadOnlyDictionary<Guid, StatisticsItemConfig> configs, List<Guid> unproven, List<Guid> inconsistent,
-        CancellationToken cancellationToken)
-    {
-        var result = new Dictionary<Guid, bool>();
-        var withLineage = multiRows.Where(r => r.HasCompleteContributorLineage).Select(r => r.Id).ToList();
-        var links = withLineage.Count == 0 ? [] : await storage.Set<StatisticsEntryContributor>().AsNoTracking()
-            .Where(c => withLineage.Contains(c.StatisticsEntryId))
-            .Select(c => new ContributorRow(c.StatisticsEntryId, c.Position, c.ContributorEntry.StatisticsItemConfigId,
-                c.ContributorEntry.TransponderId, c.ContributorEntry.IsValid))
-            .ToListAsync(cancellationToken);
-        var linksByEntry = links.ToLookup(l => l.StatisticsEntryId);
-        var parentItems = await ParentItemIdsAsync(multiRows, configs, cancellationToken);
-
-        foreach (var row in multiRows)
-        {
-            var config = (MultiStatisticsItemConfig)configs[row.StatisticsItemConfigId];
-            if (row.HasCompleteContributorLineage)
-            {
-                var ordered = linksByEntry[row.Id].OrderBy(l => l.Position).ToList();
-                var consistent = config.Repetitions > 0 && ordered.Count == config.Repetitions &&
-                    ordered.Select((l, i) => l.Position == i && l.StatisticsItemConfigId == config.ParentConfigId &&
-                        l.TransponderId == row.TransponderId).All(ok => ok);
-                if (!consistent)
-                {
-                    inconsistent.Add(row.Id);
-                    result[row.Id] = false;
-                    continue;
-                }
-                result[row.Id] = ordered.All(l => l.IsValid);
-                continue;
-            }
-
-            var proven = parentItems.TryGetValue(config.ParentConfigId, out var parentItemId)
-                ? await ProveLegacyContributorsAsync(row, config, parentItemId, cancellationToken)
-                : null;
-            if (proven is null)
-            {
-                logger.LogDebug("Legacy Multi entry {EntryId} has unprovable contributors; classifying InvalidContributor", row.Id);
-                unproven.Add(row.Id);
-                result[row.Id] = false;
-                continue;
-            }
-            result[row.Id] = proven.Value;
-        }
-        return result;
-    }
-
-    private async Task<Dictionary<Guid, Guid>> ParentItemIdsAsync(List<EntryRow> multiRows,
-        IReadOnlyDictionary<Guid, StatisticsItemConfig> configs, CancellationToken cancellationToken)
-    {
-        var parentConfigIds = multiRows.Where(r => !r.HasCompleteContributorLineage)
-            .Select(r => ((MultiStatisticsItemConfig)configs[r.StatisticsItemConfigId]).ParentConfigId).Distinct().ToList();
-        if (parentConfigIds.Count == 0) return [];
-        return await storage.Set<StatisticsItemConfig>().AsNoTracking()
-            .Where(c => parentConfigIds.Contains(c.Id))
-            .ToDictionaryAsync(c => c.Id, c => c.StatisticsItemId, cancellationToken);
-    }
-
-    /// <summary>
-    /// Legacy selection was "latest N parent entries by TimeEnd" at creation (no tie-breaker, no trigger
-    /// scope); entries are never deleted. Let R be this transponder's parent entries inside
-    /// [TimeStart, TimeEnd]. The original window W is provably R when |R| = N, R's newest ends at the
-    /// Multi end, R's unique oldest-ending entry starts at the Multi start, and no parent entry starting
-    /// before the Multi start ends within [min end of R, Multi end]. (Any w in W\R would start before
-    /// the Multi start and end no earlier than W's oldest-ending entry, which is in R.) Returns all-valid
-    /// for proven windows, null when not provable (e.g. a later overlapping or tied entry exists).
-    /// </summary>
-    private async Task<bool?> ProveLegacyContributorsAsync(EntryRow multi, MultiStatisticsItemConfig config, Guid parentItemId,
-        CancellationToken cancellationToken)
-    {
-        var repetitions = config.Repetitions;
-        if (repetitions < 1) return null;
-        var parents = storage.Set<StatisticsEntry>().AsNoTracking().Where(p =>
-            p.StatisticsItemId == parentItemId && p.TransponderId == multi.TransponderId &&
-            p.StatisticsItemConfigId == config.ParentConfigId);
-        var window = await parents
-            .Where(p => p.TimeStart >= multi.TimeStart && p.TimeEnd <= multi.TimeEnd)
-            .OrderByDescending(p => p.TimeEnd).ThenByDescending(p => p.Id)
-            .Take(repetitions + 1)
-            .Select(p => new { p.TimeStart, p.TimeEnd, p.IsValid })
-            .ToListAsync(cancellationToken);
-        if (window.Count != repetitions || window[0].TimeEnd != multi.TimeEnd) return null;
-        var oldestEnd = window.Min(p => p.TimeEnd);
-        var oldest = window.Where(p => p.TimeEnd == oldestEnd).ToList();
-        if (oldest.Count != 1 || oldest[0].TimeStart != multi.TimeStart) return null;
-        var competing = await parents.AnyAsync(p =>
-            p.TimeStart < multi.TimeStart && p.TimeEnd >= oldestEnd && p.TimeEnd <= multi.TimeEnd, cancellationToken);
-        return competing ? null : window.All(p => p.IsValid);
+        return rows.Select(r => new EntryRow(r.Id, r.StatisticsItemConfigId, r.Duration,
+            r.IsValid, r.InvalidReason is null ? null : (StatisticsEntryInvalidReason)r.InvalidReason.Value)).ToList();
     }
 
     private void RequireNpgsql()
@@ -333,26 +223,17 @@ public sealed class StatisticsRevalidationService(
     {
         public Guid Id { get; init; }
         public Guid StatisticsItemConfigId { get; init; }
-        public Guid TransponderId { get; init; }
-        public DateTime TimeStart { get; init; }
-        public DateTime TimeEnd { get; init; }
         public TimeSpan Duration { get; init; }
         public bool IsValid { get; init; }
         public int? InvalidReason { get; init; }
-        public bool HasCompleteContributorLineage { get; init; }
     }
 
-    private sealed record EntryRow(Guid Id, Guid StatisticsItemConfigId, Guid TransponderId, DateTime TimeStart,
-        DateTime TimeEnd, TimeSpan Duration, bool IsValid, StatisticsEntryInvalidReason? InvalidReason,
-        bool HasCompleteContributorLineage);
-
-    private sealed record ContributorRow(Guid StatisticsEntryId, int Position, Guid StatisticsItemConfigId,
-        Guid TransponderId, bool IsValid);
+    private sealed record EntryRow(Guid Id, Guid StatisticsItemConfigId, TimeSpan Duration,
+        bool IsValid, StatisticsEntryInvalidReason? InvalidReason);
 
     private sealed record StoreNames(string JobTable, string JobItem, string JobGeneration, string JobPending,
         string JobPhase, string JobCursor, string EntryTable, string EntryId, string EntryItem, string EntryConfig,
-        string EntryTransponder, string EntryStart, string EntryEnd, string EntryDuration, string EntryValid,
-        string EntryReason, string EntryLineage)
+        string EntryDuration, string EntryValid, string EntryReason)
     {
         public static StoreNames For(DbContext storage)
         {
@@ -369,9 +250,7 @@ public sealed class StatisticsRevalidationService(
                 J(nameof(StatisticsValidityRevalidation.LastEntryId)),
                 sql.DelimitIdentifier(entryStore.Name, entryStore.Schema),
                 E(nameof(StatisticsEntry.Id)), E(nameof(StatisticsEntry.StatisticsItemId)), E(nameof(StatisticsEntry.StatisticsItemConfigId)),
-                E(nameof(StatisticsEntry.TransponderId)), E(nameof(StatisticsEntry.TimeStart)), E(nameof(StatisticsEntry.TimeEnd)),
-                E(nameof(StatisticsEntry.Duration)), E(nameof(StatisticsEntry.IsValid)), E(nameof(StatisticsEntry.InvalidReason)),
-                E(nameof(StatisticsEntry.HasCompleteContributorLineage)));
+                E(nameof(StatisticsEntry.Duration)), E(nameof(StatisticsEntry.IsValid)), E(nameof(StatisticsEntry.InvalidReason)));
         }
     }
 }

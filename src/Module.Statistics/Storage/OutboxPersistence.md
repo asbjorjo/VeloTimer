@@ -46,7 +46,9 @@ for it without reviewing all existing publishing transactions. The chosen checkp
 worker polls Statistics-owned durable pending rows and needs no new broker continuation
 contract. Threshold events are wakeups; dependency scheduling/checkpoints can remain
 local transactional writes. See ValidityPersistence.md for the required writer locks,
-generation handling, keysets, bootstrap and exact lineage protocol.
+generation handling, keysets, bootstrap and current Multi window contributors.
+Simple insertions schedule dependent Multi jobs in the same local transaction; neither
+this scheduling nor historical reclassification emits another creation event.
 
 ## Delivery and deployment
 

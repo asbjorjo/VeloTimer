@@ -1,8 +1,8 @@
 # Validity storage handoff
 
-Storage only; API, entry creation, worker hosting and public filtering are **not**
-implemented here. Contract baseline: `bf02a3a9`. Do not enable threshold saves without
-the transactional scheduling protocol below.
+Storage and processing handoff. Entry creation and historical revalidation use the
+window semantics below. Do not enable threshold saves without the transactional
+scheduling protocol. Entity/table removal remains Data & Migrations owner work.
 
 ## Model and migration
 
@@ -22,7 +22,7 @@ the transactional scheduling protocol below.
   zero/negative measurements must remain stored and be classified asynchronously.
   Evaluate NonPositiveDuration, InvalidContributor, BelowMinimumDuration, then
   AboveMaximumDuration. Reclassification changes validity only, not creation events,
-  measurements or contributor selection.
+  measurements or window endpoints.
 * `Speed` remains non-nullable `double`. PostgreSQL `double precision` and Npgsql retain
   Infinity/NaN; zero elapsed time can retain the existing calculated Infinity and
   negative elapsed time its original negative speed. No arbitrary speed or nullable
@@ -55,32 +55,38 @@ checks/index scan definitions, not historical measurements. Take a backup. Apply
 new migrations before enabling workers. Generated Down removes bounds, classification,
 lineage and checkpoints: **destructive, not executed, requires explicit approval**.
 
-## Exact Multi lineage
+## Current Multi window contributors
 
-`StatisticsEntryContributor` has owner/position primary key, unique owner/contributor,
-indexed contributor FK, nonnegative position and no self-reference. Owner deletion
-cascades its links; contributor deletion is restricted so provenance cannot disappear.
-API deletion guards must consider retained invalid rows and dependent Multi entries.
+For **every** Multi, contributors are the current Simple entries matching its parent
+configuration, transponder and facility, fully contained by inclusive comparisons:
+`parent.TimeStart >= multi.TimeStart AND parent.TimeEnd <= multi.TimeEnd`.
+The count must equal configured repetitions (positive), and every matching entry
+must be valid. Unexpected count or any invalid parent means `InvalidContributor`
+(after the evaluator's existing nonpositive-duration precedence). The Multi's own
+effective duration bounds still apply. Keep the raw total; never choose a subset,
+skip invalid laps, require endpoint equality, or reject an unrelated partial overlap.
+Contained overlapping/tied rows count individually, including extras arriving later.
 
-New Multi creation must save the **actual selected parent IDs**, newest-first positions
-0..N-1, and `HasCompleteContributorLineage = true` atomically with the entry. Do not
-filter invalid parents out before selecting the window. Check flag, contiguous count
-equal to configured repetitions, parent configuration, transponder and each contributor's
-stored validity; the flag alone is not evidence. These cross-row invariants are the
-domain/worker's responsibility, not enforced by a CHECK. Do not mutate links during
-revalidation. A deterministic TimeEnd/Id tie-breaker for new selection is recommended;
-save whichever exact ordered selection is actually used.
+New Multi endpoints still come from the latest N parent entries of the transponder/
+configuration with `TimeEnd <= triggering end`, ordered by TimeEnd then Id descending,
+without filtering invalid entries. The oldest selected start and newest selected end
+define the window, and the newest selected facility is retained. This selection only
+defines the window: classification uses the same containment query as historical
+processing, so cross-facility selection or extra contained rows can invalidate it.
+Insufficient parents still produce no new Multi.
 
-Legacy flag defaults false; no IDs are inferred by migration. Current selection is
-latest N parent entries by TimeEnd, with no tie-breaker, and ignores the triggering
-message's start/end when querying. Concrete unrecoverable case: A=[0s,10s] and
-B=[10s,20s] originally produce a two-lap Multi=[0s,20s]. A later parent C=[0s,15s]
-would now be selected with B, yielding the same Multi start/end but replacing A.
-Equal TimeEnd ties are another ambiguity. Replaying today's window cannot prove
-original contributors. **Coordinator must approve legacy handling** before worker
-rollout; proposed conservative classification is InvalidContributor when provenance
-cannot be proven, never silently substituting rows or declaring uncertain Multi valid.
-This storage phase preserves legacy validity until that asynchronous decision.
+Both creation and historical processing use one grouped SQL query over bounded Multi
+IDs, joining their configurations and parent entries. SQL returns only count/invalid
+count per Multi, not all parent measurements; an empty join is invalid. No per-Multi
+queries, original-ID reconstruction, or separate historical-row policy is used.
+Creation inserts and classifies inside the existing caller transaction, saving final
+validity before commit/publication. No creation events are emitted on reclassification.
+
+Processing no longer reads or writes `StatisticsEntryContributor` or
+`HasCompleteContributorLineage`. The model, table, column and existing links remain
+temporarily; Data & Migrations must remove them and choose the migration strategy.
+Old diagnostic result fields/counters are retained for caller compatibility but
+always receive zero; they no longer classify rows into distinct processing paths.
 
 ## Durable bounded checkpoint protocol (API/domain/Workers owners)
 
@@ -91,10 +97,12 @@ work queue, job framework, revision-based public gate or millions-ID event is ne
 The pending/item index supports polling; the entry item/id index supports batches.
 
 1. All definition and entry writers establish an item checkpoint row if absent
-   (`INSERT ... ON CONFLICT DO NOTHING`, explicitly idle for mere entry creation)
-   and lock it `SELECT ... FOR UPDATE` in their Statistics transaction **before**
-   reading definitions/classification. Config edits for the same item use this lock
-   too. Use a consistent item-ID lock order for multi-item operations and retry
+   (`INSERT ... ON CONFLICT DO NOTHING`, pending when absent) and lock it in their
+   Statistics transaction **before** reading definitions/classification. Multi entry
+   writers use `FOR SHARE`; definition writers and revalidation use `FOR UPDATE`.
+   Simple creation locks the owning and dependent item scope in one UUID-ordered
+   statement, exclusively when dependencies will be scheduled (otherwise shared).
+   Config edits for the same item use this protocol too. Retry
    PostgreSQL serialization/deadlock failures; do not hold a broker lock for a sweep.
 2. On a real threshold save, validate and save definitions, increment Generation,
    set pending=true, phase=Simple, cursor=null, and enqueue the agreed
@@ -117,27 +125,30 @@ The pending/item index supports polling; the entry item/id index supports batche
    Parallel pollers must lock/re-read the job, not reuse a pre-lock cursor.
 5. Parent validity changes must schedule distinct dependent Multi **items** durably
    in the same transaction as the parent batch, resetting their generation/cursor.
-   Include legacy dependent configurations, not only recorded join links. Same-item
+   Resolve dependencies from configuration definitions. Same-item
    dependencies are already covered by that job's later Multi phase; do not reset
    its own Simple cursor. Lock dependent item rows consistently. Even if a child job
    ran early, the final parent change schedules another sweep. Revalidation never
    emits EntryCreated, so this does not recreate aggregates.
 6. New Simple entries read live bounds under the item lock and classify before save.
-   New Multi entries save selected lineage and current own validity under their item
-   lock, reading fixed contributors. All later contributor validity changes schedule
-   the dependent job as above. This insertion/write protocol, **not a UUID snapshot
-   cursor**, covers racing inserts behind an already-passed cursor. Cached definitions
-   alone are not a safe current-threshold read. If any writer cannot follow the lock/
-   classify/dependency protocol, Workers must design an explicit follow-up repair
-   mechanism before claiming eventual convergence.
+   Every successful Simple creation also schedules dependent Multi items atomically
+   with insertion, including same-item dependencies and **even valid new parents**.
+   Scheduling increments Generation and sets pending; an already-pending Simple phase
+   keeps its cursor and later runs Multi from the beginning, otherwise Multi restarts
+   at cursor null. This covers late parents newly contained by an old window, even
+   behind a completed UUID cursor. An overlapping noncontained row does not contribute.
+   New Multi entries read current containment counts/validity and own bounds under
+   their item lock. Later parent validity changes schedule dependent jobs as above.
+   If a child sweep runs first, the parent transaction waits and then schedules another
+   sweep. Insertion or scheduling failure rolls back both; no new bus event is needed.
+   Cached definitions or a UUID snapshot cursor alone cannot guarantee convergence.
 7. On rollout, upgrade/stop old entry writers before enabling processing and seed
    pending rows for **all existing items** asynchronously, even if no thresholds
    were edited, to classify historical nonpositive entries. Migration does not seed
    jobs or claim completion. Workers own this bounded bootstrap and cache invalidation.
 
-No worker, scheduler, API transaction/publisher, polling service or lock helper is
-implemented in this phase. The schema supports this protocol; it does not enforce
-cooperating-writer behavior by itself. Stored IsValid alone remains read authority.
+The schema does not enforce cooperating-writer behavior by itself. Stored IsValid
+alone remains read authority; public results converge as pending jobs complete.
 
 ## Validation and next checks
 
@@ -166,10 +177,92 @@ Executed in the assigned worktree:
   retain compatible defaults, and repeated EF update applies no migrations.
   Outbox registration and real transaction checks are detailed in OutboxPersistence.md.
 
+The preceding lineage storage checks describe the original schema, not current
+processing requirements. Data & Migrations owns removal and revised migration checks.
+
 Tester: add maintained PostgreSQL migrations/model tests and representative-volume
 EXPLAIN/keyset checks; test submicrosecond rounding, negative durations, all four reasons,
-new invalid-row insertion/default handling, lineage completeness/membership, contributor
-FK delete effects, global/local concurrency, failed-index recovery and limited DDL roles.
+new invalid-row insertion/default handling, exact containment count/validity,
+facility/config/transponder exclusions, global/local concurrency, failed-index recovery
+and limited DDL roles.
 After API/Workers implementation, test crash/retry/resume, generation supersession,
 duplicate/out-of-order wakeups, late inserts on both sides of the UUID cursor, dependency
 propagation, cache invalidation and no duplicated Multi creation.
+
+## Processing simplification validation (2026-11-04)
+
+No entities, migrations or repository tests were edited. Release processor build
+(`dotnet build src/Module.Statistics.Processor/VeloTime.Module.Statistics.Processor.csproj
+--configuration Release --no-restore`) also built core: **0 warnings/errors**.
+Unchanged Statistics domain tests: **22 passed**. Unchanged Workers tests excluding
+the four conflicting cases below: **192 passed, 14 skipped, 0 failed** with
+`OIDC_AUDIENCE=https://build.invalid` and `VELOTIME_TEST_STATISTICS_POSTGRES` pointing
+at an isolated PostgreSQL 17 container. Agent-outbox checks lacked their separate
+PostgreSQL setting and were skipped. Existing dependency advisory warnings remain.
+Both test commands used Release, `--no-restore --logger trx /p:CollectCoverage=true
+/p:CoverletOutputFormat=lcov`.
+
+A temporary external probe (`/tmp/velotime-window-processing-probe/Probe.csproj`,
+not maintained tests) passed **22 assertions** against the same isolated PostgreSQL:
+creation/revalidation agreement; facility/transponder/partial-overlap exclusions;
+invalid parent inclusion; extra contained parents invalidating both new and old Multi;
+raw totals retained; no link writes; 128 windows in exactly one grouped query;
+insertion/scheduling rollback; a late writer waiting for a locked Multi batch then
+restarting its cursor; same-item dependencies preserving pending Simple progress and
+restarting completed jobs. The captured contributor SQL uses `id = ANY(@ids)`,
+joins Multi configuration, Simple parent configuration and parent entries, groups
+by Multi ID/repetitions, and returns `count(*)` plus
+`count(*) FILTER (WHERE NOT parent.is_valid)`. Parent filters are:
+
+```sql
+parent.statistics_item_config_id = config.parent_config_id
+AND parent.statistics_item_id = parent_config.statistics_item_id
+AND parent.transponder_id = multi.transponder_id
+AND parent.facility_id = multi.facility_id
+AND parent.time_start >= multi.time_start
+AND parent.time_end <= multi.time_end
+```
+
+The page query remains `WHERE statistics_item_id = @item [AND id > @cursor]
+ORDER BY id LIMIT @limit`, with PostgreSQL UUID ordering and no OFFSET. Only validity
+fields are updated; checkpoints retain generation guards, restart and transaction behavior.
+
+Tester must replace these obsolete assertions in
+`src/VeloTime.Workers.Test/StatisticsValidityPostgreSqlTests.cs` (a separate unchanged
+test run confirmed **4 failures**, not an all-green full suite):
+
+* `CreationPrecisionMultiAtExactMaximumRetainsFixedLineageAndStableMeasurements`:
+  fails line 136 (expected valid, actual invalid); samples use distinct facilities
+  at line 118. Use one facility for this precision scenario; remove link/flag assertions
+  at lines 142-144 and 155-158, preserving all precision/measurement assertions.
+* `MultiUsesFixedInvalidConstituentsAndParentPropagationRestoresWithoutNewAggregates`:
+  fails line 280 (expected valid, actual invalid); the Entry helper at line 607 creates
+  different facilities. Use matching facilities; replace link expectations at lines
+  281-282, 293-294 and 303 with window validity/retained-row checks.
+* `InvalidLapIsRetainedAndNeverSkippedToAssembleMulti`: fails line 330 (expected two
+  contributor IDs, actual empty). Use matching facilities so invalidity specifically
+  tests the rejected contained lap, not a count mismatch; replace link assertions.
+* `AmbiguousLegacyContributorsRemainConservativelyInvalidAndUnchanged`: fails line
+  365 (expected unproven count 1, actual 0). Replace the proof-specific expectation
+  with exact window counts. Current fixture gives A/C one facility and B another,
+  so A/C are exactly two valid contained parents; all three in one facility instead
+  makes the count three and invalid. Neither case depends on flags/links.
+
+The SQLite domain aggregation fixture also mixes facilities but does not assert
+validity; strengthen it to explicitly test the intended window semantics.
+After Data & Migrations removes the unused schema, Tester must update migration/default/
+constraint assertions too. Add maintained coverage for empty/too-few/too-many windows,
+tied/overlapping rows, config/facility/transponder exclusion, late inserts on either
+side of UUID cursors, failed insert/scheduling/classification commits, cancellation,
+duplicate/out-of-order wakeups and concurrent parent/child sweeps. Existing message
+contracts, headers, transponder sessions and creation delivery semantics are unchanged;
+revalidation publishes no events and does not add aggregate deduplication guarantees.
+The more conservative exclusive Simple-writer scope can increase item-level contention;
+retain existing deadlock/serialization retry handling and measure representative load.
+
+Next owner: **Data & Migrations** removes unused entities/table/column and chooses the
+migration strategy; then **Tester** updates maintained coverage. No schema rollout or
+large-volume EXPLAIN validation is claimed by this processing-only change. If the
+previous algorithm has already processed a database, rollout must asynchronously
+reschedule existing idle jobs to apply the new semantics there; bootstrap intentionally
+does not reset existing jobs. Do not recalculate history in a schema migration.

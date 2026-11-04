@@ -14,9 +14,9 @@ public class StatisticsService(
 
     /// <summary>
     /// Creates Simple entries for a completed sample. Must run inside the caller's StatisticsDbContext
-    /// transaction (StatisticsOwnershipService) on PostgreSQL: the owning items are share-locked before
-    /// live bounds are read, so a concurrent threshold save either waits for this classification or is
-    /// read by it. Invalid entries are retained with their raw measurements and published as usual.
+    /// transaction (StatisticsOwnershipService) on PostgreSQL. Owning and dependent items are locked
+    /// before live bounds are read. Insertions restart dependent Multi revalidation atomically, including
+    /// windows created before a late Simple entry arrived. Invalid measurements are retained and published.
     /// </summary>
     public async Task<IEnumerable<StatisticsEntry>> ProcessCompletedAsync(Guid transponderId, DateTime startTime, DateTime endTime, Guid startPoint, Guid endPoint, CancellationToken cancellationToken = default)
     {
@@ -28,7 +28,12 @@ public class StatisticsService(
 
         if (statsItems.Any())
         {
-            await scheduler.LockItemsAsync(statsItems.Select(c => c.StatisticsItemId), StatisticsItemLockMode.Shared, cancellationToken);
+            var dependentItems = await scheduler.GetDependentMultiItemIdsByParentConfigAsync(
+                statsItems.Select(c => c.Id), cancellationToken);
+            // Take the complete scope in UUID order, exclusively when scheduling will write it.
+            // Do not upgrade individual shared locks after inserting (concurrent writers could deadlock).
+            await scheduler.LockItemsAsync(statsItems.Select(c => c.StatisticsItemId).Concat(dependentItems),
+                dependentItems.Count > 0 ? StatisticsItemLockMode.Exclusive : StatisticsItemLockMode.Shared, cancellationToken);
             var bounds = await ReadCurrentBoundsAsync(statsItems.Select(c => c.Id), cancellationToken);
             foreach (var statsItem in statsItems)
             {
@@ -65,6 +70,8 @@ public class StatisticsService(
             }
             await storage.AddRangeAsync(entries, cancellationToken);
             await storage.SaveChangesAsync(cancellationToken);
+            if (entries.Any())
+                await scheduler.ScheduleDependentMultiRevalidationAsync(dependentItems, cancellationToken);
         }
         activity?.SetTag("EntriesCreated", entries.Count());
 
@@ -75,10 +82,11 @@ public class StatisticsService(
     /// Creates Multi entries for a newly created parent (Simple) entry. The window is fixed and
     /// deterministic: the newest parent entries of this transponder/configuration ending at or before
     /// the triggering entry's end, ordered by TimeEnd then Id (both descending). Invalid parents are
-    /// never skipped. The exact newest-first contributor IDs are saved atomically with the entry and
-    /// <see cref="StatisticsEntry.HasCompleteContributorLineage"/>. The Multi items are share-locked
-    /// before contributor validity and live bounds are read (requires the caller's transaction on
-    /// PostgreSQL), so later contributor changes reschedule this item durably.
+    /// never skipped. This selection only defines the new Multi's endpoints and facility; contributors
+    /// are all current parent Simple entries of the same transponder/facility fully contained in that
+    /// window. Exactly Repetitions entries must match and all must be valid. The Multi items are
+    /// share-locked before reading live bounds and contributors (requires the caller's transaction on
+    /// PostgreSQL). Later parent insertions/validity changes durably reschedule these items.
     /// </summary>
     public async Task<IEnumerable<StatisticsEntry>> ProcessEntryAsync(Guid transponderId, Guid statisticsItemId, Guid configId, DateTime startTime, DateTime endTime, CancellationToken cancellationToken = default)
     {
@@ -98,7 +106,7 @@ public class StatisticsService(
                 .OrderByDescending(s => s.TimeEnd)
                 .ThenByDescending(s => s.Id)
                 .Take(maxRepetitions)
-                .Select(s => new { s.Id, s.TimeStart, s.TimeEnd, s.FacilityId, s.IsValid })
+                .Select(s => new { s.TimeStart, s.TimeEnd, s.FacilityId })
                 .ToListAsync(cancellationToken);
 
             foreach (var multiItem in multiItems.Where(i => i.Repetitions <= allEntries.Count))
@@ -119,25 +127,58 @@ public class StatisticsService(
                     Speed = multiItem.StatisticsItem.Distance / duration.TotalSeconds,
                     StatisticsItemConfigId = multiItem.Id,
                     FacilityId = relevantEntries.First().FacilityId,
-                    HasCompleteContributorLineage = true,
-                    Contributors = relevantEntries
-                        .Select((contributor, position) => new StatisticsEntryContributor
-                        {
-                            Position = position,
-                            ContributorEntryId = contributor.Id
-                        })
-                        .ToList(),
                 };
-                StatisticsValidityEvaluator.Apply(entry, StatisticsValidityEvaluator.Evaluate(duration,
-                    relevantEntries.All(contributor => contributor.IsValid), Bounds(bounds, multiItem.Id)));
                 entries = entries.Append(entry);
             }
 
+            // Insert inside the caller's transaction so one bounded, set-based query can classify all
+            // new windows by the very same rule as historical revalidation. No provisional row is
+            // committed or published before classification succeeds.
             await storage.AddRangeAsync(entries, cancellationToken);
+            await storage.SaveChangesAsync(cancellationToken);
+            var contributorsValid = await ReadMultiContributorValidityAsync(storage, entries.Select(e => e.Id), cancellationToken);
+            foreach (var entry in entries)
+                StatisticsValidityEvaluator.Apply(entry, StatisticsValidityEvaluator.Evaluate(entry.Duration,
+                    contributorsValid[entry.Id], Bounds(bounds, entry.StatisticsItemConfigId)));
             await storage.SaveChangesAsync(cancellationToken);
         }
 
         return entries;
+    }
+
+    /// <summary>
+    /// One grouped SQL query for a bounded set of persisted Multi windows (including uncommitted new
+    /// entries in this context's transaction). Counts every matching parent, not a guessed latest subset.
+    /// Only aggregate rows are materialized; missing/empty windows are invalid.
+    /// </summary>
+    public static async Task<IReadOnlyDictionary<Guid, bool>> ReadMultiContributorValidityAsync(
+        StatisticsDbContext storage, IEnumerable<Guid> entryIds, CancellationToken cancellationToken = default)
+    {
+        var ids = entryIds.Distinct().ToArray();
+        var result = ids.ToDictionary(id => id, _ => false);
+        if (ids.Length == 0) return result;
+
+        var counts = await (
+            from multi in storage.Set<StatisticsEntry>().AsNoTracking()
+            where ids.Contains(multi.Id)
+            join config in storage.Set<MultiStatisticsItemConfig>() on multi.StatisticsItemConfigId equals config.Id
+            join parent in storage.Set<StatisticsEntry>() on config.ParentConfigId equals parent.StatisticsItemConfigId
+            where parent.StatisticsItemId == config.ParentConfig.StatisticsItemId
+                && parent.TransponderId == multi.TransponderId
+                && parent.FacilityId == multi.FacilityId
+                && parent.TimeStart >= multi.TimeStart && parent.TimeEnd <= multi.TimeEnd
+            group parent by new { multi.Id, config.Repetitions } into contributors
+            select new
+            {
+                contributors.Key.Id,
+                contributors.Key.Repetitions,
+                Count = contributors.LongCount(),
+                InvalidCount = contributors.LongCount(p => !p.IsValid)
+            }).ToListAsync(cancellationToken);
+
+        foreach (var count in counts)
+            result[count.Id] = count.Repetitions > 0 && count.Count == count.Repetitions && count.InvalidCount == 0;
+        return result;
     }
 
     /// <summary>
