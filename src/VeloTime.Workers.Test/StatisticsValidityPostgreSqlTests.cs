@@ -17,7 +17,7 @@ using VeloTime.Module.Statistics.Storage;
 
 namespace VeloTime.Workers.Test;
 
-public sealed class StatisticsValidityPostgreSqlTests : IAsyncLifetime
+public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
 {
     private readonly string database = $"threshold_worker_{Guid.NewGuid():N}";
     private string admin = "";
@@ -781,7 +781,9 @@ public sealed class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         await using var db = Db();
         Assert.False(db.Database.HasPendingModelChanges());
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
-        Assert.Equal(10, (await db.Database.GetAppliedMigrationsAsync()).Count());
+        var applied = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
+        Assert.Equal(11, applied.Length);
+        Assert.Equal("20261104094426_statistics_coalesce_multi_rescan", applied[^1]);
         Assert.False(await db.Database.SqlQueryRaw<bool>("""
             SELECT EXISTS (SELECT 1 FROM information_schema.tables
             WHERE table_schema = 'statistics' AND table_name = 'statistics_entry_contributor') AS "Value"
