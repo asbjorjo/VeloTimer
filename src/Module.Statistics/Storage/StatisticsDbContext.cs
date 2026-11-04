@@ -99,6 +99,7 @@ public class StatisticsDbContext : BaseDbContext
                 .HasForeignKey(r => r.StatisticsItemId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.Property(r => r.Generation).IsConcurrencyToken();
+            e.Property(r => r.MultiRescanPending).HasDefaultValue(false);
             e.HasIndex(r => new { r.IsPending, r.StatisticsItemId });
             if (Database.IsNpgsql())
             {

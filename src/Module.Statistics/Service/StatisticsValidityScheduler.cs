@@ -133,14 +133,16 @@ public sealed class StatisticsValidityScheduler(StatisticsDbContext storage)
                 .SetProperty(r => r.Generation, r => r.Generation + 1)
                 .SetProperty(r => r.IsPending, true)
                 .SetProperty(r => r.Phase, StatisticsValidityRevalidationPhase.Simple)
+                .SetProperty(r => r.MultiRescanPending, false)
                 .SetProperty(r => r.LastEntryId, (Guid?)null), cancellationToken);
     }
 
     /// <summary>
     /// Parent contributor validity changed: Multi results of these items must be re-evaluated.
     /// Generation+1 and pending. A job still pending in its Simple phase keeps phase and cursor
-    /// (its Multi phase starts from the beginning afterwards); otherwise the Multi phase restarts
-    /// from the beginning. Own Simple entries are not rescanned. Locks the rows exclusively first.
+    /// (its Multi phase starts from the beginning afterwards). A pending Multi phase keeps its cursor
+    /// and coalesces arrivals into one follow-up pass; an idle job starts Multi from the beginning.
+    /// Own Simple entries are not rescanned. Locks the rows exclusively first.
     /// Do not pass the item whose Simple batch caused the change: its own later Multi phase covers it.
     /// </summary>
     public async Task<int> ScheduleDependentMultiRevalidationAsync(IEnumerable<Guid> itemIds,
@@ -153,7 +155,9 @@ public sealed class StatisticsValidityScheduler(StatisticsDbContext storage)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(r => r.Generation, r => r.Generation + 1)
                 .SetProperty(r => r.LastEntryId, r =>
-                    r.IsPending && r.Phase == StatisticsValidityRevalidationPhase.Simple ? r.LastEntryId : null)
+                    r.IsPending ? r.LastEntryId : null)
+                .SetProperty(r => r.MultiRescanPending, r =>
+                    r.IsPending && r.Phase == StatisticsValidityRevalidationPhase.Multi)
                 .SetProperty(r => r.Phase, r =>
                     r.IsPending && r.Phase == StatisticsValidityRevalidationPhase.Simple
                         ? StatisticsValidityRevalidationPhase.Simple

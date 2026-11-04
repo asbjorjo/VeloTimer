@@ -13,6 +13,8 @@ public class StatisticsValidityRevalidation
     public bool IsPending { get; set; } = true;
     public StatisticsValidityRevalidationPhase Phase { get; set; }
     public Guid? LastEntryId { get; set; }
+    /// <summary>Dependency arrivals during Multi require one more pass after the active sweep.</summary>
+    public bool MultiRescanPending { get; set; }
 }
 
 public enum StatisticsValidityRevalidationPhase

@@ -15,7 +15,7 @@ public class StatisticsService(
     /// <summary>
     /// Creates Simple entries for a completed sample. Must run inside the caller's StatisticsDbContext
     /// transaction (StatisticsOwnershipService) on PostgreSQL. Owning and dependent items are locked
-    /// before live bounds are read. Insertions restart dependent Multi revalidation atomically, including
+    /// before live bounds are read. Insertions schedule dependent Multi revalidation atomically, including
     /// windows created before a late Simple entry arrived. Invalid measurements are retained and published.
     /// </summary>
     public async Task<IEnumerable<StatisticsEntry>> ProcessCompletedAsync(Guid transponderId, DateTime startTime, DateTime endTime, Guid startPoint, Guid endPoint, CancellationToken cancellationToken = default)

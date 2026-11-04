@@ -17,7 +17,7 @@ public enum StatisticsRevalidationBatchOutcome
 {
     /// <summary>The job is idle (completed earlier, or never needed); nothing changed.</summary>
     NotPending,
-    /// <summary>A batch was committed and the cursor advanced within the current phase.</summary>
+    /// <summary>A batch committed; the cursor advanced or a coalesced Multi follow-up pass starts next.</summary>
     Progressed,
     /// <summary>The Simple phase was exhausted; the Multi phase starts from the beginning next.</summary>
     SimplePhaseCompleted,
@@ -147,7 +147,11 @@ public sealed class StatisticsRevalidationService(
         }
 
         var exhausted = rows.Count < batchSize;
-        var outcome = !exhausted ? StatisticsRevalidationBatchOutcome.Progressed
+        // Consume the rescan only at the end of a Multi sweep, never at each batch. The row lock
+        // serializes arrivals with this checkpoint: a later arrival either requests another pass
+        // on the pending job or wakes an idle job, so none can be lost at completion.
+        var rescan = exhausted && phase == StatisticsValidityRevalidationPhase.Multi && job.MultiRescanPending;
+        var outcome = !exhausted || rescan ? StatisticsRevalidationBatchOutcome.Progressed
             : phase == StatisticsValidityRevalidationPhase.Simple ? StatisticsRevalidationBatchOutcome.SimplePhaseCompleted
             : StatisticsRevalidationBatchOutcome.Completed;
         var nextPhase = outcome == StatisticsRevalidationBatchOutcome.SimplePhaseCompleted ? StatisticsValidityRevalidationPhase.Multi : phase;
@@ -159,6 +163,7 @@ public sealed class StatisticsRevalidationService(
             .ExecuteUpdateAsync(s => s
                 .SetProperty(r => r.Phase, nextPhase)
                 .SetProperty(r => r.LastEntryId, nextCursor)
+                .SetProperty(r => r.MultiRescanPending, !exhausted && job.MultiRescanPending)
                 .SetProperty(r => r.IsPending, stillPending), cancellationToken);
         if (advanced != 1)
             throw new DbUpdateConcurrencyException(
@@ -178,7 +183,7 @@ public sealed class StatisticsRevalidationService(
         var names = Names();
         var rows = await storage.Database.SqlQueryRaw<JobRow>(
                 $"SELECT r.{names.JobGeneration}, r.{names.JobPending}, " +
-                $"r.{names.JobPhase}, r.{names.JobCursor} " +
+                $"r.{names.JobPhase}, r.{names.JobCursor}, r.{names.JobRescan} " +
                 $"FROM {names.JobTable} AS r WHERE r.{names.JobItem} = @item FOR UPDATE",
                 new NpgsqlParameter("item", itemId))
             .ToListAsync(cancellationToken);
@@ -217,6 +222,7 @@ public sealed class StatisticsRevalidationService(
         public bool IsPending { get; init; }
         public int Phase { get; init; }
         public Guid? LastEntryId { get; init; }
+        public bool MultiRescanPending { get; init; }
     }
 
     private sealed class EntryRowData
@@ -232,7 +238,7 @@ public sealed class StatisticsRevalidationService(
         bool IsValid, StatisticsEntryInvalidReason? InvalidReason);
 
     private sealed record StoreNames(string JobTable, string JobItem, string JobGeneration, string JobPending,
-        string JobPhase, string JobCursor, string EntryTable, string EntryId, string EntryItem, string EntryConfig,
+        string JobPhase, string JobCursor, string JobRescan, string EntryTable, string EntryId, string EntryItem, string EntryConfig,
         string EntryDuration, string EntryValid, string EntryReason)
     {
         public static StoreNames For(DbContext storage)
@@ -248,6 +254,7 @@ public sealed class StatisticsRevalidationService(
                 J(nameof(StatisticsValidityRevalidation.StatisticsItemId)), J(nameof(StatisticsValidityRevalidation.Generation)),
                 J(nameof(StatisticsValidityRevalidation.IsPending)), J(nameof(StatisticsValidityRevalidation.Phase)),
                 J(nameof(StatisticsValidityRevalidation.LastEntryId)),
+                J(nameof(StatisticsValidityRevalidation.MultiRescanPending)),
                 sql.DelimitIdentifier(entryStore.Name, entryStore.Schema),
                 E(nameof(StatisticsEntry.Id)), E(nameof(StatisticsEntry.StatisticsItemId)), E(nameof(StatisticsEntry.StatisticsItemConfigId)),
                 E(nameof(StatisticsEntry.Duration)), E(nameof(StatisticsEntry.IsValid)), E(nameof(StatisticsEntry.InvalidReason)));

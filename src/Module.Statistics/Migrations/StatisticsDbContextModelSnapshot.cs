@@ -251,6 +251,12 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("last_entry_id");
 
+                    b.Property<bool>("MultiRescanPending")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("multi_rescan_pending");
+
                     b.Property<int>("Phase")
                         .HasColumnType("integer")
                         .HasColumnName("phase");

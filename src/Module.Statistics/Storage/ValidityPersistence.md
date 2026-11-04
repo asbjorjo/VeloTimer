@@ -61,6 +61,13 @@ scheduling protocol. Multi validity has no persisted contributor links or proof 
   migration is empty: no row-history triggers or cross-service storage were added.
   Generated designer/snapshot `public.pg_trgm` annotations were corrected because
   the current Npgsql scaffolder omits the extension schema.
+* `20261104094426_statistics_coalesce_multi_rescan` adds the non-null boolean
+  `multi_rescan_pending` with constant default false. It does not reset generations,
+  phases, cursors or pending states, scan entries, or change measurements/validity.
+  Bootstrap inserts omit this column and receive the same false default.
+  Apply before deploying the matching scheduler/worker; stop old schedulers/workers
+  so they cannot keep restarting active Multi sweeps or ignore requested follow-ups.
+  Down only drops the flag and would lose queued follow-ups; it was not executed.
 
 Deployment requires PostgreSQL 11+ fast constant defaults, table-owner/index/DDL
 privileges, the existing `public.pg_trgm` prerequisite, and allowance for short
@@ -117,7 +124,8 @@ always receive zero; they no longer classify rows into distinct processing paths
 
 `StatisticsValidityRevalidation` is one small coalescing row per **item**, even for
 configuration-scoped events. Fields: item PK/FK, positive `Generation` (EF concurrency
-token), `IsPending`, `Phase` (Simple=0/Multi=1), nullable `LastEntryId` UUID. No per-entry
+token), `IsPending`, `Phase` (Simple=0/Multi=1), nullable `LastEntryId` UUID and
+`MultiRescanPending` (default false). No per-entry
 work queue, job framework, revision-based public gate or millions-ID event is needed.
 The pending/item index supports polling; the entry item/id index supports batches.
 
@@ -130,7 +138,7 @@ The pending/item index supports polling; the entry item/id index supports batche
    Config edits for the same item use this protocol too. Retry
    PostgreSQL serialization/deadlock failures; do not hold a broker lock for a sweep.
 2. On a real threshold save, validate and save definitions, increment Generation,
-   set pending=true, phase=Simple, cursor=null, and enqueue the agreed
+   set pending=true, phase=Simple, cursor=null, MultiRescanPending=false, and enqueue the agreed
    `StatisticsValidityThresholdsChangedV1` via the same scoped StatisticsDbContext
    active PostgreSQL transaction, then commit. Configuration ID remains present
    for config events and null for item events; storage intentionally scans the whole
@@ -143,13 +151,20 @@ The pending/item index supports polling; the entry item/id index supports batche
    LIMIT; no OFFSET. Use PostgreSQL UUID ordering, not a string/.NET sorting surrogate.
    Reject results computed before the locked/current definition read. Generation
    concurrency failures discard the entire batch; never checkpoint a rolled-back batch.
-4. Exhaust Simple, reset cursor and move to Multi; exhaust Multi and mark idle.
+4. Exhaust Simple, reset cursor and move to Multi. Exhaust Multi and mark idle only
+   if MultiRescanPending=false; otherwise reset the cursor, clear that flag and stay
+   pending in Multi for one coalesced follow-up pass. Do not clear the flag at ordinary
+   batch boundaries or restart an active pass when another notification arrives.
    Duplicate/out-of-order threshold messages merely wake the current durable job,
    **not** create a new generation or replay obsolete definitions. Retain idle job
    rows so delayed notification/dedup does not depend on an unbounded event-ID table.
    Parallel pollers must lock/re-read the job, not reuse a pre-lock cursor.
 5. Parent validity changes must schedule distinct dependent Multi **items** durably
-   in the same transaction as the parent batch, resetting their generation/cursor.
+   in the same transaction as the parent batch, incrementing their generation without
+   resetting an active sweep cursor. A pending Simple phase already has a later full
+   Multi pass, so needs no extra rescan. A pending Multi phase sets MultiRescanPending=true,
+   coalescing any number of arrivals into a follow-up pass after reaching the tail.
+   Idle jobs become pending Multi at cursor=null with no extra rescan flag.
    Resolve dependencies from configuration definitions. Same-item
    dependencies are already covered by that job's later Multi phase; do not reset
    its own Simple cursor. Lock dependent item rows consistently. Even if a child job
@@ -159,13 +174,18 @@ The pending/item index supports polling; the entry item/id index supports batche
    Every successful Simple creation also schedules dependent Multi items atomically
    with insertion, including same-item dependencies and **even valid new parents**.
    Scheduling increments Generation and sets pending; an already-pending Simple phase
-   keeps its cursor and later runs Multi from the beginning, otherwise Multi restarts
-   at cursor null. This covers late parents newly contained by an old window, even
+   keeps its cursor and later runs Multi from the beginning. An active Multi keeps
+   its cursor and requests a follow-up pass; only idle jobs start at cursor null.
+   This covers late parents newly contained by an old window, even
    behind a completed UUID cursor. An overlapping noncontained row does not contribute.
    New Multi entries read current containment counts/validity and own bounds under
    their item lock. Later parent validity changes schedule dependent jobs as above.
-   If a child sweep runs first, the parent transaction waits and then schedules another
-   sweep. Insertion or scheduling failure rolls back both; no new bus event is needed.
+   If a child batch runs first, the parent transaction waits on the same row lock,
+   then requests a follow-up or wakes the now-idle job. Completion, consuming the flag,
+   validity and checkpoint changes are atomic; a notification arriving behind the
+   completion lock cannot be lost. Arrivals during a follow-up request another pass
+   without resetting that pass's cursor. Insertion or scheduling failure rolls back
+   both; no new bus event is needed.
    Cached definitions or a UUID snapshot cursor alone cannot guarantee convergence.
 7. On this rollout, stop old binaries and apply the removal migration's all-item
    metadata reset before starting current writers/workers, as detailed above.
@@ -340,3 +360,56 @@ idle processed Multi reclassification after reset, dependency order, late insert
 same-item/cross-item races and cache invalidation with current window semantics.
 Representative-volume DDL lock timing, item-count reset load and EXPLAIN checks remain
 unmeasured; deployment must quiesce old binaries as specified above.
+
+## PR118 dependency coalescing followup (2026-11-04)
+
+The protocol above now preserves active Multi progress under continuous Simple
+insertions/parent reclassification. Each dependency arrival still increments Generation,
+but requests a coalesced follow-up instead of restarting the active cursor. A job may
+remain pending under continuous arrivals while successive passes keep reaching the tail.
+Full threshold saves intentionally restart Simple and clear the follow-up flag.
+The earlier temporary-probe descriptions of restarting an active Multi cursor are
+historical, not the current behavior.
+
+No repository tests were changed. Checks from this worktree:
+
+* Release processor build (`dotnet build
+  src/Module.Statistics.Processor/VeloTime.Module.Statistics.Processor.csproj
+  --configuration Release --no-restore`) also built core: succeeded, 0 errors,
+  existing CS9113 unread `TimingSampleHandler.logger` warning.
+* Release migration-runner build: succeeded, 0 warnings/errors.
+* EF `migrations has-pending-model-changes --project
+  src/Module.Statistics/VeloTime.Module.Statistics.csproj --configuration Release
+  --no-build`: no pending changes. Existing EF tool/runtime 10.0.9/10.0.12 warning.
+* Unchanged Statistics domain tests: **22 passed, 0 failed, 0 skipped**.
+* Unchanged Workers suite against isolated PostgreSQL 17: **198 passed, 1 failed,
+  14 skipped**. Only failure is
+  `MigrationModelConstraintsAndActualKeysetIndexAgree` line 784: expected migration
+  count 10, actual 11. Tester owns updating it for this additive migration. Re-running
+  with `--filter 'FullyQualifiedName!~MigrationModelConstraintsAndActualKeysetIndexAgree'`
+  passed **198, 0 failed, 14 skipped** (Agent outbox PostgreSQL setting absent).
+  Both test projects used Release, `--no-restore --logger trx /p:CollectCoverage=true
+  /p:CoverletOutputFormat=lcov` and `OIDC_AUDIENCE=https://build.invalid`; the filtered
+  run additionally used `--no-build`. Existing Workers restore/audit warnings remain.
+* External disposable probe `/tmp/velotimer-pr118-rescan-probe/Probe.csproj`:
+  **40 assertions passed** for same-item/cross-item active Simple preservation,
+  active Multi and follow-up cursor preservation under repeated arrivals, tail and
+  behind-cursor invalidation by an extra contained parent, single flag consumption
+  at exhaustion, idle wake, failed exhaustion commit rolling back validity/cursor/
+  flag, a late arrival waiting behind the completion lock then waking the job,
+  and whole-threshold reset. This is diagnostic evidence, not maintained tests.
+* The probe's `--upgrade` mode passed **4 assertions**: actual upgrade from the
+  preceding migration preserves all fields of four idle/pending Simple/Multi jobs,
+  supplies false flags, is idempotent on repeat, and matches the current model.
+  Fresh full-chain migration also succeeded. No shared/live database or broker was
+  contacted; no Down was run.
+
+Next owner **Tester**: update the migration count and add maintained continuous-arrival
+and follow-up tests for both dependency scopes; include arrivals before/after cursors
+and after the completion lock, multiple pollers, failed/cancelled exhaustion transactions,
+threshold supersession, and durable restart with a true rescan flag. Recheck duplicate/
+out-of-order threshold wakeups leave generation/cursor/flag untouched. Contracts,
+MessageName/EventId/item correlation, outbox boundaries, creation events and the grouped
+current-window exact-count/all-valid query are unchanged; public reads still use stored
+validity without revision gates. Coordinator should push/resolve only after Tester
+verification.
