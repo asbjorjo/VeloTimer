@@ -73,17 +73,6 @@ public static class StartupExtensions
                         TryTimeout = TimeSpan.FromSeconds(10)
                     }
                 });
-                config.TopologyProvisioning = new ServiceBusTopologySettings
-                {
-                    Enabled = true,
-                    CanConsumerCreateQueue = true,
-                    CanConsumerCreateTopic = true,
-                    CanConsumerCreateSubscription = true,
-                    CanConsumerCreateSubscriptionFilter = true,
-                    CanConsumerValidateSubscriptionFilters = true,
-                    CanProducerCreateQueue = true,
-                    CanProducerCreateTopic = true,
-                };
             });
             mbb.WithHeaderModifier((headers, message) =>
             {
@@ -130,13 +119,13 @@ public static class StartupExtensions
                 .Topic(settings.TopicName)
                 .WithConsumer<PauseAgentHandler>()
                 .SubscriptionName(agentId)
-                .SubscriptionCorrelationFilter(applicationProperties: new Dictionary<string, object> { { "agentId", agentId } })
+                .SubscriptionSqlFilter($"agentId = '{agentId}'")
                 .Instances(1));
             mbb.Consume<ResumeAgentCommand>(x => x
                 .Topic(settings.TopicName)
                 .WithConsumer<ResumeAgentHandler>()
                 .SubscriptionName(agentId)
-                .SubscriptionCorrelationFilter(applicationProperties: new Dictionary<string, object> { { "agentId", agentId } })
+                .SubscriptionSqlFilter($"agentId = '{agentId}'")
                 .Instances(1));
             mbb.AddServicesFromAssemblyContaining<PauseAgentHandler>();
             mbb.AddJsonSerializer();

@@ -39,6 +39,7 @@ internal static class StartupExtensions
             mbb.Consume<TimingSampleComplete>(x => x
                 .Topic("velotime-timing")
                 .SubscriptionName("statistics")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(TimingSampleComplete)}'")
                 .WithConsumer<TimingSampleHandler>()
                 .Instances(1)
                 .EnableSession(s =>
@@ -48,12 +49,14 @@ internal static class StartupExtensions
             mbb.Consume<TransponderOwnershipChanged>(x => x
                 .Topic("velotime-timing")
                 .SubscriptionName("statistics")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(TransponderOwnershipChanged)}'")
                 .WithConsumer<TransponderOwnershipChangedHandler>()
                 .Instances(1)
                 .EnableSession());
             mbb.Consume<EntryCreated>(x => x
                 .Topic("velotime-statistics")
                 .SubscriptionName("statistics")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(EntryCreated)}'")
                 .WithConsumer<EntryCreatedHandler>()
                 .WhenUndeclaredMessageTypeArrives(opts =>
                 {
@@ -68,6 +71,7 @@ internal static class StartupExtensions
             mbb.Consume<SampleComplete>(x => x
                 .Topic("velotime-statistics")
                 .SubscriptionName("statistics")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(SampleComplete)}'")
                 .WithConsumer<SampleCompleteHandler>()
                 .Instances(1)
                 .EnableSession(s =>

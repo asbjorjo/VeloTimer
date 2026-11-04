@@ -42,6 +42,7 @@ public static class StartupExtensions
             mbb.Consume<PassingEvent>(x => x
                 .Topic("velotime-agent")
                 .SubscriptionName("timing")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(PassingEvent)}'")
                 .WithConsumer<PassingObservedHandler>()
                 .Instances(1)
                 .EnableSession(s =>
@@ -63,11 +64,13 @@ public static class StartupExtensions
             mbb.Consume<InstallationLayoutEvent>(x => x
                 .Topic("velotime-agent")
                 .SubscriptionName("infrastructure")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(InstallationLayoutEvent)}'")
                 .WithConsumer<InstallationLayoutHandler>()
                 .Instances(1));
             mbb.Consume<LoopStatusEvent>(x => x
                 .Topic("velotime-agent")
                 .SubscriptionName("infrastructure")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(LoopStatusEvent)}'")
                 .WithConsumer<LoopStatusEventHandler>());
             mbb.AddServicesFromAssemblyContaining<PassingObservedHandler>();
         });
