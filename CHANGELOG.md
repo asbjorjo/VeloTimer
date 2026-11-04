@@ -20,6 +20,15 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.28"></a>
+## [2.1.0-alpha.28](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.28) (2026-11-04)
+
+### Bug Fixes
+
+* Enable provisioning for agent ([64f5fcf](https://www.github.com/asbjorjo/VeloTimer/commit/64f5fcfa8a4418757db4e80e2bf784950a89a07a))
+* Enable topology provisioning for all modules ([d89f741](https://www.github.com/asbjorjo/VeloTimer/commit/d89f7412bb13a7d8ab9245d8d33b49e1e1a98de2))
+* Remove -test suffix from messaging topics ([f07379e](https://www.github.com/asbjorjo/VeloTimer/commit/f07379e0d41cb63a6afc2098d87db9a2f880f4fb))
+
 <a name="2.1.0-alpha.27"></a>
 ## [2.1.0-alpha.27](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.27) (2026-11-04)
 
