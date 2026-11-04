@@ -19,11 +19,4 @@ public class StatisticsEntry
     public Guid FacilityId { get; init; }
     public bool IsValid { get; set; } = true;
     public StatisticsEntryInvalidReason? InvalidReason { get; set; }
-
-    /// <summary>
-    /// For Multi entries only: set in the same transaction that saves all selected
-    /// contributors. False on legacy rows means their exact lineage is not known.
-    /// </summary>
-    public bool HasCompleteContributorLineage { get; set; }
-    public ICollection<StatisticsEntryContributor> Contributors { get; set; } = [];
 }

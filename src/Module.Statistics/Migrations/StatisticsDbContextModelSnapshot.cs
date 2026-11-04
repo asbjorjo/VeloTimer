@@ -88,12 +88,6 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("facility_id");
 
-                    b.Property<bool>("HasCompleteContributorLineage")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("has_complete_contributor_lineage");
-
                     b.Property<int?>("InvalidReason")
                         .HasColumnType("integer")
                         .HasColumnName("invalid_reason");
@@ -156,36 +150,6 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.ToTable("statistics_entry", "statistics", t =>
                         {
                             t.HasCheckConstraint("ck_statistics_entry_validity", "(is_valid AND invalid_reason IS NULL) OR (NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3))");
-                        });
-                });
-
-            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsEntryContributor", b =>
-                {
-                    b.Property<Guid>("StatisticsEntryId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("statistics_entry_id");
-
-                    b.Property<int>("Position")
-                        .HasColumnType("integer")
-                        .HasColumnName("position");
-
-                    b.Property<Guid>("ContributorEntryId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("contributor_entry_id");
-
-                    b.HasKey("StatisticsEntryId", "Position")
-                        .HasName("pk_statistics_entry_contributor");
-
-                    b.HasIndex("ContributorEntryId")
-                        .HasDatabaseName("ix_statistics_entry_contributor_contributor_entry_id");
-
-                    b.HasIndex("StatisticsEntryId", "ContributorEntryId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_statistics_entry_contributor_statistics_entry_id_contributo");
-
-                    b.ToTable("statistics_entry_contributor", "statistics", t =>
-                        {
-                            t.HasCheckConstraint("ck_statistics_entry_contributor", "position >= 0 AND statistics_entry_id <> contributor_entry_id");
                         });
                 });
 
@@ -411,27 +375,6 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.Navigation("StatsProfile");
                 });
 
-            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsEntryContributor", b =>
-                {
-                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsEntry", "ContributorEntry")
-                        .WithMany()
-                        .HasForeignKey("ContributorEntryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_statistics_entry_contributor_statistics_entry_contributor_e");
-
-                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsEntry", "StatisticsEntry")
-                        .WithMany("Contributors")
-                        .HasForeignKey("StatisticsEntryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_statistics_entry_contributor_statistics_entry_statistics_en");
-
-                    b.Navigation("ContributorEntry");
-
-                    b.Navigation("StatisticsEntry");
-                });
-
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsItemConfig", b =>
                 {
                     b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItem", "StatisticsItem")
@@ -466,11 +409,6 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasConstraintName("fk_statistics_item_config_statistics_item_config_parent_config");
 
                     b.Navigation("ParentConfig");
-                });
-
-            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsEntry", b =>
-                {
-                    b.Navigation("Contributors");
                 });
 #pragma warning restore 612, 618
         }

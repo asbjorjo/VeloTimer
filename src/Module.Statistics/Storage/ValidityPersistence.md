@@ -2,7 +2,7 @@
 
 Storage and processing handoff. Entry creation and historical revalidation use the
 window semantics below. Do not enable threshold saves without the transactional
-scheduling protocol. Entity/table removal remains Data & Migrations owner work.
+scheduling protocol. Multi validity has no persisted contributor links or proof flags.
 
 ## Model and migration
 
@@ -31,8 +31,8 @@ scheduling protocol. Entity/table removal remains Data & Migrations owner work.
   numbers: public reads must exclude stored invalid rows before projection/paging;
   existing `EntryCreated` transports only IDs/times, not speed. If a future unfiltered
   transport must expose speed, return to the contract owner before changing its type.
-* `20261103135514_statistics_validity_thresholds` is transactional, adds compatible
-  defaults, empty lineage/checkpoint tables and a configuration-item lookup index.
+* Immutable `20261103135514_statistics_validity_thresholds` is transactional, adds
+  compatible defaults, initially empty contributor/checkpoint tables and a configuration-item lookup index.
   No historical entries or contributors are recalculated/copied. Entry validity CHECK
   is added **NOT VALID**, avoiding a synchronous historical table scan while enforcing
   subsequent writes. An operator may later `VALIDATE CONSTRAINT` in a separately
@@ -43,6 +43,20 @@ scheduling protocol. Entity/table removal remains Data & Migrations owner work.
   `pg_index`; an approved recovery drops only this migration-owned index concurrently
   (whether INVALID or completed without history) before retrying the pending index
   migration. Do not use `IF NOT EXISTS` to accept an unknown/invalid index.
+* `20261104085927_statistics_remove_contributor_lineage` is an additive forward,
+  transactional migration. It drops the unused `statistics_entry_contributor` table
+  (including its constraints/indexes/data) and the entry
+  `has_complete_contributor_lineage` column. All measurements, validity classifications,
+  ownership, definitions and other data are retained. Earlier migrations/designers
+  remain immutable; fresh installations apply their original schema then this removal.
+* The removal migration also upserts checkpoints for **every existing item**, ordered
+  by UUID: new rows get generation=1; existing rows increment generation by one,
+  including idle jobs. All become pending, phase=Simple (0), cursor=null. This broader
+  metadata-only reset includes every Multi item and its parent/dependent items, even
+  if bootstrap previously completed or thresholds never changed. It reads definitions
+  and updates small checkpoint rows only, never scans entries or classifies results.
+  Generation overflow fails and rolls back the transaction rather than wrapping.
+  Reapplying an already-recorded migration does not schedule another sweep.
 * EF history remains `ef.__ef_migrations_history`. The existing history-schema
   migration is empty: no row-history triggers or cross-service storage were added.
   Generated designer/snapshot `public.pg_trgm` annotations were corrected because
@@ -51,9 +65,20 @@ scheduling protocol. Entity/table removal remains Data & Migrations owner work.
 Deployment requires PostgreSQL 11+ fast constant defaults, table-owner/index/DDL
 privileges, the existing `public.pg_trgm` prerequisite, and allowance for short
 exclusive DDL locks and the measured concurrent-index build. The configuration table
-checks/index scan definitions, not historical measurements. Take a backup. Apply both
-new migrations before enabling workers. Generated Down removes bounds, classification,
-lineage and checkpoints: **destructive, not executed, requires explicit approval**.
+checks/index scan definitions, not historical measurements. Take a backup, including
+unused provenance if rollback recovery matters. Stop Statistics APIs/entry writers and
+revalidation workers during this migration, apply all pending migrations, then start
+only the matching new binaries. Old binaries selecting/writing the removed column/table
+are incompatible: this is not a mixed-version rolling schema change. Allow exclusive
+DDL locks and checkpoint-row locks for the metadata reset; total work is proportional
+to item count, not entry count. Restart polling workers to drain the persisted pending
+jobs; no outbox event is needed. Stored classifications remain authoritative until
+bounded asynchronous processing converges, including normal post-commit cache invalidation.
+The removal migration's Down recreates the empty contributor table with its original
+keys/check/indexes and a false-default flag; it fabricates no links and does not restore
+deleted provenance or reverse checkpoint generations/scheduling. Earlier Down migrations
+remove bounds/classification/checkpoints. **No Down was executed; rollback requires
+explicit approval and cannot recover provenance without a backup.**
 
 ## Current Multi window contributors
 
@@ -82,9 +107,9 @@ queries, original-ID reconstruction, or separate historical-row policy is used.
 Creation inserts and classifies inside the existing caller transaction, saving final
 validity before commit/publication. No creation events are emitted on reclassification.
 
-Processing no longer reads or writes `StatisticsEntryContributor` or
-`HasCompleteContributorLineage`. The model, table, column and existing links remain
-temporarily; Data & Migrations must remove them and choose the migration strategy.
+Processing and the current EF model neither read nor write contributor links or
+completeness flags. The forward removal migration removes their schema and stored data;
+there is no link guarantee for new or historical entries.
 Old diagnostic result fields/counters are retained for caller compatibility but
 always receive zero; they no longer classify rows into distinct processing paths.
 
@@ -142,10 +167,11 @@ The pending/item index supports polling; the entry item/id index supports batche
    If a child sweep runs first, the parent transaction waits and then schedules another
    sweep. Insertion or scheduling failure rolls back both; no new bus event is needed.
    Cached definitions or a UUID snapshot cursor alone cannot guarantee convergence.
-7. On rollout, upgrade/stop old entry writers before enabling processing and seed
-   pending rows for **all existing items** asynchronously, even if no thresholds
-   were edited, to classify historical nonpositive entries. Migration does not seed
-   jobs or claim completion. Workers own this bounded bootstrap and cache invalidation.
+7. On this rollout, stop old binaries and apply the removal migration's all-item
+   metadata reset before starting current writers/workers, as detailed above.
+   Bootstrap still establishes missing jobs for later items, but does not reset
+   existing idle jobs; it is not a replacement for the migration reset. Workers own
+   bounded entry classification and cache invalidation, not the schema migration.
 
 The schema does not enforce cooperating-writer behavior by itself. Stored IsValid
 alone remains read authority; public results converge as pending jobs complete.
@@ -169,16 +195,15 @@ Executed in the assigned worktree:
   survived unchanged, defaults were true/null/false, both history entries were present,
   entry CHECK remained unvalidated and keyset index was valid.
 * Temporary external console harness (not repository test code) checked UTC and
-  microsecond TimeSpan materialization, exact ordered lineage, all CHECK categories,
-  duplicate contributor rejection (23505), contributor deletion restriction (23503),
-  stale generation rejection and checkpoint recovery using new DbContexts.
+  microsecond TimeSpan materialization, original CHECK categories, stale generation
+  rejection and checkpoint recovery using new DbContexts.
 * Follow-up PostgreSQL checks proved new-row false validity is not overwritten by
   the true database default, negative duration/speed remain retained, omitted fields
   retain compatible defaults, and repeated EF update applies no migrations.
   Outbox registration and real transaction checks are detailed in OutboxPersistence.md.
 
-The preceding lineage storage checks describe the original schema, not current
-processing requirements. Data & Migrations owns removal and revised migration checks.
+The preceding original-schema checks are historical evidence, not current contributor
+requirements. Current removal/upgrade checks are recorded below.
 
 Tester: add maintained PostgreSQL migrations/model tests and representative-volume
 EXPLAIN/keyset checks; test submicrosecond rounding, negative durations, all four reasons,
@@ -260,9 +285,58 @@ revalidation publishes no events and does not add aggregate deduplication guaran
 The more conservative exclusive Simple-writer scope can increase item-level contention;
 retain existing deadlock/serialization retry handling and measure representative load.
 
-Next owner: **Data & Migrations** removes unused entities/table/column and chooses the
-migration strategy; then **Tester** updates maintained coverage. No schema rollout or
-large-volume EXPLAIN validation is claimed by this processing-only change. If the
-previous algorithm has already processed a database, rollout must asynchronously
-reschedule existing idle jobs to apply the new semantics there; bootstrap intentionally
-does not reset existing jobs. Do not recalculate history in a schema migration.
+The data followup below supplies the schema removal and rollout reset. No large-volume
+EXPLAIN validation is claimed by the processing-only checks above.
+
+## Data followup validation (2026-11-04)
+
+Changed only models, DbContext, new migration/designer/snapshot and storage/plan docs.
+All earlier migration artifacts are unchanged. The Npgsql scaffolder again omitted
+the extension schema; only the new designer and snapshot were corrected to preserve
+`public.pg_trgm`.
+
+* `dotnet build src/Module.Statistics.Migration/VeloTime.Module.Statistics.Migration.csproj
+  --configuration Release --no-restore`: **0 warnings/errors** (also builds core).
+* `dotnet build src/Module.Statistics.Processor/VeloTime.Module.Statistics.Processor.csproj
+  --configuration Release --no-restore`: **succeeded, 1 warning, 0 errors**.
+  Existing CS9113: unread `logger` in `TimingSampleHandler.cs:16`; OpenAPI generation
+  also logged its existing container DataProtection-key persistence warning.
+* `dotnet ef migrations has-pending-model-changes --project
+  src/Module.Statistics/VeloTime.Module.Statistics.csproj --configuration Release
+  --no-build`: **no pending changes**.
+* `OIDC_AUDIENCE=https://build.invalid dotnet test
+  src/VeloTime.Module.Statistics.Test/VeloTime.Module.Statistics.Test.csproj
+  --configuration Release --no-restore --logger trx /p:CollectCoverage=true
+  /p:CoverletOutputFormat=lcov`: **22 passed, 0 failed, 0 skipped**, unchanged tests.
+* Disposable PostgreSQL 17 (`postgres:17-alpine`) databases `upgrade` and `fresh`:
+  actual EF `database update` first migrated `upgrade` to
+  `20261103135802_statistics_validity_revalidation_index`, then applied the removal.
+  A temporary external Python/psql probe seeded idle Simple/Multi, pending Simple/Multi
+  jobs with non-null cursors, and items missing jobs, including a cross-item Multi
+  dependency. All six items became pending Simple with null cursors, generations
+  incremented exactly once or inserted as 1. Repeated EF update left jobs unchanged.
+* Seeded four entries (including UTC microseconds, zero-duration Infinity, negative
+  duration/speed, retained invalidity and an already-processed valid Multi), two
+  contributor links/true flag, bounded definitions and profile ownership. JSONB
+  comparisons of every non-provenance column in entry/definition/profile/sample tables
+  matched before/after; the sample table was empty. Only unused provenance was removed.
+* Fresh full-chain migration succeeded. Both databases had the removal history row
+  in `ef.__ef_migrations_history`, no contributor table/flag, valid entry indexes and
+  the intentionally unvalidated entry validity CHECK.
+* Generated reverse SQL was inspected, **not executed**: original empty contributor
+  schema/indexes, false-default flag, no fabricated links and no checkpoint reversal.
+
+EF 10.0.9 emits the existing runtime-10.0.12 version warning. Fresh empty databases
+emit an initial missing history-table SELECT diagnostic before EF creates it; updates
+exit successfully. The earlier public-index migration emits its existing concurrent
+index partial-application warning; it was not rewritten. No live/shared database was
+touched, and the disposable container was removed after checks.
+
+Next owner: **Tester** updates obsolete worker fixtures/link/proof/schema assertions
+listed above; removal means tests referencing deleted CLR members now need source
+updates before that project can compile. Add maintained PostgreSQL forward/fresh,
+reset/retention, migration atomicity/failure and worker convergence coverage. Verify
+idle processed Multi reclassification after reset, dependency order, late inserts,
+same-item/cross-item races and cache invalidation with current window semantics.
+Representative-volume DDL lock timing, item-count reset load and EXPLAIN checks remain
+unmeasured; deployment must quiesce old binaries as specified above.

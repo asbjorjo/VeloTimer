@@ -2,7 +2,10 @@
 
 ## Status and approach
 
-Planning complete; implement only when explicitly requested. No repository files changed.
+Implementation is in progress on `feature/statistics-validity-thresholds`. Current
+storage and rollout checks are recorded in
+`src/Module.Statistics/Storage/ValidityPersistence.md`; Tester owns the next regression
+fixture updates after the contributor-schema removal.
 
 Add optional global approval thresholds per statistics item and optional thresholds on existing facility-linked configurations. Statistics admins can enter speed or duration; persist/exchange only nullable minimum/maximum duration. Retain invalid entries with a validity flag/reason, and filter them out of statistical results.
 
@@ -38,8 +41,17 @@ Save threshold updates promptly and trigger durable, asynchronous historical rev
 4. Read current thresholds from storage for each batch. Duplicate/out-of-order events must be harmless and newer changes must eventually win. Ensure a concurrent stale batch cannot become the final classification after a newer update; use simple per-scope ordering or a lightweight generation check only where needed for worker writes, not public-query revision gates.
 5. New entries use current effective bounds. Existing cache invalidation remains wired across API/processors/WebUI. Account for late concurrent inserts with an eventual follow-up sweep where necessary; do not claim a snapshot cursor alone covers every racing insert.
 6. Recheck dependent Multi results after parent threshold changes and new Simple insertions, even when the Multi item's own rules did not change. Schedule jobs atomically with parent writes, including late inserts behind completed cursors. Reclassification updates validity only; it must not replay creation events and duplicate aggregates.
-7. Multi contributors are CURRENT parent Simple entries matching parent configuration, transponder and facility, fully contained by `TimeStart >= multi.TimeStart AND TimeEnd <= multi.TimeEnd`. Require exactly the configured repetitions and all valid; unexpected count means InvalidContributor. Retain the total and never guess a subset or skip invalid laps. New Multi endpoints still derive from deterministic latest N parents, but classification uses the same containment rule as historical processing, including extra/overlapping rows. No lineage/proof or separate historical-row policy is needed; Data & Migrations removes the unused link schema.
+7. Multi contributors are CURRENT parent Simple entries matching parent configuration, transponder and facility, fully contained by `TimeStart >= multi.TimeStart AND TimeEnd <= multi.TimeEnd`. Require exactly the configured repetitions and all valid; unexpected count means InvalidContributor. Retain the total and never guess a subset or skip invalid laps. New Multi endpoints still derive from deterministic latest N parents, but classification uses the same containment rule as historical processing, including extra/overlapping rows. No lineage/proof or separate historical-row policy is needed. Additive migration `20261104085927_statistics_remove_contributor_lineage` removes the unused link table/flag without rewriting earlier migrations.
 8. Errors remain explicit in logs/retries; saving settings must not claim historical recalculation has completed. A simple pending notice in the existing editor is sufficient; no inspection screen or new monitoring dashboard required.
+9. Rollout must reschedule previously processed Multi results even when jobs are idle:
+   the removal migration upserts all existing item checkpoints, increments existing
+   generations (new=1), sets pending/phase=Simple/cursor=null. This includes dependencies
+   using definitions/checkpoint metadata only, never an entries scan. Stop old
+   API/writer/worker binaries during migration and restart only matching binaries;
+   they are incompatible with removed columns/tables. Polling workers asynchronously
+   apply current semantics; stored validity stays authoritative until convergence.
+   Down restores only empty contributor schema/false flags, not deleted provenance
+   or previous scheduling state. Back up before deployment.
 
 ## Examined surfaces
 
@@ -70,7 +82,7 @@ Save threshold updates promptly and trigger durable, asynchronous historical rev
 9. **Adding/running regressions:** Tester adds targeted domain/API/worker/UI-transport and deployment coverage, runs affected tests and Release builds, reports exact results and returns production defects to original owners.
 10. **Reviewing/delivering:** Code Reviewer performs bounded read-only correctness review after implementation/test evidence. Owners fix actionable issues and rerun affected checks. Coordinator verifies integration/diff/acceptance criteria. Update directly related documentation/localization/OpenAPI/changelog where applicable and make focused verified Conventional Commits with required Copilot coauthor trailer.
 
-Contracts precede storage/services/UI/deployment. Storage precedes dependent behavior. Prefer sequential specialist handoffs in one worktree; genuinely parallel editors need separate worktrees/branches and explicit integration. Specialists must not delegate further. No production edits during planning.
+Contracts precede storage/services/UI/deployment. Storage precedes dependent behavior. Prefer sequential specialist handoffs in one worktree; genuinely parallel editors need separate worktrees/branches and explicit integration. Specialists must not delegate further.
 
 ## Acceptance and validation
 

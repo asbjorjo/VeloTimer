@@ -61,7 +61,6 @@ public class StatisticsDbContext : BaseDbContext
         modelBuilder.Entity<StatisticsEntry>(e =>
         {
             e.Property(s => s.IsValid).HasDefaultValue(true);
-            e.Property(s => s.HasCompleteContributorLineage).HasDefaultValue(false);
             if (Database.IsNpgsql())
             {
                 e.ToTable(t => t.HasCheckConstraint("ck_statistics_entry_validity",
@@ -91,24 +90,6 @@ public class StatisticsDbContext : BaseDbContext
                 .IsDescending(false, false, false, true, true)
                 .IsCreatedConcurrently()
                 .HasDatabaseName("ix_statistics_entry_facility_item_config_time_end_id");
-        });
-        modelBuilder.Entity<StatisticsEntryContributor>(e =>
-        {
-            e.HasKey(c => new { c.StatisticsEntryId, c.Position });
-            e.HasIndex(c => new { c.StatisticsEntryId, c.ContributorEntryId }).IsUnique();
-            e.HasOne(c => c.StatisticsEntry)
-                .WithMany(s => s.Contributors)
-                .HasForeignKey(c => c.StatisticsEntryId)
-                .OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(c => c.ContributorEntry)
-                .WithMany()
-                .HasForeignKey(c => c.ContributorEntryId)
-                .OnDelete(DeleteBehavior.Restrict);
-            if (Database.IsNpgsql())
-            {
-                e.ToTable(t => t.HasCheckConstraint("ck_statistics_entry_contributor",
-                    "position >= 0 AND statistics_entry_id <> contributor_entry_id"));
-            }
         });
         modelBuilder.Entity<StatisticsValidityRevalidation>(e =>
         {
