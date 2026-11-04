@@ -9,6 +9,11 @@ internal static class StatisticsAdministrationEndpoints
     internal static void MapStatisticsAdministrationEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var statistics = endpoints.MapGroup("/admin/statistics").RequireAuthorization(AdministrationAuthorization.StatisticsPolicy);
+        statistics.MapGet("/hall-of-fame", async (IStatisticsAdministrationService service, CancellationToken cancellationToken) =>
+            Results.Ok(await service.GetHallOfFameSettingsAsync(cancellationToken)));
+        statistics.MapPut("/hall-of-fame", async (SaveHallOfFameSettingsRequest request,
+            IStatisticsAdministrationService service, CancellationToken cancellationToken) =>
+            Results.Ok(await service.SaveHallOfFameSettingsAsync(request, cancellationToken)));
         statistics.MapGet("/items", async (IStatisticsAdministrationService service, CancellationToken cancellationToken) =>
             Results.Ok(await service.GetItemsAsync(cancellationToken)));
         statistics.MapGet("/configurations", async (IStatisticsAdministrationService service, CancellationToken cancellationToken) =>

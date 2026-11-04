@@ -11,6 +11,8 @@ public class StatisticsDbContext : BaseDbContext
     {
     }
 
+    public DbSet<HallOfFameSettings> HallOfFameSettingsDocuments => Set<HallOfFameSettings>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("statistics");
@@ -22,6 +24,39 @@ public class StatisticsDbContext : BaseDbContext
 
         modelBuilder.Entity<Sample>();
         modelBuilder.Entity<StatisticsItem>();
+        modelBuilder.Entity<HallOfFameSettings>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.Id)
+                .ValueGeneratedNever();
+            e.Property(s => s.Version)
+                .IsConcurrencyToken();
+            e.Property(s => s.SectionsJson)
+                .IsRequired();
+            if (Database.IsNpgsql())
+            {
+                e.Property(s => s.SectionsJson)
+                    .HasColumnType("jsonb");
+            }
+
+            e.ToTable("hall_of_fame_settings", table =>
+            {
+                table.HasCheckConstraint("ck_hall_of_fame_settings_singleton", "id = 1");
+                table.HasCheckConstraint("ck_hall_of_fame_settings_version_nonnegative", "version >= 0");
+                if (Database.IsNpgsql())
+                {
+                    table.HasCheckConstraint(
+                        "ck_hall_of_fame_settings_sections_array",
+                        "jsonb_typeof(sections_json) = 'array'");
+                }
+            });
+            e.HasData(new HallOfFameSettings
+            {
+                Id = HallOfFameSettings.SingletonId,
+                Version = 0,
+                SectionsJson = "[]"
+            });
+        });
         modelBuilder.Entity<SimpleStatisticsItemConfig>(e =>
         {
             e.HasOne(s => s.StatisticsItem)

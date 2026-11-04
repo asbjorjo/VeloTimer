@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -13,6 +14,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
 using MudBlazor.Services;
+using VeloTime.Module.Common;
 using VeloTime.WebUI.Mud.Client;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
@@ -24,7 +26,7 @@ namespace VeloTime.Platform.Test;
 /// Bounded Kestrel + real client Router/MainLayout/NavMenu/Results, mocked services.
 /// Opt in after the integrated build and Node/Playwright/browser handoff.
 /// </summary>
-public sealed class PublicStatisticsBrowserHarnessTests
+public sealed partial class PublicStatisticsBrowserHarnessTests
 {
     [PublicStatisticsBrowserFact]
     public async Task RealInteractivePage_RestoresRefreshHistoryFiltersSelectionsAndCursorNavigation()
@@ -111,7 +113,7 @@ public sealed class PublicStatisticsBrowserHarnessTests
         }
     }
 
-    private static async Task<WebApplication> CreateAppAsync()
+    private static async Task<WebApplication> CreateAppAsync(HallOfFameBrowserStore? hall = null)
     {
         var repository = FindRepository();
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -125,15 +127,19 @@ public sealed class PublicStatisticsBrowserHarnessTests
             options.SetDefaultCulture("en").AddSupportedCultures("en", "nb-NO").AddSupportedUICultures("en", "nb-NO"));
         builder.Services.AddMudServices();
         builder.Services.AddTransient<MudLocalizer, LocalizedMudLocalizer>();
-        builder.Services.AddAuthorization();
+        builder.Services.AddAdministrationAuthorization();
+        if (hall is not null)
+            builder.Services.AddAuthentication("hall-test").AddScheme<AuthenticationSchemeOptions, HallAuthenticationHandler>("hall-test", _ => { });
         builder.Services.AddCascadingAuthenticationState();
-        builder.Services.AddScoped<AuthenticationStateProvider, AnonymousState>();
+        builder.Services.AddScoped<AuthenticationStateProvider>(_ =>
+            hall is null ? new AnonymousState() : new HallAdministratorState());
         builder.Services.AddScoped<UnsavedChangesTracker>();
         builder.Services.AddScoped<DisplayPreferenceState>();
         builder.Services.AddScoped<IDisplayPreferenceService, DisplaySettingsBrowserHostTests.FakeDisplayPreferenceService>();
         builder.Services.AddSingleton<DisplaySettingsBrowserHostTests.HarnessStore>();
         var state = new HarnessState();
-        builder.Services.AddSingleton(CreateStatistics(state));
+        builder.Services.AddSingleton(hall is null ? CreateStatistics(state) : hall.Statistics);
+        if (hall is not null) builder.Services.AddSingleton(hall.Administration);
         builder.Services.AddSingleton(PlatformServiceTests.TestProxy.Create<IFacilityService>((method, _) =>
             method.Name == nameof(IFacilityService.GetFacilitiesAsync)
                 ? state.Mode == "no-facilities" ? Array.Empty<FacilityView>()
@@ -141,6 +147,21 @@ public sealed class PublicStatisticsBrowserHarnessTests
                         new FacilityView { Id = Id(14), Name = "Arena" }, new FacilityView { Id = Id(1), Name = "Arena" } }
                 : throw new NotSupportedException(method.Name)));
         var app = builder.Build();
+        if (hall is not null)
+        {
+            app.UseAuthentication();
+            app.UseAuthorization();
+        }
+        if (hall is not null)
+        {
+            app.MapPost("/__test/hall/conflict", () => { hall.AdvanceVersion(); return Results.NoContent(); });
+            app.MapPost("/__test/hall/load-failure/{enabled:bool}", (bool enabled) =>
+            {
+                hall.LoadFails = enabled;
+                return Results.NoContent();
+            });
+            app.MapGet("/__test/hall/state", () => Results.Json(hall.Settings));
+        }
         app.UseRequestLocalization();
         app.UseAntiforgery();
         app.MapPost("/__test/scenario/{mode}", (string mode) =>
@@ -159,6 +180,10 @@ public sealed class PublicStatisticsBrowserHarnessTests
         // Serve locally cached package assets, never remote fonts/CDNs.
         MapPackageAsset(app, "MudBlazor", "MudBlazor.min.js");
         MapPackageAsset(app, "MudBlazor", "MudBlazor.min.css");
+        var clientCss = Directory.EnumerateFiles(
+            Path.Combine(repository, "src", "WebUI.Mud.Client", "obj"), "VeloTime.WebUI.Mud.Client.bundle.scp.css",
+            SearchOption.AllDirectories).OrderByDescending(File.GetLastWriteTimeUtc).First();
+        app.MapGet("/__test/client.css", () => Results.File(clientCss, "text/css"));
         MapPackageAsset(app, "Microsoft.AspNetCore.App.Internal.Assets", "blazor.web.js", "/_framework/blazor.web.js");
         app.MapRazorComponents<HarnessDocument>().AddInteractiveServerRenderMode()
             .AddAdditionalAssemblies(typeof(Routes).Assembly);
@@ -177,6 +202,7 @@ public sealed class PublicStatisticsBrowserHarnessTests
             builder.AddMarkupContent(3, """
                 <meta charset="utf-8"><base href="/">
                 <link rel="stylesheet" href="/_content/MudBlazor/MudBlazor.min.css">
+                <link rel="stylesheet" href="/__test/client.css">
                 """);
             builder.CloseElement();
             builder.OpenElement(4, "body");

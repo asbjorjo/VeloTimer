@@ -9,6 +9,7 @@ internal static class StatisticsEndpoints
         statistics.MapSampleEndpoints();
         statistics.MapBestStatisticsResultsEndpoints();
         statistics.MapPublicStatisticsEndpoints();
+        routeBuilder.MapHallOfFameEndpoints();
         statistics.MapStatsProfileEndpoints();
         statistics.MapOwnerProfileEndpoints();
         statistics.MapStatisticsDefinitionEndpoints();

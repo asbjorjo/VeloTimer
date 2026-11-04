@@ -55,6 +55,112 @@ public class StatisticsService(
         }, cancellationToken);
     }
 
+    public async Task<Contracts.HallOfFameDTO> GetHallOfFameAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await statistics.GetHallOfFameAsync(cancellationToken);
+            return MapHallOfFame(response);
+        }
+        catch (Module.Statistics.Client.ApiException exception)
+        {
+            var status = exception.StatusCode is 500 or 502 or 503
+                ? (HttpStatusCode)exception.StatusCode
+                : HttpStatusCode.BadGateway;
+            var message = exception.StatusCode == 500
+                ? "Hall of Fame settings are invalid or stale. Contact a statistics administrator."
+                : exception.StatusCode == 503
+                    ? "The Hall of Fame is temporarily unavailable."
+                    : "The Hall of Fame could not be loaded.";
+            throw new HttpRequestException(message, exception, status);
+        }
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new HttpRequestException(
+                "The Hall of Fame is temporarily unavailable.", exception, HttpStatusCode.ServiceUnavailable);
+        }
+        catch (Exception exception) when (exception is FormatException or ArgumentException or Newtonsoft.Json.JsonException)
+        {
+            throw new HttpRequestException("The Hall of Fame response was invalid.", exception, HttpStatusCode.BadGateway);
+        }
+    }
+
+    private static Contracts.HallOfFameDTO MapHallOfFame(Module.Statistics.Client.HallOfFameDTO response)
+    {
+        if (response?.Sections is null)
+            throw new InvalidDataException("The Hall of Fame response is missing sections.");
+
+        var sections = response.Sections.Select(section =>
+        {
+            if (section is null)
+                throw new InvalidDataException("A Hall of Fame section is missing.");
+            var mode = (Contracts.HallOfFameRankingMode)section.RankingMode;
+            if (section.StatisticsItemId == Guid.Empty || string.IsNullOrWhiteSpace(section.StatisticsItemName) ||
+                !Enum.IsDefined(mode) || section.RowCount is < Contracts.HallOfFameQuery.MinimumRowCount or > Contracts.HallOfFameQuery.MaximumRowCount ||
+                section.Columns is null || section.Entries is null)
+                throw new InvalidDataException("The Hall of Fame section response is invalid.");
+
+            var columns = section.Columns.Select(value => (Contracts.HallOfFameColumn)value).ToArray();
+            if (columns.Any(column => !Enum.IsDefined(column)) || columns.Distinct().Count() != columns.Length ||
+                section.Entries.Count > section.RowCount)
+                throw new InvalidDataException("The Hall of Fame section response has invalid columns or row count.");
+
+            return new Contracts.HallOfFameSectionDTO(
+                section.StatisticsItemId,
+                section.StatisticsItemName,
+                mode,
+                section.RowCount,
+                columns,
+                section.Entries.Select(entry => MapHallOfFameEntry(entry, columns)).ToArray());
+        }).ToArray();
+        return new Contracts.HallOfFameDTO(sections);
+    }
+
+    private static Contracts.HallOfFameEntryDTO MapHallOfFameEntry(
+        Module.Statistics.Client.HallOfFameEntryDTO entry,
+        IReadOnlyCollection<Contracts.HallOfFameColumn> columns)
+    {
+        bool Includes(Contracts.HallOfFameColumn column) => columns.Contains(column);
+        if (entry is null || entry.Rank <= 0 || string.IsNullOrWhiteSpace(entry.ProfileName))
+            throw new InvalidDataException("The Hall of Fame entry response is invalid.");
+
+        TimeSpan? bestTime = null;
+        if (Includes(Contracts.HallOfFameColumn.BestTime))
+        {
+            if (string.IsNullOrWhiteSpace(entry.BestTime))
+                throw new InvalidDataException("A configured best-time value was missing.");
+            bestTime = TimeSpan.Parse(entry.BestTime, CultureInfo.InvariantCulture);
+            if (bestTime < TimeSpan.Zero)
+                throw new InvalidDataException("A Hall of Fame best time cannot be negative.");
+        }
+        else if (entry.BestTime is not null)
+            throw new InvalidDataException("The Hall of Fame returned an unconfigured best-time value.");
+
+        if (!Includes(Contracts.HallOfFameColumn.SpeedOfBestResult) && entry.SpeedOfBestResult is not null ||
+            Includes(Contracts.HallOfFameColumn.SpeedOfBestResult) &&
+            (entry.SpeedOfBestResult is not { } speed || !double.IsFinite(speed) || speed < 0))
+            throw new InvalidDataException("The Hall of Fame speed value does not match the selected columns.");
+        if (!Includes(Contracts.HallOfFameColumn.PassingCount) && entry.PassingCount is not null ||
+            Includes(Contracts.HallOfFameColumn.PassingCount) && entry.PassingCount is not >= 0)
+            throw new InvalidDataException("The Hall of Fame passing count does not match the selected columns.");
+        if (!Includes(Contracts.HallOfFameColumn.FacilityOfBestResult) && entry.FacilityOfBestResult is not null ||
+            Includes(Contracts.HallOfFameColumn.FacilityOfBestResult) && string.IsNullOrWhiteSpace(entry.FacilityOfBestResult))
+            throw new InvalidDataException("The Hall of Fame facility value does not match the selected columns.");
+        if (!Includes(Contracts.HallOfFameColumn.DateOfBestResult) && entry.DateOfBestResult is not null ||
+            Includes(Contracts.HallOfFameColumn.DateOfBestResult) &&
+            (entry.DateOfBestResult is not { } date || date.Offset != TimeSpan.Zero))
+            throw new InvalidDataException("The Hall of Fame date value does not match the selected columns or is not UTC.");
+
+        return new(
+            entry.Rank,
+            entry.ProfileName,
+            bestTime,
+            entry.SpeedOfBestResult,
+            entry.PassingCount,
+            entry.FacilityOfBestResult,
+            entry.DateOfBestResult);
+    }
+
     private static Contracts.PublicStatisticsCursorDTO? MapCursor(PublicStatisticsCursorDTO? cursor)
     {
         if (cursor is null) return null;

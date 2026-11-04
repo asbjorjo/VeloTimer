@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using System.Text;
+using VeloTime.Module.Facilities.Client;
 using VeloTime.Module.Statistics.Api.Endpoints;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Storage;
@@ -24,6 +26,7 @@ internal sealed class PublicStatisticsTestHost : IAsyncDisposable
     public static readonly Guid End = Guid.Parse("20000000-0000-0000-0000-000000000002");
     public readonly PointDependencies Points = new();
     public readonly SqlCapture Sql = new();
+    public readonly FacilityListHandler Facilities = new();
     private StatisticsApiFactory root = null!;
     public WebApplicationFactory<Program> App { get; private set; } = null!;
     private string? adminConnection;
@@ -60,10 +63,15 @@ internal sealed class PublicStatisticsTestHost : IAsyncDisposable
             {
                 foreach (var descriptor in services.Where(service =>
                     service.ServiceType == typeof(ICoursePointReferences) ||
-                    service.ServiceType == typeof(IPublicCoursePointNames)).ToArray())
+                    service.ServiceType == typeof(IPublicCoursePointNames) ||
+                    service.ServiceType == typeof(IFacilitiesClient)).ToArray())
                     services.Remove(descriptor);
                 services.AddSingleton<ICoursePointReferences>(host.Points);
                 services.AddSingleton<IPublicCoursePointNames>(host.Points);
+                services.AddSingleton<IFacilitiesClient>(_ => new FacilitiesClient(new HttpClient(host.Facilities)
+                {
+                    BaseAddress = new Uri("http://facilities")
+                }));
                 services.AddDbContext<StatisticsDbContext>(options => options.AddInterceptors(host.Sql));
             }));
             await using var scope = host.App.Services.CreateAsyncScope();
@@ -140,13 +148,39 @@ internal sealed class PublicStatisticsTestHost : IAsyncDisposable
     internal sealed class SqlCapture : DbCommandInterceptor
     {
         public ConcurrentQueue<(string Text, object?[] Parameters)> Commands { get; } = [];
+        public ConcurrentQueue<(string Text, (string Name, object? Value)[] Parameters)> DetailedCommands { get; } = [];
         public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
             DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result,
             CancellationToken cancellationToken = default)
         {
-            Commands.Enqueue((command.CommandText,
-                command.Parameters.Cast<DbParameter>().Select(parameter => parameter.Value).ToArray()));
+            var parameters = command.Parameters.Cast<DbParameter>().ToArray();
+            Commands.Enqueue((command.CommandText, parameters.Select(parameter => parameter.Value).ToArray()));
+            DetailedCommands.Enqueue((command.CommandText,
+                parameters.Select(parameter => (parameter.ParameterName, parameter.Value)).ToArray()));
             return ValueTask.FromResult(result);
+        }
+    }
+
+    internal sealed class FacilityListHandler : HttpMessageHandler
+    {
+        private int calls;
+        public int Calls => Volatile.Read(ref calls);
+        public System.Net.HttpStatusCode StatusCode { get; set; } = System.Net.HttpStatusCode.OK;
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref calls);
+            var response = """
+                [
+                  { "id": "10000000-0000-0000-0000-000000000001", "name": "Velodrome", "layouts": [] },
+                  { "id": "10000000-0000-0000-0000-000000000002", "name": "Road Course", "layouts": [] }
+                ]
+                """;
+            return Task.FromResult(new HttpResponseMessage(StatusCode)
+            {
+                Content = new StringContent(response, Encoding.UTF8, "application/json")
+            });
         }
     }
 }

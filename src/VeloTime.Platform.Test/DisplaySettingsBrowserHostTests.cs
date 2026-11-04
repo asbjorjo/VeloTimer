@@ -328,6 +328,8 @@ public sealed class DisplaySettingsBrowserHostTests
 
     public sealed class FakeStatisticsService : IStatisticsService
     {
+        public Task<Stats.HallOfFameDTO> GetHallOfFameAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new Stats.HallOfFameDTO([]));
         public Task<Stats.PublicStatisticsDiscoveryDTO> GetPublicDiscoveryAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(new Stats.PublicStatisticsDiscoveryDTO([new(ItemId, "Lap", "250m", 250)],
                 [new(ConfigId, ItemId, FacilityId, Stats.StatisticsConfigurationType.Simple, Guid.NewGuid(), "Start", Guid.NewGuid(), "Finish", null, null)], []));

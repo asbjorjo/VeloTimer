@@ -23,6 +23,10 @@ public class StatisticsHttpService(HttpClient httpClient) : IStatisticsService
             ?? throw new HttpRequestException("The public statistics results response was empty.");
     }
 
+    public async Task<HallOfFameDTO> GetHallOfFameAsync(CancellationToken cancellationToken = default) =>
+        await GetRequiredJsonAsync<HallOfFameDTO>("api/statistics/hall-of-fame", cancellationToken)
+        ?? throw new HttpRequestException("The Hall of Fame response was empty.");
+
     public async Task<IReadOnlyList<BestStatisticsResultView>> GetBestResultsAsync(Guid? facilityId = null,
         DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken cancellationToken = default)
     {
@@ -57,5 +61,31 @@ public class StatisticsHttpService(HttpClient httpClient) : IStatisticsService
         var samples = await httpClient.GetFromJsonAsync<IEnumerable<SampleView>>(url, cancellationToken) ?? Enumerable.Empty<SampleView>();
 
         return samples;
+    }
+
+    private async Task<T?> GetRequiredJsonAsync<T>(string path, CancellationToken cancellationToken)
+    {
+        using var response = await httpClient.GetAsync(path, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            throw await CreateRequestExceptionAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<T>(cancellationToken);
+    }
+
+    internal static async Task<HttpRequestException> CreateRequestExceptionAsync(
+        HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        var message = "The request could not be completed.";
+        try
+        {
+            using var problem = await System.Text.Json.JsonDocument.ParseAsync(
+                await response.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+            if (problem.RootElement.TryGetProperty("detail", out var detail) &&
+                detail.ValueKind == System.Text.Json.JsonValueKind.String)
+                message = detail.GetString() ?? message;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+        }
+        return new HttpRequestException(message, null, response.StatusCode);
     }
 }

@@ -1,0 +1,279 @@
+@page "/admin/statistics/hall-of-fame"
+@attribute [Authorize(Policy = AdministrationPolicies.Statistics)]
+@inherits PresentationComponentBase
+@using System.Net
+@using VeloTime.Module.Statistics.Interface.Data
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@inject IStatisticsAdministrationService Administration
+@inject UnsavedChangesTracker UnsavedChanges
+@inject IDialogService Dialogs
+@inject ILogger<HallOfFameSettings> Logger
+@implements IDisposable
+
+<PageTitle>@L["HallOfFameAdministration"]</PageTitle>
+<NavigationLock ConfirmExternalNavigation="_dirty" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+    <MudText Typo="Typo.h4" HtmlTag="h1" Class="mb-2">@L["HallOfFameAdministration"]</MudText>
+    <MudText Class="mb-4">@L["HallOfFameEditorHelp"]</MudText>
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" aria-label="@L["Loading"]" />
+    }
+    else
+    {
+        @if (_error is not null)
+        {
+            <div role="alert"><MudAlert Severity="Severity.Error" Class="mb-3">@L[_error]</MudAlert></div>
+        }
+        @if (_saved)
+        {
+            <div role="status"><MudAlert Severity="Severity.Success" Class="mb-3">@L["HallOfFameSaved"]</MudAlert></div>
+        }
+        <MudStack Row="true" Wrap="Wrap.Wrap" Class="mb-4">
+            <MudButton OnClick="ReloadAsync" Disabled="_saving" Variant="Variant.Outlined">@L["HallOfFameReloadSettings"]</MudButton>
+            @if (_loaded)
+            {
+                <MudButton OnClick="AddSection" Disabled="@(!CanAdd || EditingDisabled)" StartIcon="@Icons.Material.Filled.Add">@L["HallOfFameAddSection"]</MudButton>
+                <MudButton OnClick="SaveAsync" Disabled="@(!_dirty || EditingDisabled || _conflict)" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save">@L["Save"]</MudButton>
+                <MudText role="status">@L[_dirty ? "HallOfFameUnsaved" : "HallOfFameUpToDate"]</MudText>
+            }
+        </MudStack>
+        @if (_saving)
+        {
+            <MudProgressLinear Indeterminate="true" aria-label="@L["HallOfFameSaving"]" Class="mb-3" />
+        }
+        @if (_loaded)
+        {
+            @if (_items.Count == 0)
+            {
+                <div role="status"><MudAlert Severity="Severity.Info" Class="mb-3">@L["HallOfFameNoItems"]</MudAlert></div>
+            }
+            @if (_sections.Count == 0)
+            {
+                <div role="status"><MudAlert Severity="Severity.Info" Class="mb-3">@L["HallOfFameEmptySettings"]</MudAlert></div>
+            }
+            <MudForm @ref="_form">
+                @foreach (var section in _sections)
+                {
+                    var index = _sections.IndexOf(section);
+                    var sectionLabel = L["HallOfFameSectionLabel", (index + 1).ToString("N0", Display.NumberCulture), ItemName(section.StatisticsItemId)].Value;
+                    <MudPaper @key="section.Key" Outlined="true" Class="pa-4 mb-4">
+                        <section aria-label="@sectionLabel" @oninput="Changed">
+                            <MudText Typo="Typo.h6" HtmlTag="h2">@sectionLabel</MudText>
+                            <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-3">
+                                <MudButton OnClick="() => MoveSection(section, -1)" Disabled="@(EditingDisabled || index == 0)" aria-label="@L["HallOfFameMoveUpLabel", sectionLabel]" StartIcon="@Icons.Material.Filled.ArrowUpward">@L["HallOfFameMoveUp"]</MudButton>
+                                <MudButton OnClick="() => MoveSection(section, 1)" Disabled="@(EditingDisabled || index == _sections.Count - 1)" aria-label="@L["HallOfFameMoveDownLabel", sectionLabel]" StartIcon="@Icons.Material.Filled.ArrowDownward">@L["HallOfFameMoveDown"]</MudButton>
+                                <MudButton OnClick="() => RemoveSection(section)" Disabled="EditingDisabled" Color="Color.Error" aria-label="@L["HallOfFameRemoveLabel", sectionLabel]">@L["HallOfFameRemoveSection"]</MudButton>
+                                <MudSwitch T="bool" @bind-Value="section.IsEnabled" @bind-Value:after="Changed" Disabled="EditingDisabled" Color="Color.Primary" Label="@L["HallOfFameEnabled"]" />
+                            </MudStack>
+                            <MudGrid>
+                                <MudItem xs="12" md="5">
+                                    <MudSelect T="Guid" @bind-Value="section.StatisticsItemId" @bind-Value:after="Changed" Label="@L["StatisticsItem"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="EditingDisabled">
+                                        @if (!_items.Any(item => item.Id == section.StatisticsItemId))
+                                        {
+                                            <MudSelectItem T="Guid" Value="section.StatisticsItemId" Disabled="true">@L["HallOfFameMissingItem"]</MudSelectItem>
+                                        }
+                                        @foreach (var item in _items)
+                                        {
+                                            <MudSelectItem T="Guid" Value="item.Id" Disabled="@PairUsed(item.Id, section.RankingMode, section)">@item.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudSelect T="HallOfFameRankingMode" @bind-Value="section.RankingMode" @bind-Value:after="Changed" Label="@L["HallOfFameRankingMode"]" Disabled="EditingDisabled">
+                                        @foreach (var mode in Enum.GetValues<HallOfFameRankingMode>())
+                                        {
+                                            <MudSelectItem T="HallOfFameRankingMode" Value="mode" Disabled="@PairUsed(section.StatisticsItemId, mode, section)">@L[HallOfFamePresentation.ModeKey(mode)]</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                </MudItem>
+                                <MudItem xs="12" md="3">
+                                    <MudNumericField T="int?" @bind-Value="section.RowCount" @bind-Value:after="Changed" Immediate="true" Label="@L["HallOfFameRowCount"]" Min="@((int?)HallOfFameQuery.MinimumRowCount)" Max="@((int?)HallOfFameQuery.MaximumRowCount)" Culture="Display.NumberCulture" Required="true" RequiredError="@L["RequiredError"]" Disabled="EditingDisabled" />
+                                </MudItem>
+                            </MudGrid>
+                            <MudText Typo="Typo.subtitle1" HtmlTag="h3" Class="mt-4">@L["HallOfFameOptionalColumns"]</MudText>
+                            <MudText Typo="Typo.body2">@L["HallOfFameFixedColumns"]</MudText>
+                            <MudStack Row="true" Wrap="Wrap.Wrap">
+                                @foreach (var column in Enum.GetValues<HallOfFameColumn>())
+                                {
+                                    <MudCheckBox T="bool" Value="@section.Columns.Contains(column)" ValueChanged="value => ToggleColumn(section, column, value)" Label="@L[HallOfFamePresentation.ColumnKey(column)]" Disabled="EditingDisabled" />
+                                }
+                            </MudStack>
+                            <ol aria-label="@L["HallOfFameOptionalColumns"]">
+                                @foreach (var column in section.Columns)
+                                {
+                                    var columnIndex = section.Columns.IndexOf(column);
+                                    var columnLabel = L[HallOfFamePresentation.ColumnKey(column)].Value;
+                                    <li @key="column" class="mb-2">
+                                        <span>@columnLabel</span>
+                                        <MudButton OnClick="() => MoveColumn(section, column, -1)" Disabled="@(EditingDisabled || columnIndex == 0)" aria-label="@L["HallOfFameMoveUpLabel", $"{sectionLabel}: {columnLabel}"]" StartIcon="@Icons.Material.Filled.ArrowUpward">@L["HallOfFameMoveUp"]</MudButton>
+                                        <MudButton OnClick="() => MoveColumn(section, column, 1)" Disabled="@(EditingDisabled || columnIndex == section.Columns.Count - 1)" aria-label="@L["HallOfFameMoveDownLabel", $"{sectionLabel}: {columnLabel}"]" StartIcon="@Icons.Material.Filled.ArrowDownward">@L["HallOfFameMoveDown"]</MudButton>
+                                    </li>
+                                }
+                            </ol>
+                        </section>
+                    </MudPaper>
+                }
+            </MudForm>
+        }
+    }
+</MudContainer>
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private IDisposable? _registration;
+    private IReadOnlyList<StatisticsItemDTO> _items = [];
+    private List<HallOfFameSectionDraft> _sections = [];
+    private MudForm? _form;
+    private long _version;
+    private bool _loading, _saving, _loaded, _dirty, _conflict, _saved, _accessDenied;
+    private string? _error;
+    private bool EditingDisabled => _saving || _loading || _accessDenied;
+    private bool CanAdd => _items.Any(item => Enum.GetValues<HallOfFameRankingMode>().Any(mode => !PairUsed(item.Id, mode)));
+
+    protected override Task OnInitializedAsync()
+    {
+        _registration = UnsavedChanges.Register(() => _dirty);
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (_loading || _saving || _lifetime.IsCancellationRequested) return;
+        _loading = true;
+        _error = null;
+        _saved = false;
+        try
+        {
+            var itemsTask = Administration.GetItemsAsync(_lifetime.Token);
+            var settingsTask = Administration.GetHallOfFameSettingsAsync(_lifetime.Token);
+            await Task.WhenAll(itemsTask, settingsTask);
+            if (_lifetime.IsCancellationRequested) return;
+            var settings = await settingsTask;
+            _items = (await itemsTask).OrderBy(item => item.Name, StringComparer.CurrentCulture).ToArray();
+            _sections = settings.Sections.Select(section => new HallOfFameSectionDraft(section)).ToList();
+            _version = settings.Version;
+            _loaded = true;
+            _dirty = _conflict = _accessDenied = false;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception exception) { HandleError(exception, "HallOfFameSettingsLoadFailed"); }
+        finally { _loading = false; }
+    }
+
+    private async Task ReloadAsync()
+    {
+        if (_loading || _saving || !await ConfirmDiscardAsync()) return;
+        await LoadAsync();
+    }
+
+    private bool PairUsed(Guid item, HallOfFameRankingMode mode, HallOfFameSectionDraft? except = null) =>
+        _sections.Any(section => section != except && section.StatisticsItemId == item && section.RankingMode == mode);
+
+    private void AddSection()
+    {
+        if (EditingDisabled || !CanAdd) return;
+        var pair = _items.SelectMany(item => Enum.GetValues<HallOfFameRankingMode>().Select(mode => (item.Id, Mode: mode)))
+            .First(pair => !PairUsed(pair.Id, pair.Mode));
+        _sections.Add(new(new(pair.Id, pair.Mode, true, HallOfFameQuery.DefaultRowCount, [])));
+        Changed();
+    }
+
+    private void RemoveSection(HallOfFameSectionDraft section)
+    {
+        if (EditingDisabled) return;
+        _sections.Remove(section);
+        Changed();
+    }
+
+    private void MoveSection(HallOfFameSectionDraft section, int offset)
+    {
+        if (EditingDisabled) return;
+        Move(_sections, _sections.IndexOf(section), offset);
+    }
+
+    private void MoveColumn(HallOfFameSectionDraft section, HallOfFameColumn column, int offset)
+    {
+        if (EditingDisabled) return;
+        Move(section.Columns, section.Columns.IndexOf(column), offset);
+    }
+
+    private void Move<T>(List<T> values, int index, int offset)
+    {
+        var target = index + offset;
+        if (index < 0 || target < 0 || target >= values.Count) return;
+        (values[index], values[target]) = (values[target], values[index]);
+        Changed();
+    }
+
+    private void ToggleColumn(HallOfFameSectionDraft section, HallOfFameColumn column, bool enabled)
+    {
+        if (EditingDisabled) return;
+        if (enabled && !section.Columns.Contains(column)) section.Columns.Add(column);
+        else if (!enabled) section.Columns.Remove(column);
+        Changed();
+    }
+
+    private void Changed() { _dirty = true; _saved = false; }
+
+    private async Task SaveAsync()
+    {
+        if (!_loaded || !_dirty || EditingDisabled || _conflict || _lifetime.IsCancellationRequested) return;
+        _saving = true;
+        _saved = false;
+        _error = null;
+        try
+        {
+            if (_form is not null) await _form.ValidateAsync();
+            var request = new SaveHallOfFameSettingsRequest(_version, _sections.Select(section => section.Snapshot()).ToArray());
+            if (_form?.IsValid == false || HallOfFameQuery.Validate(request).Count != 0 ||
+                request.Sections.Any(section => !_items.Any(item => item.Id == section.StatisticsItemId)))
+            {
+                _error = "HallOfFameValidationFailed";
+                return;
+            }
+            var saved = await Administration.SaveHallOfFameSettingsAsync(request, _lifetime.Token);
+            if (_lifetime.IsCancellationRequested) return;
+            _version = saved.Version;
+            _sections = saved.Sections.Select(section => new HallOfFameSectionDraft(section)).ToList();
+            _dirty = _conflict = false;
+            _saved = true;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            if (exception is HttpRequestException { StatusCode: HttpStatusCode.Conflict }) _conflict = true;
+            HandleError(exception, "HallOfFameSaveFailed");
+        }
+        finally { _saving = false; }
+    }
+
+    private void HandleError(Exception exception, string fallback)
+    {
+        if (_lifetime.IsCancellationRequested) return;
+        Logger.LogWarning(exception, "Hall of Fame settings operation failed");
+        if (exception is HttpRequestException request)
+        {
+            _accessDenied = request.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden;
+            _error = request.StatusCode switch
+            {
+                HttpStatusCode.Unauthorized => "SignInRequired",
+                HttpStatusCode.Forbidden => "NoPermission",
+                HttpStatusCode.Conflict => "HallOfFameConflict",
+                HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity => "HallOfFameValidationFailed",
+                _ => fallback
+            };
+        }
+        else _error = fallback;
+    }
+
+    private string ItemName(Guid id) => _items.FirstOrDefault(item => item.Id == id)?.Name ?? L["HallOfFameMissingItem"].Value;
+    private async Task<bool> ConfirmDiscardAsync() => !_dirty ||
+        await Dialogs.ShowMessageBoxAsync(L["DiscardChanges"], L["UnsavedChangesLost"], yesText: L["HallOfFameDiscard"], cancelText: L["KeepEditingAction"]) == true;
+    private async Task ConfirmNavigationAsync(LocationChangingContext context)
+    {
+        // Do not allow navigation to race an in-flight full-document save.
+        if (_saving || !await ConfirmDiscardAsync()) context.PreventNavigation();
+    }
+    public void Dispose() { _registration?.Dispose(); _lifetime.Cancel(); _lifetime.Dispose(); }
+}

@@ -6,7 +6,7 @@ using VeloTime.Module.Timing.Interface.Data;
 
 namespace VeloTime.WebUI.Mud.Client.Services;
 
-/// <summary>Immutable boundary. Statistics API speeds are km/h; API distances are metres.</summary>
+/// <summary>Immutable presentation boundary. Legacy statistics speeds are km/h; Hall of Fame speeds are m/s; distances are metres.</summary>
 public sealed record EffectiveDisplaySettings(DisplayPreferenceDTO Preference, TimeZoneInfo? Zone, CultureInfo NumberCulture, CultureInfo DateTimeCulture)
 {
     public static EffectiveDisplaySettings Unresolved { get; } = new(new("m", "km/h", "browser", null), null, CultureInfo.InvariantCulture, CultureInfo.InvariantCulture);
@@ -40,6 +40,8 @@ public sealed record EffectiveDisplaySettings(DisplayPreferenceDTO Preference, T
     public double SpeedToKilometresPerHour(double value) => (SpeedUnit switch { "mph" => Speed.FromMilesPerHour(value), "m/s" => Speed.FromMetersPerSecond(value), _ => Speed.FromKilometersPerHour(value) }).KilometersPerHour;
     public string Distance(double metres, string format = "G") => $"{DistanceFromMetres(metres).ToString(format, NumberCulture)} {DistanceUnit}";
     public string StatisticsSpeed(double kmh) => $"{SpeedFromKilometresPerHour(kmh).ToString("N3", NumberCulture)} {SpeedUnit}";
+    public string SpeedFromMetresPerSecond(double metresPerSecond) => StatisticsSpeed(Speed.FromMetersPerSecond(metresPerSecond).KilometersPerHour);
+    public string Duration(TimeSpan duration) => duration.ToString(duration.Days == 0 ? @"hh\:mm\:ss\.fff" : @"d\.hh\:mm\:ss\.fff", NumberCulture);
     public string SpeedDraft(double? kmh) => kmh.HasValue ? SpeedFromKilometresPerHour(kmh.Value).ToString("R", NumberCulture) : "";
     public bool TrySpeedDraft(string text, out double? kmh)
     {

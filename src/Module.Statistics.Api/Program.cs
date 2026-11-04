@@ -1,5 +1,6 @@
 using VeloTime.Module.Statistics;
 using VeloTime.Module.Statistics.Api.Endpoints;
+using VeloTime.Module.Facilities.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +13,7 @@ builder.Services.AddHttpClient<ICoursePointReferences, CoursePointReferences>(cl
 builder.Services.AddHttpClient<IPublicCoursePointNames, PublicCoursePointNames>(client =>
     client.BaseAddress = new Uri("https+http://module-facilities-api"));
 builder.Services.AddScoped<PublicStatisticsDiscovery>();
+builder.Services.AddFacilitiesClient();
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("Statistics.Read", policy => policy.RequireAuthenticatedUser());
 

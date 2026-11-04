@@ -9,6 +9,13 @@ internal static class StatisticsEndpoints
     {
         endpoints.MapGet("/statistics/public/discovery", GetPublicDiscovery).AllowAnonymous();
         endpoints.MapGet("/statistics/public/results", GetPublicResults).AllowAnonymous();
+        endpoints.MapGet("/statistics/hall-of-fame", async (HttpContext http, IStatisticsService statistics,
+            CancellationToken cancellationToken) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            return await PublicResponse(http, async () =>
+                Results.Ok(await statistics.GetHallOfFameAsync(cancellationToken)), hallOfFame: true);
+        }).AllowAnonymous();
 
         endpoints.MapGet("/statistics/best-results", async (IStatisticsService statistics, CancellationToken cancellationToken,
             Guid? facilityId = null, DateTimeOffset? from = null, DateTimeOffset? to = null) =>
@@ -55,7 +62,8 @@ internal static class StatisticsEndpoints
             Results.Ok(await statistics.GetPublicResultsAsync(request!, cancellationToken)));
     }
 
-    private static async Task<IResult> PublicResponse(HttpContext http, Func<Task<IResult>> action)
+    private static async Task<IResult> PublicResponse(
+        HttpContext http, Func<Task<IResult>> action, bool hallOfFame = false)
     {
         try
         {
@@ -66,7 +74,7 @@ internal static class StatisticsEndpoints
             // Public dependency messages are untrusted, even for validation/outage statuses.
             // Local query validation above keeps its safe, actionable details.
             var status = exception.StatusCode is { } upstream ? (int)upstream : 502;
-            status = status is 400 or 401 or 403 or 404 or 503 ? status : 502;
+            status = status is 400 or 401 or 403 or 404 or 503 || hallOfFame && status == 500 ? status : 502;
             http.RequestServices.GetRequiredService<ILoggerFactory>()
                 .CreateLogger("WebUI.PublicStatistics")
                 .LogWarning("Public statistics request failed for {Path}, status {Status}", http.Request.Path, status);
@@ -74,6 +82,7 @@ internal static class StatisticsEndpoints
             {
                 400 => "Select an available configuration and valid public statistics filters.",
                 503 => "Public statistics is temporarily unavailable.",
+                500 when hallOfFame => "Hall of Fame settings are invalid or stale. Contact a statistics administrator.",
                 _ => "Public statistics could not be loaded."
             });
         }

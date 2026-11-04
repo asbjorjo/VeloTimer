@@ -17,6 +17,47 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
     public Task<IReadOnlyList<Contracts.StatisticsConfigurationDTO>> GetConfigurationsAsync(CancellationToken cancellationToken = default) =>
         GetConfigurationsCoreAsync(cancellationToken);
 
+    public Task<Contracts.HallOfFameSettingsDTO> GetHallOfFameSettingsAsync(CancellationToken cancellationToken = default) =>
+        Execute(async () =>
+        {
+            await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+            return MapHallOfFameSettings(
+                await client.GetHallOfFameSettingsAsync(cancellationToken));
+        });
+
+    public Task<Contracts.HallOfFameSettingsDTO> SaveHallOfFameSettingsAsync(
+        Contracts.SaveHallOfFameSettingsRequest request, CancellationToken cancellationToken = default) =>
+        Execute(async () =>
+        {
+            await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+            var validationErrors = Contracts.HallOfFameQuery.Validate(request);
+            if (request.ExpectedVersion == long.MaxValue)
+                validationErrors["expectedVersion"] = ["The settings version cannot be incremented further."];
+            if (validationErrors.Count != 0)
+                throw new HttpRequestException(
+                    string.Join(" ", validationErrors.SelectMany(error =>
+                        error.Value.Select(message => $"{error.Key}: {message}"))),
+                    null, HttpStatusCode.BadRequest);
+
+            var body = new SaveHallOfFameSettingsRequest
+            {
+                ExpectedVersion = request.ExpectedVersion,
+                Sections = request.Sections.Select(section => new HallOfFameSectionSettingsDTO
+                {
+                    StatisticsItemId = section.StatisticsItemId,
+                    RankingMode = (int)section.RankingMode,
+                    IsEnabled = section.IsEnabled,
+                    RowCount = section.RowCount,
+                    Columns = section.Columns.Select(column => (int)column).ToArray()
+                }).ToArray()
+            };
+            var saved = MapHallOfFameSettings(await client.ReplaceHallOfFameSettingsAsync(body, cancellationToken));
+            if (saved.Version != checked(request.ExpectedVersion + 1) ||
+                !SectionsMatch(saved.Sections, request.Sections))
+                throw new InvalidDataException("The saved Hall of Fame settings response did not match the request.");
+            return saved;
+        });
+
     private async Task<IReadOnlyList<Contracts.StatisticsItemDTO>> GetItemsCoreAsync(CancellationToken cancellationToken)
     {
         var snapshots = await cache.GetAdminAsync(
@@ -111,13 +152,49 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
             config.CoursePointStart, config.CoursePointEnd, config.ParentConfigId, config.Repetitions);
     }
 
+    private static Contracts.HallOfFameSettingsDTO MapHallOfFameSettings(HallOfFameSettingsDTO settings)
+    {
+        if (settings is null || settings.Version < 0 || settings.Sections is null)
+            throw new InvalidDataException("The Hall of Fame settings response is invalid.");
+
+        var sections = settings.Sections.Select(section =>
+        {
+            if (section is null)
+                throw new InvalidDataException("A Hall of Fame settings section is missing.");
+            var mode = (Contracts.HallOfFameRankingMode)section.RankingMode;
+            if (section.StatisticsItemId == Guid.Empty || !Enum.IsDefined(mode) ||
+                section.Columns is null)
+                throw new InvalidDataException("A Hall of Fame settings section is invalid.");
+            var columns = section.Columns.Select(value => (Contracts.HallOfFameColumn)value).ToArray();
+            if (columns.Any(column => !Enum.IsDefined(column)))
+                throw new InvalidDataException("Hall of Fame settings contain an unknown column.");
+            return new Contracts.HallOfFameSectionSettingsDTO(
+                section.StatisticsItemId, mode, section.IsEnabled, section.RowCount, columns);
+        }).ToArray();
+        var mapped = new Contracts.HallOfFameSettingsDTO(settings.Version, sections);
+        if (Contracts.HallOfFameQuery.Validate(
+                new Contracts.SaveHallOfFameSettingsRequest(settings.Version, mapped.Sections)).Count != 0)
+            throw new InvalidDataException("Hall of Fame settings failed structural validation.");
+        return mapped;
+    }
+
+    private static bool SectionsMatch(
+        IReadOnlyList<Contracts.HallOfFameSectionSettingsDTO> saved,
+        IReadOnlyList<Contracts.HallOfFameSectionSettingsDTO> requested) =>
+        saved.Count == requested.Count && saved.Zip(requested).All(pair =>
+            pair.First.StatisticsItemId == pair.Second.StatisticsItemId &&
+            pair.First.RankingMode == pair.Second.RankingMode &&
+            pair.First.IsEnabled == pair.Second.IsEnabled &&
+            pair.First.RowCount == pair.Second.RowCount &&
+            pair.First.Columns.SequenceEqual(pair.Second.Columns));
+
     private static async Task<TResult> Execute<TResult>(Func<Task<TResult>> action)
     {
         try
         {
             return await action();
         }
-        catch (ApiException exception) when (exception.StatusCode is 400 or 401 or 403 or 404 or 409 or 422)
+        catch (ApiException exception) when (exception.StatusCode is 400 or 401 or 403 or 404 or 409 or 422 or 500)
         {
             var detail = "The request could not be completed.";
             try
@@ -125,6 +202,12 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
                 using var document = JsonDocument.Parse(exception.Response);
                 if (document.RootElement.TryGetProperty("detail", out var property) && property.ValueKind == JsonValueKind.String)
                     detail = property.GetString() ?? detail;
+                else if (document.RootElement.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Object)
+                    detail = string.Join(" ", errors.EnumerateObject().SelectMany(error =>
+                        error.Value.ValueKind == JsonValueKind.Array
+                            ? error.Value.EnumerateArray().Where(value => value.ValueKind == JsonValueKind.String)
+                                .Select(value => $"{error.Name}: {value.GetString()}")
+                            : []));
             }
             catch (JsonException)
             {

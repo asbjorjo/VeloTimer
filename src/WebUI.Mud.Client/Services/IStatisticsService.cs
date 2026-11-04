@@ -9,6 +9,8 @@ public interface IStatisticsService
     Task<PublicStatisticsResultsPageDTO> GetPublicResultsAsync(GetPublicStatisticsResultsRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<HallOfFameDTO> GetHallOfFameAsync(CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<BestStatisticsResultView>> GetBestResultsAsync(Guid? facilityId = null, DateTimeOffset? from = null,
         DateTimeOffset? to = null, CancellationToken cancellationToken = default);
 

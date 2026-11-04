@@ -24,6 +24,43 @@ namespace VeloTime.Module.Statistics.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "public", "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.HallOfFameSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    b.Property<string>("SectionsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("sections_json");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_hall_of_fame_settings");
+
+                    b.ToTable("hall_of_fame_settings", "statistics", t =>
+                        {
+                            t.HasCheckConstraint("ck_hall_of_fame_settings_sections_array", "jsonb_typeof(sections_json) = 'array'");
+
+                            t.HasCheckConstraint("ck_hall_of_fame_settings_singleton", "id = 1");
+
+                            t.HasCheckConstraint("ck_hall_of_fame_settings_version_nonnegative", "version >= 0");
+                        });
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            SectionsJson = "[]",
+                            Version = 0L
+                        });
+                });
+
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.Sample", b =>
                 {
                     b.Property<Guid>("Id")
