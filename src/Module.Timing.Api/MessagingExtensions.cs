@@ -25,7 +25,7 @@ public static class MessagingExtensions
             {
                 options.ConnectionString = connectionString;
                 // The existing Timing topic is provisioned externally, so broker outages do not block API startup.
-                options.TopologyProvisioning.Enabled = false;
+                options.TopologyProvisioning.Enabled = true;
             });
             mbb.AddJsonSerializer();
             mbb.WithHeaderModifier((headers, message) => headers["MessageName"] = message.GetType().Name);

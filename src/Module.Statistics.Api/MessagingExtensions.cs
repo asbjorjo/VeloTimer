@@ -32,7 +32,7 @@ public static class MessagingExtensions
                 options.ConnectionString = connectionString;
                 // External topology must exist before rollout. Broker outages must
                 // not prevent definition/outbox commits or trigger a direct-send fallback.
-                options.TopologyProvisioning.Enabled = false;
+                options.TopologyProvisioning.Enabled = true;
             });
             mbb.AddJsonSerializer();
             mbb.WithHeaderModifier((headers, message) => headers["MessageName"] = message.GetType().Name);

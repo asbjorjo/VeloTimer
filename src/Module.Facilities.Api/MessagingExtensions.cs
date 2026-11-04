@@ -31,7 +31,7 @@ public static class MessagingExtensions
             {
                 options.ConnectionString = connectionString;
                 // Facilities topology must be precreated externally; never reuse Timing's topic.
-                options.TopologyProvisioning.Enabled = false;
+                options.TopologyProvisioning.Enabled = true;
             });
             mbb.AddJsonSerializer();
             mbb.WithHeaderModifier((headers, message) => headers["MessageName"] = message.GetType().Name);
