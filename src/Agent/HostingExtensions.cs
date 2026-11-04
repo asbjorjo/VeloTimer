@@ -75,14 +75,14 @@ public static class StartupExtensions
                 });
                 config.TopologyProvisioning = new ServiceBusTopologySettings
                 {
-                    Enabled = false,
-                    CanConsumerCreateQueue = false,
-                    CanConsumerCreateTopic = false,
+                    Enabled = true,
+                    CanConsumerCreateQueue = true,
+                    CanConsumerCreateTopic = true,
                     CanConsumerCreateSubscription = true,
                     CanConsumerCreateSubscriptionFilter = true,
                     CanConsumerValidateSubscriptionFilters = true,
-                    CanProducerCreateQueue = false,
-                    CanProducerCreateTopic = false,
+                    CanProducerCreateQueue = true,
+                    CanProducerCreateTopic = true,
                 };
             });
             mbb.WithHeaderModifier((headers, message) =>
