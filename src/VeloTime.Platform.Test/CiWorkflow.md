@@ -5,6 +5,10 @@ YamlDotNet. It pins master/v2 push and pull-request triggers, existing PR filter
 draft handling and the test command, and checks that Facilities, outbox and statistics
 connections match the PostgreSQL 17 service's published port and ephemeral credentials.
 
+After the test step, CI writes an overall and per-project pass/fail/skip summary,
+including failed test names, to the GitHub Actions job summary. The summary step runs
+even when tests fail; the TRX result artifact upload remains available independently.
+
 Run the focused check:
 
 ```sh

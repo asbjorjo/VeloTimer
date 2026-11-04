@@ -50,6 +50,20 @@ public sealed class CiWorkflowTests
         var test = Assert.Single(steps.Children.OfType<YamlMappingNode>(),
             step => step.Children.TryGetValue(new YamlScalarNode("name"), out var name) && name.ToString() == "Test");
         Assert.Equal("dotnet test --logger \"trx\" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov", Scalar(test, "run"));
+
+        var summary = Assert.Single(steps.Children.OfType<YamlMappingNode>(),
+            step => step.Children.TryGetValue(new YamlScalarNode("name"), out var name) && name.ToString() == "Summarize Test Results");
+        Assert.Equal("always()", Scalar(summary, "if"));
+        Assert.Equal("python3 .github/scripts/summarize-test-results.py", Scalar(summary, "run"));
+        var upload = Assert.Single(steps.Children.OfType<YamlMappingNode>(),
+            step => step.Children.TryGetValue(new YamlScalarNode("name"), out var name) && name.ToString() == "Upload Test Results");
+        Assert.True(steps.Children.IndexOf(test) < steps.Children.IndexOf(summary));
+        Assert.True(steps.Children.IndexOf(summary) < steps.Children.IndexOf(upload));
+
+        var script = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "summarize-test-results.py"));
+        Assert.Contains("| Project | Passed | Failed | Skipped | Other | Total |", script);
+        Assert.Contains("### Failed tests", script);
+        Assert.Contains("UnitTestResult", script);
     }
 
     [Fact]

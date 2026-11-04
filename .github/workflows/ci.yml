@@ -51,6 +51,10 @@ jobs:
     - name: Test
       run: dotnet test --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
 
+    - name: Summarize Test Results
+      if: always()
+      run: python3 .github/scripts/summarize-test-results.py
+
     - name: Upload Test Results
       uses: actions/upload-artifact@v4
       if: success() || failure()

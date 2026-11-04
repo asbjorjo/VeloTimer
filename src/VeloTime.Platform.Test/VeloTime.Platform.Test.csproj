@@ -40,6 +40,7 @@
 
   <ItemGroup>
     <None Include="..\..\.github\workflows\ci.yml" Link="Fixtures\ci.yml" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\.github\scripts\summarize-test-results.py" Link="Fixtures\summarize-test-results.py" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\config\keycloak\realms\velotime-realm.json" Link="Fixtures\velotime-realm.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\WebUI.Mud.Client\Resources\SharedResource*.resx" Link="Resources\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\WebUI.Mud\Components\App.razor" Link="Fixtures\App.razor" CopyToOutputDirectory="PreserveNewest" />
