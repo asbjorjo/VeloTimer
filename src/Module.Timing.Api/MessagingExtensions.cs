@@ -30,7 +30,7 @@ public static class MessagingExtensions
             mbb.AddJsonSerializer();
             mbb.WithHeaderModifier((headers, message) => headers["MessageName"] = message.GetType().Name);
             mbb.Produce<TransponderOwnershipChanged>(producer => producer
-                .DefaultTopic("velotime-timing-test")
+                .DefaultTopic("velotime-timing")
                 .WithModifier((message, transportMessage) =>
                 {
                     transportMessage.SessionId = message.TransponderId.ToString();

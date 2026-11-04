@@ -9,7 +9,7 @@ namespace VeloTime.Module.Statistics.Api;
 
 public static class MessagingExtensions
 {
-    public const string ValidityThresholdsTopic = "velotime-statistics-test";
+    public const string ValidityThresholdsTopic = "velotime-statistics";
 
     /// <summary>
     /// Registers transport and transactional outbox persistence only. The API's

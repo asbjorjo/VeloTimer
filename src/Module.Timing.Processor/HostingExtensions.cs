@@ -40,7 +40,7 @@ public static class StartupExtensions
                 headers["MessageName"] = message.GetType().Name;
             });
             mbb.Consume<PassingEvent>(x => x
-                .Topic("velotime-agent-test")
+                .Topic("velotime-agent")
                 .SubscriptionName("timing")
                 .WithConsumer<PassingObservedHandler>()
                 .Instances(1)
@@ -49,24 +49,24 @@ public static class StartupExtensions
                     //s.MaxConcurrentSessions(1);
                 }));
             mbb.Produce<PassingSaved>(x => x
-                .DefaultTopic("velotime-timing-test")
-                .WithModifier((message, sbMessage) => 
-                { 
-                    sbMessage.SessionId = message.TransponderId.ToString(); 
+                .DefaultTopic("velotime-timing")
+                .WithModifier((message, sbMessage) =>
+                {
+                    sbMessage.SessionId = message.TransponderId.ToString();
                 }));
             mbb.Produce<TimingSampleComplete>(x => x
-                .DefaultTopic("velotime-timing-test")
+                .DefaultTopic("velotime-timing")
                 .WithModifier((message, sbMessage) =>
                 {
                     sbMessage.SessionId = message.TransponderId.ToString();
                 }));
             mbb.Consume<InstallationLayoutEvent>(x => x
-                .Topic("velotime-agent-test")
+                .Topic("velotime-agent")
                 .SubscriptionName("infrastructure")
                 .WithConsumer<InstallationLayoutHandler>()
                 .Instances(1));
             mbb.Consume<LoopStatusEvent>(x => x
-                .Topic("velotime-agent-test")
+                .Topic("velotime-agent")
                 .SubscriptionName("infrastructure")
                 .WithConsumer<LoopStatusEventHandler>());
             mbb.AddServicesFromAssemblyContaining<PassingObservedHandler>();

@@ -14,7 +14,7 @@ namespace VeloTime.Module.Facilities.Api;
 
 public static class MessagingExtensions
 {
-    public const string TimingAssociationsTopic = "velotime-facilities-test";
+    public const string TimingAssociationsTopic = "velotime-facilities";
 
     public static IHostApplicationBuilder AddTimingAssociationMessaging(this IHostApplicationBuilder builder)
     {

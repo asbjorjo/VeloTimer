@@ -37,21 +37,22 @@ internal static class StartupExtensions
                 headers["MessageName"] = message.GetType().Name;
             });
             mbb.Consume<TimingSampleComplete>(x => x
-                .Topic("velotime-timing-test")
+                .Topic("velotime-timing")
                 .SubscriptionName("statistics")
                 .WithConsumer<TimingSampleHandler>()
                 .Instances(1)
-                .EnableSession(s => {
+                .EnableSession(s =>
+                {
                     //s.MaxConcurrentSessions(1);
                 }));
             mbb.Consume<TransponderOwnershipChanged>(x => x
-                .Topic("velotime-timing-test")
+                .Topic("velotime-timing")
                 .SubscriptionName("statistics")
                 .WithConsumer<TransponderOwnershipChangedHandler>()
                 .Instances(1)
                 .EnableSession());
             mbb.Consume<EntryCreated>(x => x
-                .Topic("velotime-statistics-test")
+                .Topic("velotime-statistics")
                 .SubscriptionName("statistics")
                 .WithConsumer<EntryCreatedHandler>()
                 .WhenUndeclaredMessageTypeArrives(opts =>
@@ -65,7 +66,7 @@ internal static class StartupExtensions
                     //s.MaxConcurrentSessions(1);
                 }));
             mbb.Consume<SampleComplete>(x => x
-                .Topic("velotime-statistics-test")
+                .Topic("velotime-statistics")
                 .SubscriptionName("statistics")
                 .WithConsumer<SampleCompleteHandler>()
                 .Instances(1)
@@ -76,19 +77,19 @@ internal static class StartupExtensions
             // Wake-up only: durable job rows are the source of work. Dedicated filtered subscription so the
             // existing session-enabled "statistics" consumers never receive threshold events.
             mbb.Consume<StatisticsValidityThresholdsChangedV1>(x => x
-                .Topic("velotime-statistics-test")
+                .Topic("velotime-statistics")
                 .SubscriptionName("statistics-validity")
                 .SubscriptionSqlFilter($"MessageName = '{nameof(StatisticsValidityThresholdsChangedV1)}'")
                 .WithConsumer<StatisticsValidityThresholdsChangedHandler>()
                 .Instances(1));
             mbb.Produce<EntryCreated>(x => x
-                .DefaultTopic("velotime-statistics-test")
+                .DefaultTopic("velotime-statistics")
                 .WithModifier((message, sbMessage) =>
                 {
                     sbMessage.SessionId = message.TransponderId.ToString();
                 }));
             mbb.Produce<SampleComplete>(x => x
-                .DefaultTopic("velotime-statistics-test")
+                .DefaultTopic("velotime-statistics")
                 .WithModifier((message, sbMessage) =>
                 {
                     sbMessage.SessionId = message.TransponderId.ToString();
