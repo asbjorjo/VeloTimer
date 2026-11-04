@@ -29,7 +29,8 @@ internal sealed class PublicStatisticsTestHost : IAsyncDisposable
     private string? adminConnection;
     private string? database;
 
-    public static async Task<PublicStatisticsTestHost> CreateAsync(bool postgres = false)
+    public static async Task<PublicStatisticsTestHost> CreateAsync(bool postgres = false,
+        Action<IServiceCollection>? configureServices = null)
     {
         var host = new PublicStatisticsTestHost();
         try
@@ -65,6 +66,7 @@ internal sealed class PublicStatisticsTestHost : IAsyncDisposable
                 services.AddSingleton<ICoursePointReferences>(host.Points);
                 services.AddSingleton<IPublicCoursePointNames>(host.Points);
                 services.AddDbContext<StatisticsDbContext>(options => options.AddInterceptors(host.Sql));
+                configureServices?.Invoke(services);
             }));
             await using var scope = host.App.Services.CreateAsyncScope();
             await scope.ServiceProvider.GetRequiredService<StatisticsDbContext>().Database.EnsureCreatedAsync();

@@ -30,6 +30,7 @@ public static class StartupExtensions
 
         services.AddTransient<StatisticsService>();
         services.AddScoped<StatsProfileCreationService>();
+        services.AddScoped<StatisticsValidityScheduler>();
         services.AddSingleton<Metrics>();
 
         services.AddPagination();

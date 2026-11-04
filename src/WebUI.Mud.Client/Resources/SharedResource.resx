@@ -508,4 +508,24 @@
   <data name="SamplesLoadFailed" xml:space="preserve"><value>Could not load timing samples.</value></data>
   <data name="NoSamples" xml:space="preserve"><value>No timing samples found.</value></data>
   <data name="AverageSpeedInUnit" xml:space="preserve"><value>Average speed ({0})</value></data>
+  <data name="ValidityThresholds" xml:space="preserve"><value>Approval limits (inclusive)</value></data>
+  <data name="ThresholdMinimumDuration" xml:space="preserve"><value>Minimum duration</value></data>
+  <data name="ThresholdMaximumDuration" xml:space="preserve"><value>Maximum duration</value></data>
+  <data name="ThresholdInherited" xml:space="preserve"><value>inherited</value></data>
+  <data name="GlobalThresholdHelp" xml:space="preserve"><value>Global hard limits apply to every configuration. Leave either bound empty for no global limit.</value></data>
+  <data name="LocalThresholdHelp" xml:space="preserve"><value>Empty local bounds inherit the selected item's global limits. Multi uses its own item and distance, not its parent's limits; every contributing lap must also be valid.</value></data>
+  <data name="ThresholdInputInvalid" xml:space="preserve"><value>Enter a positive finite speed or a valid positive duration, or leave empty. The value must fit a supported duration.</value></data>
+  <data name="ThresholdPrecisionHelp" xml:space="preserve"><value>Duration format: [days.]hh:mm:ss{0}fraction (up to 7 digits). Edited values round to microseconds (6 digits); untouched values retain their exact duration. Clear a field to unset its bound.</value></data>
+  <data name="RequestedThresholdRange" xml:space="preserve"><value>Requested bounds</value></data>
+  <data name="GlobalThresholdRange" xml:space="preserve"><value>Global bounds / inheritance</value></data>
+  <data name="EffectiveThresholdRange" xml:space="preserve"><value>Effective approved bounds</value></data>
+  <data name="ThresholdClamped" xml:space="preserve"><value>The requested local bounds can be saved, but global hard limits clamp the actual approved range shown above.</value></data>
+  <data name="ThresholdRangeInvalid" xml:space="preserve"><value>The approved range is empty or invalid. Minimum duration must not exceed maximum duration; limits must be positive.</value></data>
+  <data name="ThresholdInputOrRangeInvalid" xml:space="preserve"><value>Correct the approval limits before saving. Inputs must be positive and finite, and minimum must not exceed maximum.</value></data>
+  <data name="ThresholdConfigurationDisjoint" xml:space="preserve"><value>These global limits leave no approved range for configuration {0}. Adjust the limits or that configuration first.</value></data>
+  <data name="ThresholdUnbounded" xml:space="preserve"><value>unbounded</value></data>
+  <data name="ThresholdDistanceRequired" xml:space="preserve"><value>select an item with a positive distance</value></data>
+  <data name="ThresholdDurationRange" xml:space="preserve"><value>duration {0} — {1}</value></data>
+  <data name="ThresholdSpeedRange" xml:space="preserve"><value>speed {0} — {1}</value></data>
+  <data name="ThresholdSettingsSaved" xml:space="preserve"><value>Settings saved. Historical revalidation runs in the background; existing results may remain unchanged until it finishes.</value></data>
 </root>

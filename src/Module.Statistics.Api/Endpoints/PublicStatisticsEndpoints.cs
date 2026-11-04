@@ -69,7 +69,7 @@ internal static class PublicStatisticsEndpoints
         StatisticsDbContext storage, GetPublicStatisticsResultsRequest request, CancellationToken cancellationToken)
     {
         var filtered = storage.Set<StatisticsEntry>().AsNoTracking()
-            .Where(entry => entry.StatsProfile != null && entry.StatsProfile.IsPublic &&
+            .Where(entry => entry.IsValid && entry.StatsProfile != null && entry.StatsProfile.IsPublic &&
                 entry.FacilityId == request.FacilityId && entry.StatisticsItemId == request.StatisticsItemId &&
                 entry.StatisticsItemConfigId == request.StatisticsItemConfigId);
         if (request.Name is not null)

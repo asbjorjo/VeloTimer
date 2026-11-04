@@ -5,6 +5,8 @@ public abstract class StatisticsItemConfig
     public Guid Id { get; set; }
     public required StatisticsItem StatisticsItem { get; set; }
     public Guid StatisticsItemId { get; set; }
+    public TimeSpan? MinDuration { get; set; }
+    public TimeSpan? MaxDuration { get; set; }
 }
 
 public class SimpleStatisticsItemConfig : StatisticsItemConfig

@@ -24,7 +24,7 @@ internal static class BestStatisticsResultsEndpoints
             return TypedResults.Problem(detail: "Provide a nonempty facility ID and a time range with from before to.", statusCode: 400);
 
         var entries = storage.Set<StatisticsEntry>().AsNoTracking()
-            .Where(entry => entry.StatsProfile != null && entry.StatsProfile.IsPublic);
+            .Where(entry => entry.IsValid && entry.StatsProfile != null && entry.StatsProfile.IsPublic);
         if (facilityId.HasValue)
             entries = entries.Where(entry => entry.FacilityId == facilityId.Value);
         if (from.HasValue)

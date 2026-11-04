@@ -73,6 +73,14 @@ internal static class StartupExtensions
                 {
                     //s.MaxConcurrentSessions(1);
                 }));
+            // Wake-up only: durable job rows are the source of work. Dedicated filtered subscription so the
+            // existing session-enabled "statistics" consumers never receive threshold events.
+            mbb.Consume<StatisticsValidityThresholdsChangedV1>(x => x
+                .Topic("velotime-statistics-test")
+                .SubscriptionName("statistics-validity")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(StatisticsValidityThresholdsChangedV1)}'")
+                .WithConsumer<StatisticsValidityThresholdsChangedHandler>()
+                .Instances(1));
             mbb.Produce<EntryCreated>(x => x
                 .DefaultTopic("velotime-statistics-test")
                 .WithModifier((message, sbMessage) =>
@@ -95,6 +103,13 @@ internal static class StartupExtensions
             .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("velotime.statistics.processor"));
         services.AddScoped<ITransponderOwnershipReader, TransponderOwnershipReader>();
         services.AddScoped<StatisticsOwnershipService>();
+        services.AddOptions<StatisticsRevalidationOptions>()
+            .Bind(configuration.GetSection(StatisticsRevalidationOptions.Section))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<StatisticsRevalidationSignal>();
+        services.AddScoped<StatisticsRevalidationService>();
+        services.AddHostedService<StatisticsRevalidationWorker>();
 
         services.AddFacilitiesClient()
             .AddDefaultAccessTokenResiliency()

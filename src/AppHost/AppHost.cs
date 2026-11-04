@@ -87,6 +87,7 @@ var facilityapi = builder.AddProject<Projects.VeloTime_Module_Facilities_Api>("m
     .WaitFor(velotimedb);
 var statisticsapi = builder.AddProject<Projects.VeloTime_Module_Statistics_Api>("module-statistics-api")
     .WithEnvironment("OIDC_AUDIENCE", oidcAudience)
+    .WithReference(servicebusconnection)
     .WithReference(cache)
     .WithReference(velotimedb)
     .WithReference(keycloak)

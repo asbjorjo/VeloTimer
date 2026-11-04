@@ -1,4 +1,6 @@
-﻿namespace VeloTime.Module.Statistics.Model;
+﻿using VeloTime.Module.Statistics.Interface.Data;
+
+namespace VeloTime.Module.Statistics.Model;
 
 public class StatisticsEntry
 {
@@ -15,4 +17,6 @@ public class StatisticsEntry
     public TimeSpan Duration { get; init; }
     public double Speed { get; init; }
     public Guid FacilityId { get; init; }
+    public bool IsValid { get; set; } = true;
+    public StatisticsEntryInvalidReason? InvalidReason { get; set; }
 }

@@ -508,4 +508,24 @@
   <data name="SamplesLoadFailed" xml:space="preserve"><value>Kunne ikke hente tidtakingsprøver.</value></data>
   <data name="NoSamples" xml:space="preserve"><value>Ingen tidtakingsprøver funnet.</value></data>
   <data name="AverageSpeedInUnit" xml:space="preserve"><value>Gjennomsnittsfart ({0})</value></data>
+  <data name="ValidityThresholds" xml:space="preserve"><value>Godkjenningsgrenser (inklusive)</value></data>
+  <data name="ThresholdMinimumDuration" xml:space="preserve"><value>Minste varighet</value></data>
+  <data name="ThresholdMaximumDuration" xml:space="preserve"><value>Største varighet</value></data>
+  <data name="ThresholdInherited" xml:space="preserve"><value>arvet</value></data>
+  <data name="GlobalThresholdHelp" xml:space="preserve"><value>Globale absolutte grenser gjelder alle konfigurasjoner. La en grense stå tom for ingen global begrensning.</value></data>
+  <data name="LocalThresholdHelp" xml:space="preserve"><value>Tomme lokale grenser arver de globale grensene til valgt statistikkelement. Multi bruker eget element og egen distanse, ikke forelderens grenser. Alle bidragende runder må også være gyldige.</value></data>
+  <data name="ThresholdInputInvalid" xml:space="preserve"><value>Angi en positiv, endelig hastighet eller gyldig positiv varighet, eller la feltet stå tomt. Verdien må passe i en støttet varighet.</value></data>
+  <data name="ThresholdPrecisionHelp" xml:space="preserve"><value>Varighetsformat: [dager.]tt:mm:ss{0}desimaler (opptil 7 sifre). Endrede verdier avrundes til mikrosekunder (6 sifre); urørte verdier beholder nøyaktig varighet. Tøm feltet for å fjerne grensen.</value></data>
+  <data name="RequestedThresholdRange" xml:space="preserve"><value>Ønskede grenser</value></data>
+  <data name="GlobalThresholdRange" xml:space="preserve"><value>Globale grenser / arv</value></data>
+  <data name="EffectiveThresholdRange" xml:space="preserve"><value>Faktiske godkjenningsgrenser</value></data>
+  <data name="ThresholdClamped" xml:space="preserve"><value>De ønskede lokale grensene kan lagres, men globale absolutte grenser begrenser det faktiske godkjente intervallet vist ovenfor.</value></data>
+  <data name="ThresholdRangeInvalid" xml:space="preserve"><value>Det godkjente intervallet er tomt eller ugyldig. Minste varighet må ikke overstige største varighet, og grenser må være positive.</value></data>
+  <data name="ThresholdInputOrRangeInvalid" xml:space="preserve"><value>Rett godkjenningsgrensene før lagring. Verdier må være positive og endelige, og minste verdi må ikke overstige største verdi.</value></data>
+  <data name="ThresholdConfigurationDisjoint" xml:space="preserve"><value>Disse globale grensene gir ikke noe godkjent intervall for konfigurasjonen {0}. Juster grensene eller konfigurasjonen først.</value></data>
+  <data name="ThresholdUnbounded" xml:space="preserve"><value>ubegrenset</value></data>
+  <data name="ThresholdDistanceRequired" xml:space="preserve"><value>velg et element med positiv distanse</value></data>
+  <data name="ThresholdDurationRange" xml:space="preserve"><value>varighet {0} — {1}</value></data>
+  <data name="ThresholdSpeedRange" xml:space="preserve"><value>hastighet {0} — {1}</value></data>
+  <data name="ThresholdSettingsSaved" xml:space="preserve"><value>Innstillingene er lagret. Historiske resultater valideres på nytt i bakgrunnen og kan være uendret frem til arbeidet er ferdig.</value></data>
 </root>

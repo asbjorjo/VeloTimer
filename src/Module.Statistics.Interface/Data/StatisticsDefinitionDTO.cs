@@ -1,8 +1,19 @@
 namespace VeloTime.Module.Statistics.Interface.Data;
 
-public sealed record StatisticsItemDTO(Guid Id, string Name, string Description, float Distance);
+public sealed record StatisticsItemDTO(
+    Guid Id,
+    string Name,
+    string Description,
+    float Distance,
+    TimeSpan? MinDuration = null,
+    TimeSpan? MaxDuration = null);
 
-public sealed record SaveStatisticsItemRequest(string Name, string Description, float Distance);
+public sealed record SaveStatisticsItemRequest(
+    string Name,
+    string Description,
+    float Distance,
+    TimeSpan? MinDuration = null,
+    TimeSpan? MaxDuration = null);
 
 public enum StatisticsConfigurationType
 {
@@ -17,7 +28,10 @@ public sealed record StatisticsConfigurationDTO(
     Guid? CoursePointStart,
     Guid? CoursePointEnd,
     Guid? ParentConfigId,
-    int? Repetitions);
+    int? Repetitions,
+    TimeSpan? MinDuration = null,
+    TimeSpan? MaxDuration = null);
+
 
 public sealed record SaveStatisticsConfigurationRequest(
     Guid StatisticsItemId,
@@ -25,4 +39,6 @@ public sealed record SaveStatisticsConfigurationRequest(
     Guid? CoursePointStart,
     Guid? CoursePointEnd,
     Guid? ParentConfigId,
-    int? Repetitions);
+    int? Repetitions,
+    TimeSpan? MinDuration = null,
+    TimeSpan? MaxDuration = null);
