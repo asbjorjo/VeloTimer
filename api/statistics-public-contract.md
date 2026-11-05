@@ -1,5 +1,58 @@
 # Public Statistics contract-first gate
 
+## Additive Hall of Fame contract
+
+`GET /api/statistics/hall-of-fame` is anonymous on the Statistics API and browser
+BFF. It does not change chronological results, discovery, samples, or best-results
+contracts described below.
+
+- `category`: optional; defaults to `lap`. Allowed values are `lap`, `200m`,
+  `1000m`, `3000m`, `4000m`, and `laps`. Category names map exactly to the existing
+  item names `Lap`, `200m`, `1000m`, `3000m`, and `4000m`; `laps` also uses `Lap`.
+- `facilityId`: optional nonempty UUID. Omission means global; filter entries
+  before selecting personal bests or aggregating lap counts.
+- Unsupported, malformed, empty, or duplicate query parameters return 400.
+- Only `IsValid` entries with a currently linked public StatsProfile contribute.
+  Profiles are grouped by identity across transponders/configurations, not by name.
+- Timed selection chooses each profile's shortest duration, then earliest
+  completion, then native UUID entry order. The same ordering ranks winning
+  entries and selects at most ten, without expanding ties.
+- Lap count groups valid `Lap` entries per profile, sorts count descending and
+  internal profile UUID ascending, and takes at most ten. No raw passing or
+  other distance-item entries contribute.
+
+The API returns `HallOfFameDTO(IsAvailable, Times, Laps)`.
+Timed rows contain `ProfileName`, `Duration` (TimeSpan), `SpeedMetresPerSecond`,
+and `FacilityId`. Count rows contain `ProfileName`, `LapCount` (64-bit), and
+`TotalDistanceMetres`. Total distance is count times the **current** Lap item's
+distance, intentionally not a historical snapshot. Only the applicable collection
+is populated. No profile-user or transponder identifiers are exposed.
+
+Missing item definitions return `IsAvailable=false`; existing definitions without
+eligible rows return `IsAvailable=true` with empty collections. Ambiguous matching
+definitions or a nonpositive/nonfinite lap-count distance produce a logged 409
+ProblemDetails. API and BFF responses are no-store; public-profile results are
+queried on every request.
+
+The WebUI server maps generated NSwag types to `HallOfFameView`, resolving each
+distinct timed-row facility through the existing Facilities client/cache and
+replacing its ID with `FacilityName`. Count rows require no result-level facility
+lookups. Both server and browser transports return the same view. Dependency
+failures remain explicit errors (502/503), and definition errors retain 409;
+no dependency error becomes a successful empty leaderboard.
+
+The UI route is `/hall-of-fame?tab=lap&facilityId=...` (note `tab`, not the API's
+`category`). Absent tab means Lap and absent facility means global. URL-backed
+selection supports refresh and history. The fixed table uses ten skeleton/filler
+rows and stable columns, with accessible loading state and reduced-motion support.
+Presentation converts SI speed using the existing km/h-based display helper only
+at the UI boundary.
+
+No schema migration is required. PostgreSQL tests exercise bounded SQL anti-join
+personal-best selection and grouped lap totals, including exact ten-row cutoffs.
+
+## Chronological public results
+
 This is the frozen implementation handoff for the approved public filtered results plan.
 The API/service phase implements the anonymous API/BFF routes, discovery resolver,
 SQL query and both transports and refreshes OpenAPI/NSwag through the build pipeline.

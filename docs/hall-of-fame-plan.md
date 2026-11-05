@@ -1,6 +1,11 @@
 # Hall of Fame implementation plan
 
-Status: Finalized with user-confirmed requirements. Saved to the repository by request; feature implementation awaits explicit authorization.
+Status: Superseded by the basic fixed-tab Hall of Fame implementation. This document
+is retained as historical design context, not the current feature specification.
+See the [current user documentation](../README.md#hall-of-fame) and
+[API contract](../api/statistics-public-contract.md#additive-hall-of-fame-contract).
+The implemented scope has six fixed tabs, an optional facility filter, no admin
+editor, and lap totals using the current Lap distance with no facility-name column.
 
 ## Problem and approach
 

@@ -373,6 +373,39 @@ results are omitted. The Statistics API exposes the same best-results route and
 filters; the WebUI BFF resolves facility names without exposing backend services
 to the browser. The table distinguishes loading, empty data, and retryable errors.
 
+### Hall of Fame
+
+The anonymous `/hall-of-fame` page, linked in navigation, has six fixed tabs:
+Lap, 200m, 1000m, 3000m, 4000m, and Lap count. Rankings are all-time and global
+by default; the facility selector filters entries before ranking. Tab and facility
+selection are stored in the URL, so refresh, bookmarks, and browser history restore
+the view (for example `/hall-of-fame?tab=1000m`).
+
+Timed tables show up to ten public profiles, with one personal best per profile
+across linked transponders and configurations. Rows contain profile name, time,
+speed, and the winning result's facility. Only valid entries linked to currently
+public profiles qualify. Equal durations use earliest completion, then entry ID.
+
+Lap count aggregates valid completed **Lap statistics entries**, not raw passings
+or overlapping distance-event results. Rows show profile name, lap count, and
+total distance, without facility names. Distance is count multiplied by the
+**current** Lap definition's distance; changing that definition changes displayed
+historical totals. Equal counts have a stable internal profile-identity tie-break.
+All tables stop at ten rows, even for ties.
+
+Fixed table headers and ten reserved rows use MudSkeleton while loading to
+minimize layout shifts, including when fewer results arrive. Loading, no eligible
+results, missing definitions, and retryable errors are distinct states.
+The existing item names `Lap`, `200m`, `1000m`, `3000m`, and `4000m` define the
+categories; there is no Hall of Fame administration editor.
+
+The Statistics API and browser BFF expose
+`GET /api/statistics/hall-of-fame?category=lap&facilityId=...`, with `category`
+one of `lap`, `200m`, `1000m`, `3000m`, `4000m`, or `laps`.
+Facility is optional. The new API uses metres and metres per second; the UI
+formats values using locale and display preferences. Existing statistics endpoints
+retain their contracts. See the [public API contract](api/statistics-public-contract.md).
+
 Cookie-authenticated operations:
 
 * `GET /api/facilities/{facilityId}/installations`
