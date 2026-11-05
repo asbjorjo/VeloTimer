@@ -24,9 +24,7 @@ public class StatisticsService(
         activity?.SetTag("TransponderId", transponderId);
         IEnumerable<StatisticsEntry> entries = new List<StatisticsEntry>();
 
-        var statsItems = (await GetStatisticsItemConfigByEndCoursePoint(endPoint, cancellationToken))
-            .Where(config => config.CoursePointStart == startPoint && config.CoursePointEnd == endPoint)
-            .ToList();
+        var statsItems = (await GetStatisticsItemConfigByEndCoursePoint(endPoint, cancellationToken)).ToList();
 
         if (statsItems.Any())
         {
@@ -39,11 +37,16 @@ public class StatisticsService(
             var bounds = await ReadCurrentBoundsAsync(statsItems.Select(c => c.Id), cancellationToken);
             foreach (var statsItem in statsItems)
             {
+                // Each item has its own start, independent of the completing segment's start.
+                // Include adjacent earlier segments and prefer the persisted current segment when
+                // it covers the entire item, rather than reaching back to a previous lap.
                 var start = await storage.Set<Sample>()
                     .Where(s =>
                         s.TransponderId == transponderId
-                        && s.CoursePointStartId == startPoint
-                        && s.TimeEnd < startTime)
+                        && s.CoursePointStartId == statsItem.CoursePointStart
+                        && (s.TimeEnd <= startTime
+                            || (s.TimeStart == startTime && s.TimeEnd == endTime
+                                && s.CoursePointStartId == startPoint && s.CoursePointEndId == endPoint)))
                     .OrderByDescending(s => s.TimeEnd)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (start != null)
