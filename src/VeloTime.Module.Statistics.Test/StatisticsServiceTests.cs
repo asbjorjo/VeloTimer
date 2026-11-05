@@ -83,6 +83,55 @@ public sealed class StatisticsServiceTests
         Assert.Single(await database.Storage.Set<StatisticsEntry>().ToListAsync());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ProcessCompletedAsync_SharedFinishEndpoint_MatchesConfiguredStartAndEnd(bool isLap)
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var transponderId = Guid.NewGuid();
+        var twoHundredPoint = Guid.NewGuid();
+        var finishPoint = Guid.NewGuid();
+        var facilityId = Guid.NewGuid();
+        var twoHundredConfig = CreateSimpleConfig(Guid.NewGuid(), twoHundredPoint, finishPoint, "200m", 200);
+        var lapConfig = CreateSimpleConfig(Guid.NewGuid(), finishPoint, finishPoint, "Lap", 250);
+        var startPoint = isLap ? finishPoint : twoHundredPoint;
+        var expectedConfig = isLap ? lapConfig : twoHundredConfig;
+        var otherEndConfig = CreateSimpleConfig(Guid.NewGuid(), startPoint, Guid.NewGuid(), "Other end", 100);
+        var sampleStart = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        database.Storage.AddRange(twoHundredConfig, lapConfig, otherEndConfig);
+        foreach (var point in new[] { twoHundredPoint, finishPoint })
+        {
+            database.Storage.Add(new Sample
+            {
+                Id = Guid.NewGuid(),
+                TimeStart = sampleStart,
+                TimeEnd = sampleStart.AddSeconds(1),
+                TransponderId = transponderId,
+                CoursePointStartId = point,
+                CoursePointEndId = finishPoint,
+                Duration = TimeSpan.FromSeconds(1),
+                Distance = 10,
+                Speed = 10,
+                FacilityId = facilityId
+            });
+        }
+        await database.Storage.SaveChangesAsync();
+        var endTime = sampleStart.AddSeconds(20);
+
+        var entry = Assert.Single(await database.Service.ProcessCompletedAsync(
+            transponderId, sampleStart.AddSeconds(10), endTime, startPoint, finishPoint));
+
+        Assert.Equal(expectedConfig.Id, entry.StatisticsItemConfigId);
+        Assert.Equal(expectedConfig.StatisticsItemId, entry.StatisticsItemId);
+        Assert.Equal(sampleStart, entry.TimeStart);
+        Assert.Equal(endTime, entry.TimeEnd);
+        Assert.Equal(TimeSpan.FromSeconds(20), entry.Duration);
+        Assert.Equal(expectedConfig.StatisticsItem.Distance / 20d, entry.Speed, precision: 8);
+        var storedEntry = Assert.Single(await database.Storage.Set<StatisticsEntry>().AsNoTracking().ToListAsync());
+        Assert.Equal(expectedConfig.Id, storedEntry.StatisticsItemConfigId);
+    }
+
     [Fact]
     public async Task ProcessEntryAsync_AggregatesRecentEntriesForConfiguredRepetitions()
     {

@@ -24,7 +24,9 @@ public class StatisticsService(
         activity?.SetTag("TransponderId", transponderId);
         IEnumerable<StatisticsEntry> entries = new List<StatisticsEntry>();
 
-        var statsItems = (await GetStatisticsItemConfigByEndCoursePoint(endPoint, cancellationToken)).ToList();
+        var statsItems = (await GetStatisticsItemConfigByEndCoursePoint(endPoint, cancellationToken))
+            .Where(config => config.CoursePointStart == startPoint && config.CoursePointEnd == endPoint)
+            .ToList();
 
         if (statsItems.Any())
         {
