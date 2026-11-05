@@ -20,6 +20,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.30"></a>
+## [2.1.0-alpha.30](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.30) (2026-11-05)
+
+### Features
+
+* **messagebus:** deploy Service Bus topology via Helm pre-install/upgrade hook ([#121](https://www.github.com/asbjorjo/VeloTimer/issues/121)) ([f8538e1](https://www.github.com/asbjorjo/VeloTimer/commit/f8538e1609390c3f1a4880a50113a039c10a9337))
+
 <a name="2.1.0-alpha.29"></a>
 ## [2.1.0-alpha.29](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.29) (2026-11-04)
 
