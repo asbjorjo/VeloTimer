@@ -20,6 +20,14 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.32"></a>
+## [2.1.0-alpha.32](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.32) (2026-11-05)
+
+### Bug Fixes
+
+* **webui:** deduplicate hall of fame selection requests ([223d936](https://www.github.com/asbjorjo/VeloTimer/commit/223d9368ddc3d3c131c49e938db74505596a8dfc))
+* **webui:** omit null facility from hall of fame URLs ([06b29af](https://www.github.com/asbjorjo/VeloTimer/commit/06b29af4001b9d3359b0ae2e1a3a779a4595d567))
+
 <a name="2.1.0-alpha.31"></a>
 ## [2.1.0-alpha.31](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.31) (2026-11-05)
 
