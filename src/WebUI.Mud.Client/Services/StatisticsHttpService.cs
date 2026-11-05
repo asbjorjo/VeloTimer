@@ -6,6 +6,14 @@ namespace VeloTime.WebUI.Mud.Client.Services;
 
 public class StatisticsHttpService(HttpClient httpClient) : IStatisticsService
 {
+    public async Task<HallOfFameView> GetHallOfFameAsync(HallOfFameRequest request, CancellationToken cancellationToken = default)
+    {
+        using var query = new FormUrlEncodedContent(HallOfFameQuery.ToQuery(request));
+        var url = HallOfFameQuery.Path.TrimStart('/') + "?" + await query.ReadAsStringAsync(cancellationToken);
+        return await httpClient.GetFromJsonAsync<HallOfFameView>(url, cancellationToken)
+            ?? throw new HttpRequestException("The Hall of Fame response was empty.");
+    }
+
     public async Task<PublicStatisticsDiscoveryDTO> GetPublicDiscoveryAsync(CancellationToken cancellationToken = default) =>
         await httpClient.GetFromJsonAsync<PublicStatisticsDiscoveryDTO>(
             PublicStatisticsQuery.DiscoveryPath.TrimStart('/'), cancellationToken)

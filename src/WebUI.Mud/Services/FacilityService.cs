@@ -41,6 +41,19 @@ namespace VeloTime.WebUI.Mud.Services
 
         public async Task<IEnumerable<FacilityView>> GetFacilitiesAsync(CancellationToken token)
         {
+            try
+            {
+                return await GetFacilityListAsync(token);
+            }
+            catch (VeloTime.Module.Facilities.Client.ApiException exception)
+            {
+                throw new HttpRequestException("Facilities could not be loaded.", exception,
+                    exception.StatusCode == 503 ? System.Net.HttpStatusCode.ServiceUnavailable : System.Net.HttpStatusCode.BadGateway);
+            }
+        }
+
+        private async Task<IEnumerable<FacilityView>> GetFacilityListAsync(CancellationToken token)
+        {
             var f = await cache.GetPublicAsync(
                 "facility-list", "facility-view-v1", "all",
                 async (IFacilitiesClient factoryClient, CancellationToken factoryToken) =>

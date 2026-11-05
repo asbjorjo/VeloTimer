@@ -4,6 +4,8 @@ namespace VeloTime.WebUI.Mud.Client.Services;
 
 public interface IStatisticsService
 {
+    Task<HallOfFameView> GetHallOfFameAsync(HallOfFameRequest request, CancellationToken cancellationToken = default);
+
     Task<PublicStatisticsDiscoveryDTO> GetPublicDiscoveryAsync(CancellationToken cancellationToken = default);
 
     Task<PublicStatisticsResultsPageDTO> GetPublicResultsAsync(GetPublicStatisticsResultsRequest request,

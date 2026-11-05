@@ -1,0 +1,73 @@
+@inherits PresentationComponentBase
+@using System.Globalization
+@using VeloTime.Module.Statistics.Interface.Data
+@using VeloTime.WebUI.Mud.Client.ViewModel
+
+<div class="hall-of-fame-table" aria-busy="@(Loading ? "true" : "false")">
+    <span class="mud-sr-only" role="status">@(Loading ? L["HallOfFameLoading"] : "")</span>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="@L["HallOfFame"]">
+        <table class="@(LapCounter ? "laps" : "times")">
+            <colgroup>
+                <col class="profile-column" />
+                <col class="value-column" />
+                <col class="speed-column" />
+                @if (!LapCounter) { <col class="facility-column" /> }
+            </colgroup>
+            <thead>
+                <tr>
+                    <th scope="col">@L["Profile"]</th>
+                    <th scope="col" class="numeric">@(LapCounter ? L["HallOfFameLapCount"] : L["Time"])</th>
+                    <th scope="col" class="numeric">@(LapCounter ? L["HallOfFameTotalDistance"] : L["SpeedInUnit", Display.SpeedUnit])</th>
+                    @if (!LapCounter) { <th scope="col">@L["Facility"]</th> }
+                </tr>
+            </thead>
+            <tbody>
+                @for (var index = 0; index < HallOfFameQuery.Limit; index++)
+                {
+                    if (Loading)
+                    {
+                        <tr class="skeleton-row" aria-hidden="true">
+                            @for (var column = 0; column < (LapCounter ? 3 : 4); column++)
+                            {
+                                <td><MudSkeleton SkeletonType="SkeletonType.Text" Width="80%" Height="24px" /></td>
+                            }
+                        </tr>
+                    }
+                    else if (LapCounter && index < (Results?.Laps.Count ?? 0))
+                    {
+                        var row = Results!.Laps[index];
+                        <tr class="result-row">
+                            <th scope="row" title="@row.ProfileName">@row.ProfileName</th>
+                            <td class="numeric">@row.LapCount.ToString("N0", Display.NumberCulture)</td>
+                            <td class="numeric">@Display.Distance(row.TotalDistanceMetres, "N0")</td>
+                        </tr>
+                    }
+                    else if (!LapCounter && index < (Results?.Times.Count ?? 0))
+                    {
+                        var row = Results!.Times[index];
+                        <tr class="result-row">
+                            <th scope="row" title="@row.ProfileName">@row.ProfileName</th>
+                            <td class="numeric">@row.Duration.ToString(row.Duration.TotalDays >= 1 ? @"d\.hh\:mm\:ss\.fff" : @"hh\:mm\:ss\.fff", CultureInfo.InvariantCulture)</td>
+                            <td class="numeric">@Display.StatisticsSpeed(row.SpeedMetresPerSecond * 3.6d)</td>
+                            <td title="@row.FacilityName">@row.FacilityName</td>
+                        </tr>
+                    }
+                    else if (index == 0)
+                    {
+                        <tr><td colspan="@(LapCounter ? 3 : 4)" role="status">@(Results?.IsAvailable == false ? L["HallOfFameUnavailable"] : L["HallOfFameEmpty"])</td></tr>
+                    }
+                    else
+                    {
+                        <tr class="placeholder-row" aria-hidden="true"><td colspan="@(LapCounter ? 3 : 4)"></td></tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public bool LapCounter { get; set; }
+    [Parameter] public HallOfFameView? Results { get; set; }
+}

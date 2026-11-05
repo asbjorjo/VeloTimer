@@ -13,6 +13,33 @@ public class StatisticsService(
     IStatisticsClient statistics,
     WebUiCache cache) : IStatisticsService
 {
+    public Task<HallOfFameView> GetHallOfFameAsync(Contracts.HallOfFameRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        _ = Contracts.HallOfFameQuery.ToQuery(request);
+        return PublicCall(async () =>
+        {
+            var response = await statistics.GetHallOfFameAsync(request.Category, request.FacilityId?.ToString("D"), cancellationToken);
+            if (response.Times.Count > Contracts.HallOfFameQuery.Limit || response.Laps.Count > Contracts.HallOfFameQuery.Limit)
+                throw new HttpRequestException("The Hall of Fame response exceeded its row limit.", null, HttpStatusCode.BadGateway);
+            var names = new Dictionary<Guid, string>();
+            try
+            {
+                foreach (var id in response.Times.Select(row => row.FacilityId).Distinct())
+                    names.Add(id, await GetFacilityNameAsync(id, cancellationToken));
+            }
+            catch (Module.Facilities.Client.ApiException exception)
+            {
+                throw new HttpRequestException("Result facilities could not be loaded.", exception, HttpStatusCode.BadGateway);
+            }
+            return new HallOfFameView(response.IsAvailable,
+                response.Times.Select(row => new HallOfFameTimeView(row.ProfileName,
+                    StatisticsDurationTransport.Parse(row.Duration) ?? throw new InvalidDataException("A result duration was missing."),
+                    row.SpeedMetresPerSecond, names[row.FacilityId])).ToList(),
+                response.Laps.Select(row => new Contracts.HallOfFameLapsDTO(row.ProfileName, row.LapCount, row.TotalDistanceMetres)).ToList());
+        }, cancellationToken);
+    }
+
     public Task<Contracts.PublicStatisticsDiscoveryDTO> GetPublicDiscoveryAsync(CancellationToken cancellationToken = default) =>
         PublicCall(async () =>
         {
@@ -75,7 +102,7 @@ public class StatisticsService(
         }
         catch (Module.Statistics.Client.ApiException exception)
         {
-            var status = exception.StatusCode is 400 or 401 or 403 or 404 or 503
+            var status = exception.StatusCode is 400 or 401 or 403 or 404 or 409 or 503
                 ? (HttpStatusCode)exception.StatusCode : HttpStatusCode.BadGateway;
             throw new HttpRequestException(exception.StatusCode == 400
                 ? "Select an available configuration and valid public statistics filters."

@@ -192,6 +192,8 @@ public sealed class StatisticsTableRenderingTests
     private sealed class DeferredStatisticsService(
         Func<Guid?, DateTimeOffset?, DateTimeOffset?, CancellationToken, Task<IReadOnlyList<BestStatisticsResultView>>> get) : IStatisticsService
     {
+        public Task<HallOfFameView> GetHallOfFameAsync(VeloTime.Module.Statistics.Interface.Data.HallOfFameRequest request,
+            CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<VeloTime.Module.Statistics.Interface.Data.PublicStatisticsDiscoveryDTO> GetPublicDiscoveryAsync(
             CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public Task<VeloTime.Module.Statistics.Interface.Data.PublicStatisticsResultsPageDTO> GetPublicResultsAsync(

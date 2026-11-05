@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="HallOfFame" xml:space="preserve"><value>Æresgalleri</value></data>
+  <data name="HallOfFameDescription" xml:space="preserve"><value>De ti beste offentlige profilene gjennom tidene. Bare gyldige resultater teller.</value></data>
+  <data name="HallOfFameLap" xml:space="preserve"><value>Runde</value></data>
+  <data name="HallOfFameLapCount" xml:space="preserve"><value>Antall runder</value></data>
+  <data name="HallOfFameTotalDistance" xml:space="preserve"><value>Total distanse</value></data>
+  <data name="HallOfFameAllFacilities" xml:space="preserve"><value>Alle anlegg</value></data>
+  <data name="HallOfFameLoading" xml:space="preserve"><value>Laster æresgalleriet</value></data>
+  <data name="HallOfFameEmpty" xml:space="preserve"><value>Ingen gyldige offentlige resultater ennå.</value></data>
+  <data name="HallOfFameUnavailable" xml:space="preserve"><value>Denne statistikktypen er ikke tilgjengelig ennå.</value></data>
+  <data name="HallOfFameInvalidSelection" xml:space="preserve"><value>Velg et tilgjengelig anlegg og en fane i æresgalleriet.</value></data>
+  <data name="HallOfFameReset" xml:space="preserve"><value>Vis globale rundetider</value></data>
+  <data name="HallOfFameError" xml:space="preserve"><value>Kunne ikke laste æresgalleriet. Prøv igjen; statistikkdefinisjonen må kanskje rettes av en administrator.</value></data>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>

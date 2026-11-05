@@ -328,6 +328,10 @@ public sealed class DisplaySettingsBrowserHostTests
 
     public sealed class FakeStatisticsService : IStatisticsService
     {
+        public Task<HallOfFameView> GetHallOfFameAsync(Stats.HallOfFameRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new HallOfFameView(true,
+                request.Category == "laps" ? [] : [new("Harness rider", TimeSpan.FromSeconds(20), 12.5, "Harness Arena")],
+                request.Category == "laps" ? [new("Harness rider", 10, 2500)] : []));
         public Task<Stats.PublicStatisticsDiscoveryDTO> GetPublicDiscoveryAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(new Stats.PublicStatisticsDiscoveryDTO([new(ItemId, "Lap", "250m", 250)],
                 [new(ConfigId, ItemId, FacilityId, Stats.StatisticsConfigurationType.Simple, Guid.NewGuid(), "Start", Guid.NewGuid(), "Finish", null, null)], []));
