@@ -101,14 +101,52 @@ public sealed class HallOfFameTests
         await using var host = await PublicStatisticsTestHost.CreateAsync();
         var config = Config("Lap");
         var profile = Profile("Same");
-        var first = Entry(config, profile, 10);
-        var second = Entry(config, profile, 10);
+        var first = Entry(config, profile, 10, id: Guid.Parse("10000000-0000-0000-0000-000000000001"));
+        var second = Entry(config, profile, 10, PublicStatisticsTestHost.OtherFacility,
+            Guid.Parse("20000000-0000-0000-0000-000000000001"));
         var other = Entry(config, Profile("Same"), 10);
         await host.SeedAsync(first, second, other);
         using var client = PublicStatisticsDiscoveryTests.Anonymous(host);
         var result = await Get(client, "");
         Assert.Equal(2, result.Times.Count);
         Assert.All(result.Times, row => Assert.Equal("Same", row.ProfileName));
+        Assert.All(result.Times, row => Assert.Equal(PublicStatisticsTestHost.Facility, row.FacilityId));
+    }
+
+    [Fact]
+    public async Task Cutoffs_AreExactlyTenAndDeterministicForBothModes() => await AssertCutoffs(false);
+
+    [PublicStatisticsPostgreSqlFact]
+    public async Task PostgreSql_CutoffsAreExactlyTenAndDeterministicForBothModes() => await AssertCutoffs(true);
+
+    private static async Task AssertCutoffs(bool postgres)
+    {
+        await using var host = await PublicStatisticsTestHost.CreateAsync(postgres);
+        var config = Config("Lap");
+        var entries = new List<StatisticsEntry>();
+        for (var index = 1; index <= 12; index++)
+        {
+            var profile = Profile("Profile " + index);
+            for (var lap = 0; lap < index; lap++)
+                entries.Add(Entry(config, profile, 10, id: Guid.Parse($"{index:x8}-{lap:x4}-0000-0000-000000000001")));
+        }
+        await host.SeedAsync(entries.AsEnumerable().Reverse().Cast<object>().ToArray());
+        using var client = PublicStatisticsDiscoveryTests.Anonymous(host);
+        var times = (await Get(client, "category=lap")).Times;
+        Assert.Equal(Enumerable.Range(1, 10).Select(index => "Profile " + index), times.Select(row => row.ProfileName));
+        var laps = (await Get(client, "category=laps")).Laps;
+        Assert.Equal(Enumerable.Range(3, 10).Reverse().Select(index => (long)index), laps.Select(row => row.LapCount));
+        Assert.All(laps, row => Assert.Equal(row.LapCount * 250d, row.TotalDistanceMetres));
+    }
+
+    [Fact]
+    public async Task LapDistance_MustBePositiveAndFinite()
+    {
+        await using var host = await PublicStatisticsTestHost.CreateAsync();
+        await host.SeedAsync(new StatisticsItem { Id = Guid.NewGuid(), Name = "Lap", Distance = 0 });
+        using var client = PublicStatisticsDiscoveryTests.Anonymous(host);
+        using var response = await client.GetAsync(HallOfFameQuery.Path + "?category=laps");
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Theory]
@@ -157,10 +195,10 @@ public sealed class HallOfFameTests
         CoursePointStart = PublicStatisticsTestHost.Start, CoursePointEnd = PublicStatisticsTestHost.End
     };
 
-    private static StatisticsEntry Entry(SimpleStatisticsItemConfig config, StatsProfile? profile, int seconds, Guid? facility = null) =>
+    private static StatisticsEntry Entry(SimpleStatisticsItemConfig config, StatsProfile? profile, int seconds, Guid? facility = null, Guid? id = null) =>
         new()
         {
-            Id = Guid.NewGuid(), StatisticsItem = config.StatisticsItem, StatisticsItemConfig = config,
+            Id = id ?? Guid.NewGuid(), StatisticsItem = config.StatisticsItem, StatisticsItemConfig = config,
             StatsProfile = profile, TransponderId = Guid.NewGuid(), Duration = TimeSpan.FromSeconds(seconds),
             Speed = 250d / seconds, FacilityId = facility ?? PublicStatisticsTestHost.Facility,
             TimeStart = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
