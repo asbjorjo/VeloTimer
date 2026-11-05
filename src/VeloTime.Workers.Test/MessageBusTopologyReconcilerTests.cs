@@ -176,6 +176,47 @@ public sealed class MessageBusTopologyReconcilerTests
         Assert.Empty(broker.Operations);
     }
 
+    [Theory]
+    [InlineData("1=1")]
+    [InlineData(" 1 = 1 ")]
+    [InlineData("(1 = 1)")]
+    [InlineData("((2=2))")]
+    [InlineData("TRUE")]
+    [InlineData("'a' = 'a'")]
+    [InlineData("1 = 1 AND 2 = 2")]
+    [InlineData("MessageName = 'A' OR 1=1")]
+    [InlineData("(MessageName = 'A') or (1 = 1)")]
+    [InlineData("NOT (1 = 0)")]
+    [InlineData("1e5 > 0")]
+    public void Constant_sql_filters_are_rejected(string sqlFilter)
+    {
+        Assert.True(MessageBusTopologyValidator.HasConstantBranch(sqlFilter));
+        var topology = Topology(Topic("t1", Subscription("s1", requiresSession: false, Sql("A", sqlFilter))));
+        Assert.Contains(MessageBusTopologyValidator.Validate(topology), error => error.Contains("references no message property"));
+    }
+
+    [Theory]
+    [InlineData("MessageName = 'PassingEvent'")]
+    [InlineData("MessageName = 'OR 1=1'")]
+    [InlineData("sys.Label = 'x' AND 1 = 1")]
+    [InlineData("(MessageName = 'A' OR MessageName = 'B')")]
+    [InlineData("[Message Name] = 'A' OR user.Priority > 5")]
+    [InlineData("EXISTS(Region)")]
+    [InlineData("ORDERS = 1 OR ORIGIN = 'x'")]
+    public void Property_based_sql_filters_are_accepted(string sqlFilter) =>
+        Assert.False(MessageBusTopologyValidator.HasConstantBranch(sqlFilter));
+
+    [Fact]
+    public void Service_bus_not_found_errors_map_to_missing_entities()
+    {
+        Assert.True(ServiceBusTopologyClient.IsNotFound(
+            new ServiceBusException("missing", ServiceBusFailureReason.MessagingEntityNotFound)));
+        Assert.True(ServiceBusTopologyClient.IsNotFound(new Azure.RequestFailedException(404, "missing")));
+        Assert.False(ServiceBusTopologyClient.IsNotFound(
+            new ServiceBusException("busy", ServiceBusFailureReason.ServiceBusy)));
+        Assert.False(ServiceBusTopologyClient.IsNotFound(new UnauthorizedAccessException()));
+    }
+
     [Fact]
     public void Bundled_default_topology_binds_and_is_valid()
     {

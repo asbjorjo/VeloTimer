@@ -1123,8 +1123,11 @@ messageBusTopology:
 
 The [values schema](charts/velotime/values.schema.json) and the job both validate
 the topology: every subscription needs at least one rule, each rule has exactly
-one of `sqlFilter` or `correlationFilter`, rule names must not start with `$`, and
-catch-all filters (`1=1`) are rejected.
+one of `sqlFilter` or `correlationFilter`, and rule names must not start with `$`.
+The job also rejects constant SQL filters: a filter, or any top-level `OR` branch,
+must reference at least one message property. This rejects catch-all spellings
+such as `1=1`, `(2 = 2)`, `'a'='a'` and `MessageName = 'X' OR 1=1`. The check is
+structural, not a full SQL evaluator, so keep filters simple.
 
 ### Reconciliation semantics
 
