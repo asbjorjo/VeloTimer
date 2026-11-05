@@ -9,6 +9,7 @@ internal static class StatisticsEndpoints
     {
         endpoints.MapGet("/statistics/public/discovery", GetPublicDiscovery).AllowAnonymous();
         endpoints.MapGet("/statistics/public/results", GetPublicResults).AllowAnonymous();
+        endpoints.MapGet("/statistics/hall-of-fame", GetHallOfFame).AllowAnonymous();
 
         endpoints.MapGet("/statistics/best-results", async (IStatisticsService statistics, CancellationToken cancellationToken,
             Guid? facilityId = null, DateTimeOffset? from = null, DateTimeOffset? to = null) =>
@@ -29,6 +30,20 @@ internal static class StatisticsEndpoints
 
             return Results.Ok((await statistics.GetSamplesAsync(cursor, isNextPage, pageSize, cancellationToken)).ToArray());
         }).AllowAnonymous();
+    }
+
+    private static async Task<IResult> GetHallOfFame(HttpContext http, IStatisticsService statistics,
+        CancellationToken cancellationToken)
+    {
+        http.Response.Headers.CacheControl = "no-store";
+        var duplicates = http.Request.Query.Where(pair => pair.Value.Count != 1)
+            .ToDictionary(pair => pair.Key, _ => new[] { "Supply each parameter exactly once." });
+        if (duplicates.Count != 0) return Results.ValidationProblem(duplicates);
+        var values = http.Request.Query.ToDictionary(pair => pair.Key, pair => (string?)pair.Value[0]);
+        if (!HallOfFameQuery.TryParse(values, out var request, out var errors))
+            return Results.ValidationProblem(errors);
+        return await PublicResponse(http, async () =>
+            Results.Ok(await statistics.GetHallOfFameAsync(request, cancellationToken)));
     }
 
     private static async Task<IResult> GetPublicDiscovery(HttpContext http, IStatisticsService statistics,
@@ -66,13 +81,14 @@ internal static class StatisticsEndpoints
             // Public dependency messages are untrusted, even for validation/outage statuses.
             // Local query validation above keeps its safe, actionable details.
             var status = exception.StatusCode is { } upstream ? (int)upstream : 502;
-            status = status is 400 or 401 or 403 or 404 or 503 ? status : 502;
+            status = status is 400 or 401 or 403 or 404 or 409 or 503 ? status : 502;
             http.RequestServices.GetRequiredService<ILoggerFactory>()
                 .CreateLogger("WebUI.PublicStatistics")
                 .LogWarning("Public statistics request failed for {Path}, status {Status}", http.Request.Path, status);
             return Results.Problem(statusCode: status, detail: status switch
             {
                 400 => "Select an available configuration and valid public statistics filters.",
+                409 => "The statistics definition must be corrected before these results can be loaded.",
                 503 => "Public statistics is temporarily unavailable.",
                 _ => "Public statistics could not be loaded."
             });

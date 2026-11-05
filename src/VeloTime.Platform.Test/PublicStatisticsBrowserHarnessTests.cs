@@ -27,7 +27,14 @@ namespace VeloTime.Platform.Test;
 public sealed class PublicStatisticsBrowserHarnessTests
 {
     [PublicStatisticsBrowserFact]
-    public async Task RealInteractivePage_RestoresRefreshHistoryFiltersSelectionsAndCursorNavigation()
+    public Task RealInteractivePage_RestoresRefreshHistoryFiltersSelectionsAndCursorNavigation() =>
+        RunBrowserAsync("PublicStatistics.browser.test.mjs");
+
+    [PublicStatisticsBrowserFact]
+    public Task HallOfFame_RestoresUrlAndKeepsSkeletonLayoutStable() =>
+        RunBrowserAsync("HallOfFame.browser.test.mjs");
+
+    private static async Task RunBrowserAsync(string script)
     {
         var repository = FindRepository();
         await using var app = await CreateAppAsync();
@@ -45,7 +52,7 @@ public sealed class PublicStatisticsBrowserHarnessTests
                 RedirectStandardOutput = true, RedirectStandardError = true
             };
             start.ArgumentList.Add("--test");
-            start.ArgumentList.Add("src/VeloTime.Platform.Test/PublicStatistics.browser.test.mjs");
+            start.ArgumentList.Add("src/VeloTime.Platform.Test/" + script);
             start.Environment["VELOTIMER_PUBLIC_STATISTICS_BROWSER_URL"] = address;
             using var process = Process.Start(start) ?? throw new InvalidOperationException("Could not start Node browser regression.");
             var stdout = process.StandardOutput.ReadToEndAsync();
@@ -146,7 +153,7 @@ public sealed class PublicStatisticsBrowserHarnessTests
         app.MapPost("/__test/scenario/{mode}", (string mode) =>
         {
             if (!new[] { "normal", "no-facilities", "no-lap", "no-configurations", "discovery-error",
-                "results-error", "denied", "delayed" }.Contains(mode)) return Results.BadRequest();
+                "results-error", "denied", "delayed", "hof-delayed", "hof-empty" }.Contains(mode)) return Results.BadRequest();
             state.Mode = mode;
             return Results.Ok();
         });
@@ -156,6 +163,9 @@ public sealed class PublicStatisticsBrowserHarnessTests
         }));
         app.MapGet("/registrationDates.js", () => Results.File(
             Path.Combine(repository, "src", "WebUI.Mud.Client", "wwwroot", "registrationDates.js"), "text/javascript"));
+        app.MapGet("/hall-of-fame.css", () => Results.File(
+            Path.Combine(repository, "src", "WebUI.Mud.Client", "obj", "Debug", "net10.0", "scopedcss", "bundle",
+                "VeloTime.WebUI.Mud.Client.styles.css"), "text/css"));
         // Serve locally cached package assets, never remote fonts/CDNs.
         MapPackageAsset(app, "MudBlazor", "MudBlazor.min.js");
         MapPackageAsset(app, "MudBlazor", "MudBlazor.min.css");
@@ -177,6 +187,7 @@ public sealed class PublicStatisticsBrowserHarnessTests
             builder.AddMarkupContent(3, """
                 <meta charset="utf-8"><base href="/">
                 <link rel="stylesheet" href="/_content/MudBlazor/MudBlazor.min.css">
+                <link rel="stylesheet" href="/hall-of-fame.css">
                 """);
             builder.CloseElement();
             builder.OpenElement(4, "body");
@@ -230,6 +241,8 @@ public sealed class PublicStatisticsBrowserHarnessTests
                 TimeSpan.FromSeconds(index), 36 + index, completion.AddSeconds(index)))).ToArray();
         return HarnessProxy.Create<IStatisticsService>((method, args) =>
         {
+            if (method.Name == nameof(IStatisticsService.GetHallOfFameAsync))
+                return HallOfFameAsync(state, (Contracts.HallOfFameRequest)args[0]!, (CancellationToken)args[1]!);
             if (method.Name == nameof(IStatisticsService.GetPublicDiscoveryAsync))
             {
                 if (state.Mode == "discovery-error") throw new HttpRequestException("secret discovery failure");
@@ -270,6 +283,18 @@ public sealed class PublicStatisticsBrowserHarnessTests
                 filtered.Any(row => row.TimeEnd > page[0].TimeEnd) ? new(page[0].TimeEnd, page[0].Id) : null,
                 filtered.Any(row => row.TimeEnd < page[^1].TimeEnd) ? new(page[^1].TimeEnd, page[^1].Id) : null);
         });
+    }
+
+    private static async Task<HallOfFameView> HallOfFameAsync(HarnessState state, Contracts.HallOfFameRequest request, CancellationToken token)
+    {
+        Interlocked.Increment(ref state.Requests);
+        if (state.Mode == "hof-delayed") await Task.Delay(TimeSpan.FromSeconds(1), token);
+        if (state.Mode == "results-error") throw new HttpRequestException("secret Hall of Fame failure");
+        if (state.Mode == "hof-empty") return new(true, [], []);
+        var profile = request.Category + (request.FacilityId.HasValue ? " selected" : " global");
+        return request.Category == "laps"
+            ? new(true, [], [new(profile, 100, 25000)])
+            : new(true, [new(profile, TimeSpan.FromSeconds(20), 12.5, "Arena")], []);
     }
 
     private static async Task<Contracts.PublicStatisticsResultsPageDTO> DelayedAsync(HarnessState state, CancellationToken token)
@@ -313,6 +338,12 @@ public sealed class PublicStatisticsBrowserHarnessTests
         var root = Environment.GetEnvironmentVariable("NUGET_PACKAGES")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
         var folder = Path.Combine(root, package.ToLowerInvariant());
+        if (package == "MudBlazor")
+        {
+            var version = typeof(MudTabs).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
+                .InformationalVersion.Split('+')[0];
+            folder = Path.Combine(folder, version);
+        }
         var path = Directory.Exists(folder)
             ? Directory.EnumerateFiles(folder, asset, SearchOption.AllDirectories).FirstOrDefault()
             : null;

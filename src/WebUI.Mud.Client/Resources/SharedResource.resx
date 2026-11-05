@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="HallOfFame" xml:space="preserve"><value>Hall of Fame</value></data>
+  <data name="HallOfFameDescription" xml:space="preserve"><value>All-time top ten public profiles. Only valid results count.</value></data>
+  <data name="HallOfFameLap" xml:space="preserve"><value>Lap</value></data>
+  <data name="HallOfFameLapCount" xml:space="preserve"><value>Lap count</value></data>
+  <data name="HallOfFameTotalDistance" xml:space="preserve"><value>Total distance</value></data>
+  <data name="HallOfFameAllFacilities" xml:space="preserve"><value>All facilities</value></data>
+  <data name="HallOfFameLoading" xml:space="preserve"><value>Loading Hall of Fame</value></data>
+  <data name="HallOfFameEmpty" xml:space="preserve"><value>No eligible public results yet.</value></data>
+  <data name="HallOfFameUnavailable" xml:space="preserve"><value>This statistics item is not available yet.</value></data>
+  <data name="HallOfFameInvalidSelection" xml:space="preserve"><value>Select an available facility and Hall of Fame tab.</value></data>
+  <data name="HallOfFameReset" xml:space="preserve"><value>Show global lap rankings</value></data>
+  <data name="HallOfFameError" xml:space="preserve"><value>Hall of Fame could not be loaded. Please retry; the statistics definition may need administrator attention.</value></data>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
