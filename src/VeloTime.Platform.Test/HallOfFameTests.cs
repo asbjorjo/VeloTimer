@@ -16,6 +16,28 @@ namespace VeloTime.Platform.Test;
 
 public sealed class HallOfFameTests
 {
+    [Theory]
+    [InlineData(null, "/hall-of-fame?tab=200m")]
+    [InlineData("", "/hall-of-fame?tab=200m")]
+    [InlineData("10000000-0000-0000-0000-000000000001", "/hall-of-fame?tab=200m&facilityId=10000000-0000-0000-0000-000000000001")]
+    public void PageNavigation_OmitsMissingFacilityQueryValue(string? facilityId, string expected)
+    {
+        var page = new VeloTime.WebUI.Mud.Client.Pages.Statistics.HallOfFame();
+        var navigation = new RecordingNavigation();
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        typeof(VeloTime.WebUI.Mud.Client.Pages.Statistics.HallOfFame).GetProperty("Navigation", flags)!.SetValue(page, navigation);
+        typeof(VeloTime.WebUI.Mud.Client.Pages.Statistics.HallOfFame).GetMethod("Navigate", flags)!
+            .Invoke(page, ["200m", facilityId]);
+        Assert.Equal(expected, navigation.Target);
+    }
+
+    private sealed class RecordingNavigation : NavigationManager
+    {
+        public string? Target { get; private set; }
+        public RecordingNavigation() => Initialize("https://webui.invalid/", "https://webui.invalid/hall-of-fame");
+        protected override void NavigateToCore(string uri, bool forceLoad) => Target = uri;
+    }
+
     [Fact]
     public void ProductionHost_LoadsApplicationScopedCssBundle()
     {

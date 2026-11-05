@@ -151,7 +151,8 @@
 
     private void Navigate(string category, string? facilityId)
     {
-        var query = new Dictionary<string, string?> { ["tab"] = category, ["facilityId"] = facilityId };
+        var query = new Dictionary<string, string?> { ["tab"] = category };
+        if (!string.IsNullOrEmpty(facilityId)) query["facilityId"] = facilityId;
         Navigation.NavigateTo(QueryHelpers.AddQueryString("/hall-of-fame", query));
     }
 
