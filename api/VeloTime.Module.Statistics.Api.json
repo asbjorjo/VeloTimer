@@ -100,6 +100,63 @@
         }
       }
     },
+    "/api/statistics/hall-of-fame": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "summary": "Get ten all-time public personal bests or lap totals; quantities use SI units",
+        "operationId": "GetHallOfFame",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "facilityId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HallOfFameDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/statistics/owner-profiles/me": {
       "get": {
         "tags": [
@@ -1053,6 +1110,78 @@
           },
           "isFirstPage": {
             "type": "boolean"
+          }
+        }
+      },
+      "HallOfFameDTO": {
+        "required": [
+          "isAvailable",
+          "times",
+          "laps"
+        ],
+        "type": "object",
+        "properties": {
+          "isAvailable": {
+            "type": "boolean"
+          },
+          "times": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HallOfFameTimeDTO"
+            }
+          },
+          "laps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HallOfFameLapsDTO"
+            }
+          }
+        }
+      },
+      "HallOfFameLapsDTO": {
+        "required": [
+          "profileName",
+          "lapCount",
+          "totalDistanceMetres"
+        ],
+        "type": "object",
+        "properties": {
+          "profileName": {
+            "type": "string"
+          },
+          "lapCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalDistanceMetres": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "HallOfFameTimeDTO": {
+        "required": [
+          "profileName",
+          "duration",
+          "speedMetresPerSecond",
+          "facilityId"
+        ],
+        "type": "object",
+        "properties": {
+          "profileName": {
+            "type": "string"
+          },
+          "duration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": "string"
+          },
+          "speedMetresPerSecond": {
+            "type": "number",
+            "format": "double"
+          },
+          "facilityId": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
