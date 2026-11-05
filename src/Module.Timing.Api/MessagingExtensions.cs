@@ -24,8 +24,9 @@ public static class MessagingExtensions
             mbb.WithProviderServiceBus(options =>
             {
                 options.ConnectionString = connectionString;
-                // The existing Timing topic is provisioned externally, so broker outages do not block API startup.
-                options.TopologyProvisioning.Enabled = true;
+                // The Timing topic is provisioned by the VeloTime.MessageBus.Topology deployment job,
+                // so broker outages do not block API startup.
+                options.TopologyProvisioning.Enabled = false;
             });
             mbb.AddJsonSerializer();
             mbb.WithHeaderModifier((headers, message) => headers["MessageName"] = message.GetType().Name);

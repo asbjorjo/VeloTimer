@@ -1048,6 +1048,127 @@ first. These tests do not replace a disposable-cluster acceptance test: exercise
 fresh install, no-op/pending upgrade, failed migration, timeout, and retry; confirm
 failed pre-upgrade hooks leave application Deployment image/spec updates unapplied.
 
+## Message bus topology deployment
+
+Azure Service Bus topics, subscriptions, and subscription filter rules are owned by
+the [topology job](src/MessageBus.Topology/), not the applications. APIs and
+processors run with SlimMessageBus topology provisioning disabled and only send to
+or receive from entities that already exist.
+
+The application `velotime` chart runs the job as a `pre-install,pre-upgrade`
+hook (weight `-10`), after its hook ConfigMap (`-20`) and before the schema
+migration Jobs (`0`–`3`). A failed or timed-out job fails the install/upgrade
+before any Deployment changes. Successful Jobs are deleted; failed Jobs remain for
+`kubectl logs` until the next attempt.
+
+### Management connection string
+
+The job needs a Service Bus connection string with **Manage** rights. Keep it
+separate from the runtime `ConnectionStrings__MessageBus` (Send/Listen) used by
+the services. The chart never renders this credential. It reads it from a Secret
+that must exist before install/upgrade starts, typically synced by
+[External Secrets](https://external-secrets.io/):
+
+```yaml
+messageBusTopology:
+  existingSecret:
+    name: velotime-messagebus-management   # default
+    key: ConnectionStrings__MessageBusManagement   # default
+```
+
+```yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: velotime-messagebus-management
+spec:
+  secretStoreRef: { kind: ClusterSecretStore, name: <store> }
+  target: { name: velotime-messagebus-management }
+  data:
+    - secretKey: ConnectionStrings__MessageBusManagement
+      remoteRef: { key: <servicebus-manage-connection-string> }
+```
+
+Manage this ExternalSecret outside the `velotime` release (or in an earlier
+release), because pre-install hooks run before ordinary release resources exist.
+Rendering fails if `existingSecret.name` is empty while the job is enabled. Set
+`messageBusTopology.enabled: false` only when the topology is managed by other
+means.
+
+### Declaring the topology
+
+`messageBusTopology.topics` is the complete declared topology. Override the whole
+list in a values file to manage topics, subscriptions, and filters without code
+changes. The defaults in [values.yaml](charts/velotime/values.yaml) mirror the
+names used in code and the provisioner's bundled
+[topology.json](src/MessageBus.Topology/topology.json); a chart test keeps the two
+identical.
+
+```yaml
+messageBusTopology:
+  topics:
+    - name: velotime-agent
+      subscriptions:
+        - name: timing
+          requiresSession: true          # immutable after creation
+          maxDeliveryCount: 10           # optional; omitted values are not reconciled
+          lockDuration: "00:01:00"       # .NET TimeSpan format
+          rules:
+            - name: PassingEvent
+              sqlFilter: MessageName = 'PassingEvent'
+            - name: ByHeader
+              correlationFilter:
+                properties: { MessageName: PassingEvent }
+```
+
+The [values schema](charts/velotime/values.schema.json) and the job both validate
+the topology: every subscription needs at least one rule, each rule has exactly
+one of `sqlFilter` or `correlationFilter`, and rule names must not start with `$`.
+The job also rejects constant SQL filters: a filter, or any top-level `OR` branch,
+must reference at least one message property. This rejects catch-all spellings
+such as `1=1`, `(2 = 2)`, `'a'='a'` and `MessageName = 'X' OR 1=1`. The check is
+structural, not a full SQL evaluator, so keep filters simple.
+
+### Reconciliation semantics
+
+- **No catch-all rule.** Service Bus adds a `$Default` (`1=1`) rule to every
+  subscription created without one. The job creates each missing subscription
+  together with its first declared rule, so `$Default` is never created.
+- **Rules converge.** On declared subscriptions, missing rules are created and
+  changed filters/actions updated *before* undeclared rules (including an existing
+  `$Default`) are deleted, so a subscription never has zero rules. The first run
+  against subscriptions previously created by SlimMessageBus removes `$Default`.
+- **Additive for entities.** Missing topics/subscriptions are created and declared
+  mutable settings updated. Undeclared topics and subscriptions are never deleted.
+  This includes the per-agent control subscriptions that agents create at runtime.
+- **Immutable conflicts fail.** A different `requiresSession` (subscriptions) or
+  `requiresDuplicateDetection` (topics) fails the job with a nonzero exit. Recreate
+  the entity manually after draining it.
+
+Re-running the job against an up-to-date namespace makes no changes.
+
+Uninstall does not remove the retained hook ConfigMap:
+
+```bash
+kubectl -n <namespace> delete configmap \
+  -l 'app.kubernetes.io/instance=<release>,velotime.io/messagebus-topology=true'
+```
+
+### Local development
+
+Aspire runs the `messagebus-topology` project before the APIs and processors
+only when `ConnectionStrings:MessageBusManagement` is configured for the AppHost
+(for example with `dotnet user-secrets`). Otherwise, local services rely on
+topology that already exists. To run the job directly:
+
+```bash
+ConnectionStrings__MessageBusManagement='<manage connection string>' \
+  dotnet run --project src/MessageBus.Topology
+```
+
+Set `MessageBusTopologyFile=<path>` to use a different topology file. It replaces
+the bundled `topology.json` rather than merging with it.
+
 ## Roadmap
 
 - [] User authentication

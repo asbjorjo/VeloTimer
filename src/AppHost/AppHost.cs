@@ -154,6 +154,20 @@ var timingproc = builder.AddProject<Projects.VeloTime_Module_Timing_Processor>("
     .WaitFor(velotimedb)
     .WithExplicitStart();
 
+// The topology job needs a Manage-rights connection string distinct from the runtime MessageBus
+// connection. Without it, local development relies on topology that already exists.
+if (!string.IsNullOrWhiteSpace(builder.Configuration["ConnectionStrings:MessageBusManagement"]))
+{
+    var servicebusmanagement = builder.AddConnectionString("MessageBusManagement");
+    var messagebustopology = builder.AddProject<Projects.VeloTime_MessageBus_Topology>("messagebus-topology")
+        .WithReference(servicebusmanagement);
+    facilityapi.WaitForCompletion(messagebustopology);
+    statisticsapi.WaitForCompletion(messagebustopology);
+    timingapi.WaitForCompletion(messagebustopology);
+    statsproc.WaitForCompletion(messagebustopology);
+    timingproc.WaitForCompletion(messagebustopology);
+}
+
 if (seed)
 {
     bootstrap = builder.AddProject<Projects.VeloTime_Bootstrap>("bootstrap")

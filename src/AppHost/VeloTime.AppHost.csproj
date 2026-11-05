@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Bootstrap\VeloTime.Bootstrap.csproj" />
+    <ProjectReference Include="..\MessageBus.Topology\VeloTime.MessageBus.Topology.csproj" />
     <ProjectReference Include="..\Module.Facilities.Api\VeloTime.Module.Facilities.Api.csproj" />
     <ProjectReference Include="..\Module.Facilities.Migration\VeloTime.Module.Facilities.Migration.csproj" />
     <ProjectReference Include="..\Module.Facilities.Processor\VeloTime.Module.Facilities.Processor.csproj" />
