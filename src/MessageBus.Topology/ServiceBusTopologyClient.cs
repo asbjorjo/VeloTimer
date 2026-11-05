@@ -1,4 +1,5 @@
 using Azure;
+using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 
 namespace VeloTime.MessageBus.Topology;
@@ -28,7 +29,7 @@ internal sealed class ServiceBusTopologyClient(ServiceBusAdministrationClient cl
         {
             return await client.GetTopicAsync(topicName, cancellationToken);
         }
-        catch (RequestFailedException ex) when (ex.Status == 404)
+        catch (Exception ex) when (IsNotFound(ex))
         {
             return null;
         }
@@ -46,7 +47,7 @@ internal sealed class ServiceBusTopologyClient(ServiceBusAdministrationClient cl
         {
             return await client.GetSubscriptionAsync(topicName, subscriptionName, cancellationToken);
         }
-        catch (RequestFailedException ex) when (ex.Status == 404)
+        catch (Exception ex) when (IsNotFound(ex))
         {
             return null;
         }
@@ -74,4 +75,13 @@ internal sealed class ServiceBusTopologyClient(ServiceBusAdministrationClient cl
 
     public Task DeleteRuleAsync(string topicName, string subscriptionName, string ruleName, CancellationToken cancellationToken) =>
         client.DeleteRuleAsync(topicName, subscriptionName, ruleName, cancellationToken);
+
+    // The administration client reports missing entities as ServiceBusException(MessagingEntityNotFound);
+    // a raw 404 is kept as a fallback.
+    internal static bool IsNotFound(Exception exception) => exception switch
+    {
+        ServiceBusException { Reason: ServiceBusFailureReason.MessagingEntityNotFound } => true,
+        RequestFailedException { Status: 404 } => true,
+        _ => false,
+    };
 }
