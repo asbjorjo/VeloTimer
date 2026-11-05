@@ -139,6 +139,15 @@ test('Hall of Fame preserves URL selections and fixed skeleton table geometry', 
     await scenario('normal');
     await page.getByRole('button', { name: 'Retry', exact: true }).click();
     await waitForName('lap global');
+    for (const mode of ['hof-facility-api-error', 'hof-facility-invalid-data']) {
+      await scenario(mode);
+      await page.reload();
+      await page.getByRole('alert').filter({ hasText: 'Hall of Fame could not be loaded' }).waitFor();
+      assert.equal(await page.getByText('secret', { exact: false }).count(), 0);
+      await scenario('normal');
+      await page.getByRole('button', { name: 'Retry', exact: true }).click();
+      await waitForName('lap global');
+    }
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

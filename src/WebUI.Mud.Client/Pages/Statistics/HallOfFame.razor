@@ -108,7 +108,7 @@
             _results = await results;
         }
         catch (OperationCanceledException) when (source.IsCancellationRequested) { }
-        catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException)
+        catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException or InvalidDataException)
         {
             if (!source.IsCancellationRequested)
             {

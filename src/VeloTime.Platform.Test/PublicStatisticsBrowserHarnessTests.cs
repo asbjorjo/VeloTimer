@@ -142,18 +142,25 @@ public sealed class PublicStatisticsBrowserHarnessTests
         var state = new HarnessState();
         builder.Services.AddSingleton(CreateStatistics(state));
         builder.Services.AddSingleton(PlatformServiceTests.TestProxy.Create<IFacilityService>((method, _) =>
-            method.Name == nameof(IFacilityService.GetFacilitiesAsync)
-                ? state.Mode == "no-facilities" ? Array.Empty<FacilityView>()
-                    : new[] { new FacilityView { Id = Id(2), Name = "Zulu" },
-                        new FacilityView { Id = Id(14), Name = "Arena" }, new FacilityView { Id = Id(1), Name = "Arena" } }
-                : throw new NotSupportedException(method.Name)));
+        {
+            if (method.Name != nameof(IFacilityService.GetFacilitiesAsync)) throw new NotSupportedException(method.Name);
+            if (state.Mode == "hof-facility-api-error")
+                throw new HttpRequestException("Facilities could not be loaded.",
+                    new VeloTime.Module.Facilities.Client.ApiException("secret facility failure", 503, "secret", null!, null!),
+                    System.Net.HttpStatusCode.ServiceUnavailable);
+            if (state.Mode == "hof-facility-invalid-data")
+                throw new InvalidDataException("secret invalid facility snapshot");
+            return state.Mode == "no-facilities" ? Array.Empty<FacilityView>()
+                : new[] { new FacilityView { Id = Id(2), Name = "Zulu" },
+                    new FacilityView { Id = Id(14), Name = "Arena" }, new FacilityView { Id = Id(1), Name = "Arena" } };
+        }));
         var app = builder.Build();
         app.UseRequestLocalization();
         app.UseAntiforgery();
         app.MapPost("/__test/scenario/{mode}", (string mode) =>
         {
             if (!new[] { "normal", "no-facilities", "no-lap", "no-configurations", "discovery-error",
-                "results-error", "denied", "delayed", "hof-delayed", "hof-empty" }.Contains(mode)) return Results.BadRequest();
+                "results-error", "denied", "delayed", "hof-delayed", "hof-empty", "hof-facility-api-error", "hof-facility-invalid-data" }.Contains(mode)) return Results.BadRequest();
             state.Mode = mode;
             return Results.Ok();
         });

@@ -17,6 +17,30 @@ namespace VeloTime.Platform.Test;
 public sealed class HallOfFameTests
 {
     [Fact]
+    public void ProductionHost_LoadsApplicationScopedCssBundle()
+    {
+        var markup = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "App.razor"));
+        Assert.Contains("<link href=@Assets[\"VeloTime.WebUI.Mud.styles.css\"] rel=\"stylesheet\" />", markup);
+    }
+
+    [Theory]
+    [InlineData(503, 503)]
+    [InlineData(500, 502)]
+    public async Task FacilityService_NormalizesUpstreamFailuresForRetryUi(int upstream, int expected)
+    {
+        var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((_, _) =>
+            throw new VeloTime.Module.Facilities.Client.ApiException("secret", upstream, "secret", null!, null!));
+        var timing = PlatformServiceTests.TestProxy.Create<VeloTime.Module.Timing.Client.ITimingClient>((_, _) =>
+            throw new InvalidOperationException("No timing call expected"));
+        using var cache = new WebUiCacheTestHost(facilities);
+        var service = new FacilityService(facilities, timing, cache.Cache);
+        var error = await Assert.ThrowsAsync<HttpRequestException>(() => service.GetFacilitiesAsync(CancellationToken.None));
+        Assert.Equal((HttpStatusCode)expected, error.StatusCode);
+        Assert.IsType<VeloTime.Module.Facilities.Client.ApiException>(error.InnerException);
+        Assert.DoesNotContain("secret", error.Message);
+    }
+
+    [Fact]
     public async Task ServerTransport_MapsSiAndResolvesEachDistinctFacilityOnce()
     {
         var facilityId = Guid.NewGuid();
