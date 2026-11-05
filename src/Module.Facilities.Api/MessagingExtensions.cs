@@ -30,8 +30,9 @@ public static class MessagingExtensions
             mbb.WithProviderServiceBus(options =>
             {
                 options.ConnectionString = connectionString;
-                // Facilities topology must be precreated externally; never reuse Timing's topic.
-                options.TopologyProvisioning.Enabled = true;
+                // Facilities topology is precreated by the VeloTime.MessageBus.Topology deployment job;
+                // never reuse Timing's topic.
+                options.TopologyProvisioning.Enabled = false;
             });
             mbb.AddJsonSerializer();
             mbb.WithHeaderModifier((headers, message) => headers["MessageName"] = message.GetType().Name);

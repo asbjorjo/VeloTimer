@@ -30,9 +30,10 @@ public static class MessagingExtensions
             mbb.WithProviderServiceBus(options =>
             {
                 options.ConnectionString = connectionString;
-                // External topology must exist before rollout. Broker outages must
-                // not prevent definition/outbox commits or trigger a direct-send fallback.
-                options.TopologyProvisioning.Enabled = true;
+                // Topology is owned by the VeloTime.MessageBus.Topology deployment job and must
+                // exist before rollout. Broker outages must not prevent definition/outbox commits
+                // or trigger a direct-send fallback.
+                options.TopologyProvisioning.Enabled = false;
             });
             mbb.AddJsonSerializer();
             mbb.WithHeaderModifier((headers, message) => headers["MessageName"] = message.GetType().Name);

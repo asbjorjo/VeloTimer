@@ -33,6 +33,9 @@ public static class StartupExtensions
                 options.ConnectionString = configuration.GetConnectionString("MessageBus");
                 options.MaxConcurrentSessions = 10;
                 options.SessionIdleTimeout = TimeSpan.FromSeconds(5);
+                // Topics, subscriptions and filter rules are owned by the VeloTime.MessageBus.Topology
+                // deployment job so its declared rules stay authoritative.
+                options.TopologyProvisioning.Enabled = false;
             });
             mbb.AddJsonSerializer();
             mbb.WithHeaderModifier((headers, message) =>
