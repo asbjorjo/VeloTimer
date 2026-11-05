@@ -46,7 +46,7 @@ public sealed class StatisticsValidityThresholdsMessagingTests
         Assert.Equal(1, settings.PollBatchSize);
         Assert.Equal(TimeSpan.FromSeconds(5), settings.PollIdleSleep);
         Assert.Equal(int.MaxValue, settings.MaxDeliveryAttempts);
-        Assert.Equal("velotime-statistics-test", MessagingExtensions.ValidityThresholdsTopic);
+        Assert.Equal("velotime-statistics", MessagingExtensions.ValidityThresholdsTopic);
         Assert.Contains(builder.Services, service => service.ServiceType == typeof(IHostedService)
             && service.ImplementationType?.Name == "StatisticsValidityThresholdsOutboxStartup");
         var serializer = host.Services.GetRequiredService<JsonMessageSerializer>();

@@ -45,7 +45,7 @@ public sealed class TimingAssociationMessagingTests
         Assert.True(settings.MaintainSequence);
         Assert.Equal(1, settings.PollBatchSize);
         Assert.Equal(int.MaxValue, settings.MaxDeliveryAttempts);
-        Assert.Equal("velotime-facilities-test", MessagingExtensions.TimingAssociationsTopic);
+        Assert.Equal("velotime-facilities", MessagingExtensions.TimingAssociationsTopic);
         Assert.Contains(builder.Services, registration => registration.ServiceType == typeof(ITimingAssociationEventPublisher)
             && registration.Lifetime == ServiceLifetime.Scoped);
     }

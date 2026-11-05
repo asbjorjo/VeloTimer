@@ -25,7 +25,7 @@ public sealed class StatisticsProcessorRegistrationTests
         startup.GetMethod("AddServices", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [builder]);
         await using var provider = builder.Services.BuildServiceProvider();
         var bus = Assert.IsAssignableFrom<MessageBusBase>(provider.GetRequiredService<IMasterMessageBus>());
-        var timingConsumers = bus.Settings.Consumers.Where(consumer => consumer.Path == "velotime-timing-test").ToList();
+        var timingConsumers = bus.Settings.Consumers.Where(consumer => consumer.Path == "velotime-timing").ToList();
         Assert.Equal(2, timingConsumers.Count);
         Assert.Contains(timingConsumers, consumer => consumer.MessageType == typeof(TimingSampleComplete) &&
             consumer.ConsumerType == typeof(TimingSampleHandler));
