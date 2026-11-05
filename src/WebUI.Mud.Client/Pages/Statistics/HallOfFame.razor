@@ -66,8 +66,15 @@
     private bool _invalidSelection;
     private bool _error;
     private int _tabIndex;
+    private string? _lastHandledUri;
 
-    protected override Task OnParametersSetAsync() => LoadAsync();
+    protected override Task OnParametersSetAsync()
+    {
+        var uri = Navigation.Uri;
+        if (string.Equals(uri, _lastHandledUri, StringComparison.Ordinal)) return Task.CompletedTask;
+        _lastHandledUri = uri;
+        return LoadAsync();
+    }
 
     private async Task LoadAsync()
     {

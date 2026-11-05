@@ -40,6 +40,39 @@ public sealed class HallOfFameTests
         Assert.DoesNotContain("secret", error.Message);
     }
 
+    [Theory]
+    [InlineData("lap")]
+    [InlineData("200m")]
+    [InlineData("1000m")]
+    [InlineData("3000m")]
+    [InlineData("4000m")]
+    [InlineData("laps")]
+    public async Task GeneratedClient_AllFacilitiesOmitsFacilityParameter(string category)
+    {
+        using var handler = new GlobalRequestHandler(category);
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("https://statistics.invalid/") };
+        var facilities = PlatformServiceTests.TestProxy.Create<IFacilitiesClient>((_, _) => throw new InvalidOperationException("No results"));
+        using var cache = new WebUiCacheTestHost(facilities);
+        var result = await new StatisticsService(new StatisticsClient(http), cache.Cache).GetHallOfFameAsync(new(category));
+        Assert.True(result.IsAvailable);
+        Assert.Equal(1, handler.Requests);
+    }
+
+    private sealed class GlobalRequestHandler(string category) : HttpMessageHandler
+    {
+        public int Requests { get; private set; }
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Requests++;
+            Assert.Equal(Contracts.HallOfFameQuery.Path, request.RequestUri!.AbsolutePath);
+            Assert.Equal("?category=" + category, request.RequestUri.Query);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"isAvailable\":true,\"times\":[],\"laps\":[]}", System.Text.Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
     [Fact]
     public async Task ServerTransport_MapsSiAndResolvesEachDistinctFacilityOnce()
     {

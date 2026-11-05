@@ -379,7 +379,9 @@ The anonymous `/hall-of-fame` page, linked in navigation, has six fixed tabs:
 Lap, 200m, 1000m, 3000m, 4000m, and Lap count. Rankings are all-time and global
 by default; the facility selector filters entries before ranking. Tab and facility
 selection are stored in the URL, so refresh, bookmarks, and browser history restore
-the view (for example `/hall-of-fame?tab=1000m`).
+the view (for example `/hall-of-fame?tab=1000m`). Repeated component parameter
+updates for the same URL reuse the in-flight or displayed result instead of
+issuing duplicate leaderboard requests; Retry explicitly reloads that view.
 
 Timed tables show up to ten public profiles, with one personal best per profile
 across linked transponders and configurations. Rows contain profile name, time,

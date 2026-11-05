@@ -58,14 +58,26 @@ test('Hall of Fame preserves URL selections and fixed skeleton table geometry', 
     assert.deepEqual(await table().locator('thead th').allTextContents(),
       ['Profile', 'Time', 'Speed (km/h)', 'Facility']);
 
+    const requestCount = async () => (await (await page.request.get(`${baseUrl}/__test/evidence`)).json()).requests;
+    const beforeTab = await requestCount();
     await page.getByRole('tab', { name: '200m', exact: true }).click();
     await waitForName('200m global');
+    assert.equal(await requestCount() - beforeTab, 1, 'one leaderboard request per tab change');
     assert.equal(new URL(page.url()).searchParams.get('tab'), '200m');
     await page.getByLabel('Facility', { exact: true }).locator('xpath=..').click();
     await page.getByRole('option', { name: 'Zulu', exact: true }).click();
     await waitForName('200m selected');
     const selectedUrl = page.url();
     assert.ok(new URL(selectedUrl).searchParams.has('facilityId'));
+    await page.getByLabel('Facility', { exact: true }).locator('xpath=..').click();
+    const beforeGlobal = await requestCount();
+    await page.getByRole('option', { name: 'All facilities', exact: true }).click();
+    await waitForName('200m global');
+    assert.equal(await requestCount() - beforeGlobal, 1, 'one leaderboard request when returning to all facilities');
+    assert.equal(new URL(page.url()).searchParams.has('facilityId'), false);
+    await page.getByLabel('Facility', { exact: true }).locator('xpath=..').click();
+    await page.getByRole('option', { name: 'Zulu', exact: true }).click();
+    await waitForName('200m selected');
     await page.reload();
     await waitForName('200m selected');
     assert.equal(page.url(), selectedUrl);
