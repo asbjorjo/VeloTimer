@@ -1,5 +1,17 @@
 # Messaging topology provisioning during Helm installation and upgrade
 
+## Implementation status
+
+The research below is a historical design snapshot. The implemented solution is
+a custom Azure Service Bus administration reconciler
+([MessageBus.Topology](../../src/MessageBus.Topology/)) driven by a declarative
+topology in Helm values, not SlimMessageBus's built-in provisioner. It creates
+subscriptions together with their first declared rule so the catch-all `$Default`
+rule is never created. It runs as one `pre-install,pre-upgrade` hook Job using a
+dedicated Manage-rights connection string from a preexisting Secret. Runtime
+SlimMessageBus provisioning is disabled. See
+[the deployment guide](../../README.md#message-bus-topology-deployment).
+
 ## Executive summary
 
 **Use Helm `pre-install,pre-upgrade` hook Jobs to provision messaging topology before application rollout, following the lifecycle already used for database migrations. Evaluate SlimMessageBus's built-in topology provisioner first; use a custom Azure Service Bus administration reconciler only if the built-in functionality cannot satisfy the required deployment-only behavior.** VeloTimer already has ordered migration hooks and a worker contract that produces a nonzero exit on failure.[^1][^2]
