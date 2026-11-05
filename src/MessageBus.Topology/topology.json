@@ -1,0 +1,63 @@
+{
+  "MessageBusTopology": {
+    "Topics": [
+      {
+        "name": "velotime-agent",
+        "subscriptions": [
+          {
+            "name": "timing",
+            "requiresSession": true,
+            "rules": [
+              { "name": "PassingEvent", "sqlFilter": "MessageName = 'PassingEvent'" }
+            ]
+          },
+          {
+            "name": "infrastructure",
+            "requiresSession": false,
+            "rules": [
+              { "name": "InstallationLayoutEvent", "sqlFilter": "MessageName = 'InstallationLayoutEvent'" },
+              { "name": "LoopStatusEvent", "sqlFilter": "MessageName = 'LoopStatusEvent'" }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "velotime-timing",
+        "subscriptions": [
+          {
+            "name": "statistics",
+            "requiresSession": true,
+            "rules": [
+              { "name": "TimingSampleComplete", "sqlFilter": "MessageName = 'TimingSampleComplete'" },
+              { "name": "TransponderOwnershipChanged", "sqlFilter": "MessageName = 'TransponderOwnershipChanged'" }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "velotime-statistics",
+        "subscriptions": [
+          {
+            "name": "statistics",
+            "requiresSession": true,
+            "rules": [
+              { "name": "EntryCreated", "sqlFilter": "MessageName = 'EntryCreated'" },
+              { "name": "SampleComplete", "sqlFilter": "MessageName = 'SampleComplete'" }
+            ]
+          },
+          {
+            "name": "statistics-validity",
+            "requiresSession": false,
+            "rules": [
+              { "name": "StatisticsValidityThresholdsChangedV1", "sqlFilter": "MessageName = 'StatisticsValidityThresholdsChangedV1'" }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "velotime-facilities",
+        "subscriptions": []
+      }
+    ]
+  }
+}
