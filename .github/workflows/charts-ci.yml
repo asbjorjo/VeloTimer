@@ -6,6 +6,8 @@ on:
       - master
     paths:
       - 'charts/**'
+      # Chart defaults must stay in sync with the provisioner's bundled topology.
+      - 'src/MessageBus.Topology/topology.json'
   pull_request:
     branches: [ master ]
     types:
@@ -15,6 +17,8 @@ on:
       - ready_for_review
     paths:
       - 'charts/**'
+      # Chart defaults must stay in sync with the provisioner's bundled topology.
+      - 'src/MessageBus.Topology/topology.json'
 
 jobs:
   build:
