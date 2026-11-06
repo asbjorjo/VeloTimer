@@ -1,6 +1,7 @@
 using VeloTime.Module.Notifications.Interface;
 using VeloTime.Module.Notifications.Interface.Data;
 using VeloTime.Module.Notifications.Model;
+using VeloTime.Module.Notifications.Service;
 
 namespace VeloTime.Module.Notifications.Mapping;
 
@@ -45,8 +46,8 @@ public static class NotificationMapper
         n.AudienceRole = audience.Role;
         n.RecipientIssuer = audience.RecipientIssuer;
         n.RecipientSubject = audience.RecipientSubject;
-        n.StartsAtUtc = start;
-        n.EndsAtUtc = end;
+        n.StartsAtUtc = NotificationTimestamp.Persisted(start);
+        n.EndsAtUtc = end is { } finiteEnd ? NotificationTimestamp.Persisted(finiteEnd) : null;
         n.AllowsDurationDismissal = policy.AllowedScopes.Contains(NotificationDismissalScope.Duration);
         n.AllowsSessionDismissal = policy.AllowedScopes.Contains(NotificationDismissalScope.Session);
         n.AllowsPermanentDismissal = policy.AllowedScopes.Contains(NotificationDismissalScope.Permanent);

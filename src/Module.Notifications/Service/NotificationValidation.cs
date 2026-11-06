@@ -42,7 +42,8 @@ public static class NotificationValidation
             _ => false
         }, NotificationErrorCodes.InvalidAudience);
         Require(start != default && start < DateTimeOffset.MaxValue && start.Offset == TimeSpan.Zero &&
-            (end is null || end.Value < DateTimeOffset.MaxValue && end.Value.Offset == TimeSpan.Zero && end > start),
+            (end is null || end.Value < DateTimeOffset.MaxValue && end.Value.Offset == TimeSpan.Zero &&
+                NotificationTimestamp.Persisted(end.Value) > NotificationTimestamp.Persisted(start)),
             NotificationErrorCodes.InvalidSchedule);
         Require(policy is not null && policy.AllowedScopes is { Count: > 0 } &&
             policy.AllowedScopes.All(Enum.IsDefined) &&

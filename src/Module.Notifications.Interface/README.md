@@ -1,8 +1,9 @@
-# Notifications v1 contracts (contract phase only)
+# Notifications v1 shared contracts
 
 `VeloTime.Module.Notifications.Interface` is the single shared contract owner for API,
-identity and invalidation artifacts. There is no API, storage, client, handler, topology
-or UI implementation in this phase. Namespaces follow existing `Interface.Data` and
+identity and invalidation artifacts. API, storage and generated client are now
+implemented; see the [API phase handoff](../Module.Notifications.Api/README.md).
+Workers, topology and UI remain separate phases. Namespaces follow existing `Interface.Data` and
 `Interface.Messages` patterns. JSON uses camelCase properties, explicit string enum
 codes (numeric enums rejected), ISO-8601 UTC timestamps and integer SI seconds.
 Unrecognized codes, zero/undefined enum values, absent required fields and null
@@ -87,11 +88,13 @@ silently ignoring a previous session dismissal.
 
 Login ID survives token refresh, reconnect and tab navigation but changes on a fresh
 application login; tabs sharing a login share that server dismissal. Keycloak `sid`
-alone is not yet approved (may identify a wider SSO session). API phase must establish
-fresh per-login WebUI ticket/token integration and trustworthy service verification,
-not take an unsigned caller header, body/query identity or cookie GUID on trust.
-Forward the validated token through the BFF; how the trusted application login is
-bound to it remains an API/auth prerequisite. Do not expose this ID in DTOs or push.
+alone is not approved (may identify a wider SSO session). The shared
+[RSA-PSS application-login assertion](Identity/README.md) and API verifier establish
+the exact trusted protocol; there is no unresolved API/auth contract prerequisite.
+WebUI must implement fresh protected-ticket login ID generation/preservation and
+sign assertions bound to its validated forwarded access token. An unsigned caller
+header, body/query identity or cookie GUID is never trusted. Do not expose this ID
+in DTOs or push.
 
 Separate keys:
 
@@ -127,7 +130,7 @@ no claim that storage is cross-tab, no migration into account on login. Keep ano
 storage separate; resume it on logout. Storage failure must be visible, not a false
 saved dismissal. Anonymous tabs still need scheduled expiry/reconciliation.
 
-## Endpoints to implement (typed Minimal API results / generated typed HTTP client)
+## Implemented endpoints (typed Minimal API results / generated typed HTTP client)
 
 Paths are `NotificationRoutes` constants. Validated authentication is required except
 active's genuine-anonymous branch. All responses are `Cache-Control: no-store`;
@@ -156,6 +159,10 @@ retaining an earlier end; repeated end of an already-ended notice is a no-op aft
 checking version. Ending a not-yet-started notice is allowed (cancellation); do not
 move its start or activate it. Create/update otherwise require EndsAtUtc > StartsAtUtc
 when present. All request DateTimeOffset offsets must be zero, all output UTC.
+Authoritative persisted timestamps and mutation responses use PostgreSQL microsecond
+precision (Npgsql truncation relative to 2000-01-01 UTC). Create/update canonicalize
+start/end and reject an interval that collapses to end <= start at that precision.
+Fresh response/snapshot server-now remains UTC clock time.
 Active iff `starts <= now` and (`ends == null` or `now < ends`), audience matches,
 and neither dismissal layer suppresses it. At exact snooze expiry it is eligible.
 Dismiss PUT requires active schedule, audience match and allowed policy (existing
@@ -257,8 +264,9 @@ local snapshots, logout clears private notices and authenticated identity state.
   outbox and durable deadline claims/rechecks. No schema edited here.
 * API owner: core manual create/read/update/end/dismiss/restore services, validation,
   identity adapter, route handlers/mappers, NSwag client and OpenAPI, policy registration.
-* API + WebUI + Platform: settle trusted fresh application-login binding before
-  authenticated notifications go live. Missing session identity explicitly fails.
+* WebUI + Platform: implement/configure the established shared fresh application-login
+  assertion before authenticated notifications go live. Missing session identity
+  explicitly fails; the API protocol/verifier is implemented and validated.
 * Messaging & Workers: implement this exact v1 event, outbox dispatch and schedule
   invalidation. Platform: topology, auth, processor/API/migration deployments and Redis.
 * WebUI: same-origin hub/bridge/BFF, both render modes, snackbar queue/reconciliation,
