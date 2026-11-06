@@ -134,6 +134,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MessageBus.Topology", "Mess
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VeloTime.MessageBus.Topology", "src\MessageBus.Topology\VeloTime.MessageBus.Topology.csproj", "{224D76E3-29EB-4ACE-B9EC-657D348430A0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VeloTime.Module.Notifications.Interface", "src\Module.Notifications.Interface\VeloTime.Module.Notifications.Interface.csproj", "{83BA4470-C9B4-437A-99C7-25669981B4C9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -659,11 +661,24 @@ Global
 		{224D76E3-29EB-4ACE-B9EC-657D348430A0}.Release|x64.Build.0 = Release|Any CPU
 		{224D76E3-29EB-4ACE-B9EC-657D348430A0}.Release|x86.ActiveCfg = Release|Any CPU
 		{224D76E3-29EB-4ACE-B9EC-657D348430A0}.Release|x86.Build.0 = Release|Any CPU
+		{83BA4470-C9B4-437A-99C7-25669981B4C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{83BA4470-C9B4-437A-99C7-25669981B4C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{83BA4470-C9B4-437A-99C7-25669981B4C9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{83BA4470-C9B4-437A-99C7-25669981B4C9}.Debug|x64.Build.0 = Debug|Any CPU
+		{83BA4470-C9B4-437A-99C7-25669981B4C9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{83BA4470-C9B4-437A-99C7-25669981B4C9}.Debug|x86.Build.0 = Debug|Any CPU
+		{83BA4470-C9B4-437A-99C7-25669981B4C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{83BA4470-C9B4-437A-99C7-25669981B4C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{83BA4470-C9B4-437A-99C7-25669981B4C9}.Release|x64.ActiveCfg = Release|Any CPU
+		{83BA4470-C9B4-437A-99C7-25669981B4C9}.Release|x64.Build.0 = Release|Any CPU
+		{83BA4470-C9B4-437A-99C7-25669981B4C9}.Release|x86.ActiveCfg = Release|Any CPU
+		{83BA4470-C9B4-437A-99C7-25669981B4C9}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{83BA4470-C9B4-437A-99C7-25669981B4C9} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{6AA20CF1-5E6B-4B9B-B05D-3CA7748D33DC} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{4F4929CF-49BF-3B32-D7BB-7883C54EC916} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{7B13BF41-E682-E4ED-30EF-966DF34B4F04} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
