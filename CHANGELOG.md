@@ -20,6 +20,17 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.34"></a>
+## [2.1.0-alpha.34](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.34) (2026-11-06)
+
+### Features
+
+* **notifications:** add realtime snackbars and scoped dismissals ([#124](https://www.github.com/asbjorjo/VeloTimer/issues/124)) ([25bcd57](https://www.github.com/asbjorjo/VeloTimer/commit/25bcd5749236320aa668e0c95db79042fd317e05))
+
+### Bug Fixes
+
+* Do not publish test projects ([3590a95](https://www.github.com/asbjorjo/VeloTimer/commit/3590a95f9c9ae3c5caf52b7432cecf16bb75d350))
+
 <a name="2.1.0-alpha.33"></a>
 ## [2.1.0-alpha.33](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.33) (2026-11-05)
 
