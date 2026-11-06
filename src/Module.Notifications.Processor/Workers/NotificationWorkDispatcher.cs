@@ -23,8 +23,10 @@ public sealed class NotificationWorkDispatcher(
 
     public async Task DispatchOnceAsync(CancellationToken cancellationToken)
     {
-        await DispatchOutboxBatchAsync(cancellationToken);
+        // Commit due-generated hints before claiming the outbox so they can be published in
+        // this cycle. Keep both batches bounded; a backlog must not turn a cycle into a drain.
         await ProcessScheduledBatchAsync(cancellationToken);
+        await DispatchOutboxBatchAsync(cancellationToken);
     }
 
     private async Task DispatchOutboxBatchAsync(CancellationToken cancellationToken)

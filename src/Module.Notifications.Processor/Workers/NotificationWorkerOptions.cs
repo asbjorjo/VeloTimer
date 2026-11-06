@@ -9,8 +9,8 @@ public sealed class NotificationWorkerOptions
     [Range(1, 500)]
     public int BatchSize { get; set; } = 50;
 
-    [Range(1, 60)]
-    public int PollIntervalSeconds { get; set; } = 2;
+    [Range(0.25, 60)]
+    public double PollIntervalSeconds { get; set; } = 0.25;
 
     [Range(5, 3600)]
     public int ClaimLeaseSeconds { get; set; } = 60;

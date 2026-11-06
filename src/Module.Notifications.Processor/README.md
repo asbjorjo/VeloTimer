@@ -3,8 +3,7 @@
 This worker owns only durable Notifications refresh-hint publication and scheduled
 activation/end/account-duration-expiry wake-ups. It has no source-domain consumers,
 inbox, notification-content payloads, or session-expiry lifecycle integration.
-`VeloTime.Module.Notifications.Processor.csproj` is intentionally not registered in
-`VeloTimer.sln`; Platform & Deployment owns solution/AppHost/Helm/CI registration.
+Platform & Deployment owns solution/AppHost/Helm/CI registration.
 
 ## Runtime contracts
 
@@ -21,11 +20,30 @@ inbox, notification-content payloads, or session-expiry lifecycle integration.
   WebUI bridge subscription requires its separate SignalR Redis backplane for
   multi-replica delivery.
 - Worker tuning is under `Notifications:Worker` (environment nesting uses `__`):
-  `BatchSize` (default 50, 1..500), `PollIntervalSeconds` (2, 1..60),
+  `BatchSize` (default 50, 1..500), `PollIntervalSeconds` (0.25, 0.25..60,
+  fractional seconds supported; existing integer values still bind),
   `ClaimLeaseSeconds` (60, 5..3600), `RetryInitialDelaySeconds` (2, 1..300), and
   `RetryMaximumDelaySeconds` (300, 1..3600, at least the initial delay). Defaults
   are appropriate for local runtime; deployment should size leases above normal
   processing latency and poll/retry intervals to its delivery objective.
+
+Each cycle processes one bounded due-deadline batch **before** one bounded outbox
+batch. Atomically committed deadline hints are eligible for publication in that
+same cycle, subject to ready-outbox ordering and batch capacity. The hosted worker
+then waits the configured poll interval with cancellable `Task.Delay`; it does
+not busy-wait, overlap cycles, or drain indefinitely under load. Idle work becoming
+eligible just after a cycle normally waits up to 250 ms plus database/publication
+time at defaults, leaving headroom for the local <= 2-second client-callback target.
+Backlogs, slow publication/source locks, retries and lease recovery can exceed
+that target; this is not a hard end-to-end SLA.
+Budget for four idle cycles per second per replica (two short claim transactions
+per cycle), rather than the previous half-cycle per second.
+
+Platform & Deployment must default `Notifications__Worker__PollIntervalSeconds`
+to `0.25` wherever a poll override is supplied (or omit it to inherit this default).
+An explicit legacy `2` remains valid but consumes the entire local delivery budget
+before broker/backplane/browser latency. Keep the same seconds-based key; do not
+substitute milliseconds. Platform owns Helm/AppHost/deployment configuration.
 
 ## Delivery and recovery
 
@@ -80,5 +98,11 @@ NOTIFICATIONS_WORKER_TEST_ADMIN_CONNECTION='Host=127.0.0.1;Database=postgres;...
 
 These tests exercise durable claim/retry/restart, duplicate-safe stable EventIds,
 deadline completion/revision/outbox atomicity, and the empty-interval cancellation
-guard. They use a publisher test double: they do not prove Azure Service Bus
+guard, including same-cycle deadline publication, failed deadline-hint publication
+without reprocessing the deadline, and bounded batches. Configuration tests verify
+fractional/legacy poll values and reject invalid or non-finite intervals.
+Real hosted-loop tests use PostgreSQL and wall-clock timers to make outbox
+and deadline work due just after an idle cycle, assert fake-publication within two
+seconds at defaults, and exercise cancellation/acknowledgement. They use a publisher
+test double: they do not prove Azure Service Bus
 availability, broker topology, or end-to-end WebUI SignalR delivery.

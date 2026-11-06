@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="VeloTime.Module.Notifications.Processor.Test" />
     <ProjectReference Include="..\Module.Notifications\VeloTime.Module.Notifications.csproj" />
     <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
   </ItemGroup>
