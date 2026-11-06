@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.OpenApi;
@@ -31,11 +30,6 @@ public static class HostingExtensions
                 NotificationAuthorization.GlobalAdministrationPermission));
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<INotificationReaderIdentityAccessor, NotificationReaderIdentityAccessor>();
-        var options = builder.Services.AddOptions<NotificationSessionAssertionOptions>()
-            .Bind(builder.Configuration.GetSection(NotificationSessionAssertion.ConfigurationSection))
-            .Validate(ValidOptions, "Configure trusted Notifications SessionAssertion issuer, audience and RSA public keys.");
-        if (System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name != "GetDocument.Insider")
-            options.ValidateOnStart();
         builder.Services.AddProblemDetails();
         builder.Services.ConfigureHttpJsonOptions(o =>
             o.SerializerOptions.UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow);
@@ -75,12 +69,6 @@ public static class HostingExtensions
                         page.Maximum = NotificationLimits.MaximumPageSize.ToString(System.Globalization.CultureInfo.InvariantCulture);
                     }
                 }
-                operation.Parameters.Add(new OpenApiParameter
-                {
-                    Name = NotificationSessionAssertion.HeaderName, In = ParameterLocation.Header,
-                    Required = false, Description = "BFF-only signed application-login assertion; required for all authenticated requests.",
-                    Schema = new OpenApiSchema { Type = JsonSchemaType.String }
-                });
                 if (context.Description.RelativePath != "api/notifications/active")
                     operation.Security = [new OpenApiSecurityRequirement
                     {
@@ -113,25 +101,4 @@ public static class HostingExtensions
         return builder;
     }
 
-    private static bool ValidOptions(NotificationSessionAssertionOptions options)
-    {
-        if (string.IsNullOrWhiteSpace(options.Issuer) || string.IsNullOrWhiteSpace(options.Audience) ||
-            options.MaximumLifetimeSeconds is < 1 or > NotificationSessionAssertion.MaximumLifetimeSeconds ||
-            options.ClockSkewSeconds is < 0 or > NotificationSessionAssertion.MaximumClockSkewSeconds ||
-            options.PublicKeys.Count == 0) return false;
-        try
-        {
-            foreach (var (kid, pem) in options.PublicKeys)
-            {
-                if (kid.Length is < 1 or > 64 || !kid.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_') ||
-                    !pem.Contains("-----BEGIN PUBLIC KEY-----", StringComparison.Ordinal) ||
-                    pem.Contains("PRIVATE KEY", StringComparison.Ordinal)) return false;
-                using var rsa = RSA.Create();
-                rsa.ImportFromPem(pem);
-                if (rsa.KeySize < 2048) return false;
-            }
-            return true;
-        }
-        catch (Exception e) when (e is CryptographicException or ArgumentException) { return false; }
-    }
 }

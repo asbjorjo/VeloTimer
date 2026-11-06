@@ -11,7 +11,14 @@ public static class NotificationValidation
         Require(!string.IsNullOrWhiteSpace(identity.Issuer) && !string.IsNullOrWhiteSpace(identity.Subject) &&
             identity.Roles is not null && identity.Roles.All(r => !string.IsNullOrWhiteSpace(r)),
             NotificationErrorCodes.InvalidIdentity, 403);
-        Require(!string.IsNullOrWhiteSpace(identity.LoginSessionId), NotificationErrorCodes.LoginSessionRequired, 403);
+    }
+
+    public static string SessionId(NotificationReaderIdentity identity)
+    {
+        Identity(identity);
+        Require(!string.IsNullOrWhiteSpace(identity.LoginSessionId) && identity.LoginSessionId.Length <= 256,
+            NotificationErrorCodes.LoginSessionRequired, 403);
+        return identity.LoginSessionId!;
     }
 
     public static NotificationDismissalPolicyDTO DefaultPolicy(NotificationSeverity severity) => severity switch

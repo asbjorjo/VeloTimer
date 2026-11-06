@@ -36,8 +36,8 @@ platform, worker implementations and Tester/Reviewer gates remain separate.
   Only genuine-anonymous active is public. Invalid bearer credentials never
   downgrade to anonymous success.
 * `api/VeloTime.Module.Notifications.Api.json`: generated OpenAPI, exact string
-  enums, required restore query `scope`, BFF-only assertion header, typed Problems
-  with required `code`. DELETE has no body; only
+  enums, required restore query `scope`, bearer authentication, typed Problems with
+  required `code`. It has no separate session header. DELETE has no body; only
   `account|currentSession|accountAndCurrentSession` are valid query values.
 * `Module.Notifications.Client`: build-generated NSwag
   `INotificationsClient`/`NotificationsClient`, shared Interface DTOs/enums rather
@@ -46,9 +46,8 @@ platform, worker implementations and Tester/Reviewer gates remain separate.
   Typed `RestoreAsync` extension maps the shared restore enum to exact query codes.
   Non-success throws `ApiException<ProblemDetails>` with `Result.Code`;
   undocumented failures retain raw response/status. No success-shaped fallback.
-  BFF forwards its validated bearer token via request-scoped token integration;
-  generated methods take the signed `veloTime_Notification_Session` argument
-  (null only for genuine anonymous).
+  Authenticated callers forward only the validated Keycloak bearer token; generated
+  methods have no session assertion/header argument.
 * `VeloTimer.sln`: API/client projects registered alongside Interface/core/migrator.
 
 ### Timestamp precision decision
@@ -62,29 +61,30 @@ with 400 `notifications.invalid_schedule`, never accidental cancellation.
 Fresh response/snapshot server-now remains UTC clock time. DTO shapes are unchanged;
 UI must use returned authoritative timestamps, not echo request values.
 
-## Exact application-login protocol / UI prerequisites
+## Keycloak reader identity and session scope
 
-[Shared signer/verifier and configuration](../Module.Notifications.Interface/Identity/README.md)
-are actual artifacts, not a proposal for an unsigned browser header:
+The existing `AddModuleAuthentication` Keycloak JWT authentication is the sole
+trusted issuer. The reader identity uses the validated token's exact issuer,
+subject, roles, and optional nonblank `sid`. No additional request header,
+assertion, signing key, alternate issuer, or browser-selected identity is accepted.
 
-* Header: `VeloTime-Notification-Session`.
-* Protocol: `velotime.notifications.login.v1` (RSA-PSS/SHA256, >=2048-bit RSA).
-* Protected AuthenticationProperties key: `.notifications.application_login`.
-* On successful fresh application OIDC login, BFF creates
-  `NotificationSessionAssertion.NewApplicationLoginId()` and stores it in that
-  protected ticket. Preserve across cookie renewal, token refresh and reconnect;
-  new login replaces it. Do not use Keycloak `sid` or browser-selected IDs.
-* Sign each forwarded validated access token using exact issuer/subject, ticket
-  login ID and actual ticket expiry. Strip incoming browser assertion headers.
-  Never expose assertions, keys or login IDs to browser JS, URLs, DTOs, SignalR,
-  telemetry or logs. TLS required.
-* Missing/invalid authenticated assertion => 403
-  `notifications.login_session_required`; JWT failure => 401.
-  Default assertion lifetime 120 seconds, capped by ticket expiry; API max 300,
-  skew default 5 (0..10), no expiry grace. Logout revocation is bounded by issued
-  assertion lifetime; UI immediately clears private content/stops forwarding.
-* Anonymous dismissal remains UI-only per-tab sessionStorage with no backend
-  state or implicit migration into account state on login.
+An authenticated reader without `sid` can use active reads, admin routes permitted
+by the existing authorization policy, and account-duration/permanent dismissal or
+account restore. Session dismissal and restore scopes that include the current
+session return 403 `notifications.login_session_required` when `sid` is absent or
+blank. Session dismissal is shared across tokens with the same Keycloak SSO `sid`.
+See the [shared identity contract](../Module.Notifications.Interface/Identity/README.md).
+The UI should hide or disable session-specific actions when its authenticated
+principal has no nonblank `sid`.
+
+The checked-in `config/keycloak/realms/velotime-realm.json` has no explicit
+session-ID protocol mapper, and repository deployment configuration points to an
+external Keycloak without pinning its server version. Existing OIDC callback
+tests demonstrate that an ID-token `sid` survives ticket reload, but do not prove
+the API access token contains it. Platform must verify the deployed Keycloak
+release and ensure the `velotime` client scope emits `sid` in the signed access
+token (using that release's supported session-ID mapper) before enabling session
+dismissal in the UI.
 
 ## Platform prerequisites / exact configuration
 
@@ -92,15 +92,6 @@ Wire API discovery/deployment, `velotimedb` connection and service-owned migrato
 Apply **both** Notifications migrations before enabling End. Existing
 `OIDC_AUDIENCE`/Keycloak trust applies; admin policy is `Notifications.Admin`,
 requiring transformed `velotime_permission=velotime.admin`, not a new realm role.
-
-Environment nesting uses `__`. API options under `Notifications:SessionAssertion`:
-`Issuer`, `Audience` (separate from OIDC audience), `PublicKeys:<kid>` (RSA public
-PEM), `MaximumLifetimeSeconds` (default 120, 1..300), `ClockSkewSeconds` (default 5,
-0..10). Missing/invalid trust fails startup; OpenAPI discovery is exempt.
-BFF implements matching Issuer/Audience plus `KeyId`, secret-store-injected
-`PrivateKeyPem`, `LifetimeSeconds` (default 120, <= API maximum). Install new public
-kid on all API replicas before changing signing kid; retain old public key for
-maximum lifetime + skew, then remove. Emergency removal revokes that signing key.
 
 Share a durable, protected Data Protection key ring across API replicas with
 application name `VeloTime.Notifications`, purpose `Notifications.Snapshot.v1`.

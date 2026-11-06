@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using VeloTime.Module.Notifications.Interface.Identity;
 using VeloTime.Module.Notifications.Service;
 
 namespace VeloTime.Module.Notifications.Api;
@@ -14,9 +13,6 @@ public sealed class NotificationProblemMiddleware(RequestDelegate next, ILogger<
         context.Response.Headers.CacheControl = "no-store";
         try
         {
-            if (context.Request.Headers.ContainsKey(NotificationSessionAssertion.HeaderName) &&
-                !context.Request.Headers.ContainsKey("Authorization"))
-                throw new NotificationException(401, "notifications.authentication_required");
             // Supplied invalid credentials never downgrade even on AllowAnonymous.
             if (context.Request.Headers.ContainsKey("Authorization"))
             {

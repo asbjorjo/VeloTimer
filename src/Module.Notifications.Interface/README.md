@@ -14,8 +14,8 @@ API-phase shared revisions: enum converters now reject case aliases as well as n
 values (only the documented exact string codes are accepted). Additive generic problem
 codes are `notifications.authentication_required`, `notifications.forbidden`,
 `notifications.dependency_unavailable` and `notifications.request_failed`.
-The BFF-to-API application-login protocol, signing/verification helpers and exact
-configuration names are in [Identity/README.md](Identity/README.md).
+The validated-Keycloak reader identity and optional-session rules are in
+[Identity/README.md](Identity/README.md).
 
 ## Ownership and authoring
 
@@ -78,23 +78,18 @@ seconds, clock or expiry. Duration ranges apply per notification, not user.
 
 `Identity.NotificationReaderIdentity` is an internal trusted service input, **not a
 request/response DTO**. `INotificationReaderIdentityAccessor.GetCurrent()` returns null
-only for actual anonymous access. For authenticated access it must obtain nonblank
-issuer/subject and exact roles from the validated JWT, plus a nonblank, trusted
-**application login** ID from the authentication integration. Invalid credentials
-must not fall back to public success. Issuer/subject failure is
-`notifications.invalid_identity`; absent trusted login ID is
-`notifications.login_session_required` (403), including authenticated reads, to avoid
-silently ignoring a previous session dismissal.
+only for actual anonymous access. For authenticated access it obtains nonblank
+issuer/subject and exact roles from the validated Keycloak JWT, plus its optional
+nonblank `sid`. Invalid credentials must not fall back to public success.
+Issuer/subject failure is `notifications.invalid_identity`.
 
-Login ID survives token refresh, reconnect and tab navigation but changes on a fresh
-application login; tabs sharing a login share that server dismissal. Keycloak `sid`
-alone is not approved (may identify a wider SSO session). The shared
-[RSA-PSS application-login assertion](Identity/README.md) and API verifier establish
-the exact trusted protocol; there is no unresolved API/auth contract prerequisite.
-WebUI must implement fresh protected-ticket login ID generation/preservation and
-sign assertions bound to its validated forwarded access token. An unsigned caller
-header, body/query identity or cookie GUID is never trusted. Do not expose this ID
-in DTOs or push.
+An authenticated reader without `sid` may still read and use account-level
+operations. Session dismissal and restore scopes that include the current session
+return 403 `notifications.login_session_required` without a nonblank `sid`.
+Keycloak SSO session semantics are intentional: requests sharing a Keycloak `sid`
+share session dismissal state. The API accepts no separate session header, signed
+assertion, browser-selected identifier, or alternate issuer. See
+[reader identity semantics](Identity/README.md). Never expose `sid` in DTOs or push.
 
 Separate keys:
 
@@ -110,19 +105,19 @@ Duration alone has a nonnull DismissedUntilUtc; other scopes have null.
 Repeating an identical still-effective PUT is idempotent: preserve DismissedAtUtc and
 expiry, not sliding snooze extension. Repeating duration after expiry starts a new
 duration; selecting a different account scope replaces it. Serialize concurrent writes
-per account key; last committed different account choice wins. Session writes in
-concurrent logins cannot overwrite one another. Retries emit hints only if state changes.
+per account key; last committed different account choice wins. Session writes in distinct Keycloak SSO sessions cannot overwrite one another. Retries
+emit hints only if state changes.
 
 DELETE uses required query `scope=account|currentSession|accountAndCurrentSession`
 (no request body). It removes exactly the selected layers, idempotently. Never all
-other login sessions. Missing state is success, but missing/inaccessible notice is
+other Keycloak sessions. Missing state is success, but missing/inaccessible notice is
 404. Return remaining state and `IsActive` evaluated at response server time; restore
 is not a promise to show an ended, future or otherwise suppressed notice. Show again
 can remove account/current-session state for future/ended notices while still
 audience-authorized. List only effective account/current-session state, including
 future/ended notices; omit expired durations and targets the reader no longer matches.
-Session cleanup follows trusted login expiry/revocation (not a fixed snooze duration).
-Logout ends that login's applicability; offline records may be garbage collected.
+Session cleanup follows the service's agreed retention policy; session dismissal rows
+do not expire automatically. Logout stops use of the token but does not delete the row.
 
 Anonymous dismissal is **UI-only per-tab sessionStorage**, public notices only, keyed
 by app and UUID, surviving reload but not a fresh tab session. No backend record,
@@ -188,7 +183,7 @@ full set or prune unseen notices before completing a replacement snapshot.
 
 Snapshot is evaluated at AsOfUtc. Continuations are integrity-protected and bind
 operation, page size, sort position, as-of/expiry and relevant revision to the current
-anonymous/authenticated issuer-subject-login and exact authorization/roles.
+anonymous/authenticated issuer-subject-sid and exact authorization/roles.
 No readable identity data in tokens; encrypt or use opaque server handles.
 Reject malformed/mismatched tokens (400), and changed revision, expired snapshot or
 changed authorization (409 snapshot_expired). Reauthorize every page, including roles.
@@ -264,9 +259,10 @@ local snapshots, logout clears private notices and authenticated identity state.
   outbox and durable deadline claims/rechecks. No schema edited here.
 * API owner: core manual create/read/update/end/dismiss/restore services, validation,
   identity adapter, route handlers/mappers, NSwag client and OpenAPI, policy registration.
-* WebUI + Platform: implement/configure the established shared fresh application-login
-  assertion before authenticated notifications go live. Missing session identity
-  explicitly fails; the API protocol/verifier is implemented and validated.
+* WebUI + Platform: ensure the validated Keycloak JWT and protected UI principal carry
+  the exact issuer, subject, roles, and (where session dismissal is offered) nonblank
+  `sid`. Without `sid`, hide/disable session-specific actions; account actions remain
+  available. Verify the configured Keycloak version emits `sid` in access tokens.
 * Messaging & Workers: implement this exact v1 event, outbox dispatch and schedule
   invalidation. Platform: topology, auth, processor/API/migration deployments and Redis.
 * WebUI: same-origin hub/bridge/BFF, both render modes, snackbar queue/reconciliation,
@@ -275,7 +271,8 @@ local snapshots, logout clears private notices and authenticated identity state.
   missing values; defaults/complete overrides (info + duration explicit), cap 0/1/
   31536000/31536001; exact audience matrix including same subject/different issuers,
   role casing, anonymous isolation and no private DTO/hint fields; UTC zero offset and
-  starts/end/snooze equalities; two concurrent logins, account replacement/retry,
+  starts/end/snooze equalities; missing sid account/session behavior, same sid sharing
+  session state and distinct sid isolation, account replacement/retry,
   partial/all-current restore and remaining suppression; >100 notices, concurrent
   paging mutation, expired token and deadline outside page one; outbox rollback/
   retries, duplicate/out-of-order hints, stale schedule jobs/restart; two WebUI

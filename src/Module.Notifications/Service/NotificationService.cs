@@ -80,6 +80,9 @@ public sealed class NotificationService(NotificationsDbContext db, TimeProvider 
     {
         NotificationValidation.Identity(identity);
         NotificationValidation.Require(Enum.IsDefined(request.Scope), NotificationErrorCodes.InvalidPolicy);
+        var sessionId = request.Scope == NotificationDismissalScope.Session
+            ? NotificationValidation.SessionId(identity) : null;
+        var currentSessionId = sessionId ?? (string.IsNullOrWhiteSpace(identity.LoginSessionId) ? null : identity.LoginSessionId);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var n = await LockNotice(id, ct);
         var now = NotificationTimestamp.Persisted(clock.GetUtcNow());
@@ -87,14 +90,14 @@ public sealed class NotificationService(NotificationsDbContext db, TimeProvider 
         NotificationValidation.Require(ScheduledActive(n, now), NotificationErrorCodes.NotFound, 404);
         NotificationValidation.Require(NotificationMapper.Policy(n).AllowedScopes.Contains(request.Scope),
             NotificationErrorCodes.ScopeNotAllowed, 403);
-        var (account, session) = await LockDismissals(id, identity, ct);
+        var (account, session) = await LockDismissals(id, identity, currentSessionId, ct);
         var changed = false;
         if (request.Scope == NotificationDismissalScope.Session)
         {
             if (session is null)
             {
                 session = new() { Id = Guid.NewGuid(), Issuer = identity.Issuer, Subject = identity.Subject,
-                    LoginSessionId = identity.LoginSessionId, NotificationId = id, DismissedAtUtc = now };
+                    LoginSessionId = sessionId!, NotificationId = id, DismissedAtUtc = now };
                 db.SessionDismissals.Add(session);
                 changed = true;
             }
@@ -128,10 +131,13 @@ public sealed class NotificationService(NotificationsDbContext db, TimeProvider 
     {
         NotificationValidation.Identity(identity);
         NotificationValidation.Require(Enum.IsDefined(scope), NotificationErrorCodes.InvalidRestoreScope);
+        var sessionId = scope is NotificationRestoreScope.CurrentSession or NotificationRestoreScope.AccountAndCurrentSession
+            ? NotificationValidation.SessionId(identity) : null;
+        var currentSessionId = sessionId ?? (string.IsNullOrWhiteSpace(identity.LoginSessionId) ? null : identity.LoginSessionId);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var n = await LockNotice(id, ct);
         Accessible(n, identity);
-        var (account, session) = await LockDismissals(id, identity, ct);
+        var (account, session) = await LockDismissals(id, identity, currentSessionId, ct);
         var changed = false;
         if (account is not null && scope is NotificationRestoreScope.Account or NotificationRestoreScope.AccountAndCurrentSession)
         {
@@ -167,14 +173,14 @@ public sealed class NotificationService(NotificationsDbContext db, TimeProvider 
             .SingleOrDefaultAsync(ct) ?? throw new NotificationException(404, NotificationErrorCodes.NotFound);
 
     private async Task<(NotificationAccountDismissal?, NotificationSessionDismissal?)> LockDismissals(
-        Guid id, NotificationReaderIdentity identity, CancellationToken ct)
+        Guid id, NotificationReaderIdentity identity, string? loginSessionId, CancellationToken ct)
     {
         // Notice lock fences absent-key inserts too. Source rows always precede slots.
         var a = await db.AccountDismissals.FromSqlInterpolated(
             $"SELECT * FROM notifications.account_dismissal WHERE notification_id = {id} AND issuer = {identity.Issuer} AND subject = {identity.Subject} FOR UPDATE")
             .SingleOrDefaultAsync(ct);
-        var s = await db.SessionDismissals.FromSqlInterpolated(
-            $"SELECT * FROM notifications.session_dismissal WHERE notification_id = {id} AND issuer = {identity.Issuer} AND subject = {identity.Subject} AND login_session_id = {identity.LoginSessionId} FOR UPDATE")
+        var s = loginSessionId is null ? null : await db.SessionDismissals.FromSqlInterpolated(
+                $"SELECT * FROM notifications.session_dismissal WHERE notification_id = {id} AND issuer = {identity.Issuer} AND subject = {identity.Subject} AND login_session_id = {loginSessionId} FOR UPDATE")
             .SingleOrDefaultAsync(ct);
         return (a, s);
     }

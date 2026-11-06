@@ -24,11 +24,17 @@ public sealed class NotificationSnapshotService(NotificationsDbContext db, IData
         var (snapshot, notices) = await Begin("active", identity, request, continuation, ct);
         var eligible = notices.Where(n => n.StartsAtUtc <= snapshot.AsOf && (n.EndsAtUtc == null || n.EndsAtUtc > snapshot.AsOf));
         if (identity is not null)
+        {
             eligible = eligible.Where(n => !db.AccountDismissals.Any(a => a.NotificationId == n.Id &&
                     a.Issuer == identity.Issuer && a.Subject == identity.Subject &&
-                    (a.Scope == NotificationDismissalScope.Permanent || a.DismissedUntilUtc > snapshot.AsOf)) &&
-                !db.SessionDismissals.Any(s => s.NotificationId == n.Id && s.Issuer == identity.Issuer &&
-                    s.Subject == identity.Subject && s.LoginSessionId == identity.LoginSessionId));
+                    (a.Scope == NotificationDismissalScope.Permanent || a.DismissedUntilUtc > snapshot.AsOf)));
+            if (!string.IsNullOrWhiteSpace(identity.LoginSessionId))
+            {
+                var loginSessionId = identity.LoginSessionId;
+                eligible = eligible.Where(n => !db.SessionDismissals.Any(s => s.NotificationId == n.Id &&
+                    s.Issuer == identity.Issuer && s.Subject == identity.Subject && s.LoginSessionId == loginSessionId));
+            }
+        }
         var rows = await Page(eligible, snapshot, ct);
         var now = Finish(snapshot);
         await tx.CommitAsync(ct);
@@ -57,8 +63,10 @@ public sealed class NotificationSnapshotService(NotificationsDbContext db, IData
         var (snapshot, notices) = await Begin("dismissals", identity, request, continuation, ct);
         var accounts = db.AccountDismissals.AsNoTracking().Where(a => a.Issuer == identity.Issuer &&
             a.Subject == identity.Subject && (a.Scope == NotificationDismissalScope.Permanent || a.DismissedUntilUtc > snapshot.AsOf));
-        var sessions = db.SessionDismissals.AsNoTracking().Where(s => s.Issuer == identity.Issuer &&
-            s.Subject == identity.Subject && s.LoginSessionId == identity.LoginSessionId);
+        var sessions = string.IsNullOrWhiteSpace(identity.LoginSessionId)
+            ? db.SessionDismissals.AsNoTracking().Where(_ => false)
+            : db.SessionDismissals.AsNoTracking().Where(s => s.Issuer == identity.Issuer &&
+                s.Subject == identity.Subject && s.LoginSessionId == identity.LoginSessionId);
         var rows = await Page(notices.Where(n => accounts.Any(a => a.NotificationId == n.Id) ||
             sessions.Any(s => s.NotificationId == n.Id)), snapshot, ct);
         var ids = rows.Take(snapshot.Size).Select(n => n.Id).ToArray();
@@ -162,7 +170,7 @@ public sealed class NotificationSnapshotService(NotificationsDbContext db, IData
 
     private static string Hash(string[] values) => Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(values)));
     private static string Principal(NotificationReaderIdentity? identity) => Hash(identity is null
-        ? ["anonymous"] : [identity.Issuer, identity.Subject, identity.LoginSessionId]);
+        ? ["anonymous"] : [identity.Issuer, identity.Subject, identity.LoginSessionId ?? ""]);
     private static string Authorization(NotificationReaderIdentity? identity) =>
         Hash(identity?.Roles.Order(StringComparer.Ordinal).Distinct(StringComparer.Ordinal).ToArray() ?? []);
 

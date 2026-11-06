@@ -18,7 +18,7 @@ public static class NotificationEndpoints
         reader.MapDelete(NotificationRoutes.Dismissal, Restore).RequireAuthorization().WithName("RestoreNotificationDismissal");
         var admin = app.MapGroup("").WithTags("NotificationsAdministration")
             .RequireAuthorization(NotificationAuthorization.AdministrationPolicy);
-        // Even admin reads require a validated application-login assertion.
+        // Admin routes always require Keycloak authentication and the existing permission policy.
         admin.AddEndpointFilter(async (context, next) =>
         {
             context.HttpContext.RequestServices.GetRequiredService<INotificationReaderIdentityAccessor>().GetCurrent();

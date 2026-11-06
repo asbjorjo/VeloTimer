@@ -32,14 +32,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "VeloTime-Notification-Session",
-            "in": "header",
-            "description": "BFF-only signed application-login assertion; required for all authenticated requests.",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -143,14 +135,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "VeloTime-Notification-Session",
-            "in": "header",
-            "description": "BFF-only signed application-login assertion; required for all authenticated requests.",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -246,14 +230,6 @@
             "schema": {
               "type": "string",
               "format": "uuid"
-            }
-          },
-          {
-            "name": "VeloTime-Notification-Session",
-            "in": "header",
-            "description": "BFF-only signed application-login assertion; required for all authenticated requests.",
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -367,14 +343,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "VeloTime-Notification-Session",
-            "in": "header",
-            "description": "BFF-only signed application-login assertion; required for all authenticated requests.",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -483,14 +451,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "VeloTime-Notification-Session",
-            "in": "header",
-            "description": "BFF-only signed application-login assertion; required for all authenticated requests.",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -576,16 +536,6 @@
           "NotificationsAdministration"
         ],
         "operationId": "CreateNotification",
-        "parameters": [
-          {
-            "name": "VeloTime-Notification-Session",
-            "in": "header",
-            "description": "BFF-only signed application-login assertion; required for all authenticated requests.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -690,14 +640,6 @@
               "type": "string",
               "format": "uuid"
             }
-          },
-          {
-            "name": "VeloTime-Notification-Session",
-            "in": "header",
-            "description": "BFF-only signed application-login assertion; required for all authenticated requests.",
-            "schema": {
-              "type": "string"
-            }
           }
         ],
         "responses": {
@@ -791,14 +733,6 @@
             "schema": {
               "type": "string",
               "format": "uuid"
-            }
-          },
-          {
-            "name": "VeloTime-Notification-Session",
-            "in": "header",
-            "description": "BFF-only signed application-login assertion; required for all authenticated requests.",
-            "schema": {
-              "type": "string"
             }
           }
         ],
@@ -905,14 +839,6 @@
             "schema": {
               "type": "string",
               "format": "uuid"
-            }
-          },
-          {
-            "name": "VeloTime-Notification-Session",
-            "in": "header",
-            "description": "BFF-only signed application-login assertion; required for all authenticated requests.",
-            "schema": {
-              "type": "string"
             }
           }
         ],

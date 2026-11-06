@@ -1,17 +1,13 @@
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text.Json;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Options;
 using VeloTime.Module.Notifications.Interface;
 using VeloTime.Module.Notifications.Interface.Identity;
 using VeloTime.Module.Notifications.Service;
 
 namespace VeloTime.Module.Notifications.Api.Identity;
 
-public sealed class NotificationReaderIdentityAccessor(IHttpContextAccessor accessor,
-    IOptions<NotificationSessionAssertionOptions> options, TimeProvider clock) : INotificationReaderIdentityAccessor
+public sealed class NotificationReaderIdentityAccessor(IHttpContextAccessor accessor) : INotificationReaderIdentityAccessor
 {
     private NotificationReaderIdentity? current;
     private bool resolved;
@@ -31,24 +27,7 @@ public sealed class NotificationReaderIdentityAccessor(IHttpContextAccessor acce
         var issuer = ExactClaim(context.User, "iss");
         var subject = ExactClaim(context.User, "sub");
         var roles = Roles(context.User);
-        var assertion = context.Request.Headers[NotificationSessionAssertion.HeaderName];
-        if (assertion.Count != 1 || string.IsNullOrWhiteSpace(assertion[0]))
-            throw new NotificationException(403, NotificationErrorCodes.LoginSessionRequired);
-        var authorization = context.Request.Headers.Authorization.ToString();
-        if (!authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            throw new NotificationException(403, NotificationErrorCodes.InvalidIdentity);
-        var config = options.Value;
-        string login;
-        try
-        {
-            login = NotificationSessionAssertion.Verify(assertion[0]!, config.PublicKeys, config.Issuer, config.Audience,
-                issuer, subject, authorization[7..], clock.GetUtcNow(), config.MaximumLifetimeSeconds, config.ClockSkewSeconds);
-        }
-        catch (Exception e) when (e is CryptographicException or FormatException or JsonException or ArgumentException)
-        {
-            throw new NotificationException(403, NotificationErrorCodes.LoginSessionRequired);
-        }
-        current = new(issuer, subject, roles, login);
+        current = new(issuer, subject, roles, OptionalExactClaim(context.User, "sid"));
         NotificationValidation.Identity(current);
         resolved = true;
         return current;
@@ -60,6 +39,14 @@ public sealed class NotificationReaderIdentityAccessor(IHttpContextAccessor acce
         if (claims.Length != 1 || string.IsNullOrWhiteSpace(claims[0].Value))
             throw new NotificationException(403, NotificationErrorCodes.InvalidIdentity);
         return claims[0].Value;
+    }
+
+    private static string? OptionalExactClaim(ClaimsPrincipal user, string type)
+    {
+        var claims = user.FindAll(type).ToArray();
+        if (claims.Length > 1)
+            throw new NotificationException(403, NotificationErrorCodes.InvalidIdentity);
+        return claims.Length == 1 && !string.IsNullOrWhiteSpace(claims[0].Value) ? claims[0].Value : null;
     }
 
     private static string[] Roles(ClaimsPrincipal user)
