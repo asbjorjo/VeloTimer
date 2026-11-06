@@ -1,11 +1,28 @@
 using System.Text.Json.Serialization;
+using System.Text.Json;
+using System.Reflection;
 
 namespace VeloTime.Module.Notifications.Interface;
 
 /// <summary>Stable string-only enum encoding, independent of host serializer options.</summary>
-public sealed class NotificationEnumConverter<T> : JsonStringEnumConverter<T> where T : struct, Enum
+public sealed class NotificationEnumConverter<T> : JsonConverter<T> where T : struct, Enum
 {
-    public NotificationEnumConverter() : base(namingPolicy: null, allowIntegerValues: false) { }
+    private static readonly Dictionary<T, string> Names = Enum.GetValues<T>().ToDictionary(value => value,
+        value => typeof(T).GetField(value.ToString())!.GetCustomAttribute<JsonStringEnumMemberNameAttribute>()!.Name);
+
+    public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.String)
+            foreach (var pair in Names)
+                if (pair.Value == reader.GetString()) return pair.Key;
+        throw new JsonException($"Invalid {typeof(T).Name} code.");
+    }
+
+    public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
+    {
+        if (!Names.TryGetValue(value, out var name)) throw new JsonException($"Invalid {typeof(T).Name} value.");
+        writer.WriteStringValue(name);
+    }
 }
 
 [JsonConverter(typeof(NotificationEnumConverter<NotificationSeverity>))]
@@ -75,6 +92,10 @@ public static class NotificationLimits
 /// <summary>Stable ProblemDetails extension "code" values; never success-shaped failures.</summary>
 public static class NotificationErrorCodes
 {
+    public const string AuthenticationRequired = "notifications.authentication_required";
+    public const string Forbidden = "notifications.forbidden";
+    public const string DependencyUnavailable = "notifications.dependency_unavailable";
+    public const string RequestFailed = "notifications.request_failed";
     public const string InvalidIdentity = "notifications.invalid_identity";
     public const string LoginSessionRequired = "notifications.login_session_required";
     public const string InvalidContent = "notifications.invalid_content";
