@@ -11,13 +11,6 @@ database:
   port: 5432
   user: velotime
   password: ""
-sessionAssertion:
-  issuer: ""
-  audience: ""
-  keyId: ""
-  publicKeyPem: ""
-  maximumLifetimeSeconds: 120
-  clockSkewSeconds: 5
 image:
   pullPolicy: IfNotPresent
 migration:

@@ -9,28 +9,29 @@ The Notifications API is internal only in this release. WebUI calls it through
 Kubernetes service discovery; browser notification requests must continue to
 reach the WebUI BFF on the WebUI hostname. The API Service remains `ClusterIP`,
 and this chart does not create an API HTTPRoute. The API routes do not implement
-the WebUI cookie session probe or translate browser cookies into signed
-assertions. Legacy `module-notifications-api.httpRoute.*` overrides are
-unsupported and cannot publish the API. Do not redirect or proxy browser
+the WebUI cookie session probe. WebUI's `/api/notifications/session` reports
+boolean capability from its trusted cookie claims; API calls use the existing
+Keycloak bearer token. Legacy `module-notifications-api.httpRoute.*` overrides
+are unsupported and cannot publish the API. Do not redirect or proxy browser
 `/api/notifications/*` or `/api/notifications/session` traffic away from WebUI.
 
-Before enabling in-cluster API traffic, provision these settings through the
-chart's existing Secret mechanisms (prefer an external-secrets controller in
-production):
+The checked-in realm import is used only by local Development and has no explicit
+session-ID mapper. Production uses an externally managed Keycloak whose server
+version is not pinned by this chart. Before enabling session dismissal, the
+Keycloak administrator must verify that the deployed version issues the same
+nonblank `sid` in signed ID and access tokens on both login and refresh. Configure
+only a session-ID mechanism supported by that exact version if required; do not
+assume a mapper/provider default or name without version-specific evidence.
+Without an ID-token `sid`, WebUI keeps session actions unavailable; without an
+access-token `sid`, the API rejects session-specific operations while account
+operations remain available. Existing validated Keycloak token claims remain the
+only source of session identity; no replacement identity provider is required.
 
-* `module-notifications-api.sessionAssertion.issuer` and `.audience` must match
-  the BFF signer and assertion audience configured on WebUI.
-* `module-notifications-api.sessionAssertion.keyId` and `.publicKeyPem` install
-  the corresponding RSA public key in API trust configuration. The chart rejects
-  a partial pair. Public key values belong in configuration; do not put a private
-  key here.
+Use the chart's existing Secret mechanisms (prefer an external-secrets controller
+in production):
+
 * If `module-notifications-api.existingSecret` is set, it must include
-  `ConnectionStrings__cache` and `ConnectionStrings__velotimedb` in addition to
-  any other API-specific secret configuration.
-* `webui.notifications.sessionAssertion.issuer`, `.audience`, and `.keyId` must
-  match the API settings. The WebUI `existingSecret` must provide
-  `Notifications__SessionAssertion__PrivateKeyPem` for that key ID. The private
-  RSA key must be at least 2048 bits and must never be placed in chart values.
+  `ConnectionStrings__cache` and `ConnectionStrings__velotimedb`.
 * Runtime `ConnectionStrings__MessageBus` values are required by WebUI and the
   Notifications processor. Their `existingSecret` must also include the
   corresponding `ConnectionStrings__cache`; the processor additionally needs
@@ -44,12 +45,10 @@ production):
   Keep the Valkey PVC enabled and retained: API snapshot Data Protection keys are
   stored in Redis under the stable `VeloTime.Notifications` application name.
 
-All three key values (`issuer`, `audience`, `keyId`) must agree across WebUI,
-API and the trusted signer. Install the API public key before deploying the
-WebUI private key. Use TLS, synchronized clocks and a shared Redis backplane for
-multi-replica WebUI SignalR delivery. Helm rendering and tests do not validate
-live Service Bus, PostgreSQL, ingress affinity, or authenticated end-to-end browser
-push delivery. The opt-in `NotificationsRedisBackplaneTests` does exercise the
+Use TLS, synchronized clocks and a shared Redis backplane for multi-replica WebUI
+SignalR delivery. Helm rendering and tests do not validate live Keycloak token
+claims, Service Bus, PostgreSQL, ingress affinity, or authenticated end-to-end
+browser push delivery. The opt-in `NotificationsRedisBackplaneTests` does exercise the
 actual SignalR Redis backplane between two local WebUI hub hosts; see the WebUI
 Notifications README for its `VELOTIME_TEST_REDIS` command.
 

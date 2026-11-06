@@ -33,25 +33,14 @@ class NotificationsPlatformTests(unittest.TestCase):
         )["MessageBusTopology"]["Topics"]
         self.assertEqual(provisioner, topics)
 
-    def test_api_receives_assertion_settings_and_external_secret_and_checks_redis_readiness(self):
-        defaults = (ROOT / "charts/velotime/charts/module-notifications-api/values.yaml").read_text()
-        self.assertNotIn("PRIVATE KEY", defaults)
-        self.assertNotIn("PUBLIC KEY", defaults)
-        documents = render(
-            "module-notifications-api.existingSecret=notifications-api-trust",
-            "module-notifications-api.sessionAssertion.issuer=VeloTime.WebUI.Mud",
-            "module-notifications-api.sessionAssertion.audience=VeloTime.Module.Notifications.Api",
-            "module-notifications-api.sessionAssertion.keyId=prod-key",
-            "module-notifications-api.sessionAssertion.publicKeyPem=public-key-pem",
-        )
+    def test_api_uses_existing_keycloak_auth_and_runtime_secret_configuration(self):
+        documents = render("module-notifications-api.existingSecret=notifications-api-runtime")
         config = self.named(documents, "ConfigMap", "module-notifications-api")
-        self.assertEqual("VeloTime.WebUI.Mud", config["data"]["Notifications__SessionAssertion__Issuer"])
-        self.assertEqual("VeloTime.Module.Notifications.Api",
-                         config["data"]["Notifications__SessionAssertion__Audience"])
-        self.assertEqual("public-key-pem", config["data"]["Notifications__SessionAssertion__PublicKeys__prod-key"])
+        self.assertNotIn("Notifications__SessionAssertion__Issuer", config["data"])
+        self.assertNotIn("Notifications__SessionAssertion__Audience", config["data"])
         deployment = self.named(documents, "Deployment", "module-notifications-api")
         pod_container = container(deployment)
-        self.assertEqual("notifications-api-trust", pod_container["envFrom"][1]["secretRef"]["name"])
+        self.assertEqual("notifications-api-runtime", pod_container["envFrom"][1]["secretRef"]["name"])
         self.assertEqual("/health", pod_container["readinessProbe"]["httpGet"]["path"])
         self.assertEqual("/alive", pod_container["livenessProbe"]["httpGet"]["path"])
         self.assertIn("ConnectionStrings__cache",
@@ -59,6 +48,26 @@ class NotificationsPlatformTests(unittest.TestCase):
         hosting = (ROOT / "src/Module.Notifications.Api/HostingExtensions.cs").read_text()
         self.assertIn('"VeloTime.Notifications"', hosting)
         self.assertIn("RedisXmlRepository", hosting)
+
+    def test_legacy_session_assertion_values_do_not_render_or_configure_a_signer(self):
+        api_values = (ROOT / "charts/velotime/charts/module-notifications-api/values.yaml").read_text()
+        api_schema = (ROOT / "charts/velotime/charts/module-notifications-api/values.schema.json").read_text()
+        webui_values = (ROOT / "charts/velotime/charts/webui/values.yaml").read_text()
+        self.assertNotIn("sessionAssertion", api_values)
+        self.assertNotIn("sessionAssertion", api_schema)
+        self.assertNotIn("sessionAssertion", webui_values)
+
+        documents = render(
+            "module-notifications-api.sessionAssertion.issuer=legacy-issuer",
+            "module-notifications-api.sessionAssertion.keyId=legacy-kid",
+            "module-notifications-api.sessionAssertion.publicKeyPem=legacy-public-key",
+            "webui.notifications.sessionAssertion.issuer=legacy-issuer",
+            "webui.notifications.sessionAssertion.keyId=legacy-kid",
+        )
+        rendered = json.dumps(documents)
+        self.assertNotIn("Notifications__SessionAssertion__", rendered)
+        self.assertNotIn("legacy-public-key", rendered)
+        self.assertNotIn("legacy-issuer", rendered)
 
     def test_api_is_internal_only_even_with_legacy_http_route_opt_in(self):
         defaults = render()
@@ -107,11 +116,6 @@ class NotificationsPlatformTests(unittest.TestCase):
         self.assertTrue(all("Host=localhost;" in connection for connection in connections))
         self.assertEqual("postgres:17-alpine", job["services"]["postgres"]["image"])
 
-    def test_api_rejects_partial_signing_key_trust_configuration(self):
-        result = run("module-notifications-api.sessionAssertion.keyId=only-kid")
-        self.assertNotEqual(0, result.returncode)
-        self.assertIn("keyId and publicKeyPem must be configured together", result.stderr)
-
     def test_processor_is_enabled_by_default_and_receives_runtime_dependencies(self):
         documents = render()
         processor = self.named(documents, "Deployment", "module-notifications-processor")
@@ -133,20 +137,13 @@ class NotificationsPlatformTests(unittest.TestCase):
         runtime_secret = self.named(runtime_documents, "Secret", "webui")
         self.assertEqual("synthetic-bus", runtime_secret["stringData"]["ConnectionStrings__MessageBus"])
 
-        documents = render(
-            "webui.existingSecret=webui-notification-signer",
-            "webui.notifications.sessionAssertion.issuer=VeloTime.WebUI.Mud",
-            "webui.notifications.sessionAssertion.audience=VeloTime.Module.Notifications.Api",
-            "webui.notifications.sessionAssertion.keyId=prod-key",
-        )
+        documents = render("webui.existingSecret=webui-runtime")
         config = self.named(documents, "ConfigMap", "webui")
         self.assertIn("services__module-notifications-api__http__0", config["data"])
-        self.assertEqual("VeloTime.WebUI.Mud", config["data"]["Notifications__SessionAssertion__Issuer"])
-        self.assertEqual("VeloTime.Module.Notifications.Api",
-                         config["data"]["Notifications__SessionAssertion__Audience"])
-        self.assertEqual("prod-key", config["data"]["Notifications__SessionAssertion__KeyId"])
+        self.assertFalse(any(key.startswith("Notifications__SessionAssertion__")
+                             for key in config["data"]))
         deployment = self.named(documents, "Deployment", "webui")
-        self.assertEqual("webui-notification-signer",
+        self.assertEqual("webui-runtime",
                          container(deployment)["envFrom"][1]["secretRef"]["name"])
         container(self.named(documents, "Deployment", "webui"))
 
@@ -160,12 +157,11 @@ class NotificationsPlatformTests(unittest.TestCase):
         self.assertIn("appendfsync everysec", valkey)
         self.assertIn("keepPvc: true", valkey)
 
-    def test_local_signing_configuration_is_ephemeral_and_api_migration_precedes_api(self):
+    def test_apphost_has_no_notification_signing_infrastructure_and_preserves_dependencies(self):
         apphost = (ROOT / "src/AppHost/AppHost.cs").read_text()
-        self.assertIn("RSA.Create(3072)", apphost)
-        self.assertIn("ExportPkcs8PrivateKeyPem()", apphost)
-        self.assertIn("ExportSubjectPublicKeyInfoPem()", apphost)
-        self.assertNotIn("WriteAllText", apphost)
+        self.assertNotIn("SessionAssertion", apphost)
+        self.assertNotIn("notification-session-assertion-private-key", apphost)
+        self.assertNotIn("RSA.Create", apphost)
         self.assertIn("AddProject<Projects.VeloTime_Module_Notifications_Processor>", apphost)
         self.assertIn("notificationsapi.WaitForCompletion(notificationsmigrator)", apphost)
         self.assertIn("notificationsproc.WaitForCompletion(notificationsmigrator)", apphost)

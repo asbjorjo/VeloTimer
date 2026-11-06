@@ -1,45 +1,48 @@
 # Notifications platform and deployment
 
-## Local Aspire
+## Keycloak session capability
 
-In Development Run mode, AppHost generates a fresh 3072-bit RSA signer in memory
-when no assertion key pair is configured. It passes only the public key to the
-Notifications API and the private key to the WebUI process through Aspire's
-in-memory resource environment. The pair is not written to disk or checked in.
-Authenticated API calls still require a valid assertion; there is no unsigned
-development bypass. If either local key is supplied through configuration, both
-must be supplied and match.
+The Notifications API uses the existing Keycloak bearer-token validation and
+accepts the token's optional `sid`; WebUI's `/api/notifications/session` reports
+only booleans derived from the trusted cookie ID-token claims. There is no
+separate Notifications identity; session identity comes only from existing
+validated Keycloak token claims.
+
+The checked-in realm import is
+`config/keycloak/realms/velotime-realm.json`; AppHost imports it only for local
+Development. It defines the VeloTime API audience/role mappers but has no
+explicit session-ID mapper. Production Helm configuration points to an external
+Keycloak and does not pin or install its server version. Neither the checked-in
+realm nor the deployment config proves that every supported/deployed Keycloak
+emits a `sid` claim in both token types.
+
+Before enabling session dismissal operationally, the Keycloak administrator must
+verify the actual deployed release and configure only a session-ID mechanism
+supported by that release, if needed. Validate a fresh login and a token refresh:
+the signed ID token and signed access token must each contain the same nonblank
+`sid`. Do not assume a mapper/provider name or default behavior without evidence
+for that server version, and do not install a custom plugin or add another
+identity provider for this feature. If the ID token lacks `sid`, WebUI keeps
+session actions unavailable; if the validated access token lacks it, the API
+rejects session-specific operations while account-level operations remain
+available. Treat a missing or mismatched claim as session capability being
+unavailable, not as a reason to synthesize or forward a browser-selected ID.
 
 The API and migration worker use the `velotimedb` connection. The API receives the
 Redis `cache` reference for its shared key ring; WebUI receives the same cache and
 the MessageBus connection. `module-notifications-migration` completes before the
 API is allowed to start.
 
-The assertion protocol uses `Notifications:SessionAssertion`. API settings are
-`Issuer`, `Audience`, `PublicKeys:<kid>`, `MaximumLifetimeSeconds` (120 default,
-maximum 300) and `ClockSkewSeconds` (5 default, maximum 10). The API issuer and
-audience must match the WebUI signer configuration; this audience is separate from
-`OIDC_AUDIENCE`. RSA public keys must be at least 2048 bits. WebUI settings are
-`Issuer`, `Audience`, `KeyId`, `PrivateKeyPem` and `LifetimeSeconds` (120 default).
-Production must inject the WebUI private key only from a secret manager.
-
 ## Kubernetes / Helm
 
 The umbrella chart deploys the API and runs the Notifications migration as an
 ordered pre-install/pre-upgrade Job. `migrationJobs.domains.notifications` supports
-the same database/secret overrides as other modules. Configure the API chart's
-`sessionAssertion.issuer` and `sessionAssertion.audience`; its referenced
-`existingSecret` must supply `Notifications__SessionAssertion__PublicKeys__<kid>`
-for every trusted key as well as the cache/database connection strings. No signing
-key or placeholder public key is stored in chart defaults. Missing trust settings
-fail API startup validation.
-
-The WebUI chart exposes the matching issuer, audience, key ID and lifetime under
-`webui.notifications.sessionAssertion`. Its `existingSecret` must include
-`Notifications__SessionAssertion__PrivateKeyPem` and `ConnectionStrings__MessageBus`
-as well as the Redis cache connection string. Never put real PEM key material in
-values files or ConfigMaps. Existing OIDC authority/audience behavior and the
-global `velotime.admin` permission policy are unchanged.
+the same database/secret overrides as other modules. No extra session identity
+settings are configured in AppHost or Helm. If an API
+`existingSecret` is set, it must provide the API's existing cache/database
+connection strings; the WebUI secret must provide its existing MessageBus/cache
+configuration. Existing OIDC authority/audience behavior and the global
+`velotime.admin` permission policy are unchanged.
 
 Notifications API snapshot tokens use the Redis XML key repository
 `velotime:notifications-api:dataprotection-keys`; all API replicas must share the
