@@ -29,6 +29,7 @@
     <ProjectReference Include="..\Module.Profiles.Migration\VeloTime.Module.Profiles.Migration.csproj" />
     <ProjectReference Include="..\Module.Notifications.Api\VeloTime.Module.Notifications.Api.csproj" />
     <ProjectReference Include="..\Module.Notifications.Migration\VeloTime.Module.Notifications.Migration.csproj" />
+    <ProjectReference Include="..\Module.Notifications.Processor\VeloTime.Module.Notifications.Processor.csproj" />
     <ProjectReference Include="..\Module.Statistics.Api\VeloTime.Module.Statistics.Api.csproj" />
     <ProjectReference Include="..\Module.Statistics.Migration\VeloTime.Module.Statistics.Migration.csproj" />
     <ProjectReference Include="..\Module.Statistics.Processor\VeloTime.Module.Statistics.Processor.csproj" />

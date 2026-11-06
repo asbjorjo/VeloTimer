@@ -32,7 +32,7 @@ module-profiles-api:
 module-notifications-api:
   cache: *sharedCache
 module-notifications-processor:
-  enabled: false
+  enabled: true
   cache: *sharedCache
   secrets:
     MessageBus: ""

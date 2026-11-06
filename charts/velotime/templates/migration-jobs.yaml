@@ -7,7 +7,7 @@
 {{- $api := index $root.Subcharts (printf "module-%s-api" $domain) -}}
 {{- $overrides := index $root.Values.migrationJobs.domains $domain | default dict -}}
 {{- $enabled := $api.Values.migration.enabled -}}
-{{- if has $domain (list "statistics" "timing") -}}
+{{- if has $domain (list "statistics" "timing" "notifications") -}}
   {{- $processor := index $root.Subcharts (printf "module-%s-processor" $domain) -}}
   {{- $enabled = or $enabled $processor.Values.migration.enabled -}}
 {{- end -}}

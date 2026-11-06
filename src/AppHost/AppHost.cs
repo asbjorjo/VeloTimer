@@ -49,23 +49,53 @@ string? notificationAssertionKeyId = null;
 string? notificationAssertionPrivateKey = null;
 string? notificationAssertionPublicKey = null;
 IResourceBuilder<ParameterResource>? notificationAssertionPrivateKeyParameter = null;
-if (builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment())
+if (builder.ExecutionContext.IsRunMode)
 {
-    notificationAssertionIssuer = builder.Configuration["Notifications:SessionAssertion:Issuer"] ?? "VeloTime.WebUI.Mud";
-    notificationAssertionAudience = builder.Configuration["Notifications:SessionAssertion:Audience"] ?? "VeloTime.Module.Notifications.Api";
-    notificationAssertionKeyId = builder.Configuration["Notifications:SessionAssertion:KeyId"] ?? "aspire-local";
+    var localDevelopment = builder.Environment.IsDevelopment();
+    notificationAssertionIssuer = builder.Configuration["Notifications:SessionAssertion:Issuer"]
+        ?? (localDevelopment ? "VeloTime.WebUI.Mud" : null);
+    notificationAssertionAudience = builder.Configuration["Notifications:SessionAssertion:Audience"]
+        ?? (localDevelopment ? "VeloTime.Module.Notifications.Api" : null);
+    notificationAssertionKeyId = builder.Configuration["Notifications:SessionAssertion:KeyId"]
+        ?? (localDevelopment ? "aspire-local" : null);
     notificationAssertionPrivateKey = builder.Configuration["Notifications:SessionAssertion:PrivateKeyPem"];
-    notificationAssertionPublicKey = builder.Configuration[$"Notifications:SessionAssertion:PublicKeys:{notificationAssertionKeyId}"];
-    if (notificationAssertionPrivateKey is null && notificationAssertionPublicKey is null)
+    if (notificationAssertionKeyId is not null)
+        notificationAssertionPublicKey = builder.Configuration[$"Notifications:SessionAssertion:PublicKeys:{notificationAssertionKeyId}"];
+    if (localDevelopment && notificationAssertionPrivateKey is null && notificationAssertionPublicKey is null)
     {
         using var localNotificationSigner = System.Security.Cryptography.RSA.Create(3072);
         notificationAssertionPrivateKey = localNotificationSigner.ExportPkcs8PrivateKeyPem();
         notificationAssertionPublicKey = localNotificationSigner.ExportSubjectPublicKeyInfoPem();
     }
-    else if (notificationAssertionPrivateKey is null || notificationAssertionPublicKey is null)
+
+    if (string.IsNullOrWhiteSpace(notificationAssertionIssuer)
+        || string.IsNullOrWhiteSpace(notificationAssertionAudience)
+        || string.IsNullOrWhiteSpace(notificationAssertionKeyId)
+        || string.IsNullOrWhiteSpace(notificationAssertionPrivateKey)
+        || string.IsNullOrWhiteSpace(notificationAssertionPublicKey))
     {
-        throw new InvalidOperationException("Local Notifications assertion configuration must provide both a matching private and public key.");
+        throw new InvalidOperationException(
+            "Notifications SessionAssertion requires Issuer, Audience, KeyId, PrivateKeyPem, and PublicKeys:<KeyId>; local Development may generate an ephemeral signing key.");
     }
+    if (notificationAssertionKeyId.Length is < 1 or > 64
+        || !notificationAssertionKeyId.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_'))
+        throw new InvalidOperationException("Notifications SessionAssertion KeyId must contain 1-64 ASCII letters, digits, hyphens, or underscores.");
+
+    try
+    {
+        using var privateKey = System.Security.Cryptography.RSA.Create();
+        using var publicKey = System.Security.Cryptography.RSA.Create();
+        privateKey.ImportFromPem(notificationAssertionPrivateKey);
+        publicKey.ImportFromPem(notificationAssertionPublicKey);
+        if (privateKey.KeySize < 2048 || publicKey.KeySize < 2048
+            || !privateKey.ExportSubjectPublicKeyInfo().SequenceEqual(publicKey.ExportSubjectPublicKeyInfo()))
+            throw new InvalidOperationException("Notifications SessionAssertion private and public keys must be a matching RSA pair of at least 2048 bits.");
+    }
+    catch (System.Security.Cryptography.CryptographicException)
+    {
+        throw new InvalidOperationException("Notifications SessionAssertion must use a valid matching RSA private and public key.");
+    }
+
     builder.Configuration["Notifications:SessionAssertion:PrivateKeyPem"] = notificationAssertionPrivateKey;
     notificationAssertionPrivateKeyParameter = builder.AddParameterFromConfiguration(
         "notifications-session-assertion-private-key",
@@ -154,6 +184,13 @@ if (notificationAssertionIssuer is not null)
         .WithEnvironment("Notifications__SessionAssertion__ClockSkewSeconds", "5");
 }
 
+var notificationsproc = builder.AddProject<Projects.VeloTime_Module_Notifications_Processor>("module-notifications-processor")
+    .WithReference(cache)
+    .WithReference(velotimedb)
+    .WithReference(servicebusconnection)
+    .WaitFor(cache)
+    .WaitFor(velotimedb);
+
 statisticsapi.WithReference(facilityapi);
 facilityapi.WithReference(timingapi).WithReference(statisticsapi);
 timingapi.WithReference(facilityapi).WithReference(statisticsapi);
@@ -219,9 +256,11 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["ConnectionStrings:MessageB
     var servicebusmanagement = builder.AddConnectionString("MessageBusManagement");
     var messagebustopology = builder.AddProject<Projects.VeloTime_MessageBus_Topology>("messagebus-topology")
         .WithReference(servicebusmanagement);
+    frontend.WaitForCompletion(messagebustopology);
     facilityapi.WaitForCompletion(messagebustopology);
     statisticsapi.WaitForCompletion(messagebustopology);
     timingapi.WaitForCompletion(messagebustopology);
+    notificationsproc.WaitForCompletion(messagebustopology);
     statsproc.WaitForCompletion(messagebustopology);
     timingproc.WaitForCompletion(messagebustopology);
 }
@@ -260,6 +299,7 @@ if (migrate)
     timingapi.WaitForCompletion(timingmigrator);
     profilesapi.WaitForCompletion(profilesmigrator);
     notificationsapi.WaitForCompletion(notificationsmigrator);
+    notificationsproc.WaitForCompletion(notificationsmigrator);
     statsproc.WaitForCompletion(statisticsmigrator);
     timingproc.WaitForCompletion(timingmigrator);
 

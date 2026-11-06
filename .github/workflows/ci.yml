@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OIDC_AUDIENCE: https://build.invalid
+      NOTIFICATIONS_WORKER_TEST_ADMIN_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
       VELOTIME_TEST_OUTBOX_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
       VELOTIME_TEST_STATISTICS_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
       FACILITIES_TEST_POSTGRES_ADMIN_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
@@ -49,7 +50,7 @@ jobs:
         dotnet-version: '10.0.x'
 
     - name: Test
-      run: dotnet test --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
+      run: dotnet test VeloTimer.sln --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
 
     - name: Summarize Test Results
       if: always()
