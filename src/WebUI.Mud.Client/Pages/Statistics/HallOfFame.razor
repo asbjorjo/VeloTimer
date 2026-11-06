@@ -1,0 +1,164 @@
+@page "/hall-of-fame"
+@inherits PresentationComponentBase
+@using Microsoft.AspNetCore.WebUtilities
+@using VeloTime.Module.Statistics.Interface.Data
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@inject IStatisticsService Statistics
+@inject IFacilityService Facilities
+@inject NavigationManager Navigation
+@inject ILogger<HallOfFame> Logger
+@implements IDisposable
+
+<PageTitle>@L["HallOfFame"]</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6" Style="min-width:0;overflow:hidden;">
+    <MudText Typo="Typo.h4" HtmlTag="h1" Class="mb-2">@L["HallOfFame"]</MudText>
+    <MudText Class="mb-4">@L["HallOfFameDescription"]</MudText>
+    <MudSelect T="string" InputId="hall-of-fame-facility" Value="@(_request.FacilityId?.ToString("D") ?? "")"
+               ValueChanged="FacilityChanged" Label="@L["Facility"]" Class="mb-4"
+               Disabled="@(_loading && _facilities.Count == 0)">
+        <MudSelectItem T="string" Value="@string.Empty">@L["HallOfFameAllFacilities"]</MudSelectItem>
+        @foreach (var facility in _facilities)
+        {
+            <MudSelectItem T="string" Value="@facility.Id.ToString("D")">@facility.Name</MudSelectItem>
+        }
+    </MudSelect>
+    @if (_invalidSelection)
+    {
+        <MudAlert Severity="Severity.Warning" role="alert">@L["HallOfFameInvalidSelection"]</MudAlert>
+        <MudButton Href="/hall-of-fame">@L["HallOfFameReset"]</MudButton>
+    }
+    else if (_error)
+    {
+        <MudAlert Severity="Severity.Error" role="alert">@L["HallOfFameError"]</MudAlert>
+        <MudButton OnClick="LoadAsync">@L["Retry"]</MudButton>
+    }
+    @if (!_invalidSelection && !_error)
+    {
+        <MudTabs ActivePanelIndex="_tabIndex" ActivePanelIndexChanged="TabChanged" Outlined="true" Rounded="true" Style="min-width:0;max-width:100%;">
+            @foreach (var category in HallOfFameQuery.Categories)
+            {
+                <MudTabPanel Text="@TabLabel(category)" ID="@category">
+                    <HallOfFameTable Loading="_loading" LapCounter="@(category == "laps")" Results="_results" />
+                </MudTabPanel>
+            }
+        </MudTabs>
+    }
+    else
+    {
+        <MudTabs ActivePanelIndex="_tabIndex" ActivePanelIndexChanged="TabChanged" Outlined="true" Style="min-width:0;max-width:100%;">
+            @foreach (var category in HallOfFameQuery.Categories)
+            {
+                <MudTabPanel Text="@TabLabel(category)" ID="@category" />
+            }
+        </MudTabs>
+    }
+</MudContainer>
+
+@code {
+    [Parameter, SupplyParameterFromQuery(Name = "tab")] public string? Tab { get; set; }
+    [Parameter, SupplyParameterFromQuery(Name = "facilityId")] public string? FacilityId { get; set; }
+
+    private HallOfFameRequest _request = new("lap");
+    private IReadOnlyList<FacilityView> _facilities = [];
+    private HallOfFameView? _results;
+    private CancellationTokenSource? _load;
+    private bool _loading = true;
+    private bool _invalidSelection;
+    private bool _error;
+    private int _tabIndex;
+    private string? _lastHandledUri;
+
+    protected override Task OnParametersSetAsync()
+    {
+        var uri = Navigation.Uri;
+        if (string.Equals(uri, _lastHandledUri, StringComparison.Ordinal)) return Task.CompletedTask;
+        _lastHandledUri = uri;
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _load?.Cancel();
+        _load?.Dispose();
+        var source = _load = new CancellationTokenSource();
+        _error = false;
+        _results = null;
+        var query = QueryHelpers.ParseQuery(new Uri(Navigation.Uri).Query);
+        _invalidSelection = query.Any(pair => pair.Value.Count != 1) ||
+            query.ContainsKey("category");
+        var values = query.Where(pair => pair.Key != "category")
+            .ToDictionary(pair => pair.Key == "tab" ? "category" : pair.Key, pair => (string?)pair.Value[0]);
+        if (!HallOfFameQuery.TryParse(values, out var request, out _)) _invalidSelection = true;
+        if (_invalidSelection)
+        {
+            Logger.LogInformation("Rejected invalid Hall of Fame URL selection.");
+            _loading = false;
+            return;
+        }
+        _request = request;
+        _tabIndex = HallOfFameQuery.Categories.ToList().IndexOf(request.Category);
+        _loading = true;
+        try
+        {
+            var facilities = Facilities.GetFacilitiesAsync(source.Token);
+            var results = Statistics.GetHallOfFameAsync(request, source.Token);
+            await Task.WhenAll(facilities, results);
+            if (source.IsCancellationRequested) return;
+            _facilities = (await facilities).OrderBy(facility => facility.Name, StringComparer.CurrentCulture)
+                .ThenBy(facility => facility.Id).ToArray();
+            if (request.FacilityId.HasValue && !_facilities.Any(facility => facility.Id == request.FacilityId))
+            {
+                Logger.LogInformation("Hall of Fame facility {FacilityId} is unavailable.", request.FacilityId);
+                _invalidSelection = true;
+                return;
+            }
+            _results = await results;
+        }
+        catch (OperationCanceledException) when (source.IsCancellationRequested) { }
+        catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException or InvalidDataException)
+        {
+            if (!source.IsCancellationRequested)
+            {
+                Logger.LogWarning(exception, "Hall of Fame could not be loaded.");
+                _error = true;
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_load, source)) _loading = false;
+        }
+    }
+
+    private string TabLabel(string category) => category switch
+    {
+        "lap" => L["HallOfFameLap"].Value,
+        "laps" => L["HallOfFameLapCount"].Value,
+        _ => category
+    };
+
+    private void TabChanged(int index)
+    {
+        if (index >= 0 && index < HallOfFameQuery.Categories.Count && index != _tabIndex)
+        {
+            _tabIndex = index;
+            _loading = true;
+            _results = null;
+            Navigate(HallOfFameQuery.Categories[index], _request.FacilityId?.ToString("D"));
+        }
+    }
+
+    private void FacilityChanged(string value) => Navigate(_request.Category, string.IsNullOrEmpty(value) ? null : value);
+
+    private void Navigate(string category, string? facilityId)
+    {
+        var query = new Dictionary<string, string?> { ["tab"] = category };
+        if (!string.IsNullOrEmpty(facilityId)) query["facilityId"] = facilityId;
+        Navigation.NavigateTo(QueryHelpers.AddQueryString("/hall-of-fame", query));
+    }
+
+    public void Dispose()
+    {
+        _load?.Cancel();
+        _load?.Dispose();
+    }
+}

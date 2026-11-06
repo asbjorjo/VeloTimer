@@ -1,0 +1,5 @@
+@page "/admin/timing/transponders"
+@attribute [Authorize(Policy = AdministrationPolicies.Timing)]
+
+<PageTitle>@L["TransponderAdministration"]</PageTitle>
+<VeloTime.WebUI.Mud.Client.Components.TransponderManagement Administration="true" />

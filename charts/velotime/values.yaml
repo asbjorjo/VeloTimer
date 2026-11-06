@@ -1,0 +1,131 @@
+global:
+  image:
+    repository: ghcr.io/asbjorjo/
+    tag: 2.1.0-alpha.35
+  oidcAudience: ""
+  oidcAuthority: ""
+  imagePullSecrets:
+    - name: ghcr
+valkey:
+  replicaCount: 1
+  fullnameOverride: cache-service
+  # Notification snapshot tokens require the Data Protection key ring to survive
+  # Valkey restarts and chart upgrades. Keep its PVC on chart uninstall.
+  dataStorage:
+    enabled: true
+    requestedSize: 1Gi
+    keepPvc: true
+  valkeyConfig: |
+    appendonly yes
+    appendfsync everysec
+module-facilities-api:
+  cache: &sharedCache
+    host: cache-service
+    port: 6379
+    user: default
+module-statistics-api:
+  cache: *sharedCache
+module-timing-api:
+  cache: *sharedCache
+module-profiles-api:
+  cache: *sharedCache
+module-notifications-api:
+  cache: *sharedCache
+module-notifications-processor:
+  enabled: true
+  cache: *sharedCache
+  secrets:
+    MessageBus: ""
+module-statistics-processor:
+  cache: *sharedCache
+module-timing-processor:
+  cache: *sharedCache
+webui:
+  cache: *sharedCache
+  secrets:
+    MessageBus: ""
+messageBusTopology:
+  # pre-install/pre-upgrade hook Job that creates and reconciles Service Bus topics,
+  # subscriptions and filter rules. Applications do not provision topology themselves.
+  enabled: true
+  # Preexisting Secret (e.g. synced by External Secrets) holding a Service Bus connection
+  # string with Manage rights. Keep it separate from the runtime MessageBus connection.
+  existingSecret:
+    name: velotime-messagebus-management
+    key: ConnectionStrings__MessageBusManagement
+  backoffLimit: 1
+  activeDeadlineSeconds: 300
+  image:
+    pullPolicy: IfNotPresent
+  # Declared topology. Replace the whole list to manage topology outside of code.
+  # Every subscription needs at least one rule (sqlFilter or correlationFilter); new
+  # subscriptions are created with their first rule so Service Bus never adds the
+  # catch-all $Default (1=1) rule, and undeclared rules on declared subscriptions,
+  # including $Default, are removed. Undeclared topics/subscriptions are left untouched.
+  # Optional topic settings: maxSizeInMegabytes, defaultMessageTimeToLive,
+  # requiresDuplicateDetection (immutable). Optional subscription settings:
+  # maxDeliveryCount, lockDuration, defaultMessageTimeToLive,
+  # deadLetteringOnMessageExpiration; requiresSession is immutable.
+  # Durations use .NET TimeSpan format, e.g. "00:01:00".
+  # Must match the topology.json bundled with the provisioner.
+  topics:
+    - name: velotime-agent
+      subscriptions:
+        - name: timing
+          requiresSession: true
+          rules:
+            - name: PassingEvent
+              sqlFilter: MessageName = 'PassingEvent'
+        - name: infrastructure
+          requiresSession: false
+          rules:
+            - name: InstallationLayoutEvent
+              sqlFilter: MessageName = 'InstallationLayoutEvent'
+            - name: LoopStatusEvent
+              sqlFilter: MessageName = 'LoopStatusEvent'
+    - name: velotime-timing
+      subscriptions:
+        - name: statistics
+          requiresSession: true
+          rules:
+            - name: TimingSampleComplete
+              sqlFilter: MessageName = 'TimingSampleComplete'
+            - name: TransponderOwnershipChanged
+              sqlFilter: MessageName = 'TransponderOwnershipChanged'
+    - name: velotime-statistics
+      subscriptions:
+        - name: statistics
+          requiresSession: true
+          rules:
+            - name: EntryCreated
+              sqlFilter: MessageName = 'EntryCreated'
+            - name: SampleComplete
+              sqlFilter: MessageName = 'SampleComplete'
+        - name: statistics-validity
+          requiresSession: false
+          rules:
+            - name: StatisticsValidityThresholdsChangedV1
+              sqlFilter: MessageName = 'StatisticsValidityThresholdsChangedV1'
+    - name: velotime-facilities
+      subscriptions: []
+    - name: velotime-notifications
+      subscriptions:
+        - name: webui-notifications
+          requiresSession: false
+          rules:
+            - name: NotificationsRefreshRequestedV1
+              sqlFilter: MessageName = 'NotificationsRefreshRequestedV1'
+migrationJobs:
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+  # One Job per domain, enabled when any of its consumers has migration.enabled.
+  # Domain enabled overrides that decision, including an explicit false.
+  # Configuration defaults to the API, even when only a processor requests migration.
+  # Overrides: enabled, existingSecret, database (same shape as API values),
+  # and image.pullPolicy. Set existingSecret: "" to use chart-managed credentials.
+  domains:
+    facilities: {}
+    statistics: {}
+    timing: {}
+    profiles: {}
+    notifications: {}

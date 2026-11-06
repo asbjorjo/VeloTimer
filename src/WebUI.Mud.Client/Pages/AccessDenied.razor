@@ -1,0 +1,8 @@
+@page "/access-denied"
+
+<PageTitle>@L["AccessDenied"]</PageTitle>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+    <MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">@L["AccessDenied"]</MudText>
+    <MudAlert Severity="Severity.Warning" Class="mb-4">@L["NoPermission"]</MudAlert>
+    <MudButton Href="/" StartIcon="@Icons.Material.Filled.Home" Color="Color.Primary">@L["Home"]</MudButton>
+</MudContainer>

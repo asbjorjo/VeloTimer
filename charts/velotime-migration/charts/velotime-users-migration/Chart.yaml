@@ -1,0 +1,6 @@
+apiVersion: v2
+name: velotime-users-migration
+description: Velotime users database migration job
+type: application
+version: 0.1.0
+appVersion: "3.0.0-alpha.61"

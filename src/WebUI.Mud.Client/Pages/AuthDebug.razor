@@ -1,0 +1,148 @@
+@inherits PresentationComponentBase
+@page "/debug/auth"
+
+@using System.Security.Claims
+@using System.Text.Json
+@using System.Globalization
+@using VeloTime.WebUI.Mud.Client.ViewModel
+
+@inject IAuthDebugService AuthDebugService
+
+@attribute [Authorize]
+
+<PageTitle>@L["AuthDebug"]</PageTitle>
+
+<MudText Typo="Typo.h3" GutterBottom="true">@L["AuthDebug"]</MudText>
+
+@if (loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (error is not null)
+{
+    <MudAlert Severity="Severity.Error">@error</MudAlert>
+}
+else if (tokenInfo is null)
+{
+    <MudAlert Severity="Severity.Info">@L["DevelopmentOnly"]</MudAlert>
+}
+else
+{
+    <MudStack Spacing="4">
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h5" GutterBottom="true">@L["AccessToken"]</MudText>
+            @if (!tokenInfo.HasAccessToken)
+            {
+                <MudAlert Severity="Severity.Warning">@L["NoAccessToken"]</MudAlert>
+            }
+            else
+            {
+                <MudText Typo="Typo.subtitle2">@L["Audience"]</MudText>
+                @Chips(tokenInfo.Audiences)
+                <MudText Typo="Typo.subtitle2" Class="mt-2">@L["RealmRoles"]</MudText>
+                @Chips(tokenInfo.RealmRoles)
+                <MudSimpleTable Dense="true" Class="mt-2">
+                    <tbody>
+                        <tr><td>@L["Issuer"]</td><td>@tokenInfo.Issuer</td></tr>
+                        <tr><td>@L["AuthorizedParty"]</td><td>@tokenInfo.AuthorizedParty</td></tr>
+                        <tr><td>@L["Scope"]</td><td>@tokenInfo.Scope</td></tr>
+                        <tr><td>@L["Expires"]</td><td>@Display.Timestamp(tokenInfo.ExpiresAt)</td></tr>
+                    </tbody>
+                </MudSimpleTable>
+            }
+        </MudPaper>
+
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h5" GutterBottom="true">@L["Identity"]</MudText>
+            <MudSimpleTable Dense="true">
+                <tbody>
+                    <tr><td>@L["Name"]</td><td>@user?.Identity?.Name</td></tr>
+                    <tr><td>@L["AuthenticationType"]</td><td>@user?.Identity?.AuthenticationType</td></tr>
+                </tbody>
+            </MudSimpleTable>
+            <MudText Typo="Typo.subtitle2" Class="mt-2">@L["IdentityRealmRoles"]</MudText>
+            @Chips(identityRealmRoles)
+        </MudPaper>
+
+        <MudPaper Class="pa-4">
+            <MudText Typo="Typo.h5" GutterBottom="true">@L["Claims"]</MudText>
+            <MudSimpleTable Dense="true" Striped="true">
+                <thead>
+                    <tr><th>@L["Type"]</th><th>@L["Value"]</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var claim in user?.Claims ?? [])
+                    {
+                        <tr>
+                            <td>@claim.Type</td>
+                            <td style="word-break: break-all;">@claim.Value</td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        </MudPaper>
+    </MudStack>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationState { get; set; } = default!;
+
+    private bool loading = true;
+    private string? error;
+    private AuthDebugView? tokenInfo;
+    private ClaimsPrincipal? user;
+    private IReadOnlyList<string> identityRealmRoles = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            user = (await AuthenticationState).User;
+            identityRealmRoles = ReadRealmRoles(user);
+            tokenInfo = await AuthDebugService.GetAccessTokenInfoAsync();
+        }
+        catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
+        {
+            error = L["TokenDetailsFailed"];
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private RenderFragment Chips(IReadOnlyList<string> values) => @<div>
+        @if (values.Count == 0)
+        {
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@L["None"]</MudText>
+        }
+        @foreach (var value in values)
+        {
+            <MudChip T="string" Size="Size.Small">@value</MudChip>
+        }
+    </div>;
+
+    private static IReadOnlyList<string> ReadRealmRoles(ClaimsPrincipal principal)
+    {
+        var roles = new List<string>();
+        foreach (var claim in principal.FindAll("realm_access"))
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(claim.Value);
+                if (document.RootElement.TryGetProperty("roles", out var values) && values.ValueKind == JsonValueKind.Array)
+                {
+                    roles.AddRange(values.EnumerateArray()
+                        .Where(value => value.ValueKind == JsonValueKind.String)
+                        .Select(value => value.GetString()!));
+                }
+            }
+            catch (JsonException)
+            {
+            }
+        }
+
+        return roles;
+    }
+}

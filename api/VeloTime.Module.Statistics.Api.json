@@ -1,0 +1,1777 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "VeloTime.Module.Statistics.Api | v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/statistics/sample": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "parameters": [
+          {
+            "name": "Cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "IsNextPage",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetSamplesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/statistics/best-results": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "summary": "Get the fastest public result per statistics item; speed is in km/h",
+        "operationId": "GetBestStatisticsResults",
+        "parameters": [
+          {
+            "name": "facilityId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BestStatisticsResultDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/statistics/hall-of-fame": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "summary": "Get ten all-time public personal bests or lap totals; quantities use SI units",
+        "operationId": "GetHallOfFame",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "facilityId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HallOfFameDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/statistics/owner-profiles/me": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "summary": "Get the authenticated user's Statistics display name",
+        "operationId": "GetOwnOwnerProfile",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerProfileDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/statistics/public/discovery": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "operationId": "GetPublicStatisticsDiscovery",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStatisticsDiscoveryDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/statistics/public/results": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "operationId": "GetPublicStatisticsResults",
+        "parameters": [
+          {
+            "name": "facilityId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "configurationId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minTime",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxTime",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minSpeed",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxSpeed",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStatisticsResultsPageDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/statistics/profiles": {
+      "get": {
+        "tags": [
+          "StatsProfiles"
+        ],
+        "operationId": "GetAllStatsProfiles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StatsProfileResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "StatsProfiles"
+        ],
+        "operationId": "CreateStatsProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStatsProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/statistics/profiles/{userId}": {
+      "get": {
+        "tags": [
+          "StatsProfiles"
+        ],
+        "operationId": "GetStatsProfileById",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsProfileResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "StatsProfiles"
+        ],
+        "operationId": "UpdateStatsProfile",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStatsProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsProfileResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "StatsProfiles"
+        ],
+        "operationId": "DeleteStatsProfile",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/statistics/profiles/ensure": {
+      "post": {
+        "tags": [
+          "StatsProfiles"
+        ],
+        "summary": "Create a missing statistics profile without overwriting existing preferences",
+        "description": "Returns 201 with a Location header when created, or 200 with the existing profile unchanged. Requested name and visibility are used only on creation.",
+        "operationId": "EnsureStatsProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStatsProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsProfileResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/statistics/admin/owner-profiles/search": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "summary": "Search owner profile names for transponder administration",
+        "operationId": "SearchOwnerProfiles",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnerProfilePage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/statistics/admin/owner-profiles/resolve": {
+      "post": {
+        "tags": [
+          "Statistics"
+        ],
+        "summary": "Resolve a bounded batch of owner profile names for transponder administration",
+        "operationId": "ResolveOwnerProfiles",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveOwnerProfilesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OwnerProfileDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/statistics/admin/items": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "operationId": "ListStatisticsItems",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StatisticsItemDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Statistics"
+        ],
+        "operationId": "CreateStatisticsItem",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveStatisticsItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatisticsItemDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/statistics/admin/items/{id}": {
+      "put": {
+        "tags": [
+          "Statistics"
+        ],
+        "operationId": "UpdateStatisticsItem",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveStatisticsItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatisticsItemDTO"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Statistics"
+        ],
+        "operationId": "DeleteStatisticsItem",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/statistics/admin/configurations": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "operationId": "ListStatisticsConfigurations",
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StatisticsConfigurationDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Statistics"
+        ],
+        "operationId": "CreateStatisticsConfiguration",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveStatisticsConfigurationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatisticsConfigurationDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/statistics/admin/configurations/{id}": {
+      "put": {
+        "tags": [
+          "Statistics"
+        ],
+        "operationId": "UpdateStatisticsConfiguration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveStatisticsConfigurationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatisticsConfigurationDTO"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Statistics"
+        ],
+        "operationId": "DeleteStatisticsConfiguration",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/statistics/references/facilities/{id}/dependencies": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencySummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/statistics/references/coursepoints/{id}/dependencies": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencySummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/statistics/references/transponders/{id}/dependencies": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DependencySummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BestStatisticsResultDTO": {
+        "required": [
+          "id",
+          "statisticsItemId",
+          "statisticsItemName",
+          "profileName",
+          "facilityId",
+          "duration",
+          "speed"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "statisticsItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "statisticsItemName": {
+            "type": "string"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "facilityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "duration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": "string"
+          },
+          "speed": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "CreateStatsProfileRequest": {
+        "required": [
+          "userId",
+          "profileName"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "isPublic": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "DependencySummary": {
+        "required": [
+          "count",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "GetSamplesResponse": {
+        "required": [
+          "samples",
+          "next",
+          "previous",
+          "isFirstPage"
+        ],
+        "type": "object",
+        "properties": {
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SampleDTO"
+            }
+          },
+          "next": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "previous": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isFirstPage": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HallOfFameDTO": {
+        "required": [
+          "isAvailable",
+          "times",
+          "laps"
+        ],
+        "type": "object",
+        "properties": {
+          "isAvailable": {
+            "type": "boolean"
+          },
+          "times": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HallOfFameTimeDTO"
+            }
+          },
+          "laps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HallOfFameLapsDTO"
+            }
+          }
+        }
+      },
+      "HallOfFameLapsDTO": {
+        "required": [
+          "profileName",
+          "lapCount",
+          "totalDistanceMetres"
+        ],
+        "type": "object",
+        "properties": {
+          "profileName": {
+            "type": "string"
+          },
+          "lapCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalDistanceMetres": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "HallOfFameTimeDTO": {
+        "required": [
+          "profileName",
+          "duration",
+          "speedMetresPerSecond",
+          "facilityId"
+        ],
+        "type": "object",
+        "properties": {
+          "profileName": {
+            "type": "string"
+          },
+          "duration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": "string"
+          },
+          "speedMetresPerSecond": {
+            "type": "number",
+            "format": "double"
+          },
+          "facilityId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "OwnerProfileDTO": {
+        "required": [
+          "userId",
+          "profileName"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "profileName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "OwnerProfilePage": {
+        "required": [
+          "profiles",
+          "nextOffset"
+        ],
+        "type": "object",
+        "properties": {
+          "profiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OwnerProfileDTO"
+            }
+          },
+          "nextOffset": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PublicStatisticsConfigurationDTO": {
+        "required": [
+          "id",
+          "statisticsItemId",
+          "facilityId",
+          "type",
+          "coursePointStart",
+          "coursePointStartName",
+          "coursePointEnd",
+          "coursePointEndName",
+          "parentConfigId",
+          "repetitions"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "statisticsItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "facilityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "$ref": "#/components/schemas/StatisticsConfigurationType"
+          },
+          "coursePointStart": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "coursePointStartName": {
+            "type": "string"
+          },
+          "coursePointEnd": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "coursePointEndName": {
+            "type": "string"
+          },
+          "parentConfigId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "repetitions": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PublicStatisticsConfigurationUnavailableReason": {
+        "type": "integer"
+      },
+      "PublicStatisticsCursorDTO": {
+        "required": [
+          "timeEnd",
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "timeEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "PublicStatisticsDiscoveryDTO": {
+        "required": [
+          "items",
+          "configurations",
+          "unavailableConfigurations"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatisticsItemDTO"
+            }
+          },
+          "configurations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicStatisticsConfigurationDTO"
+            }
+          },
+          "unavailableConfigurations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnavailablePublicStatisticsConfigurationDTO"
+            }
+          }
+        }
+      },
+      "PublicStatisticsResultDTO": {
+        "required": [
+          "id",
+          "profileName",
+          "statisticsItemId",
+          "statisticsItemConfigId",
+          "facilityId",
+          "duration",
+          "speedKmh",
+          "timeEnd"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "statisticsItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "statisticsItemConfigId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "facilityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "duration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": "string"
+          },
+          "speedKmh": {
+            "type": "number",
+            "format": "double"
+          },
+          "timeEnd": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PublicStatisticsResultsPageDTO": {
+        "required": [
+          "items",
+          "previous",
+          "next"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicStatisticsResultDTO"
+            }
+          },
+          "previous": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicStatisticsCursorDTO"
+              }
+            ]
+          },
+          "next": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PublicStatisticsCursorDTO"
+              }
+            ]
+          }
+        }
+      },
+      "ResolveOwnerProfilesRequest": {
+        "required": [
+          "userIds"
+        ],
+        "type": "object",
+        "properties": {
+          "userIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "SampleDTO": {
+        "required": [
+          "time",
+          "transponderId",
+          "coursePointStartId",
+          "coursePointEndId",
+          "distance",
+          "duration",
+          "speed"
+        ],
+        "type": "object",
+        "properties": {
+          "time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "transponderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "coursePointStartId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "coursePointEndId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "distance": {
+            "type": "number",
+            "format": "double"
+          },
+          "duration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": "string"
+          },
+          "speed": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "SaveStatisticsConfigurationRequest": {
+        "required": [
+          "statisticsItemId",
+          "type",
+          "coursePointStart",
+          "coursePointEnd",
+          "parentConfigId",
+          "repetitions"
+        ],
+        "type": "object",
+        "properties": {
+          "statisticsItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "$ref": "#/components/schemas/StatisticsConfigurationType"
+          },
+          "coursePointStart": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "coursePointEnd": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "parentConfigId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "repetitions": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "minDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "maxDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SaveStatisticsItemRequest": {
+        "required": [
+          "name",
+          "description",
+          "distance"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "distance": {
+            "type": "number",
+            "format": "float"
+          },
+          "minDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "maxDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "StatisticsConfigurationDTO": {
+        "required": [
+          "id",
+          "statisticsItemId",
+          "type",
+          "coursePointStart",
+          "coursePointEnd",
+          "parentConfigId",
+          "repetitions"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "statisticsItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "$ref": "#/components/schemas/StatisticsConfigurationType"
+          },
+          "coursePointStart": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "coursePointEnd": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "parentConfigId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "repetitions": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "minDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "maxDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "StatisticsConfigurationType": {
+        "type": "integer"
+      },
+      "StatisticsItemDTO": {
+        "required": [
+          "id",
+          "name",
+          "description",
+          "distance"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "distance": {
+            "type": "number",
+            "format": "float"
+          },
+          "minDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "maxDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "StatsProfileResponse": {
+        "required": [
+          "userId",
+          "profileName",
+          "isPublic"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "profileName": {
+            "type": "string"
+          },
+          "isPublic": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UnavailablePublicStatisticsConfigurationDTO": {
+        "required": [
+          "configuration",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "configuration": {
+            "$ref": "#/components/schemas/StatisticsConfigurationDTO"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/PublicStatisticsConfigurationUnavailableReason"
+          }
+        }
+      },
+      "UpdateStatsProfileRequest": {
+        "required": [
+          "profileName",
+          "isPublic"
+        ],
+        "type": "object",
+        "properties": {
+          "profileName": {
+            "type": "string"
+          },
+          "isPublic": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Statistics"
+    },
+    {
+      "name": "StatsProfiles"
+    }
+  ]
+}

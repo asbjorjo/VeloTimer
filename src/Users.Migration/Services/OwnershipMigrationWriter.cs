@@ -1,0 +1,79 @@
+using VeloTime.Module.Timing.Client;
+
+namespace VeloTime.Users.Migration.Services;
+
+internal sealed class OwnershipMigrationWriter(ITimingClient timing, ILogger logger, OwnershipPreflightResult preflight)
+{
+    private readonly List<string> issues = preflight.Issues.ToList();
+    private int saved;
+
+    internal void LogPreflight()
+    {
+        logger.LogInformation("Ownership preflight: {SourceCount} source rows, {NormalizedCount} normalized periods, {EligibleCount} eligible registrations.",
+            preflight.SourceCount, preflight.NormalizedCount, preflight.Registrations.Count);
+        foreach (var issue in preflight.Issues) logger.LogError("Ownership preflight: {Issue}", issue);
+        foreach (var period in preflight.Registrations)
+            logger.LogInformation("Ownership registration planned for rider {RiderId}, transponder {Code}, {Start:O} to {End:O}, source rows {SourceIds}.",
+                period.RiderId, period.Code, period.OwnedFrom, period.OwnedTo, string.Join(", ", period.SourceIds));
+    }
+
+    internal void MissingOwner(long riderId, string reason = "the legacy rider has no identity account")
+    {
+        foreach (var period in preflight.Registrations.Where(period => period.RiderId == riderId))
+            Report(period, $"Cannot register ownership because {reason}.");
+    }
+
+    internal async Task RegisterRiderAsync(long riderId, Guid ownerId, CancellationToken cancellationToken)
+    {
+        foreach (var period in preflight.Registrations.Where(period => period.RiderId == riderId))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                var result = await timing.RegisterTransponderOwnershipAsync(new RegisterTransponderRequest
+                {
+                    Code = period.Code,
+                    OwnerId = ownerId,
+                    OwnedFrom = period.OwnedFrom,
+                    OwnedTo = period.OwnedTo
+                }, cancellationToken);
+                if (result.RequiresConfirmation)
+                {
+                    var existing = string.Join("; ", result.ExistingOwnerships.Select(owner =>
+                        $"{owner.Id}: {owner.OwnedFrom:O} to {owner.OwnedTo:O}"));
+                    Report(period, $"Owner {ownerId}: shortening requires review; existing coverage [{existing}]. No confirmation was submitted.");
+                }
+                else saved++;
+            }
+            catch (Exception exception) when (!MigrationFailure.IsFatalOrStopping(exception, cancellationToken))
+            {
+                var detail = exception is ApiException apiException
+                    ? $"HTTP {apiException.StatusCode}: {apiException.Response}"
+                    : exception.Message;
+                Report(period, $"Owner {ownerId}: registration could not be completed: {detail}");
+            }
+        }
+    }
+
+    internal void Complete() => Complete([]);
+
+    internal void Complete(IEnumerable<string> profileIssues)
+    {
+        var unresolved = issues.Concat(profileIssues).ToList();
+        logger.LogInformation("Ownership migration finished: {SourceCount} source rows, {NormalizedCount} normalized periods, {SavedCount} successful registrations, {UnresolvedCount} unresolved issues.",
+            preflight.SourceCount, preflight.NormalizedCount, saved, issues.Count);
+        if (unresolved.Count > 0)
+        {
+            logger.LogWarning("Migration reported {UnresolvedCount} non-fatal issues. These issues are reported, not fatal; successful work remains saved and retryable.", unresolved.Count);
+            foreach (var issue in unresolved)
+                logger.LogWarning("Reported migration issue (non-fatal; successful work remains saved and retryable): {Issue}", issue);
+        }
+    }
+
+    private void Report(MigrationOwnership period, string reason)
+    {
+        var issue = $"Rider {period.RiderId}, transponder {period.Code}, source rows [{string.Join(", ", period.SourceIds)}], {period.OwnedFrom:O} to {period.OwnedTo:O}: {reason}";
+        issues.Add(issue);
+        logger.LogError("Unresolved ownership registration: {Issue}", issue);
+    }
+}

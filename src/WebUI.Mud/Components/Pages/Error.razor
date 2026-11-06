@@ -1,0 +1,35 @@
+﻿@page "/Error"
+@using System.Diagnostics
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<SharedResource> L
+
+<PageTitle>@L["ErrorTitle"]</PageTitle>
+
+<h1 class="text-danger">@L["ErrorTitle"]</h1>
+<h2 class="text-danger">@L["HostErrorMessage"]</h2>
+
+@if (ShowRequestId)
+{
+    <p>
+        <strong>@L["RequestId"]:</strong> <code>@RequestId</code>
+    </p>
+}
+
+<h3>@L["DevelopmentMode"]</h3>
+<p>
+    @L["DevelopmentModeDescription"]
+</p>
+<p>
+    <strong>@L["DevelopmentModeWarning"]</strong>
+</p>
+
+@code{
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+    private bool ShowRequestId => !string.IsNullOrEmpty(RequestId);
+
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}

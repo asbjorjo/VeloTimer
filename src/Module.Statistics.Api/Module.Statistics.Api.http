@@ -1,0 +1,11 @@
+@Module.Statistics.Api_HostAddress = http://localhost:5234
+
+GET {{Module.Statistics.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+### All-time public personal bests (SI speed)
+GET {{Module.Statistics.Api_HostAddress}}/api/statistics/hall-of-fame?category=lap
+
+### Public lap totals using the current Lap distance
+GET {{Module.Statistics.Api_HostAddress}}/api/statistics/hall-of-fame?category=laps

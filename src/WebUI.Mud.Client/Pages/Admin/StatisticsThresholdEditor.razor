@@ -1,0 +1,57 @@
+<MudStack Spacing="3">
+    <MudText Typo="Typo.h6">@L["ValidityThresholds"]</MudText>
+    <MudText Typo="Typo.body2">@L[Local ? "LocalThresholdHelp" : "GlobalThresholdHelp"]</MudText>
+    <MudToggleGroup T="bool" Value="Draft.SpeedMode" ValueChanged="ChangeMode" SelectionMode="SelectionMode.SingleSelection" Disabled="Disabled">
+        <MudToggleItem Value="false" Text="@L["Duration"]" />
+        <MudToggleItem Value="true" Text="@L["Speed"]" />
+    </MudToggleGroup>
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudTextField T="string" Value="Draft.LowerText" ValueChanged="Draft.SetLower" Immediate="true" Disabled="Disabled"
+                          Label="@(Draft.SpeedMode ? L["MinimumSpeedInUnit", Draft.Settings.SpeedUnit] : L["ThresholdMinimumDuration"])"
+                          Error="@(!Draft.LowerValid)" ErrorText="@L["ThresholdInputInvalid"]" />
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudTextField T="string" Value="Draft.UpperText" ValueChanged="Draft.SetUpper" Immediate="true" Disabled="Disabled"
+                          Label="@(Draft.SpeedMode ? L["MaximumSpeedInUnit", Draft.Settings.SpeedUnit] : L["ThresholdMaximumDuration"])"
+                          Error="@(!Draft.UpperValid)" ErrorText="@L["ThresholdInputInvalid"]" />
+        </MudItem>
+    </MudGrid>
+    <MudText Typo="Typo.body2">@L["ThresholdPrecisionHelp", Draft.Settings.NumberCulture.NumberFormat.NumberDecimalSeparator]</MudText>
+    @if (Draft.LowerValid && Draft.UpperValid)
+    {
+        <MudText Typo="Typo.body2">@L["RequestedThresholdRange"]: @Range(Draft.Minimum, Draft.Maximum, Local)</MudText>
+        @if (Local)
+        {
+            <MudText Typo="Typo.body2">@L["GlobalThresholdRange"]: @Range(GlobalMinimum, GlobalMaximum)</MudText>
+        }
+        <MudText Typo="Typo.body2" aria-live="polite">@L["EffectiveThresholdRange"]: @Range(Effective.Minimum, Effective.Maximum)</MudText>
+        @if (Clamped)
+        {
+            <MudAlert Severity="Severity.Warning">@L["ThresholdClamped"]</MudAlert>
+        }
+        @if (!Draft.IsValid || !StatisticsThresholdDraft.ValidRange(Effective.Minimum, Effective.Maximum))
+        {
+            <MudAlert Severity="Severity.Error">@L["ThresholdRangeInvalid"]</MudAlert>
+        }
+    }
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired] public StatisticsThresholdDraft Draft { get; set; } = default!;
+    [Parameter] public double Distance { get; set; }
+    [Parameter] public bool Local { get; set; }
+    [Parameter] public TimeSpan? GlobalMinimum { get; set; }
+    [Parameter] public TimeSpan? GlobalMaximum { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    private (TimeSpan? Minimum, TimeSpan? Maximum) Effective => StatisticsThresholdDraft.Effective(GlobalMinimum, GlobalMaximum, Draft.Minimum, Draft.Maximum);
+    private bool Clamped => Local && ((Draft.Minimum.HasValue && GlobalMinimum.HasValue && Draft.Minimum < GlobalMinimum) ||
+                                     (Draft.Maximum.HasValue && GlobalMaximum.HasValue && Draft.Maximum > GlobalMaximum));
+    protected override void OnParametersSet() => Draft.ChangeDistance(Distance);
+    private void ChangeMode(bool speed) => Draft.ChangeMode(speed);
+    private string Range(TimeSpan? min, TimeSpan? max, bool inherited = false) =>
+        $"{L["ThresholdDurationRange", Bound(min, inherited), Bound(max, inherited)]}; {L["ThresholdSpeedRange", Speed(max, inherited), Speed(min, inherited)]}";
+    private string Bound(TimeSpan? value, bool inherited) => value.HasValue ? Draft.DurationText(value) : L[inherited ? "ThresholdInherited" : "ThresholdUnbounded"].Value;
+    private string Speed(TimeSpan? value, bool inherited) => !value.HasValue ? L[inherited ? "ThresholdInherited" : "ThresholdUnbounded"].Value :
+        string.IsNullOrEmpty(Draft.SpeedText(value)) ? L["ThresholdDistanceRequired"].Value : $"{Draft.SpeedText(value)} {Draft.Settings.SpeedUnit}";
+}

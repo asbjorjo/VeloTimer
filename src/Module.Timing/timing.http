@@ -1,0 +1,38 @@
+@VeloTime.Api_HostAddress = http://localhost:5101
+
+# @name timingsystem
+POST {{VeloTime.Api_HostAddress}}/api/timing/timingsystem
+Content-Type: application/json
+{
+  "Name": "mylaps_x2"
+}
+
+###
+# @name installation
+POST {{VeloTime.Api_HostAddress}}/api/timing/installation
+Content-Type: application/json
+{
+  "Facility": "18BE1ABB-BFED-4773-864E-CF3F79EEBE4D",
+  "TimingSystem": {
+    "Id": "{{timingsystem.response.body.$.id}}"
+  },   
+  "Description": "Sola Arena",
+  "TimingPoints": [{
+    "SystemId": "1",
+    "Description": "Start/Finish"
+  },
+  {
+    "SystemId": "1",
+    "Description": "Red"
+  }]
+}
+
+###
+GET {{VeloTime.Api_HostAddress}}/api/timing/timingsystem
+###
+GET {{VeloTime.Api_HostAddress}}/api/timing/installation
+
+###
+DELETE {{VeloTime.Api_HostAddress}}/api/timing/timingsystem/{{installation.response.body.$.timingsystem.id}}
+###
+DELETE {{VeloTime.Api_HostAddress}}/api/timing/installation/{{installation.response.body.$.id}}

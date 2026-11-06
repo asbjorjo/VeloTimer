@@ -1,0 +1,15 @@
+.app-bar-language-selector ::deep .mud-input-label,
+.app-bar-language-selector ::deep .mud-select-input,
+.app-bar-language-selector ::deep .mud-input-adornment,
+.app-bar-language-selector ::deep .mud-icon-root {
+    color: white;
+}
+
+.app-bar-language-selector ::deep .mud-input-outlined-border {
+    border-color: rgba(255, 255, 255, 0.7);
+}
+
+.app-bar-language-selector ::deep .mud-input-label,
+.app-bar-language-selector ::deep .mud-select-input {
+    font-size: 0.75rem;
+}

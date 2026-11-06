@@ -1,0 +1,6 @@
+@VeloTime.Api_HostAddress = http://localhost:5101
+
+@api_base = {{VeloTime.Api_HostAddress}}/api/facilities
+
+###
+GET {{api_base}}/facility/844867e8-95ab-46be-8efd-5cc7c90138d8

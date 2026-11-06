@@ -1,0 +1,635 @@
+openapi: 3.0.3
+info:
+  title: VeloTime Facilities API — temporal timing-point associations
+  version: 1.0.0
+  description: |
+    Contract for time-bound coursepoint/timingpoint association lookups and edits.
+    This document fixes request, response, and event shapes for implementation.
+    Existing read DTO JSON shapes and the immediate timing-link operation are unchanged.
+servers:
+  - url: /
+paths:
+  /api/facilities/coursepoint/{id}:
+    get:
+      operationId: Coursepoint
+      summary: Get a coursepoint and its timing-point association as of an instant
+      description: |
+        An omitted `at` means the current association at one UTC instant captured once for this
+        read. The response retains the existing CoursePointDTO JSON shape. An existing but
+        unlinked coursepoint returns 200 with `timingPointId: null`.
+      parameters:
+        - $ref: '#/components/parameters/CoursePointId'
+        - $ref: '#/components/parameters/At'
+      responses:
+        '200':
+          description: Existing coursepoint; timingPointId can be null.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoursePointDTO'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+  /api/facilities/timingpoint/{id}:
+    get:
+      operationId: Timingpoint
+      summary: Find the coursepoint associated with a timing point as of an instant
+      description: |
+        An omitted `at` means the current association at one UTC instant captured once for this
+        read. An unassociated timing point returns 404. The response retains the existing
+        CoursePointDTO JSON shape.
+      parameters:
+        - $ref: '#/components/parameters/TimingPointId'
+        - $ref: '#/components/parameters/At'
+      responses:
+        '200':
+          description: Coursepoint currently associated with the timing point.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoursePointDTO'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+  /api/facilities/layouts/{id}:
+    get:
+      operationId: Layouts
+      summary: Get a layout with all point associations resolved at one instant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/At'
+      description: |
+        An omitted `at` means current associations at one UTC instant captured once for the
+        complete layout projection. Nested CoursePointDTO objects keep their existing JSON shape.
+      responses:
+        '200':
+          description: Course layout.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseLayoutDTO'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+  /api/facilities/facility/{id}/layouts:
+    get:
+      operationId: LayoutsAll
+      summary: Get facility layouts with all point associations resolved at one instant
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/At'
+      description: |
+        An omitted `at` means current associations at one UTC instant captured once for all
+        returned layouts. Nested CoursePointDTO objects keep their existing JSON shape.
+      responses:
+        '200':
+          description: Facility course layouts.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CourseLayoutDTO'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+  /api/facilities/coursepoint/{start}/distance/{end}:
+    get:
+      operationId: Distance
+      summary: Get distance between coursepoints
+      parameters:
+        - name: start
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: end
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      description: |
+        Coursepoint IDs identify fixed geometry and are independent of timing associations.
+        Incompatible facilities or course paths are rejected rather than returning a
+        success-shaped fallback.
+      responses:
+        '200':
+          description: Distance in metres.
+          content:
+            application/json:
+              schema:
+                type: number
+                format: double
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/IncompatibleCoursePath'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+  /api/facilities/timingpoint/{start}/distance/{end}:
+    get:
+      operationId: Distance2
+      summary: Resolve each timing point at its own instant and return course distance
+      parameters:
+        - name: start
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: end
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/StartAt'
+        - $ref: '#/components/parameters/EndAt'
+      description: |
+        `startAt` resolves the start timing point and `endAt` resolves the end timing point.
+        Each omitted value independently defaults to the same single UTC `now` captured for
+        the request. This supports a sample spanning a reassignment. Unassociated timing points
+        return 404; incompatible facilities or course paths return 422.
+      responses:
+        '200':
+          description: Resolved endpoints and course distance in metres.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoursePointDistance'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/IncompatibleCoursePath'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+  /api/facilities/coursepoint/{id}/timing-link:
+    put:
+      operationId: SetCoursePointTimingLink
+      summary: Set or clear the immediate coursepoint timing link (legacy-compatible)
+      security:
+        - bearerAuth: []
+      description: |
+        Preserves the existing immediate link/unlink contract and CoursePointDTO response.
+        This operation has no effective-time fields: omitted effective time means server UTC
+        now, never an unbounded interval. Use timing-association for explicit interval edits.
+      parameters:
+        - $ref: '#/components/parameters/CoursePointId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetCoursePointTimingLinkRequest'
+      responses:
+        '200':
+          description: Updated coursepoint with the existing JSON shape.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoursePointDTO'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/facilities/coursepoint/{id}/timing-associations:
+    get:
+      operationId: GetCoursePointTimingAssociations
+      summary: List a coursepoint's effective association history and schedule
+      security:
+        - bearerAuth: []
+      description: |
+        Requires the existing AdministrationAuthorization.TimingLinkPolicy
+        (CoursePointTimingLink.Write): an authenticated caller with velotime.admin or
+        coursepoint-timing-link.write permission. Authorize before checking resource existence.
+
+        Returns all existing association intervals for this coursepoint, including past,
+        current, and scheduled future intervals, from one consistent read. There is no `at`
+        filter or pagination. Each CoursePointTimingAssociationSnapshot contains the complete
+        association interval, not a clipped affected slice. Finite bounds are UTC DateTimeOffset
+        instants serialized with a zero offset (Z or +00:00). Intervals are half-open
+        [validFromUtc, validToUtc): null validFromUtc means negative infinity and null validToUtc
+        means positive infinity, never omitted/default-now.
+
+        Sort by validFromUtc ascending with null first, then validToUtc ascending with null last.
+        Gaps mean no association; no synthetic unlinked snapshots are returned. An existing
+        coursepoint with no intervals returns 200 with an empty array. This is effective mapping
+        history and schedule, not audit history: superseded revisions, edit timestamps, and
+        actors are not returned. Admins can display scheduled/historical intervals separately
+        from the current mapping obtained through the existing as-of coursepoint read.
+      parameters:
+        - $ref: '#/components/parameters/CoursePointId'
+      responses:
+        '200':
+          description: All complete association intervals, or an empty array for an existing coursepoint with none.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CoursePointTimingAssociationSnapshot'
+        '404':
+          description: The coursepoint does not exist; no response body.
+        '401':
+          description: Authentication is required; no response body.
+        '403':
+          description: Caller lacks the existing timing-link admin permission; no response body.
+  /api/facilities/coursepoint/{id}/timing-association:
+    put:
+      operationId: SetCoursePointTimingAssociation
+      summary: Set or clear a coursepoint timing association over an explicit interval
+      security:
+        - bearerAuth: []
+      description: |
+        Edits the half-open interval `[validFromUtc, validToUtc)`. Both bound properties are
+        required in JSON, including when null: null `validFromUtc` is negative infinity and
+        null `validToUtc` is positive infinity. Finite bounds require start < end. Values must
+        be RFC 3339 date-times with an explicit offset and are compared as normalized UTC
+        instants at persisted timestamp precision. A null
+        `timingPointId` unlinks only over the requested interval.
+
+        A non-null timingPointId must exist and belong to the same facility as the coursepoint;
+        invalid intervals, missing timing-point references, and facility mismatches return 400.
+        A missing coursepoint returns 404.
+
+        If the requested timing point is occupied anywhere within that interval, no change is
+        made. Return a 409 preview containing every affected destination interval, the exact
+        overlap, and a state-bound `confirmationToken`. To confirm, repeat the identical PUT
+        body with that token. The server revalidates the token and conflicts atomically; a stale
+        token returns a fresh 409 preview and requires a new confirmation. The token is not a
+        force flag and is valid only for the exact proposed edit and conflict state.
+
+        A successful effective change returns its ChangeId and complete effective deltas.
+        An effective no-op returns an empty Changes list and null ChangeId and creates no
+        logical change event.
+      parameters:
+        - $ref: '#/components/parameters/CoursePointId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetCoursePointTimingAssociationRequest'
+      responses:
+        '200':
+          description: Applied interval edit or effective no-op.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetCoursePointTimingAssociationResponse'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Destination occupied or confirmation token stale; no edit is applied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimingAssociationConflictPreview'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    CoursePointId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TimingPointId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    At:
+      name: at
+      in: query
+      required: false
+      description: RFC 3339 instant with explicit offset; omitted means one captured UTC now.
+      schema:
+        type: string
+        format: date-time
+    StartAt:
+      name: startAt
+      in: query
+      required: false
+      description: Start endpoint as-of instant; omission uses the request's captured UTC now.
+      schema:
+        type: string
+        format: date-time
+    EndAt:
+      name: endAt
+      in: query
+      required: false
+      description: End endpoint as-of instant; omission uses the request's captured UTC now.
+      schema:
+        type: string
+        format: date-time
+  responses:
+    InvalidRequest:
+      description: Invalid instant, malformed input, or finite interval with start >= end.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFound:
+      description: Requested resource is missing or a timing point has no association at the requested instant.
+    Conflict:
+      description: Existing immediate link conflict.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    IncompatibleCoursePath:
+      description: Endpoints do not belong to one compatible facility/course path.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    Unauthorized:
+      description: Authentication is required.
+    Forbidden:
+      description: Caller lacks the existing Facilities timing-link write permission.
+  schemas:
+    CoursePointDTO:
+      type: object
+      description: Existing response shape; temporal queries do not add fields.
+      required: [id, name, timingPointId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        timingPointId:
+          type: string
+          format: uuid
+          nullable: true
+    SegmentDTO:
+      type: object
+      required: [id, order, start, end, length]
+      properties:
+        id:
+          type: string
+          format: uuid
+        order:
+          type: integer
+          format: int32
+        start:
+          $ref: '#/components/schemas/CoursePointDTO'
+        end:
+          $ref: '#/components/schemas/CoursePointDTO'
+        length:
+          type: number
+          format: double
+          description: Length in metres.
+    CourseLayoutDTO:
+      type: object
+      required: [id, facilityId, segments]
+      properties:
+        id:
+          type: string
+          format: uuid
+        facilityId:
+          type: string
+          format: uuid
+        segments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SegmentDTO'
+    CoursePointDistance:
+      type: object
+      required: [coursePointStartId, coursePointEndId, distance, facilityId]
+      properties:
+        coursePointStartId:
+          type: string
+          format: uuid
+        coursePointEndId:
+          type: string
+          format: uuid
+        distance:
+          type: number
+          format: double
+          description: Distance in metres.
+        facilityId:
+          type: string
+          format: uuid
+    SetCoursePointTimingLinkRequest:
+      type: object
+      required: [timingPointId]
+      properties:
+        timingPointId:
+          type: string
+          format: uuid
+          nullable: true
+    SetCoursePointTimingAssociationRequest:
+      type: object
+      required: [timingPointId, validFromUtc, validToUtc]
+      properties:
+        timingPointId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Null unlinks only during the requested interval.
+        validFromUtc:
+          type: string
+          format: date-time
+          nullable: true
+          description: Inclusive UTC lower bound; null is negative infinity. Property is required.
+        validToUtc:
+          type: string
+          format: date-time
+          nullable: true
+          description: Exclusive UTC upper bound; null is positive infinity. Property is required.
+        confirmationToken:
+          type: string
+          nullable: true
+          description: Omit or set null for an unconfirmed request; echo an exact 409 token to confirm.
+    CoursePointTimingAssociationSnapshot:
+      type: object
+      required: [timingPointId, coursePointId, validFromUtc, validToUtc]
+      properties:
+        timingPointId:
+          type: string
+          format: uuid
+        coursePointId:
+          type: string
+          format: uuid
+        validFromUtc:
+          type: string
+          format: date-time
+          nullable: true
+          description: Inclusive bound of the affected mapping slice; null is negative infinity.
+        validToUtc:
+          type: string
+          format: date-time
+          nullable: true
+          description: Exclusive bound of the affected mapping slice; null is positive infinity.
+    CoursePointTimingAssociationChange:
+      type: object
+      required: [before, after]
+      properties:
+        before:
+          allOf:
+            - $ref: '#/components/schemas/CoursePointTimingAssociationSnapshot'
+          nullable: true
+          description: Mapping slice before the atomic edit, or null if none.
+        after:
+          allOf:
+            - $ref: '#/components/schemas/CoursePointTimingAssociationSnapshot'
+          nullable: true
+          description: Mapping slice after the atomic edit, or null if none.
+    SetCoursePointTimingAssociationResponse:
+      type: object
+      required: [changeId, changes]
+      properties:
+        changeId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Stable revision identity; null for an effective no-op.
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CoursePointTimingAssociationChange'
+    TimingAssociationRequestedChange:
+      type: object
+      required: [coursePointId, timingPointId, validFromUtc, validToUtc]
+      properties:
+        coursePointId:
+          type: string
+          format: uuid
+        timingPointId:
+          type: string
+          format: uuid
+          nullable: true
+        validFromUtc:
+          type: string
+          format: date-time
+          nullable: true
+        validToUtc:
+          type: string
+          format: date-time
+          nullable: true
+    TimingAssociationDestinationConflict:
+      type: object
+      required: [association, overlapValidFromUtc, overlapValidToUtc]
+      properties:
+        association:
+          $ref: '#/components/schemas/CoursePointTimingAssociationSnapshot'
+        overlapValidFromUtc:
+          type: string
+          format: date-time
+          nullable: true
+          description: Inclusive exact intersection; null is negative infinity.
+        overlapValidToUtc:
+          type: string
+          format: date-time
+          nullable: true
+          description: Exclusive exact intersection; null is positive infinity.
+    TimingAssociationConflictPreview:
+      type: object
+      required: [code, requested, conflicts, confirmationToken]
+      properties:
+        code:
+          type: string
+          enum: [destination-occupied, confirmation-stale]
+        requested:
+          $ref: '#/components/schemas/TimingAssociationRequestedChange'
+        conflicts:
+          type: array
+          description: All currently occupied destination intervals and their exact intersections.
+          items:
+            $ref: '#/components/schemas/TimingAssociationDestinationConflict'
+        confirmationToken:
+          type: string
+          description: Opaque token bound to the exact request and conflict revision.
+    ProblemDetails:
+      type: object
+      description: RFC 7807 problem response.
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+    CoursePointTimingAssociationsChangedV1:
+      type: object
+      description: |
+        Facilities-owned version 1 integration event. EventId deduplicates delivery;
+        ChangeId is the stable atomic mapping revision. OccurredAtUtc is a UTC DateTimeOffset
+        serialized with a zero offset (Z or +00:00). Changes contains every affected mapping delta, including source
+        removal, destination displacement, unlinking, interval splitting, and restoration.
+        Before/After snapshots are sliced to the exact changed half-open interval; null means
+        no mapping on that side. All deltas from one transaction share this event/revision.
+        Effective no-ops and migration baseline backfill emit no event.
+      required: [eventId, changeId, occurredAtUtc, facilityId, changes]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        changeId:
+          type: string
+          format: uuid
+        occurredAtUtc:
+          type: string
+          format: date-time
+          description: UTC instant with a zero offset (Z or +00:00).
+        facilityId:
+          type: string
+          format: uuid
+        changes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CoursePointTimingAssociationChange'
+x-messaging-contracts:
+  - name: CoursePointTimingAssociationsChangedV1
+    owner: Facilities
+    consumer-guidance: |
+      A future Statistics recalculation consumer deduplicates by EventId, tolerates reordered
+      delivery, uses affected timing-point IDs and event-time windows to find impacted samples,
+      matches either endpoint independently, and reconciles against authoritative Facilities
+      mappings instead of applying stale snapshots as current state. This contract does not
+      imply a recalculation consumer or durable publication implementation.

@@ -1,0 +1,130 @@
+﻿using Duende.AccessTokenManagement;
+using OpenTelemetry.Trace;
+using SlimMessageBus.Host;
+using SlimMessageBus.Host.AzureServiceBus;
+using SlimMessageBus.Host.Serialization.SystemTextJson;
+using VeloTime.Module.Statistics;
+using VeloTime.Module.Statistics.Handlers;
+using VeloTime.Module.Statistics.Interface.Messages;
+using VeloTime.Module.Statistics.Service;
+using VeloTime.Module.Timing.Interface.Messages;
+
+internal static class StartupExtensions
+{
+    internal static IHostApplicationBuilder AddServices(this IHostApplicationBuilder builder)
+    {
+        var services = builder.Services;
+        var configuration = builder.Configuration;
+
+        var env = builder.Environment;
+
+        services.ConfigureOpenTelemetryTracerProvider(tracer =>
+        {
+            tracer.AddSource("Azure.Messaging.*");
+        });
+
+        services.AddSlimMessageBus(mbb =>
+        {
+            mbb.WithProviderServiceBus(options =>
+            {
+                options.ConnectionString = configuration.GetConnectionString("MessageBus");
+                options.MaxConcurrentSessions = 10;
+                options.SessionIdleTimeout = TimeSpan.FromSeconds(5);
+                // Topics, subscriptions and filter rules are owned by the VeloTime.MessageBus.Topology
+                // deployment job so its declared rules stay authoritative.
+                options.TopologyProvisioning.Enabled = false;
+            });
+            mbb.AddJsonSerializer();
+            mbb.WithHeaderModifier((headers, message) =>
+            {
+                headers["MessageName"] = message.GetType().Name;
+            });
+            mbb.Consume<TimingSampleComplete>(x => x
+                .Topic("velotime-timing")
+                .SubscriptionName("statistics")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(TimingSampleComplete)}'")
+                .WithConsumer<TimingSampleHandler>()
+                .Instances(1)
+                .EnableSession(s =>
+                {
+                    //s.MaxConcurrentSessions(1);
+                }));
+            mbb.Consume<TransponderOwnershipChanged>(x => x
+                .Topic("velotime-timing")
+                .SubscriptionName("statistics")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(TransponderOwnershipChanged)}'")
+                .WithConsumer<TransponderOwnershipChangedHandler>()
+                .Instances(1)
+                .EnableSession());
+            mbb.Consume<EntryCreated>(x => x
+                .Topic("velotime-statistics")
+                .SubscriptionName("statistics")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(EntryCreated)}'")
+                .WithConsumer<EntryCreatedHandler>()
+                .WhenUndeclaredMessageTypeArrives(opts =>
+                {
+                    opts.Fail = false;
+                    opts.Log = true;
+                })
+                .Instances(1)
+                .EnableSession(s =>
+                {
+                    //s.MaxConcurrentSessions(1);
+                }));
+            mbb.Consume<SampleComplete>(x => x
+                .Topic("velotime-statistics")
+                .SubscriptionName("statistics")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(SampleComplete)}'")
+                .WithConsumer<SampleCompleteHandler>()
+                .Instances(1)
+                .EnableSession(s =>
+                {
+                    //s.MaxConcurrentSessions(1);
+                }));
+            // Wake-up only: durable job rows are the source of work. Dedicated filtered subscription so the
+            // existing session-enabled "statistics" consumers never receive threshold events.
+            mbb.Consume<StatisticsValidityThresholdsChangedV1>(x => x
+                .Topic("velotime-statistics")
+                .SubscriptionName("statistics-validity")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(StatisticsValidityThresholdsChangedV1)}'")
+                .WithConsumer<StatisticsValidityThresholdsChangedHandler>()
+                .Instances(1));
+            mbb.Produce<EntryCreated>(x => x
+                .DefaultTopic("velotime-statistics")
+                .WithModifier((message, sbMessage) =>
+                {
+                    sbMessage.SessionId = message.TransponderId.ToString();
+                }));
+            mbb.Produce<SampleComplete>(x => x
+                .DefaultTopic("velotime-statistics")
+                .WithModifier((message, sbMessage) =>
+                {
+                    sbMessage.SessionId = message.TransponderId.ToString();
+                }));
+            mbb.AddServicesFromAssemblyContaining<TimingSampleHandler>();
+        });
+
+        builder.AddModuleIdentity("velotime.statistics.processor");
+
+        services.AddTimingClient()
+            .AddDefaultAccessTokenResiliency()
+            .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("velotime.statistics.processor"));
+        services.AddScoped<ITransponderOwnershipReader, TransponderOwnershipReader>();
+        services.AddScoped<StatisticsOwnershipService>();
+        services.AddOptions<StatisticsRevalidationOptions>()
+            .Bind(configuration.GetSection(StatisticsRevalidationOptions.Section))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<StatisticsRevalidationSignal>();
+        services.AddScoped<StatisticsRevalidationService>();
+        services.AddHostedService<StatisticsRevalidationWorker>();
+
+        services.AddFacilitiesClient()
+            .AddDefaultAccessTokenResiliency()
+            .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("velotime.statistics.processor"));
+
+        builder.AddModuleStatistics();
+
+        return builder;
+    }
+}

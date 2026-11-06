@@ -1,0 +1,36 @@
+dependencies:
+- name: module-facilities-api
+  repository: file://charts/module-facilities-api
+  version: 0.2.0
+- name: module-statistics-api
+  repository: file://charts/module-statistics-api
+  version: 0.2.0
+- name: module-timing-api
+  repository: file://charts/module-timing-api
+  version: 0.2.0
+- name: module-profiles-api
+  repository: file://charts/module-profiles-api
+  version: 0.2.1
+- name: module-notifications-api
+  repository: file://charts/module-notifications-api
+  version: 0.1.0
+- name: module-notifications-processor
+  repository: file://charts/module-notifications-processor
+  version: 0.1.0
+- name: module-statistics-processor
+  repository: file://charts/module-statistics-processor
+  version: 0.2.0
+- name: module-timing-processor
+  repository: file://charts/module-timing-processor
+  version: 0.2.0
+- name: webui
+  repository: file://charts/webui
+  version: 0.1.5
+- name: valkey
+  repository: https://valkey.io/valkey-helm/
+  version: 0.7.6
+- name: velotime-library
+  repository: file://../velotime-library
+  version: 0.2.0
+digest: sha256:bb68e65b470c6652be03fd1e4aee6f9d57aeaa44539a1d5a00b3fa3874869e2a
+generated: "2026-11-06T10:19:15.571837168Z"

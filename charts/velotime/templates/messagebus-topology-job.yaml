@@ -1,0 +1,81 @@
+{{- if .Values.messageBusTopology.enabled -}}
+{{- $root := . -}}
+{{- $settings := .Values.messageBusTopology -}}
+{{- $secretName := required "messageBusTopology.existingSecret.name is required: a preexisting Secret holding a Service Bus connection string with Manage rights" $settings.existingSecret.name -}}
+{{- $secretKey := required "messageBusTopology.existingSecret.key is required" $settings.existingSecret.key -}}
+{{- if not $settings.topics -}}
+  {{- fail "messageBusTopology.topics must declare at least one topic; set messageBusTopology.enabled=false to manage topology elsewhere" -}}
+{{- end -}}
+{{- $prefix := .Release.Name -}}
+{{- if gt (len $prefix) 40 -}}
+  {{- $prefix = printf "%s-%s" ($prefix | trunc 31 | trimSuffix "-") ($prefix | sha256sum | trunc 8) -}}
+{{- end -}}
+{{- $name := printf "%s-messagebus-topology" $prefix }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "velotime.labels" $root | nindent 4 }}
+    velotime.io/messagebus-topology: "true"
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-20"
+    helm.sh/hook-delete-policy: before-hook-creation
+data:
+  topology.json: |
+    {{- dict "MessageBusTopology" (dict "Topics" $settings.topics) | toPrettyJson | nindent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "velotime.labels" $root | nindent 4 }}
+    velotime.io/messagebus-topology: "true"
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    # After hook configuration (-20), before the schema migration Jobs (0..3).
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ $settings.backoffLimit }}
+  activeDeadlineSeconds: {{ $settings.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        {{- include "velotime.selectorLabels" $root | nindent 8 }}
+        velotime.io/messagebus-topology: "true"
+    spec:
+      restartPolicy: Never
+      {{- with $root.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: messagebus-topology
+          image: "{{ $root.Values.global.image.repository }}velotime-messagebus-topology:{{ $root.Values.global.image.tag }}"
+          imagePullPolicy: {{ $settings.image.pullPolicy }}
+          env:
+            - name: MessageBusTopologyFile
+              value: /config/topology.json
+            - name: ConnectionStrings__MessageBusManagement
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secretName | quote }}
+                  key: {{ $secretKey | quote }}
+          volumeMounts:
+            - name: topology
+              mountPath: /config
+              readOnly: true
+          resources:
+            requests:
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: topology
+          configMap:
+            name: {{ $name }}
+{{- end -}}

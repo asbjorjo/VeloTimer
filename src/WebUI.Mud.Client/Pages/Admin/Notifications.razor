@@ -1,0 +1,240 @@
+@page "/admin/notifications"
+@attribute [Authorize(Policy = "Notifications.Admin")]
+@using VeloTime.Module.Notifications.Interface
+@using VeloTime.Module.Notifications.Interface.Data
+@inherits PresentationComponentBase
+@inject INotificationsService Notices
+@inject UnsavedChangesTracker Unsaved
+@inject NotificationUiState UiState
+@implements IDisposable
+
+<PageTitle>@L["Notifications"]</PageTitle>
+<MudText Typo="Typo.h4">@L["Notifications"]</MudText>
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error" role="alert">@L[_error]</MudAlert>
+    <MudButton OnClick="Load" Disabled="_busy">@L["Retry"]</MudButton>
+    @if (_editing is not null) { <MudButton OnClick="ReloadEditor" Disabled="_busy">@L["NotificationsReloadEditor"]</MudButton> }
+}
+@if (_status is not null) { <MudText role="status">@L[_status]</MudText> }
+@if (_busy) { <MudProgressLinear Indeterminate="true" aria-label="@L["NotificationsLoading"]" /> }
+<MudButton OnClick="New" Disabled="_busy || _editorOpen" Variant="Variant.Filled">@L["NotificationsCreate"]</MudButton>
+<MudButton OnClick="Load" Disabled="_busy">@L["NotificationsRefreshList"]</MudButton>
+@if (_loaded && !_busy && _items.Count == 0 && _error is null) { <MudText role="status">@L["NotificationsEmpty"]</MudText> }
+@foreach (var notice in _items)
+{
+    <MudPaper Class="pa-3 my-2" @key="notice.Id">
+        <MudText Typo="Typo.subtitle1">@NotificationLabels.Text(notice.Content).Title</MudText>
+        <MudText>@L["Notifications" + notice.Severity] · @L["NotificationsAudience" + notice.Audience.Kind]</MudText>
+        <MudText>@Display.Timestamp(notice.StartsAtUtc) — @Display.Timestamp(notice.EndsAtUtc)</MudText>
+        <MudButton OnClick="() => Edit(notice)" Disabled="_busy || _editorOpen">@L["Edit"]</MudButton>
+        @if (_ending == notice.Id)
+        {
+            <MudText role="alert">@L["NotificationsConfirmEnd"]</MudText>
+            <MudButton OnClick="() => End(notice)" Disabled="_busy" Color="Color.Error">@L["NotificationsEnd"]</MudButton>
+            <MudButton OnClick="() => _ending = null" Disabled="_busy">@L["Cancel"]</MudButton>
+        }
+        else { <MudButton OnClick="() => _ending = notice.Id" Disabled="_busy || _editorOpen">@L["NotificationsEnd"]</MudButton> }
+    </MudPaper>
+}
+@if (_editorOpen)
+{
+    <MudPaper Class="pa-4 my-4">
+        <MudText Typo="Typo.h5">@L[_editing is null ? "NotificationsCreate" : "Edit"]</MudText>
+        <MudText>@L["NotificationsPlainText"]</MudText>
+        <MudForm @ref="_form">
+            <MudTextField T="string" @bind-Value="_enTitle" Label="@L["NotificationsTitleEn"]" Required="true" RequiredError="@L["RequiredError"]" MaxLength="200" Disabled="_busy" />
+            <MudTextField T="string" @bind-Value="_enBody" Label="@L["NotificationsBodyEn"]" Required="true" RequiredError="@L["RequiredError"]" MaxLength="4000" Lines="3" Disabled="_busy" />
+            <MudTextField T="string" @bind-Value="_nbTitle" Label="@L["NotificationsTitleNb"]" Required="true" RequiredError="@L["RequiredError"]" MaxLength="200" Disabled="_busy" />
+            <MudTextField T="string" @bind-Value="_nbBody" Label="@L["NotificationsBodyNb"]" Required="true" RequiredError="@L["RequiredError"]" MaxLength="4000" Lines="3" Disabled="_busy" />
+            <MudSelect T="NotificationSeverity" Value="_severity" ValueChanged="SeverityChanged" Label="@L["NotificationsSeverity"]" Disabled="_busy">
+                @foreach (var value in Enum.GetValues<NotificationSeverity>()) { <MudSelectItem Value="value">@L["Notifications" + value]</MudSelectItem> }
+            </MudSelect>
+            <MudSelect T="NotificationAudienceKind" @bind-Value="_audience" Label="@L["NotificationsAudience"]" Disabled="_busy">
+                @foreach (var value in Enum.GetValues<NotificationAudienceKind>()) { <MudSelectItem Value="value">@L["NotificationsAudience" + value]</MudSelectItem> }
+            </MudSelect>
+            @if (_audience == NotificationAudienceKind.Role) { <MudTextField T="string" @bind-Value="_role" Label="@L["NotificationsRole"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy" /> }
+            @if (_audience == NotificationAudienceKind.User)
+            {
+                <MudTextField T="string" @bind-Value="_issuer" Label="@L["NotificationsRecipientIssuer"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy" />
+                <MudTextField T="string" @bind-Value="_subject" Label="@L["NotificationsRecipientSubject"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy" />
+                <MudText>@L["NotificationsExactIdentity"]</MudText>
+            }
+            <ZonedInstantEditor Draft="_start" Label="@L["NotificationsStart"]" Disabled="_busy" />
+            <MudCheckBox T="bool" @bind-Value="_hasEnd" Label="@L["NotificationsHasEnd"]" Disabled="_busy" />
+            @if (_hasEnd) { <ZonedInstantEditor Draft="_end" Label="@L["NotificationsEndTime"]" Disabled="_busy" /> }
+            <MudText Typo="Typo.h6">@L["NotificationsPolicy"]</MudText>
+            <MudText>@L["NotificationsPolicyHelp"]</MudText>
+            <MudCheckBox T="bool" @bind-Value="_duration" Label="@L["NotificationsAllowDuration"]" Disabled="_busy" />
+            <MudCheckBox T="bool" @bind-Value="_session" Label="@L["NotificationsAllowSession"]" Disabled="_busy" />
+            <MudCheckBox T="bool" @bind-Value="_permanent" Label="@L["NotificationsAllowPermanent"]" Disabled="_busy" />
+            @if (_duration) { <MudNumericField T="int" @bind-Value="_seconds" Label="@L["NotificationsDurationSeconds"]" Min="1" Max="31536000" Required="true" Culture="Display.NumberCulture" Disabled="_busy" /> }
+            <MudSelect T="NotificationDismissalScope" @bind-Value="_default" Label="@L["NotificationsDefaultScope"]" Disabled="_busy">
+                @foreach (var scope in Allowed()) { <MudSelectItem Value="scope">@NotificationLabels.Scope(scope, _seconds, L, Display.NumberCulture)</MudSelectItem> }
+            </MudSelect>
+        </MudForm>
+        <MudButton OnClick="Save" Disabled="_busy" Variant="Variant.Filled">@L["Save"]</MudButton>
+        <MudButton OnClick="CloseEditor" Disabled="_busy">@L["Cancel"]</MudButton>
+    </MudPaper>
+}
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<NotificationAdministrationDTO> _items = [];
+    private NotificationAdministrationDTO? _editing;
+    private MudForm? _form;
+    private bool _busy, _loaded, _editorOpen, _hasEnd, _duration, _session, _permanent;
+    private Guid? _ending;
+    private string? _error, _status;
+    private string _enTitle = "", _enBody = "", _nbTitle = "", _nbBody = "", _role = "", _issuer = "", _subject = "";
+    private NotificationSeverity _severity = NotificationSeverity.Info;
+    private NotificationAudienceKind _audience = NotificationAudienceKind.Everyone;
+    private NotificationDismissalScope _default = NotificationDismissalScope.Permanent;
+    private int _seconds = 86400;
+    private ZonedInstantDraft _start = new(), _end = new();
+    private IDisposable? _dirtyRegistration;
+    private bool _disposed, _pending;
+    private int _epoch;
+    protected override void OnInitialized()
+    {
+        _dirtyRegistration = Unsaved.Register(() => _editorOpen);
+        UiState.AuthenticationChanged += AuthChanged; UiState.RefreshRequested += RefreshRequested;
+    }
+    private void AuthChanged()
+    {
+        if (UiState.Authenticated == false)
+        {
+            _epoch++; _items = []; CloseEditor(); _status = null; _error = "SignInRequired";
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+    private void RefreshRequested() { if (UiState.Authenticated != false) _ = InvokeAsync(async () => { await Load(); StateHasChanged(); }); }
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if (firstRender) { await Load(); StateHasChanged(); } }
+    private async Task Load()
+    {
+        if (_disposed) return;
+        if (_busy) { _pending = true; return; }
+        _busy = true; _error = null;
+        var epoch = _epoch;
+        try { var items = await Notices.AdministrationAsync(_lifetime.Token); if (epoch == _epoch && !_disposed) { _items = items; _loaded = true; } }
+        catch (NotificationUiException e) { Error(e); }
+        catch (OperationCanceledException) { }
+        catch (Exception) { _error = "NotificationsFailed"; }
+        finally { CompleteOperation(); }
+    }
+    private void New()
+    {
+        _editing = null; _editorOpen = true; _error = _status = null; _ending = null;
+        _enTitle = _enBody = _nbTitle = _nbBody = _role = _issuer = _subject = "";
+        _audience = NotificationAudienceKind.Everyone; _severity = NotificationSeverity.Info;
+        Defaults(); _hasEnd = false;
+        _start = ZonedInstantDraft.FromInstant(DateTimeOffset.UtcNow, Display);
+        _end = ZonedInstantDraft.FromInstant(DateTimeOffset.UtcNow.AddDays(1), Display);
+    }
+    private void Edit(NotificationAdministrationDTO notice)
+    {
+        _editing = notice; _editorOpen = true; _error = _status = null; _ending = null;
+        _enTitle = notice.Content.English.Title; _enBody = notice.Content.English.Body;
+        _nbTitle = notice.Content.NorwegianBokmal.Title; _nbBody = notice.Content.NorwegianBokmal.Body;
+        _severity = notice.Severity; _audience = notice.Audience.Kind;
+        _role = notice.Audience.Role ?? ""; _issuer = notice.Audience.RecipientIssuer ?? ""; _subject = notice.Audience.RecipientSubject ?? "";
+        _duration = notice.DismissalPolicy.AllowedScopes.Contains(NotificationDismissalScope.Duration);
+        _session = notice.DismissalPolicy.AllowedScopes.Contains(NotificationDismissalScope.Session);
+        _permanent = notice.DismissalPolicy.AllowedScopes.Contains(NotificationDismissalScope.Permanent);
+        _default = notice.DismissalPolicy.DefaultScope; _seconds = notice.DismissalPolicy.DurationSeconds ?? 86400;
+        _start = ZonedInstantDraft.FromInstant(notice.StartsAtUtc, Display); _hasEnd = notice.EndsAtUtc.HasValue;
+        _end = ZonedInstantDraft.FromInstant(notice.EndsAtUtc ?? notice.StartsAtUtc.AddDays(1), Display);
+    }
+    private void SeverityChanged(NotificationSeverity severity) { _severity = severity; if (_editing is null) Defaults(); }
+    private void Defaults()
+    {
+        _session = _permanent = true; _duration = _severity != NotificationSeverity.Info;
+        _default = _duration ? NotificationDismissalScope.Duration : NotificationDismissalScope.Permanent;
+        _seconds = _severity == NotificationSeverity.Error ? 3600 : 86400;
+    }
+    private List<NotificationDismissalScope> Allowed()
+    {
+        var scopes = new List<NotificationDismissalScope>();
+        if (_duration) scopes.Add(NotificationDismissalScope.Duration);
+        if (_session) scopes.Add(NotificationDismissalScope.Session);
+        if (_permanent) scopes.Add(NotificationDismissalScope.Permanent);
+        return scopes;
+    }
+    private async Task Save()
+    {
+        if (_busy) return;
+        await _form!.ValidateAsync();
+        if (!_form.IsValid) return;
+        _busy = true; _error = _status = null;
+        var epoch = _epoch;
+        try
+        {
+            var scopes = Allowed();
+            if (scopes.Count == 0 || !scopes.Contains(_default) || (_duration && _seconds is < 1 or > 31536000))
+                throw new PresentationValidationException("NotificationsInvalidPolicy");
+            var content = new NotificationContentDTO(new(_enTitle, _enBody), new(_nbTitle, _nbBody));
+            var audience = new NotificationAudienceDTO(_audience, _audience == NotificationAudienceKind.Role ? _role : null,
+                _audience == NotificationAudienceKind.User ? _issuer : null, _audience == NotificationAudienceKind.User ? _subject : null);
+            var start = _start.Resolve(Display);
+            DateTimeOffset? end = _hasEnd ? _end.Resolve(Display) : null;
+            if (end.HasValue && end <= start) throw new PresentationValidationException("NotificationsInvalidSchedule");
+            var policy = new NotificationDismissalPolicyDTO(scopes, _default, _duration ? _seconds : null);
+            var saved = _editing is null ?
+                await Notices.CreateAsync(new(content, _severity, audience, start, end, policy), _lifetime.Token) :
+                await Notices.UpdateAsync(_editing.Id, new(_editing.Version, content, _severity, audience, start, end, policy), _lifetime.Token);
+            if (epoch != _epoch || _disposed) return;
+            _items = _items.Where(n => n.Id != saved.Id).Append(saved).OrderBy(n => n.Id).ToList();
+            CloseEditor(); _status = "NotificationsSaved";
+        }
+        catch (NotificationUiException e) { Error(e); }
+        catch (PresentationValidationException e) { _error = e.ResourceKey; }
+        catch (OperationCanceledException) { }
+        catch (Exception) { _error = "NotificationsFailed"; }
+        finally { CompleteOperation(); }
+    }
+    private async Task ReloadEditor()
+    {
+        if (_editing is null || _busy) return;
+        _busy = true;
+        var epoch = _epoch;
+        try { var notice = await Notices.GetAsync(_editing.Id, _lifetime.Token); if (epoch == _epoch && !_disposed) Edit(notice); }
+        catch (NotificationUiException e) { Error(e); }
+        catch (OperationCanceledException) { }
+        catch (Exception) { _error = "NotificationsFailed"; }
+        finally { CompleteOperation(); }
+    }
+    private async Task End(NotificationAdministrationDTO notice)
+    {
+        if (_busy) return;
+        _busy = true; _error = _status = null;
+        var epoch = _epoch;
+        try
+        {
+            var saved = await Notices.EndAsync(notice.Id, notice.Version, _lifetime.Token);
+            if (epoch != _epoch || _disposed) return;
+            _items = _items.Select(n => n.Id == saved.Id ? saved : n).ToList();
+            _ending = null; _status = "NotificationsEnded";
+        }
+        catch (NotificationUiException e) { Error(e); }
+        catch (OperationCanceledException) { }
+        catch (Exception) { _error = "NotificationsFailed"; }
+        finally { CompleteOperation(); }
+    }
+    private void CompleteOperation()
+    {
+        _busy = false;
+        if (_pending && !_disposed) { _pending = false; RefreshRequested(); }
+    }
+    private void Error(NotificationUiException e)
+    {
+        _error = e.ResourceKey;
+        if (e.Status is 401 or 403) { _items = []; CloseEditor(); }
+    }
+    private void CloseEditor() { _editorOpen = false; _editing = null; }
+    public void Dispose()
+    {
+        _disposed = true; _epoch++;
+        UiState.AuthenticationChanged -= AuthChanged; UiState.RefreshRequested -= RefreshRequested;
+        _dirtyRegistration?.Dispose(); _lifetime.Cancel(); _lifetime.Dispose();
+    }
+}

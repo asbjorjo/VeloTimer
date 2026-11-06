@@ -1,0 +1,9 @@
+dependencies:
+- name: velotime-users-migration
+  repository: file://charts/velotime-users-migration
+  version: 0.1.0
+- name: velotime-library
+  repository: file://../velotime-library
+  version: 0.2.0
+digest: sha256:da6eb1d1097d7a5f9f8b06b29336d746e233c355bf6c574596cba472ce4161f7
+generated: "2026-10-30T21:37:40.045612448Z"

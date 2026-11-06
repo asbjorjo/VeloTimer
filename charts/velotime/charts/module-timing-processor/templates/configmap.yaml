@@ -1,0 +1,8 @@
+{{- if (.Values.global | default dict).oidcAuthority }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "velotime.fullname" . }}
+data:
+  {{- include "velotime.oidcConfig" . | nindent 2 }}
+{{- end }}
