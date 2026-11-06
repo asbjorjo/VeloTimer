@@ -60,7 +60,7 @@ class NotificationsPlatformTests(unittest.TestCase):
         self.assertIn('"VeloTime.Notifications"', hosting)
         self.assertIn("RedisXmlRepository", hosting)
 
-    def test_api_route_is_internal_by_default_and_opt_in_requires_dedicated_hostname(self):
+    def test_api_is_internal_only_even_with_legacy_http_route_opt_in(self):
         defaults = render()
         self.assertFalse(any(
             document["kind"] == "HTTPRoute"
@@ -72,21 +72,23 @@ class NotificationsPlatformTests(unittest.TestCase):
             {"type": "PathPrefix", "value": "/"},
             webui_route["spec"]["rules"][0]["matches"][0]["path"],
         )
-
-        missing_hostname = run("module-notifications-api.httpRoute.enabled=true")
-        self.assertNotEqual(0, missing_hostname.returncode)
-        self.assertIn("hostnames", missing_hostname.stderr)
+        api_service = self.named(defaults, "Service", "module-notifications-api")
+        self.assertEqual("ClusterIP", api_service["spec"]["type"])
 
         documents = render(
             "module-notifications-api.httpRoute.enabled=true",
-            "module-notifications-api.httpRoute.hostnames[0]=notifications-api.example.net",
+            "module-notifications-api.httpRoute.hostnames[0]=same.example.net",
+            "webui.httpRoute.hostnames[0]=same.example.net",
         )
-        api_route = self.named(documents, "HTTPRoute", "module-notifications-api")
-        self.assertEqual(["notifications-api.example.net"], api_route["spec"]["hostnames"])
-        self.assertEqual(
-            {"type": "PathPrefix", "value": "/api/notifications"},
-            api_route["spec"]["rules"][0]["matches"][0]["path"],
-        )
+        self.assertFalse(any(
+            document["kind"] == "HTTPRoute"
+            and document["metadata"].get("name") == "module-notifications-api"
+            for document in documents
+        ))
+        self.assertEqual("ClusterIP",
+                         self.named(documents, "Service", "module-notifications-api")["spec"]["type"])
+        self.assertEqual(["same.example.net"],
+                         self.named(documents, "HTTPRoute", "webui")["spec"]["hostnames"])
         self.assertEqual(
             {"type": "PathPrefix", "value": "/"},
             self.named(documents, "HTTPRoute", "webui")["spec"]["rules"][0]["matches"][0]["path"],

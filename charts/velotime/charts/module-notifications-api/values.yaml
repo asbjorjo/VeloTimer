@@ -27,20 +27,6 @@ migration:
 service:
   type: ClusterIP
   port: 80
-httpRoute:
-  # The API is consumed by WebUI over in-cluster service discovery. Do not
-  # publish its cookie-less routes on the browser Gateway by default.
-  enabled: false
-  parentRefs:
-    - name: gateway
-  # If explicitly enabled, route only on a dedicated API hostname that is
-  # distinct from the WebUI browser hostname.
-  hostnames: []
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /api/notifications
 global:
   image:
     repository: ghcr.io/asbjorjo/
