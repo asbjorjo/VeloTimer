@@ -36,6 +36,8 @@ public sealed class NotificationsBffTests
         Assert.True(response.Headers.CacheControl!.NoStore);
         Assert.Equal("false", Assert.Single(response.Headers.GetValues("X-VeloTime-Authenticated")));
         Assert.DoesNotContain("login", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+        Assert.False(await client.GetFromJsonAsync<bool>("/api/notifications/session"));
+        Assert.Single(((PlatformServiceTests.TestProxy)(object)api).Calls);
     }
 
     [Theory]
@@ -70,6 +72,7 @@ public sealed class NotificationsBffTests
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PutAsJsonAsync($"/api/notifications/{id}/dismissal", new DismissNotificationRequest(NotificationDismissalScope.Session))).StatusCode);
         var cookie = await SignIn(client, admin: false);
         client.DefaultRequestHeaders.Add("Cookie", cookie);
+        Assert.True(await client.GetFromJsonAsync<bool>("/api/notifications/session"));
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync($"/api/notifications/{id}/dismissal", new DismissNotificationRequest(NotificationDismissalScope.Session))).StatusCode);
         using var csrf = await client.GetAsync("/csrf");
         var requestToken = await csrf.Content.ReadFromJsonAsync<string>();

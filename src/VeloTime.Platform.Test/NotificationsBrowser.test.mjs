@@ -75,11 +75,13 @@ test("SignalR subscribes before snapshot callback, deduplicates hints and dispos
     globalThis.WebSocket = Socket;
     const dotnet = { invokeMethodAsync: async name => { calls.push(name); } };
     try {
-        await ui.subscribe(dotnet, "first");
+        assert.equal(await ui.subscribe(dotnet, "first"), true);
         assert.deepEqual(calls, ["Connected"]);
         assert.equal(new URL(sockets[0].url).protocol, "wss:");
         assert.equal(new URL(sockets[0].url).searchParams.has("access_token"), false);
         sockets[0].hint("event1"); sockets[0].hint("event1");
+        sockets[0].hint("event2"); // Unique burst hints still coalesce to one refresh.
+        await new Promise(resolve => setTimeout(resolve, 170));
         assert.deepEqual(calls, ["Connected", "Refresh"]);
         await ui.subscribe(dotnet, "second");
         assert.equal(sockets[0].readyState, 3);

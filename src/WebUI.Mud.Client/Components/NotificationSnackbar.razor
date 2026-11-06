@@ -1,0 +1,48 @@
+@using VeloTime.Module.Notifications.Interface
+@using VeloTime.Module.Notifications.Interface.Data
+@inherits PresentationComponentBase
+
+<section aria-live="polite" aria-atomic="true" style="max-width:min(32rem,80vw);white-space:pre-wrap;overflow-wrap:anywhere">
+    <MudText Typo="Typo.subtitle1">@NotificationLabels.Text(Notice.Content).Title</MudText>
+    <MudText>@NotificationLabels.Text(Notice.Content).Body</MudText>
+    @if (_error is not null) { <MudAlert Severity="Severity.Error" role="alert">@L[_error]</MudAlert> }
+    @if (Anonymous)
+    {
+        <MudButton OnClick="() => Save(Notice.DismissalPolicy.DefaultScope)" Disabled="_saving" Variant="Variant.Filled">@L["NotificationsHideTab"]</MudButton>
+    }
+    else
+    {
+        <MudButton OnClick="() => Save(Notice.DismissalPolicy.DefaultScope)" Disabled="_saving" Variant="Variant.Filled">
+            @NotificationLabels.Scope(Notice.DismissalPolicy.DefaultScope, Notice.DismissalPolicy.DurationSeconds, L, Settings.NumberCulture)
+        </MudButton>
+        @foreach (var scope in Notice.DismissalPolicy.AllowedScopes.Where(s => s != Notice.DismissalPolicy.DefaultScope))
+        {
+            <MudButton OnClick="() => Save(scope)" Disabled="_saving">
+                @NotificationLabels.Scope(scope, Notice.DismissalPolicy.DurationSeconds, L, Settings.NumberCulture)
+            </MudButton>
+        }
+    }
+    @if (_saving) { <MudText role="status">@L["NotificationsSaving"]</MudText> }
+    @if (Queued > 0) { <MudText Typo="Typo.caption">@L["NotificationsQueued", Queued.ToString("N0", Settings.NumberCulture)]</MudText> }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public NotificationPresentationDTO Notice { get; set; } = default!;
+    [Parameter] public bool Anonymous { get; set; }
+    [Parameter] public int Queued { get; set; }
+    [Parameter] public EffectiveDisplaySettings Settings { get; set; } = EffectiveDisplaySettings.Unresolved;
+    [Parameter] public Func<NotificationDismissalScope, Task> Dismiss { get; set; } = default!;
+    private bool _saving;
+    private string? _error;
+    private async Task Save(NotificationDismissalScope scope)
+    {
+        if (_saving) return;
+        _saving = true; _error = null;
+        try { await Dismiss(scope); }
+        catch (NotificationUiException e) { _error = e.ResourceKey; }
+        catch (JSException) { _error = "NotificationsStorageFailed"; }
+        catch (OperationCanceledException) { }
+        catch (Exception) { _error = "NotificationsFailed"; }
+        finally { _saving = false; }
+    }
+}

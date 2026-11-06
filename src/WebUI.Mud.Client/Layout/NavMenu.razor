@@ -10,6 +10,9 @@
 
     <AuthorizeView>
         <Authorized>
+            <AuthorizeView Policy="Notifications.Admin" Context="notificationsAccess">
+                <MudNavLink Href="admin/notifications" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Notifications">@L["Notifications"]</MudNavLink>
+            </AuthorizeView>
             <MudNavLink Href="transponders" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Sensors">@L["MyTransponders"]</MudNavLink>
             <AuthorizeView Policy="@AdministrationPolicies.Timing" Context="timingAccess">
                 <MudNavGroup Icon="@Icons.Material.Filled.Timer" Title="@L["TimingAdministration"]">

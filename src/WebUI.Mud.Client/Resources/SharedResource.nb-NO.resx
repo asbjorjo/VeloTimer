@@ -1,5 +1,74 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="NotificationsNoActive" xml:space="preserve"><value>Ingen aktive varsler.</value></data>
+  <data name="NotificationsRefreshList" xml:space="preserve"><value>Oppdater liste</value></data>
+  <data name="NotificationsSaving" xml:space="preserve"><value>Lagrer skjuling…</value></data>
+  <data name="Notifications" xml:space="preserve"><value>Varsler</value></data>
+  <data name="NotificationsLoading" xml:space="preserve"><value>Laster varsler…</value></data>
+  <data name="NotificationsFailed" xml:space="preserve"><value>Varslene kunne ikke oppdateres. Ingenting ble skjult. Prøv igjen.</value></data>
+  <data name="NotificationsRealtimeFailed" xml:space="preserve"><value>Direkteoppdateringer kobles til på nytt. Planlagte kontroller fortsetter.</value></data>
+  <data name="NotificationsStorageFailed" xml:space="preserve"><value>Fanelagring er utilgjengelig. Varselet ble ikke skjult. Aktiver øktlagring og prøv igjen.</value></data>
+  <data name="NotificationsLoginRequired" xml:space="preserve"><value>Logg ut og inn igjen for å opprette en innloggingsøkt for varsler.</value></data>
+  <data name="NotificationsNotAvailable" xml:space="preserve"><value>Dette varselet er ikke lenger tilgjengelig. Oppdater og prøv igjen.</value></data>
+  <data name="NotificationsVersionConflict" xml:space="preserve"><value>Varselet er endret. Last inn på nytt før redigering; utkastet blir forkastet.</value></data>
+  <data name="NotificationsSnapshotChanged" xml:space="preserve"><value>Varsellisten endret seg gjentatte ganger. Den forrige fullstendige listen beholdes. Prøv igjen.</value></data>
+  <data name="NotificationsInvalidContent" xml:space="preserve"><value>Oppgi tittel og innhold på begge språk (maksimalt 200 / 4000 tegn).</value></data>
+  <data name="NotificationsInvalidAudience" xml:space="preserve"><value>Oppgi nøyaktig rolle eller både utsteder og subjekt for valgt målgruppe.</value></data>
+  <data name="NotificationsInvalidSchedule" xml:space="preserve"><value>Slutten må være etter starten.</value></data>
+  <data name="NotificationsInvalidPolicy" xml:space="preserve"><value>Tillat minst ett omfang og velg en tillatt standard. Varigheten må være 1–31536000 sekunder når aktivert.</value></data>
+  <data name="NotificationsInvalidRequest" xml:space="preserve"><value>Varselforespørselen ble avvist. Kontroller verdiene og prøv igjen.</value></data>
+  <data name="NotificationsHideTab" xml:space="preserve"><value>Skjul for denne nettleserfanen</value></data>
+  <data name="NotificationsHideSession" xml:space="preserve"><value>Skjul for denne innloggingen</value></data>
+  <data name="NotificationsHidePermanent" xml:space="preserve"><value>Skjul permanent</value></data>
+  <data name="NotificationsHideDuration" xml:space="preserve"><value>Skjul i {0}</value></data>
+  <data name="NotificationsDays" xml:space="preserve"><value>{0} dag(er)</value></data>
+  <data name="NotificationsHours" xml:space="preserve"><value>{0} time(r)</value></data>
+  <data name="NotificationsSeconds" xml:space="preserve"><value>{0} sekund(er)</value></data>
+  <data name="NotificationsQueued" xml:space="preserve"><value>{0} flere varsler i kø</value></data>
+  <data name="NotificationsShowAgain" xml:space="preserve"><value>Vis varsler igjen</value></data>
+  <data name="NotificationsRestoreHelp" xml:space="preserve"><value>Kontovalg gjelder alle innloggingene dine. Valg for nåværende innlogging berører bare denne innloggingen, aldri andre.</value></data>
+  <data name="NotificationsHiddenUntil" xml:space="preserve"><value>Skjult til</value></data>
+  <data name="NotificationsRestoreAccount" xml:space="preserve"><value>Fjern skjuling for kontoen</value></data>
+  <data name="NotificationsRestoreSession" xml:space="preserve"><value>Fjern skjuling for nåværende innlogging</value></data>
+  <data name="NotificationsRestoreBoth" xml:space="preserve"><value>Fjern skjuling for konto og nåværende innlogging</value></data>
+  <data name="NotificationsRestored" xml:space="preserve"><value>Skjulingen er fjernet. Varselet er aktivt.</value></data>
+  <data name="NotificationsRestoredNotActive" xml:space="preserve"><value>Skjulingen er fjernet. Varselet er ikke aktivt nå, eller annen skjuling gjelder fortsatt.</value></data>
+  <data name="NotificationsNoDismissals" xml:space="preserve"><value>Ingen gjeldende skjuling for kontoen eller nåværende innlogging.</value></data>
+  <data name="NotificationsCreate" xml:space="preserve"><value>Opprett varsel</value></data>
+  <data name="NotificationsEmpty" xml:space="preserve"><value>Ingen varsler er opprettet.</value></data>
+  <data name="NotificationsEnd" xml:space="preserve"><value>Avslutt nå</value></data>
+  <data name="NotificationsConfirmEnd" xml:space="preserve"><value>Avslutte varselet nå? Et fremtidig varsel avbrytes uten å bli aktivt.</value></data>
+  <data name="NotificationsReloadEditor" xml:space="preserve"><value>Forkast utkast og last inn på nytt</value></data>
+  <data name="NotificationsPlainText" xml:space="preserve"><value>Kun ren tekst. En vesentlig ny melding bør være et nytt varsel, ikke gjenbruke en skjult UUID.</value></data>
+  <data name="NotificationsTitleEn" xml:space="preserve"><value>Tittel (engelsk)</value></data>
+  <data name="NotificationsBodyEn" xml:space="preserve"><value>Innhold (engelsk)</value></data>
+  <data name="NotificationsTitleNb" xml:space="preserve"><value>Tittel (norsk bokmål)</value></data>
+  <data name="NotificationsBodyNb" xml:space="preserve"><value>Innhold (norsk bokmål)</value></data>
+  <data name="NotificationsSeverity" xml:space="preserve"><value>Alvorlighetsgrad</value></data>
+  <data name="NotificationsInfo" xml:space="preserve"><value>Informasjon</value></data>
+  <data name="NotificationsWarning" xml:space="preserve"><value>Advarsel</value></data>
+  <data name="NotificationsError" xml:space="preserve"><value>Feil</value></data>
+  <data name="NotificationsAudience" xml:space="preserve"><value>Målgruppe</value></data>
+  <data name="NotificationsAudienceEveryone" xml:space="preserve"><value>Alle (også anonyme)</value></data>
+  <data name="NotificationsAudienceAuthenticated" xml:space="preserve"><value>Innloggede brukere</value></data>
+  <data name="NotificationsAudienceRole" xml:space="preserve"><value>Bestemt rolle</value></data>
+  <data name="NotificationsAudienceUser" xml:space="preserve"><value>Bestemt bruker</value></data>
+  <data name="NotificationsRole" xml:space="preserve"><value>Nøyaktig rollenavn</value></data>
+  <data name="NotificationsRecipientIssuer" xml:space="preserve"><value>Mottakerens utsteder</value></data>
+  <data name="NotificationsRecipientSubject" xml:space="preserve"><value>Mottakerens subjekt</value></data>
+  <data name="NotificationsExactIdentity" xml:space="preserve"><value>Utsteder og subjekt må samsvare nøyaktig; ikke normaliser eller fjern mellomrom.</value></data>
+  <data name="NotificationsStart" xml:space="preserve"><value>Starter</value></data>
+  <data name="NotificationsHasEnd" xml:space="preserve"><value>Angi sluttid</value></data>
+  <data name="NotificationsEndTime" xml:space="preserve"><value>Slutter</value></data>
+  <data name="NotificationsPolicy" xml:space="preserve"><value>Regler for skjuling</value></data>
+  <data name="NotificationsPolicyHelp" xml:space="preserve"><value>Standard for nye varsler: informasjon permanent, advarsel én dag, feil én time. Eksisterende regler og UUID-skjuling beholdes ved redigering. Anonyme kan alltid skjule offentlige varsler for fanen.</value></data>
+  <data name="NotificationsAllowDuration" xml:space="preserve"><value>Tillat tidsbegrenset skjuling</value></data>
+  <data name="NotificationsAllowSession" xml:space="preserve"><value>Tillat skjuling for nåværende innlogging</value></data>
+  <data name="NotificationsAllowPermanent" xml:space="preserve"><value>Tillat permanent skjuling</value></data>
+  <data name="NotificationsDurationSeconds" xml:space="preserve"><value>Skjulingsvarighet (sekunder, 1–31536000)</value></data>
+  <data name="NotificationsDefaultScope" xml:space="preserve"><value>Standard skjulingshandling</value></data>
+  <data name="NotificationsSaved" xml:space="preserve"><value>Varselet er lagret.</value></data>
+  <data name="NotificationsEnded" xml:space="preserve"><value>Varselet er avsluttet.</value></data>
   <data name="HallOfFame" xml:space="preserve"><value>Æresgalleri</value></data>
   <data name="HallOfFameDescription" xml:space="preserve"><value>De ti beste offentlige profilene gjennom tidene. Bare gyldige resultater teller.</value></data>
   <data name="HallOfFameLap" xml:space="preserve"><value>Runde</value></data>

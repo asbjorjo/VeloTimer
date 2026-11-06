@@ -15,6 +15,11 @@ issuer, `OIDC_AUDIENCE`, lifetime and the protected ticket's exact issuer/subjec
 then uses the shared RSA-PSS signer. The assertion is capped by ticket expiry.
 Incoming assertion headers are stripped. No login ID/assertion/key reaches browser
 DTOs, JS, URLs, logging or hub messages.
+The UI-only `/api/notifications/session` cookie-status probe returns just a boolean,
+no-store, without calling the Notifications API or issuing an assertion. A
+second tab suspends content requests after logout until this probe confirms
+genuine anonymous state; it never forwards another authenticated snapshot while
+the logout POST is still in flight.
 
 ## Exact configuration / Platform integration
 

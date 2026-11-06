@@ -1,0 +1,109 @@
+@using VeloTime.Module.Notifications.Interface
+@using VeloTime.Module.Notifications.Interface.Data
+@inherits PresentationComponentBase
+@inject INotificationsService Notices
+@inject NotificationUiState UiState
+@implements IDisposable
+
+<MudText Typo="Typo.h5" Class="mt-4">@L["NotificationsShowAgain"]</MudText>
+<MudText>@L["NotificationsRestoreHelp"]</MudText>
+<MudButton OnClick="Load" Disabled="_busy">@L["NotificationsRefreshList"]</MudButton>
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error" role="alert">@L[_error]</MudAlert>
+    <MudButton OnClick="Load" Disabled="_busy">@L["Retry"]</MudButton>
+}
+@if (_status is not null) { <MudText role="status">@L[_status]</MudText> }
+@if (_busy) { <MudProgressLinear Indeterminate="true" aria-label="@L["NotificationsLoading"]" /> }
+else if (_items.Count == 0 && _error is null) { <MudText role="status">@L["NotificationsNoDismissals"]</MudText> }
+@foreach (var item in _items)
+{
+    <MudPaper Class="pa-3 my-2" @key="item.Notification.Id">
+        <MudText Typo="Typo.subtitle1">@NotificationLabels.Text(item.Notification.Content).Title</MudText>
+        @if (item.Account is not null)
+        {
+            <MudText>@NotificationLabels.Scope(item.Account.Scope, SavedDuration(item.Account), L, Display.NumberCulture)</MudText>
+            @if (item.Account.DismissedUntilUtc is not null) { <MudText>@L["NotificationsHiddenUntil"]: @Display.Timestamp(item.Account.DismissedUntilUtc)</MudText> }
+            <MudButton OnClick="() => Restore(item, NotificationRestoreScope.Account)" Disabled="_busy">@L["NotificationsRestoreAccount"]</MudButton>
+        }
+        @if (item.CurrentSession is not null)
+        {
+            <MudText>@L["NotificationsHideSession"]</MudText>
+            <MudButton OnClick="() => Restore(item, NotificationRestoreScope.CurrentSession)" Disabled="_busy">@L["NotificationsRestoreSession"]</MudButton>
+        }
+        @if (item.Account is not null && item.CurrentSession is not null)
+        {
+            <MudButton OnClick="() => Restore(item, NotificationRestoreScope.AccountAndCurrentSession)" Disabled="_busy">@L["NotificationsRestoreBoth"]</MudButton>
+        }
+    </MudPaper>
+}
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<NotificationDismissalListItemDTO> _items = [];
+    private string? _error, _status;
+    private bool _busy;
+    private int _epoch;
+    private bool _pending, _disposed;
+    protected override void OnInitialized()
+    {
+        UiState.AuthenticationChanged += AuthChanged;
+        UiState.RefreshRequested += RefreshRequested;
+    }
+    private void AuthChanged()
+    {
+        if (UiState.Authenticated == false)
+        {
+            _epoch++; _items = []; _status = null; _error = "SignInRequired";
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+    private void RefreshRequested() { if (UiState.Authenticated != false) _ = InvokeAsync(async () => { await Load(); StateHasChanged(); }); }
+    protected override async Task OnAfterRenderAsync(bool firstRender) { if (firstRender) { await Load(); StateHasChanged(); } }
+    private async Task Load()
+    {
+        if (_disposed) return;
+        if (_busy) { _pending = true; return; }
+        _busy = true; _error = null;
+        var epoch = _epoch;
+        try { var items = await Notices.DismissalsAsync(_lifetime.Token); if (epoch == _epoch && !_disposed) _items = items; }
+        catch (NotificationUiException e) { _error = e.ResourceKey; if (e.Status is 401 or 403) _items = []; }
+        catch (OperationCanceledException) { }
+        catch (Exception) { _error = "NotificationsFailed"; }
+        finally { CompleteOperation(); }
+    }
+    private async Task Restore(NotificationDismissalListItemDTO item, NotificationRestoreScope scope)
+    {
+        if (_busy) return;
+        _busy = true; _error = null; _status = null;
+        var epoch = _epoch;
+        try
+        {
+            var result = await Notices.RestoreAsync(item.Notification.Id, scope, _lifetime.Token);
+            if (epoch != _epoch || _disposed) return;
+            _status = result.IsActive ? "NotificationsRestored" : "NotificationsRestoredNotActive";
+            // Use authoritative remaining layers even if the following refresh fails.
+            _items = _items.Where(i => i.Notification.Id != item.Notification.Id).ToList();
+            if (result.Dismissal.Account is not null || result.Dismissal.CurrentSession is not null)
+                _items = _items.Append(item with { Account = result.Dismissal.Account, CurrentSession = result.Dismissal.CurrentSession }).ToList();
+        }
+        catch (NotificationUiException e) { _error = e.ResourceKey; if (e.Status is 401 or 403) _items = []; }
+        catch (OperationCanceledException) { }
+        catch (Exception) { _error = "NotificationsFailed"; }
+        finally { CompleteOperation(); }
+    }
+    private void CompleteOperation()
+    {
+        _busy = false;
+        if (_pending && !_disposed) { _pending = false; RefreshRequested(); }
+    }
+    // A policy edit must not relabel an already-saved duration using the new policy.
+    private static int? SavedDuration(NotificationDismissalStateDTO state) =>
+        state.DismissedUntilUtc is { } until ? (int)Math.Ceiling((until - state.DismissedAtUtc).TotalSeconds) : null;
+    public void Dispose()
+    {
+        _disposed = true; _epoch++;
+        UiState.AuthenticationChanged -= AuthChanged; UiState.RefreshRequested -= RefreshRequested;
+        _lifetime.Cancel(); _lifetime.Dispose();
+    }
+}

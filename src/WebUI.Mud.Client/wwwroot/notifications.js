@@ -32,7 +32,7 @@ export async function subscribe(dotnet, owner) {
     const state = new HintConnection(dotnet);
     state.owner = owner;
     active = state;
-    await state.start();
+    return await state.start();
 }
 export function unsubscribe(owner) {
     if (active?.owner === owner) { active.stop(); active = undefined; }
@@ -49,6 +49,7 @@ class HintConnection {
         this.channel?.addEventListener("message", event => {
             if (event.data === "logout") {
                 this.notify("LoggedOut");
+                this.confirmAnonymous();
                 this.socket?.close(); // Re-negotiate the cookie's current state.
             }
         });
@@ -66,9 +67,27 @@ class HintConnection {
         this.poll = setInterval(() => { if (!document.hidden) this.notify("Refresh"); }, 60000);
     }
     notify(method) { if (!this.stopped) this.dotnet.invokeMethodAsync(method).catch(() => this.stop()); }
+    hint() {
+        if (this.hintTimer || this.stopped) return;
+        this.hintTimer = setTimeout(() => {
+            this.hintTimer = undefined;
+            this.notify("Refresh");
+        }, 150);
+    }
+    async confirmAnonymous() {
+        if (this.stopped) return;
+        try {
+            // Cookie-only BFF metadata. No Notifications API call or assertion.
+            const response = await fetch("/api/notifications/session", {
+                credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(5000)
+            });
+            if (response.ok && await response.json() === false) { this.notify("ResumeAnonymous"); return; }
+        } catch { /* Logout may still be in progress; keep private content cleared. */ }
+        this.logoutProbe = setTimeout(() => this.confirmAnonymous(), 1000);
+    }
     async start() {
-        try { await this.connect(); }
-        catch { this.notify("TransportFailed"); this.retry(); }
+        try { await this.connect(); return true; }
+        catch { this.notify("TransportFailed"); this.retry(); return false; }
     }
     async connect() {
         this.abort = new AbortController();
@@ -111,7 +130,7 @@ class HintConnection {
                             if (typeof id === "string" && !this.seen.has(id)) {
                                 this.seen.add(id);
                                 if (this.seen.size > 256) this.seen.delete(this.seen.values().next().value);
-                                this.notify("Refresh");
+                                this.hint();
                             }
                         } else if (message.type === 7) socket.close();
                     } catch { socket.close(); }
@@ -132,7 +151,8 @@ class HintConnection {
     }
     stop() {
         this.stopped = true; this.abort?.abort(); this.socket?.close();
-        clearTimeout(this.timeout); clearTimeout(this.silence); clearTimeout(this.retryTimer); clearInterval(this.ping); clearInterval(this.poll);
+        clearTimeout(this.timeout); clearTimeout(this.silence); clearTimeout(this.retryTimer); clearTimeout(this.hintTimer); clearTimeout(this.logoutProbe);
+        clearInterval(this.ping); clearInterval(this.poll);
         document.removeEventListener("visibilitychange", this.resume);
         document.removeEventListener("submit", this.logout, true);
         this.channel?.close();

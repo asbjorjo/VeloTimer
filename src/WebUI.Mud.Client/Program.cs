@@ -36,5 +36,6 @@ builder.Services.AddScoped<IInfrastructureAdministrationService, InfrastructureA
 builder.Services.AddScoped<IProfileService, ProfileHttpService>();
 builder.Services.AddScoped<IAuthDebugService, AuthDebugHttpService>();
 builder.Services.AddScoped<INotificationsService, NotificationsBrowserService>();
+builder.Services.AddScoped<NotificationUiState>();
 
 await builder.Build().RunAsync();

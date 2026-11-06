@@ -18,6 +18,8 @@ internal static class NotificationBffEndpoints
         var reader = endpoints.MapGroup("/api/notifications");
         var cookie = new AuthorizeAttribute { AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme };
         reader.AddEndpointFilter(Guard);
+        // UI-only cookie status probe; never forwards a token/assertion or an ID.
+        reader.MapGet("/session", (HttpContext http) => Results.Ok(http.User.Identity?.IsAuthenticated == true));
         reader.MapGet("/active", (int? pageSize, string? continuationToken, INotificationsClient client, CancellationToken ct) =>
             client.GetActiveNotificationsAsync(pageSize, continuationToken, null, ct));
         reader.MapGet("/dismissals", (int? pageSize, string? continuationToken, INotificationsClient client, CancellationToken ct) =>
