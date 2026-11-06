@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text.Encodings.Web;
-using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -11,37 +10,42 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using VeloTime.Module.Notifications.Api.Identity;
-using VeloTime.Module.Notifications.Interface.Identity;
+using Microsoft.IdentityModel.Tokens;
 using VeloTime.Module.Notifications.Storage;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace VeloTime.Module.Notifications.Api.Test;
 
 public sealed class NotificationsApiFactory(PostgresFixture database) : WebApplicationFactory<Program>
 {
-    private readonly RSA assertionKey = RSA.Create(2048);
-    public ClaimsPrincipal? Principal { get; set; }
-    public NotificationReaderIdentity? ReaderIdentity { get; set; }
-    public string AssertionPublicKey => assertionKey.ExportSubjectPublicKeyInfoPem();
+    private readonly RSA signingKey = RSA.Create(2048);
+    public const string Issuer = "https://issuer.example/realm";
+    public const string Audience = "https://build.invalid";
+    public string EnvironmentName { get; set; } = "Production";
+
+    public string CreateToken(params Claim[] claims)
+    {
+        var credentials = new SigningCredentials(
+            new RsaSecurityKey(signingKey) { KeyId = "notifications-test-key" }, SecurityAlgorithms.RsaSha256);
+        var now = DateTime.UtcNow;
+        var token = new JwtSecurityToken(Issuer, Audience, claims, now.AddMinutes(-1), now.AddMinutes(5), credentials);
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public void Authenticate(HttpClient client, params Claim[] claims) =>
+        client.DefaultRequestHeaders.Authorization = new("Bearer", CreateToken(claims));
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Production");
+        builder.UseEnvironment(EnvironmentName);
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
             new Dictionary<string, string?>
             {
-                ["OIDC_AUDIENCE"] = "https://build.invalid",
-                ["ConnectionStrings:keycloak"] = "https://issuer.example/realm",
+                ["OIDC_AUDIENCE"] = Audience,
+                ["ConnectionStrings:keycloak"] = Issuer,
                 ["ConnectionStrings:velotimedb"] = database.ConnectionString,
                 ["ConnectionStrings:cache"] = "localhost:6379,abortConnect=false",
-                ["Aspire:StackExchange:Redis:DisableHealthChecks"] = "true",
-                ["Notifications:SessionAssertion:Issuer"] = "webui-test",
-                ["Notifications:SessionAssertion:Audience"] = "notifications-api-test",
-                ["Notifications:SessionAssertion:PublicKeys:test-key"] = AssertionPublicKey,
-                ["Notifications:SessionAssertion:MaximumLifetimeSeconds"] = "120",
-                ["Notifications:SessionAssertion:ClockSkewSeconds"] = "0"
+                ["Aspire:StackExchange:Redis:DisableHealthChecks"] = "true"
             }));
         builder.ConfigureTestServices(services =>
         {
@@ -57,19 +61,27 @@ public sealed class NotificationsApiFactory(PostgresFixture database) : WebAppli
                     postgres.MigrationsHistoryTable("__ef_migrations_history", "ef"))
                 .UseSnakeCaseNamingConvention());
 
-            services.RemoveAll<INotificationReaderIdentityAccessor>();
-            services.AddSingleton<INotificationReaderIdentityAccessor>(new TestIdentityAccessor(this));
             services.RemoveAll<IDataProtectionProvider>();
             services.AddSingleton<IDataProtectionProvider>(new EphemeralDataProtectionProvider());
-
-            services.AddSingleton(this);
-            services.AddAuthentication(options =>
+            services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
             {
-                options.DefaultAuthenticateScheme = "NotificationsTest";
-                options.DefaultChallengeScheme = "NotificationsTest";
-                options.DefaultForbidScheme = "NotificationsTest";
-            }).AddScheme<AuthenticationSchemeOptions, NotificationsTestAuthenticationHandler>(
-                "NotificationsTest", _ => { });
+                options.Authority = null;
+                options.MetadataAddress = string.Empty;
+                options.ConfigurationManager = null;
+                options.MapInboundClaims = false;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = Issuer,
+                    ValidateAudience = true,
+                    ValidAudience = Audience,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new RsaSecurityKey(signingKey.ExportParameters(false))
+                        { KeyId = "notifications-test-key" },
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero
+                };
+            });
         });
     }
 
@@ -81,25 +93,7 @@ public sealed class NotificationsApiFactory(PostgresFixture database) : WebAppli
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) assertionKey.Dispose();
+        if (disposing) signingKey.Dispose();
         base.Dispose(disposing);
     }
-
-    private sealed class TestIdentityAccessor(NotificationsApiFactory factory) : INotificationReaderIdentityAccessor
-    {
-        public NotificationReaderIdentity? GetCurrent() => factory.ReaderIdentity;
-    }
-}
-
-public sealed class NotificationsTestAuthenticationHandler(
-    IOptionsMonitor<AuthenticationSchemeOptions> options,
-    ILoggerFactory logger,
-    UrlEncoder encoder,
-    NotificationsApiFactory factory)
-    : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
-{
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync() => Task.FromResult(
-        factory.Principal is null
-            ? AuthenticateResult.NoResult()
-            : AuthenticateResult.Success(new AuthenticationTicket(factory.Principal, Scheme.Name)));
 }

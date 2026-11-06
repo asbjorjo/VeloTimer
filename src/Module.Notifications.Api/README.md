@@ -80,11 +80,12 @@ principal has no nonblank `sid`.
 The checked-in `config/keycloak/realms/velotime-realm.json` has no explicit
 session-ID protocol mapper, and repository deployment configuration points to an
 external Keycloak without pinning its server version. Existing OIDC callback
-tests demonstrate that an ID-token `sid` survives ticket reload, but do not prove
-the API access token contains it. Platform must verify the deployed Keycloak
-release and ensure the `velotime` client scope emits `sid` in the signed access
-token (using that release's supported session-ID mapper) before enabling session
-dismissal in the UI.
+tests demonstrate that an ID-token `sid` survives ticket reload. API tests use
+locally generated signed JWTs to verify the API's validated-claim behavior; they
+do not prove the deployed access token contains `sid`. Platform must verify the
+deployed Keycloak release and the actual signed access token before enabling
+session dismissal in the UI. Do not assume a mapper or claim based only on the
+ID-token test.
 
 ## Platform prerequisites / exact configuration
 

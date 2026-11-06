@@ -20,6 +20,29 @@ namespace VeloTime.Platform.Test;
 public sealed class NotificationsBffTests
 {
     [Fact]
+    public void GeneratedNotificationsClientHasNoIdentitySessionOrHeaderArguments()
+    {
+        var clientMethods = typeof(INotificationsClient).GetMethods();
+
+        Assert.NotEmpty(clientMethods);
+        Assert.DoesNotContain(clientMethods.SelectMany(method => method.GetParameters()), parameter =>
+            parameter.Name?.Contains("header", StringComparison.OrdinalIgnoreCase) == true ||
+            parameter.Name?.Contains("assertion", StringComparison.OrdinalIgnoreCase) == true ||
+            parameter.Name?.Contains("identity", StringComparison.OrdinalIgnoreCase) == true ||
+            parameter.Name?.Contains("sessionId", StringComparison.OrdinalIgnoreCase) == true ||
+            parameter.Name?.Equals("sid", StringComparison.OrdinalIgnoreCase) == true);
+
+        AssertSignature("DismissNotificationAsync", "id", "body");
+        AssertSignature("DismissNotificationAsync", "id", "body", "cancellationToken");
+        AssertSignature("RestoreNotificationDismissalAsync", "id", "scope");
+        AssertSignature("RestoreNotificationDismissalAsync", "id", "scope", "cancellationToken");
+
+        void AssertSignature(string methodName, params string[] expected) =>
+            Assert.Contains(clientMethods.Where(method => method.Name == methodName),
+                method => method.GetParameters().Select(parameter => parameter.Name).SequenceEqual(expected));
+    }
+
+    [Fact]
     public async Task ActiveAllowsActualAnonymousAndForwardsPageWithoutIdentity()
     {
         var now = DateTimeOffset.UtcNow;

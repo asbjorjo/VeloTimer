@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using VeloTime.Module.Notifications.Interface;
@@ -7,7 +6,6 @@ using VeloTime.Module.Notifications.Interface.Identity;
 using VeloTime.Module.Notifications.Model;
 using VeloTime.Module.Notifications.Service;
 using VeloTime.Module.Notifications.Storage;
-using Xunit.Sdk;
 
 namespace VeloTime.Module.Notifications.Api.Test;
 
@@ -243,33 +241,35 @@ public sealed class NotificationCorePostgresTests(PostgresFixture database) : IC
     }
 
     [PostgresFact]
-    public async Task DismissalLayers_AreIdempotentSessionIsolatedAndRestoredIndependently()
+    public async Task SessionDismissalIsStableAcrossTokensWithSameSidAndIsolatedAcrossDifferentSid()
     {
         await database.ResetAsync();
         var now = PersistedNow();
         var notice = await CreateAsync(database, now, policy: new(
             [NotificationDismissalScope.Duration, NotificationDismissalScope.Session, NotificationDismissalScope.Permanent],
             NotificationDismissalScope.Duration, 3600));
-        var first = Identity("https://issuer.example", "subject", "login-one");
-        var second = Identity(first.Issuer, first.Subject, "login-two");
-        NotificationDismissalDTO firstState;
-        await using (var db = database.CreateContext())
-        {
-            var service = new NotificationService(db, new TestClock(now));
-            firstState = await service.DismissAsync(notice.Id, first, new(NotificationDismissalScope.Duration));
-            var duplicate = await new NotificationService(db, new TestClock(now.AddSeconds(2)))
-                .DismissAsync(notice.Id, first, new(NotificationDismissalScope.Duration));
-            Assert.Equal(firstState.Account, duplicate.Account);
-        }
+        var first = Identity("https://issuer.example", "subject", "keycloak-sso-session");
+        var refreshedTokenAndTab = Identity(first.Issuer, first.Subject, "keycloak-sso-session");
+        var otherSession = Identity(first.Issuer, first.Subject, "different-keycloak-sso-session");
 
         await using (var db = database.CreateContext())
         {
             var service = new NotificationService(db, new TestClock(now.AddSeconds(2)));
             var session = await service.DismissAsync(notice.Id, first, new(NotificationDismissalScope.Session));
-            Assert.NotNull(session.Account);
+            Assert.Null(session.Account);
             Assert.NotNull(session.CurrentSession);
-            var secondSession = await service.DismissAsync(notice.Id, second, new(NotificationDismissalScope.Session));
-            Assert.Equal(session.Account, secondSession.Account); // Account choice is shared; only session state is login-scoped.
+            var refreshed = await service.DismissAsync(notice.Id, refreshedTokenAndTab,
+                new(NotificationDismissalScope.Session));
+            Assert.Equal(session.CurrentSession, refreshed.CurrentSession);
+
+            var sameSessionActive = await Snapshot(db, now.AddSeconds(2)).ActiveAsync(refreshedTokenAndTab, new(100));
+            Assert.DoesNotContain(notice.Id, sameSessionActive.Items.Select(item => item.Id));
+            var differentSessionActive = await Snapshot(db, now.AddSeconds(2)).ActiveAsync(otherSession, new(100));
+            Assert.Contains(notice.Id, differentSessionActive.Items.Select(item => item.Id));
+
+            var secondSession = await service.DismissAsync(notice.Id, otherSession,
+                new(NotificationDismissalScope.Session));
+            Assert.Equal(session.Account, secondSession.Account); // Account choice is shared; only session state is SSO-session scoped.
             Assert.NotNull(secondSession.CurrentSession);
             var restored = await service.RestoreAsync(notice.Id, first, NotificationRestoreScope.Account);
             Assert.Null(restored.Dismissal.Account);
@@ -391,25 +391,6 @@ public sealed class NotificationCorePostgresTests(PostgresFixture database) : IC
                 """;
             await command.ExecuteNonQueryAsync();
         }
-    }
-
-    [Fact]
-    public void SessionAssertion_IsBoundToLoginTokenIdentityAndExpiry()
-    {
-        using var key = RSA.Create(2048);
-        var now = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-        var token = "validated test token";
-        var assertion = NotificationSessionAssertion.Sign(key, "key-1", "webui", "notifications-api",
-            "https://issuer", "subject", "login-1", token, now, now.AddMinutes(2), 120);
-        var publicKeys = new Dictionary<string, string> { ["key-1"] = key.ExportSubjectPublicKeyInfoPem() };
-        Assert.Equal("login-1", NotificationSessionAssertion.Verify(assertion, publicKeys, "webui",
-            "notifications-api", "https://issuer", "subject", token, now, 120, 0));
-        Assert.Throws<CryptographicException>(() => NotificationSessionAssertion.Verify(assertion, publicKeys, "webui",
-            "notifications-api", "https://issuer", "subject", "different-token", now, 120, 0));
-        Assert.Throws<CryptographicException>(() => NotificationSessionAssertion.Verify(assertion, publicKeys, "webui",
-            "notifications-api", "https://issuer", "different-subject", token, now, 120, 0));
-        Assert.Throws<CryptographicException>(() => NotificationSessionAssertion.Verify(assertion, publicKeys, "webui",
-            "notifications-api", "https://issuer", "subject", token, now.AddMinutes(2), 120, 0));
     }
 
     private NotificationSnapshotService Snapshot(NotificationsDbContext db, DateTimeOffset now) =>
