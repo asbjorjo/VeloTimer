@@ -12,12 +12,10 @@
     }
     else
     {
-        <MudButton OnClick="() => Save(Notice.DismissalPolicy.DefaultScope)" Disabled="_saving" Variant="Variant.Filled">
-            @NotificationLabels.Scope(Notice.DismissalPolicy.DefaultScope, Notice.DismissalPolicy.DurationSeconds, L, Settings.NumberCulture)
-        </MudButton>
-        @foreach (var scope in Notice.DismissalPolicy.AllowedScopes.Where(s => s != Notice.DismissalPolicy.DefaultScope))
+        @foreach (var scope in Notice.DismissalPolicy.AllowedScopes.Where(s => HasSession || s != NotificationDismissalScope.Session)
+            .OrderBy(s => s == Notice.DismissalPolicy.DefaultScope ? 0 : 1))
         {
-            <MudButton OnClick="() => Save(scope)" Disabled="_saving">
+            <MudButton OnClick="() => Save(scope)" Disabled="_saving" Variant="@(scope == Notice.DismissalPolicy.DefaultScope ? Variant.Filled : Variant.Text)">
                 @NotificationLabels.Scope(scope, Notice.DismissalPolicy.DurationSeconds, L, Settings.NumberCulture)
             </MudButton>
         }
@@ -29,6 +27,7 @@
 @code {
     [Parameter, EditorRequired] public NotificationPresentationDTO Notice { get; set; } = default!;
     [Parameter] public bool Anonymous { get; set; }
+    [Parameter] public bool HasSession { get; set; }
     [Parameter] public int Queued { get; set; }
     [Parameter] public EffectiveDisplaySettings Settings { get; set; } = EffectiveDisplaySettings.Unresolved;
     [Parameter] public Func<NotificationDismissalScope, Task> Dismiss { get; set; } = default!;
@@ -37,6 +36,7 @@
     private async Task Save(NotificationDismissalScope scope)
     {
         if (_saving) return;
+        if (!Anonymous && !HasSession && scope == NotificationDismissalScope.Session) return;
         _saving = true; _error = null;
         try { await Dismiss(scope); }
         catch (NotificationUiException e) { _error = e.ResourceKey; }

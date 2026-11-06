@@ -16,7 +16,7 @@ public interface INotificationsService
     Task<NotificationAdministrationDTO> EndAsync(Guid id, long version, CancellationToken ct);
 }
 
-public sealed record NotificationUiSnapshot(ActiveNotificationsDTO Snapshot, bool Authenticated);
+public sealed record NotificationUiSnapshot(ActiveNotificationsDTO Snapshot, bool Authenticated, bool HasSession = false);
 
 public sealed class NotificationUiException(int status, string code) : Exception(code)
 {

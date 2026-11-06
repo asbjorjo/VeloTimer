@@ -42,6 +42,7 @@
     private int _shownQueue;
     private string? _shownCulture;
     private EffectiveDisplaySettings? _shownSettings;
+    private bool _shownHasSession;
     protected override void OnInitialized()
     {
         _requests = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
@@ -126,7 +127,7 @@
                 _anonymous = !result.Authenticated;
             }
             var snapshot = result.Snapshot;
-            UiState.SetAuthenticated(result.Authenticated);
+            UiState.SetAuthenticated(result.Authenticated, result.HasSession);
             var items = snapshot.Items.ToList();
             if (_anonymous && _module is not null)
             {
@@ -171,18 +172,20 @@
         var next = _items.OrderByDescending(n => n.Severity).ThenBy(n => n.Id).FirstOrDefault();
         if (next is not null && _shown?.Id == next.Id && _shown.Version == next.Version &&
             _shownQueue == _items.Count - 1 && _shownCulture == System.Globalization.CultureInfo.CurrentUICulture.Name &&
-            _shownSettings == Display) return;
+            _shownSettings == Display && _shownHasSession == UiState.HasSession) return;
         RemoveShown();
         if (next is null) return;
         _shown = next;
         _shownQueue = _items.Count - 1; _shownCulture = System.Globalization.CultureInfo.CurrentUICulture.Name;
         _shownSettings = Display;
+        _shownHasSession = UiState.HasSession;
         var epoch = _epoch;
         var severity = next.Severity switch { NotificationSeverity.Error => Severity.Error, NotificationSeverity.Warning => Severity.Warning, _ => Severity.Info };
         _snackbar = Snackbars.Add<NotificationSnackbar>(new()
         {
             [nameof(NotificationSnackbar.Notice)] = next,
             [nameof(NotificationSnackbar.Anonymous)] = _anonymous,
+            [nameof(NotificationSnackbar.HasSession)] = UiState.HasSession,
             [nameof(NotificationSnackbar.Queued)] = _items.Count - 1,
             [nameof(NotificationSnackbar.Settings)] = Display,
             [nameof(NotificationSnackbar.Dismiss)] = (Func<NotificationDismissalScope, Task>)(scope => Dismiss(next, scope, epoch))
@@ -195,6 +198,7 @@
     private async Task Dismiss(NotificationPresentationDTO notice, NotificationDismissalScope scope, int epoch)
     {
         if (epoch != _epoch || _disposed) return;
+        if (!_anonymous && !UiState.HasSession && scope == NotificationDismissalScope.Session) return;
         if (_anonymous) await _module!.InvokeVoidAsync("dismissAnonymous", notice.Id.ToString());
         else await Notices.DismissAsync(notice.Id, scope, _requests!.Token);
         if (epoch != _epoch || _disposed) return;

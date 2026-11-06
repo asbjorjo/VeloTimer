@@ -28,6 +28,7 @@ public sealed class NotificationsUiTransportTests
         Assert.Equal(new[] { first.Id, second.Id }, result.Snapshot.Items.Select(n => n.Id));
         Assert.Null(result.Snapshot.ContinuationToken);
         Assert.True(result.Authenticated);
+        Assert.True(result.HasSession);
         Assert.Contains("continuationToken=opaque", js.Requests[1].Path);
     }
 
@@ -120,7 +121,7 @@ public sealed class NotificationsUiTransportTests
             var reply = Replies.Dequeue();
             var json = JsonSerializer.Serialize(new { status = reply.Status,
                 body = JsonSerializer.Serialize(reply.Body, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
-                authenticated = reply.Authenticated });
+                authenticated = reply.Authenticated, hasSession = reply.Authenticated });
             return ValueTask.FromResult(JsonSerializer.Deserialize<TValue>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web))!);
         }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

@@ -26,12 +26,12 @@ else if (_items.Count == 0 && _error is null) { <MudText role="status">@L["Notif
             @if (item.Account.DismissedUntilUtc is not null) { <MudText>@L["NotificationsHiddenUntil"]: @Display.Timestamp(item.Account.DismissedUntilUtc)</MudText> }
             <MudButton OnClick="() => Restore(item, NotificationRestoreScope.Account)" Disabled="_busy || UiState.Authenticated == false">@L["NotificationsRestoreAccount"]</MudButton>
         }
-        @if (item.CurrentSession is not null)
+        @if (UiState.HasSession && item.CurrentSession is not null)
         {
             <MudText>@L["NotificationsHideSession"]</MudText>
             <MudButton OnClick="() => Restore(item, NotificationRestoreScope.CurrentSession)" Disabled="_busy || UiState.Authenticated == false">@L["NotificationsRestoreSession"]</MudButton>
         }
-        @if (item.Account is not null && item.CurrentSession is not null)
+        @if (UiState.HasSession && item.Account is not null && item.CurrentSession is not null)
         {
             <MudButton OnClick="() => Restore(item, NotificationRestoreScope.AccountAndCurrentSession)" Disabled="_busy || UiState.Authenticated == false">@L["NotificationsRestoreBoth"]</MudButton>
         }
@@ -55,8 +55,8 @@ else if (_items.Count == 0 && _error is null) { <MudText role="status">@L["Notif
         if (UiState.Authenticated == false)
         {
             _epoch++; RequireSignIn();
-            _ = InvokeAsync(StateHasChanged);
         }
+        _ = InvokeAsync(StateHasChanged);
     }
     private void RefreshRequested() { if (UiState.Authenticated != false) _ = InvokeAsync(async () => { await Load(); StateHasChanged(); }); }
     protected override async Task OnAfterRenderAsync(bool firstRender) { if (firstRender) { await Load(); StateHasChanged(); } }
@@ -77,6 +77,7 @@ else if (_items.Count == 0 && _error is null) { <MudText role="status">@L["Notif
     {
         if (_disposed) return;
         if (UiState.Authenticated == false) { RequireSignIn(); return; }
+        if (!UiState.HasSession && scope != NotificationRestoreScope.Account) return;
         if (_busy) return;
         _busy = true; _error = null; _status = null;
         var epoch = _epoch;

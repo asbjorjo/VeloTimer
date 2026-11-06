@@ -42,6 +42,7 @@ public sealed class NotificationsRenderingTests
             var root = await renderer.RenderComponentAsync<NotificationSnackbar>(ParameterView.FromDictionary(new Dictionary<string, object?>
             {
                 [nameof(NotificationSnackbar.Notice)] = Notice(severity),
+                [nameof(NotificationSnackbar.HasSession)] = true,
                 [nameof(NotificationSnackbar.Settings)] = DisplayTestRendering.Utc,
                 [nameof(NotificationSnackbar.Dismiss)] = (Func<NotificationDismissalScope, Task>)(_ => Task.CompletedTask)
             }));
@@ -74,6 +75,79 @@ public sealed class NotificationsRenderingTests
     }
 
     [Fact]
+    public async Task MissingSessionHidesSessionActionsWithoutSavingFallback()
+    {
+        var saves = 0;
+        await using var provider = Services().BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en");
+            NotificationSnackbar? component = null;
+            var root = await renderer.RenderComponentAsync<Capture<NotificationSnackbar>>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            {
+                ["Captured"] = (Action<NotificationSnackbar>)(value => component = value),
+                ["Parameters"] = new Dictionary<string, object?>
+                {
+                    [nameof(NotificationSnackbar.Notice)] = Notice() with
+                    {
+                        DismissalPolicy = new([NotificationDismissalScope.Session, NotificationDismissalScope.Permanent],
+                            NotificationDismissalScope.Session, null)
+                    },
+                    [nameof(NotificationSnackbar.Dismiss)] = (Func<NotificationDismissalScope, Task>)(_ => { saves++; return Task.CompletedTask; })
+                }
+            }));
+            Assert.DoesNotContain("Hide for this login", root.ToHtmlString());
+            Assert.Contains("Hide permanently", root.ToHtmlString());
+            Assert.Equal(0, saves);
+            await Call(component!, "Save", NotificationDismissalScope.Session);
+            Assert.Equal(0, saves);
+            await Call(component!, "Save", NotificationDismissalScope.Permanent);
+            Assert.Equal(1, saves);
+        });
+    }
+
+    [Fact]
+    public async Task MissingSessionKeepsAccountRestoreButBlocksCombinedRestore()
+    {
+        var item = new NotificationDismissalListItemDTO(Notice(),
+            new(NotificationDismissalScope.Permanent, DateTimeOffset.UtcNow, null),
+            new(NotificationDismissalScope.Session, DateTimeOffset.UtcNow, null));
+        var restores = new List<NotificationRestoreScope>();
+        var services = Services();
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<INotificationsService>((method, args) => method.Name switch
+        {
+            nameof(INotificationsService.DismissalsAsync) => (IReadOnlyList<NotificationDismissalListItemDTO>)new[] { item },
+            nameof(INotificationsService.RestoreAsync) => Restore(args),
+            _ => throw new NotSupportedException(method.Name)
+        }));
+        RestoreNotificationDismissalDTO Restore(object?[] args)
+        {
+            restores.Add((NotificationRestoreScope)args[1]!);
+            return new(new(item.Notification.Id, DateTimeOffset.UtcNow, null, item.CurrentSession), false);
+        }
+        await using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<NotificationUiState>().SetAuthenticated(true, false);
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en");
+            NotificationDismissals? component = null;
+            var root = await renderer.RenderComponentAsync<Capture<NotificationDismissals>>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            { ["Captured"] = (Action<NotificationDismissals>)(value => component = value) }));
+            await Call(component!, "Load"); Rerender(component!);
+            Assert.Contains("Clear account dismissal", root.ToHtmlString());
+            Assert.DoesNotContain("Clear current-login dismissal", root.ToHtmlString());
+            Assert.DoesNotContain("Clear account and current-login dismissals", root.ToHtmlString());
+            await Call(component!, "Restore", item, NotificationRestoreScope.AccountAndCurrentSession);
+            Assert.Empty(restores);
+            Assert.Single((IReadOnlyList<NotificationDismissalListItemDTO>)Field(component!, "_items")!);
+            await Call(component!, "Restore", item, NotificationRestoreScope.Account);
+            Assert.Equal(new[] { NotificationRestoreScope.Account }, restores);
+        });
+    }
+
+    [Fact]
     public async Task FailedSaveStaysVisibleAndAllowsRetryWithoutFalseSavedMessage()
     {
         var tries = 0;
@@ -88,6 +162,7 @@ public sealed class NotificationsRenderingTests
                 ["Parameters"] = new Dictionary<string, object?>
                 {
                     [nameof(NotificationSnackbar.Notice)] = Notice(),
+                    [nameof(NotificationSnackbar.HasSession)] = true,
                     [nameof(NotificationSnackbar.Dismiss)] = (Func<NotificationDismissalScope, Task>)(_ =>
                     {
                         if (++tries == 1) throw new NotificationUiException(503, "notifications.dependency_unavailable");

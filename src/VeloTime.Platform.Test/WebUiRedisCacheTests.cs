@@ -477,13 +477,8 @@ public sealed class WebUiRedisCacheTests(ITestOutputHelper output)
         internal WebUiCacheTestHost.MutableAuthenticationState State { get; } = new();
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            using var signingKey = System.Security.Cryptography.RSA.Create(2048);
             builder.UseEnvironment("Development");
             builder.UseSetting("ConnectionStrings:cache", Environment.GetEnvironmentVariable("VELOTIME_TEST_REDIS")!);
-            builder.UseSetting("Notifications:SessionAssertion:Issuer", "webui-cache-test");
-            builder.UseSetting("Notifications:SessionAssertion:Audience", "notifications-api-test");
-            builder.UseSetting("Notifications:SessionAssertion:KeyId", "test-key");
-            builder.UseSetting("Notifications:SessionAssertion:PrivateKeyPem", signingKey.ExportPkcs8PrivateKeyPem());
             builder.ConfigureTestServices(services =>
             {
                 // These fixtures exercise actual Redis caching and delegated HTTP clients,

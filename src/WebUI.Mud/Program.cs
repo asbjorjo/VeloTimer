@@ -186,12 +186,6 @@ else
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
-app.Use(async (context, next) =>
-{
-    // The assertion is a BFF service credential, never browser input.
-    context.Request.Headers.Remove(VeloTime.Module.Notifications.Interface.Identity.NotificationSessionAssertion.HeaderName);
-    await next(context);
-});
 app.UseRequestLocalization();
 app.UseAuthorization();
 app.UseAntiforgery();

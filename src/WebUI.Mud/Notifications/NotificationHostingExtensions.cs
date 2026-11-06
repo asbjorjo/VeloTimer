@@ -3,7 +3,6 @@ using Duende.AccessTokenManagement.OpenIdConnect;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
-using VeloTime.Module.Notifications.Interface.Identity;
 using VeloTime.Module.Notifications.Interface.Messages;
 using VeloTime.WebUI.Mud.Client.Services;
 
@@ -13,13 +12,8 @@ public static class NotificationHostingExtensions
 {
     public static void AddWebUiNotifications(this WebApplicationBuilder builder)
     {
-        builder.Services.AddOptions<NotificationAssertionOptions>()
-            .Bind(builder.Configuration.GetSection(NotificationSessionAssertion.ConfigurationSection))
-            .Validate(o => o.IsValid(), "Notifications session assertion signing configuration is invalid.")
-            .ValidateOnStart();
-        builder.Services.AddTransient<NotificationAssertionHandler>();
         builder.Services.AddNotificationsClient().AddDefaultAccessTokenResiliency()
-            .AddUserAccessTokenHandler().AddHttpMessageHandler<NotificationAssertionHandler>();
+            .AddUserAccessTokenHandler();
         builder.Services.AddScoped<INotificationsService, NotificationsBrowserService>();
         builder.Services.AddScoped<NotificationUiState>();
         builder.Services.AddAuthorization(options => options.AddPolicy("Notifications.Admin", policy =>

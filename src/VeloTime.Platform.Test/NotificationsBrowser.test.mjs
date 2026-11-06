@@ -11,16 +11,17 @@ test("BFF transport rejects non-API and cross-origin paths", async () => {
     }
 });
 
-test("scope-only mutation obtains CSRF token; no assertion or identity headers", async () => {
+test("scope-only mutation obtains CSRF token; no bearer or identity headers", async () => {
     const original = globalThis.fetch, calls = [];
     globalThis.fetch = async (path, options) => {
         calls.push({ path, options });
         return path === "/api/antiforgery" ? new Response('"csrf"') :
-            new Response('{"notificationId":"test"}', { headers: { "X-VeloTime-Authenticated": "true" } });
+            new Response('{"notificationId":"test"}', { headers: { "X-VeloTime-Authenticated": "true", "X-VeloTime-HasSession": "true" } });
     };
     try {
         const response = await ui.request("save", "/api/notifications/notice/dismissal", "PUT", '{"scope":"session"}');
         assert.equal(response.authenticated, true);
+        assert.equal(response.hasSession, true);
         assert.deepEqual(calls.map(c => c.path), ["/api/antiforgery", "/api/notifications/notice/dismissal"]);
         assert.deepEqual(calls[1].options.headers, { "X-CSRF-TOKEN": "csrf", "Content-Type": "application/json" });
         assert.equal(calls[1].options.body, '{"scope":"session"}');
@@ -94,6 +95,47 @@ test("SignalR subscribes before snapshot callback, deduplicates hints and dispos
         assert.equal(listeners.size, 0);
     } finally {
         ui.unsubscribe("second");
+        Object.assign(globalThis, originals);
+    }
+});
+
+test("logout broadcast resumes only after capability probe confirms anonymous", async () => {
+    const originals = { fetch: globalThis.fetch, document: globalThis.document, location: globalThis.location,
+        WebSocket: globalThis.WebSocket, BroadcastChannel: globalThis.BroadcastChannel };
+    let listener, probes = 0;
+    const calls = [];
+    globalThis.document = { hidden: false, addEventListener() {}, removeEventListener() {} };
+    globalThis.location = { href: "https://ui.invalid/profile" };
+    globalThis.BroadcastChannel = class {
+        addEventListener(_, callback) { listener = callback; }
+        close() {}
+    };
+    globalThis.fetch = async path => {
+        if (path === "/api/notifications/session") {
+            probes++;
+            return new Response(JSON.stringify({ authenticated: probes === 1, hasSession: false }));
+        }
+        return new Response(JSON.stringify({
+            connectionToken: "transport-token", availableTransports: [{ transport: "WebSockets" }]
+        }));
+    };
+    globalThis.WebSocket = class {
+        static OPEN = 1;
+        constructor() { this.readyState = 1; setTimeout(() => this.onopen(), 0); }
+        send(value) { if (value.includes('"protocol"')) setTimeout(() => this.onmessage({ data: "{}\u001e" }), 0); }
+        close() { this.readyState = 3; this.onclose?.(); }
+    };
+    try {
+        await ui.subscribe({ invokeMethodAsync: async name => { calls.push(name); } }, "logout-test");
+        listener({ data: "logout" });
+        await new Promise(resolve => setTimeout(resolve, 20));
+        assert.equal(calls.includes("LoggedOut"), true);
+        assert.equal(calls.includes("ResumeAnonymous"), false);
+        await new Promise(resolve => setTimeout(resolve, 1050));
+        assert.equal(probes, 2);
+        assert.equal(calls.includes("ResumeAnonymous"), true);
+    } finally {
+        ui.unsubscribe("logout-test");
         Object.assign(globalThis, originals);
     }
 });

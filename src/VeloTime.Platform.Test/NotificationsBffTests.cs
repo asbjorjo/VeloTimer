@@ -26,7 +26,7 @@ public sealed class NotificationsBffTests
         var api = PlatformServiceTests.TestProxy.Create<INotificationsClient>((method, args) =>
         {
             Assert.Equal(nameof(INotificationsClient.GetActiveNotificationsAsync), method.Name);
-            Assert.Equal(100, args[0]); Assert.Equal("opaque", args[1]); Assert.Null(args[2]);
+            Assert.Equal(100, args[0]); Assert.Equal("opaque", args[1]); Assert.IsType<CancellationToken>(args[2]);
             return new ActiveNotificationsDTO(now, now, now.AddMinutes(5), null, [], null);
         });
         await using var app = await App(api);
@@ -36,7 +36,8 @@ public sealed class NotificationsBffTests
         Assert.True(response.Headers.CacheControl!.NoStore);
         Assert.Equal("false", Assert.Single(response.Headers.GetValues("X-VeloTime-Authenticated")));
         Assert.DoesNotContain("login", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
-        Assert.False(await client.GetFromJsonAsync<bool>("/api/notifications/session"));
+        Assert.Equal(new NotificationSessionStatus(false, false),
+            await client.GetFromJsonAsync<NotificationSessionStatus>("/api/notifications/session"));
         Assert.Single(((PlatformServiceTests.TestProxy)(object)api).Calls);
     }
 
@@ -63,8 +64,9 @@ public sealed class NotificationsBffTests
         var api = PlatformServiceTests.TestProxy.Create<INotificationsClient>((method, args) =>
         {
             Assert.Equal(nameof(INotificationsClient.DismissNotificationAsync), method.Name);
-            Assert.Equal(id, args[0]); Assert.Null(args[1]);
-            Assert.Equal(new DismissNotificationRequest(NotificationDismissalScope.Session), args[2]);
+            Assert.Equal(id, args[0]);
+            Assert.Equal(new DismissNotificationRequest(NotificationDismissalScope.Session), args[1]);
+            Assert.IsType<CancellationToken>(args[2]);
             return new NotificationDismissalDTO(id, DateTimeOffset.UtcNow, null, null);
         });
         await using var app = await App(api);
@@ -72,7 +74,8 @@ public sealed class NotificationsBffTests
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PutAsJsonAsync($"/api/notifications/{id}/dismissal", new DismissNotificationRequest(NotificationDismissalScope.Session))).StatusCode);
         var cookie = await SignIn(client, admin: false);
         client.DefaultRequestHeaders.Add("Cookie", cookie);
-        Assert.True(await client.GetFromJsonAsync<bool>("/api/notifications/session"));
+        Assert.Equal(new NotificationSessionStatus(true, false),
+            await client.GetFromJsonAsync<NotificationSessionStatus>("/api/notifications/session"));
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync($"/api/notifications/{id}/dismissal", new DismissNotificationRequest(NotificationDismissalScope.Session))).StatusCode);
         using var csrf = await client.GetAsync("/csrf");
         var requestToken = await csrf.Content.ReadFromJsonAsync<string>();
@@ -100,6 +103,27 @@ public sealed class NotificationsBffTests
         Assert.Single(((PlatformServiceTests.TestProxy)(object)api).Calls);
     }
 
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData(" ", false)]
+    [InlineData("keycloak-session", true)]
+    public async Task SessionCapabilityUsesProtectedCookieClaimsOnly(string? sid, bool expected)
+    {
+        var api = PlatformServiceTests.TestProxy.Create<INotificationsClient>((_, _) => throw new Exception("Must not call"));
+        await using var app = await App(api);
+        using var client = app.GetTestClient();
+        client.DefaultRequestHeaders.Add("Cookie", await SignIn(client, false, sid));
+        using var response = await client.GetAsync("/api/notifications/session?sid=browser-forged");
+        Assert.True(response.Headers.CacheControl!.NoStore);
+        Assert.Equal(new NotificationSessionStatus(true, expected),
+            await response.Content.ReadFromJsonAsync<NotificationSessionStatus>());
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(2, json.RootElement.EnumerateObject().Count());
+        Assert.DoesNotContain("keycloak-session", json.RootElement.GetRawText());
+        Assert.Empty(((PlatformServiceTests.TestProxy)(object)api).Calls);
+    }
+
     [Fact]
     public async Task TypedProblemPreservesCodeAndStatusButNotSensitiveDetails()
     {
@@ -115,9 +139,10 @@ public sealed class NotificationsBffTests
         Assert.DoesNotContain("private", json); Assert.DoesNotContain("secret", json);
     }
 
-    private static async Task<string> SignIn(HttpClient client, bool admin)
+    private static async Task<string> SignIn(HttpClient client, bool admin, string? sid = null)
     {
-        using var response = await client.GetAsync("/signin?admin=" + admin.ToString().ToLowerInvariant());
+        using var response = await client.GetAsync("/signin?admin=" + admin.ToString().ToLowerInvariant() +
+            (sid is null ? "" : "&sid=" + Uri.EscapeDataString(sid)));
         return Assert.Single(response.Headers.GetValues("Set-Cookie")).Split(';')[0];
     }
     private static async Task<WebApplication> App(INotificationsClient api)
@@ -142,11 +167,12 @@ public sealed class NotificationsBffTests
         builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
         var app = builder.Build();
         app.UseAuthentication(); app.UseAuthorization(); app.UseAntiforgery();
-        app.MapGet("/signin", async (HttpContext http, bool admin) =>
+        app.MapGet("/signin", async (HttpContext http, bool admin, string? sid) =>
         {
             var claims = new List<Claim> { new("sub", "rider"), new("iss", "https://identity.invalid"),
                 new(ClaimTypes.NameIdentifier, "rider") };
             claims.Add(new("velotime_permission", admin ? "velotime.admin" : "velotime.facilities.admin"));
+            if (sid is not null) claims.Add(new("sid", sid));
             await http.SignInAsync(new ClaimsPrincipal(new ClaimsIdentity(claims, "Cookies")));
             return Results.NoContent();
         });

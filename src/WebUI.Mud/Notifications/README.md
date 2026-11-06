@@ -7,33 +7,39 @@ mutations require cookie authentication and antiforgery; authoring additionally
 requires `Notifications.Admin` / `velotime_permission=velotime.admin`. Safe typed
 Problems preserve upstream status/code without exposing upstream details.
 
-`OidcEvents.TokenValidated` creates a fresh protected-ticket application login ID;
-renewal/refresh preserve AuthenticationProperties. It is not a claim and is not
-serialized into WebAssembly auth state. The outbound assertion handler runs after
-Duende's access-token handler, validates the actual JWT against OIDC signing keys,
-issuer, `OIDC_AUDIENCE`, lifetime and the protected ticket's exact issuer/subject,
-then uses the shared RSA-PSS signer. The assertion is capped by ticket expiry.
-Incoming assertion headers are stripped. No login ID/assertion/key reaches browser
-DTOs, JS, URLs, logging or hub messages.
-The UI-only `/api/notifications/session` cookie-status probe returns just a boolean,
-no-store, without calling the Notifications API or issuing an assertion. A
-second tab suspends content requests after logout until this probe confirms
+The existing Duende user-access-token handler forwards the Keycloak bearer token.
+There is no Notifications issuer, signing key, assertion, application login ID,
+or second token-validation layer. API authorization uses the validated access
+token's issuer/subject/roles and optional `sid`. Missing `sid` does not block
+authenticated active reads, account dismissals/restores, or permitted admin operations.
+Session mutations and restores involving currentSession remain API-authorized and
+fail with 403 `notifications.login_session_required` when the access-token `sid` is absent.
+
+The UI-only `/api/notifications/session` cookie-status probe returns exactly
+`{ "authenticated": bool, "hasSession": bool }`, no-store, without calling the
+Notifications API. No actual `sid` is exposed. `hasSession` uses the protected
+cookie principal's nonblank OIDC `sid`; it never uses browser headers, query values,
+or an unvalidated JWT payload. Reader response headers `X-VeloTime-Authenticated`
+and `X-VeloTime-HasSession` carry the same boolean capabilities for presentation.
+The host applies them only with a completed snapshot under its existing epoch gates.
+A second tab suspends content requests after logout until this probe confirms
 genuine anonymous state; it never forwards another authenticated snapshot while
 the logout POST is still in flight.
 
 ## Exact configuration / Platform integration
 
-`Notifications:SessionAssertion`:
+Existing OIDC, shared WebUI cookie/Data Protection/token storage and API discovery
+still apply. No Notifications signing configuration is required. Snapshot
+Data Protection is independent and remains unchanged. Deployment must provide TLS,
+synchronized clocks and Notifications API discovery.
 
-* `Issuer`, `Audience`: exactly match the API's configured signer/audience.
-* `KeyId`: installed public-key ID on every API replica.
-* `PrivateKeyPem`: secret-store injection only; RSA private key >=2048 bits.
-* `LifetimeSeconds`: default **120**, range 1..300 and <= API maximum.
-
-Invalid/missing signing configuration fails startup. Existing OIDC, shared WebUI
-cookie/Data Protection/token storage and API discovery still apply. Deployment
-must provide TLS, synchronized clocks and Notifications API discovery. Key
-rotation/revocation semantics are in the validated Interface Identity README.
+Platform must ensure Keycloak emits matching `sid` in the validated ID token and
+access token, including refreshed access tokens. The trusted ID-token claim is
+only a UI capability hint: if it exists but the access token lacks `sid`, the API
+still rejects session mutations without changing state. If absent, the UI hides
+session actions, retaining all permitted account actions (no automatic fallback
+dismissal). The same Keycloak SSO `sid` shares session dismissal across tabs/refresh;
+different `sid` values remain isolated.
 
 `ConnectionStrings:MessageBus` supplies SlimMessageBus Azure Service Bus.
 `ConnectionStrings:cache` supplies the existing Redis connection (not a new
@@ -69,22 +75,30 @@ maximum. Other errors and repeated tokens fail without returning partial lists.
 
 ## Validation baseline
 
-Native host restore on base `874b3a0c` fails **NU1010** for the missing central
-SignalR backplane PackageVersion; no central file was edited. A provisional
-Release host build and 21 notification .NET tests succeeded using the Platform
-owner's central manifest read-only via:
+On the assigned `3e42f08f` tree after UI simplification:
 
-`-p:DirectoryPackagesPropsPath=/workspaces/VeloTimer-notifications-platform/Directory.Packages.props`
+* `dotnet build src/WebUI.Mud/VeloTime.WebUI.Mud.csproj --configuration Release --no-restore -v quiet`:
+  passed, 0 errors, 3 existing NuGet advisory warnings on the final incremental build.
+* `dotnet build src/WebUI.Mud.Client/VeloTime.WebUI.Mud.Client.csproj --configuration Release --no-restore -v quiet`:
+  passed, 0 errors/warnings on the final incremental build.
+* `OIDC_AUDIENCE=https://build.invalid dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj
+  --configuration Release --no-restore --filter 'FullyQualifiedName~Notifications|FullyQualifiedName~WebUiBffTests.Oidc|FullyQualifiedName~OidcLocalizationTests'
+  --logger trx -v quiet`: **40 passed, 0 failed, 1 skipped** (Redis opt-in).
+* `node --test src/VeloTime.Platform.Test/NotificationsBrowser.test.mjs`:
+  **6 passed, 0 failed**.
+* `git diff --check`: passed.
 
-The five `node --test src/VeloTime.Platform.Test/NotificationsBrowser.test.mjs`
-tests also passed. This is compilation/transport evidence, not integrated
-OIDC/broker/Redis/browser delivery validation. Repeat ordinary builds and tests
-after Platform integration. Existing NuGet advisory warnings remain; package
-remediation is central-owner work.
+Checks include real in-process OIDC callback/ticket reload with Duende bearer
+forwarding to a stub API, bool-only capability/no browser-selected sid, localized
+rendering and no-sid account/session controls, paging and logout suspension.
+These do not validate live Keycloak access-token mapper alignment, token-refresh
+sid stability, Azure Service Bus, Redis delivery or full-browser interaction.
+No browser tools were available; no visual validation is claimed.
+No central packages, AppHost, charts, API tests or snapshot Data Protection changed.
 
 ## Integrated Tester checks
 
-`src/VeloTime.Platform.Test` now contains focused notification BFF, ticket/assertion,
+`src/VeloTime.Platform.Test` now contains focused notification BFF/capability,
 browser transport and rendering regressions, and
 `src/VeloTime.Platform.Test/NotificationsBrowser.test.mjs` verifies browser-side
 storage and SignalR transport behaviors with local fakes. Run the .NET project and

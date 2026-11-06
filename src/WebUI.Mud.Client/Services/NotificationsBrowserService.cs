@@ -14,8 +14,9 @@ public sealed class NotificationsBrowserService(IJSRuntime js) : INotificationsS
     private Task<IJSObjectReference> Module => _module ??= js.InvokeAsync<IJSObjectReference>(
         "import", "./_content/VeloTime.WebUI.Mud.Client/notifications.js").AsTask();
 
-    private sealed record BrowserResponse(int Status, string Body, bool Authenticated);
+    private sealed record BrowserResponse(int Status, string Body, bool Authenticated, bool HasSession);
     private bool _authenticated;
+    private bool _hasSession;
     private async Task<T> Request<T>(string path, string method, object? body, CancellationToken ct)
     {
         var module = await Module;
@@ -25,6 +26,7 @@ public sealed class NotificationsBrowserService(IJSRuntime js) : INotificationsS
             body is null ? null : JsonSerializer.Serialize(body, _json));
         ct.ThrowIfCancellationRequested();
         _authenticated = response.Authenticated;
+        _hasSession = response.Authenticated && response.HasSession;
         if (response.Status is < 200 or >= 300)
         {
             string code = "notifications.request_failed";
@@ -76,7 +78,7 @@ public sealed class NotificationsBrowserService(IJSRuntime js) : INotificationsS
     {
         var result = await Drain(t => Request<ActiveNotificationsDTO>("/api/notifications/active" + PageQuery(t), "GET", null, ct),
             p => p.Items, p => p.ContinuationToken);
-        return new(result.Page with { Items = result.Items, ContinuationToken = null }, _authenticated);
+        return new(result.Page with { Items = result.Items, ContinuationToken = null }, _authenticated, _hasSession);
     }
     public async Task<IReadOnlyList<NotificationDismissalListItemDTO>> DismissalsAsync(CancellationToken ct) =>
         (await Drain(t => Request<NotificationDismissalsPageDTO>("/api/notifications/dismissals" + PageQuery(t), "GET", null, ct),

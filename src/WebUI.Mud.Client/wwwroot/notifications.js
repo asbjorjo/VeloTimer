@@ -15,7 +15,9 @@ export async function request(id, path, method, body) {
         }
         if (body !== null) headers["Content-Type"] = "application/json";
         const response = await fetch(path, { method, headers, body, credentials: "same-origin", cache: "no-store", signal: controller.signal });
-        return { status: response.status, body: await response.text(), authenticated: response.headers.get("X-VeloTime-Authenticated") === "true" };
+        return { status: response.status, body: await response.text(),
+            authenticated: response.headers.get("X-VeloTime-Authenticated") === "true",
+            hasSession: response.headers.get("X-VeloTime-HasSession") === "true" };
     } finally { clearTimeout(timeout); requests.delete(id); }
 }
 export function abort(id) { requests.get(id)?.abort(); }
@@ -77,11 +79,11 @@ class HintConnection {
     async confirmAnonymous() {
         if (this.stopped) return;
         try {
-            // Cookie-only BFF metadata. No Notifications API call or assertion.
+            // Cookie-only BFF metadata. No Notifications API call or session ID.
             const response = await fetch("/api/notifications/session", {
                 credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(5000)
             });
-            if (response.ok && await response.json() === false) { this.notify("ResumeAnonymous"); return; }
+            if (response.ok && (await response.json()).authenticated === false) { this.notify("ResumeAnonymous"); return; }
         } catch { /* Logout may still be in progress; keep private content cleared. */ }
         this.logoutProbe = setTimeout(() => this.confirmAnonymous(), 1000);
     }

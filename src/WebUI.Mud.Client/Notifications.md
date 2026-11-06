@@ -13,7 +13,10 @@ Actions are keyboard buttons with polite live regions, and the content wraps
 within the viewport. Durations use browser number culture; timestamps/editors
 use the existing effective display preferences, not the server timezone.
 
-All authenticated scopes allowed by the notice are available, with the configured
+All authenticated account scopes allowed by the notice are available; session scope
+is shown only when the trusted BFF capability reports a nonblank Keycloak `sid`.
+No permitted account action is automatically executed when session scope is absent.
+With the configured
 default prominent: information permanently, warning one day, error one hour.
 Authors can override those policies and prohibit permanent dismissal. Anonymous
 public notices always offer tab dismissal, regardless of authenticated policy.
@@ -34,9 +37,11 @@ cancels timers/requests/subscriptions. A connection-owner handle prevents the ol
 hydration instance from disposing its successor (not an authentication identity).
 Same-origin logout broadcasts contain only `"logout"`, never an identity or notice.
 Logout cancels and suspends content requests. A second tab resumes anonymous
-storage only after the UI-only no-store `/api/notifications/session` boolean probe
+storage only after the UI-only no-store `/api/notifications/session` capability probe
 confirms the cookie has actually ended; the probe never calls the Notifications
-API or issues an assertion.
+API. Its exact JSON shape is `{ "authenticated": bool, "hasSession": bool }`;
+no session identifier reaches browser state. `authenticated === false` is required
+to resume anonymous content; missing/invalid responses never resume it.
 
 `/admin/notifications` and navigation use the existing global permission policy.
 List/create/edit/end cover everyone, authenticated, exact role, exact issuer+subject.
@@ -51,11 +56,13 @@ display preference changes while editing. API authorization remains authoritativ
 Profile Show again drains dismissal pages, displays effective account/current-login
 layers, and offers account, currentSession, or both only when applicable. It uses
 the returned remaining layers/IsActive, never promises an ended/future/suppressed
-notice will appear, and never clears other application logins. Authentication
+notice will appear, and never clears other Keycloak sessions. Current-session/both
+restore actions are hidden without the session capability; account restore remains
+available and is never silently upgraded to a combined restore. Authentication
 changes clear management content and invalidate in-flight results. Admin/profile
 lists share host refresh signals without additional hub connections.
 
-## Exact checks
+## Historical checks (before Keycloak-only simplification)
 
 * Existing typed Notifications client Release build: success, 0 warnings/errors
   (restore API first for build-generated client prerequisites).
@@ -70,7 +77,7 @@ lists share host refresh signals without additional hub connections.
   --filter FullyQualifiedName~Notifications --logger trx
   -p:DirectoryPackagesPropsPath=/workspaces/VeloTimer-notifications-platform/Directory.Packages.props`:
   30 passed, 0 failed/skipped. Tests cover BFF auth/CSRF/global permission/problems,
-  actual-token assertion binding/ticket expiry/fresh login, all-page drain/restarts,
+  (historical pre-simplification run; custom assertion/ticket tests since removed), all-page drain/restarts,
   localized escaped rendering/default choices, save failure/retry, UUID/version
   reconciliation/end/logout, author defaults/overrides/UTC and profile layer restore.
 * `node --test src/VeloTime.Platform.Test/NotificationsBrowser.test.mjs`:
@@ -84,6 +91,12 @@ lists share host refresh signals without additional hub connections.
   assertions remain unchanged. Final client/host builds had 3/6 warnings
   respectively, 0 errors.
 
+For the current exact checks and boolean BFF response contract, see
+`../WebUI.Mud/Notifications/README.md`: host/client builds pass; focused .NET suite
+has **40 passed, 0 failed, 1 Redis opt-in skipped**; JavaScript suite has
+**6 passed, 0 failed**. Custom protocol tests/fixture signing configuration were
+removed, replaced with existing OIDC/forwarding and no-session UI regressions.
+
 No browser executable/tool was available. HtmlRenderer and mocked browser tests
 are **not** visual, full browser interaction, real OIDC, broker or Redis validation.
 Known central NuGet advisory warnings remain (MessagePack, WebAssembly.Server,
@@ -92,11 +105,11 @@ Generated API newline-only output is discarded, not committed.
 
 ## Integration / next owner
 
-Coordinator integrates Platform b9031635 and the UI commits, then selects Tester.
-Ordinary builds/tests must be repeated on that combined tree; the read-only central
-manifest build is not a claim of integrated deployment acceptance. Runtime
+Next owners: Platform for Keycloak mapper/deployment cleanup, then Tester for live
+browser/session behavior. Targeted builds/tests above use the assigned tree with
+its existing restore assets, not a claim of integrated deployment acceptance. Runtime
 configuration and topology are documented in `../WebUI.Mud/Notifications/README.md`.
-Platform must configure cache/MessageBus/API discovery, matching signing/public keys,
+Platform must configure cache/MessageBus/API discovery, matching Keycloak ID/access-token `sid`,
 protected key rings, ingress WebSockets/negotiation affinity and the Redis backplane.
 
 Tester scenarios:
@@ -106,8 +119,10 @@ Tester scenarios:
 2. >100 notices/pages with writes between pages and expiring tokens: only full
    snapshots replace content; three explicit revision retries maximum.
 3. All audience modes, exact role/issuer/subject and global-admin authorization;
-   inspect public HTTP/push/browser state for sensitive data or assertion/login IDs.
-4. Fresh OIDC application login vs shared SSO sid, refresh/renewal, concurrent logins,
+   inspect public HTTP/push/browser state for sensitive data or actual session IDs.
+4. Same Keycloak `sid` across tabs/refresh versus distinct `sid`; no-sid authenticated
+   active/account/admin operations and 403 on session mutations; trusted ID/access
+   token sid mapper alignment, refresh/renewal, concurrent logins,
    ticket expiry, logout during snapshot/save, same-origin second-tab logout.
 5. Anonymous sessionStorage reload/new independent tab, storage denied, login does
    not inherit anonymous dismissals, logout resumes that tab's stored UUIDs.
