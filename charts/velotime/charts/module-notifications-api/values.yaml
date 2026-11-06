@@ -1,0 +1,44 @@
+existingSecret: ""
+oidcAudience: ""
+replicaCount: 1
+cache:
+  host: cache-service
+  port: 6379
+  user: default
+  password: ""
+database:
+  host: postgres-service
+  port: 5432
+  user: velotime
+  password: ""
+sessionAssertion:
+  issuer: ""
+  audience: ""
+  maximumLifetimeSeconds: 120
+  clockSkewSeconds: 5
+image:
+  pullPolicy: IfNotPresent
+migration:
+  enabled: true
+  image:
+    pullPolicy: IfNotPresent
+service:
+  type: ClusterIP
+  port: 80
+httpRoute:
+  enabled: true
+  parentRefs:
+    - name: gateway
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/notifications
+global:
+  image:
+    repository: ghcr.io/asbjorjo/
+    tag: 2.1.0-alpha.33
+  oidcAudience: ""
+  oidcAuthority: ""
+  imagePullSecrets:
+    - name: ghcr

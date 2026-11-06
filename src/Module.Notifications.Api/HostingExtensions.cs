@@ -6,6 +6,10 @@ using System.Text.Json.Serialization;
 using System.Text.Json.Nodes;
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.StackExchangeRedis;
+using StackExchange.Redis;
 using VeloTime.Module.Notifications.Api.Identity;
 using VeloTime.Module.Notifications.Interface;
 using VeloTime.Module.Notifications.Interface.Identity;
@@ -14,6 +18,9 @@ namespace VeloTime.Module.Notifications.Api;
 
 public static class HostingExtensions
 {
+    public const string DataProtectionApplicationName = "VeloTime.Notifications";
+    public const string DataProtectionRedisKey = "velotime:notifications-api:dataprotection-keys";
+
     public static IHostApplicationBuilder AddNotificationsApi(this IHostApplicationBuilder builder)
     {
         builder.AddModuleAuthentication();
@@ -90,6 +97,19 @@ public static class HostingExtensions
                 return Task.CompletedTask;
             });
         });
+        return builder;
+    }
+
+    public static IHostApplicationBuilder AddNotificationsDataProtection(this IHostApplicationBuilder builder)
+    {
+        // AddModuleCache registers the shared Redis multiplexer used by the durable key ring.
+        builder.AddModuleCache();
+        builder.Services.AddDataProtection().SetApplicationName(DataProtectionApplicationName);
+        builder.Services.AddOptions<KeyManagementOptions>()
+            .Configure<IServiceProvider>((options, services) =>
+                options.XmlRepository = new RedisXmlRepository(
+                    () => services.GetRequiredService<IConnectionMultiplexer>().GetDatabase(),
+                    DataProtectionRedisKey));
         return builder;
     }
 

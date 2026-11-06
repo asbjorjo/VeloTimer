@@ -8,5 +8,10 @@ data:
   services__module-facilities-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "facilities")}}
   services__module-statistics-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "statistics")}}
   services__module-profiles-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "profiles")}}
+  services__module-notifications-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "notifications")}}
   services__module-timing-api__http__0: {{ include "velotime.moduleApiHttp" (dict "root" . "module" "timing")}}
+  Notifications__SessionAssertion__Issuer: {{ .Values.notifications.sessionAssertion.issuer | quote }}
+  Notifications__SessionAssertion__Audience: {{ .Values.notifications.sessionAssertion.audience | quote }}
+  Notifications__SessionAssertion__KeyId: {{ .Values.notifications.sessionAssertion.keyId | quote }}
+  Notifications__SessionAssertion__LifetimeSeconds: {{ .Values.notifications.sessionAssertion.lifetimeSeconds | quote }}
   {{- include "velotime.oidcConfig" . | nindent 2 }}

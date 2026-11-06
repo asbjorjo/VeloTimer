@@ -1,4 +1,12 @@
 existingSecret: ""
+secrets:
+  MessageBus: ""
+notifications:
+  sessionAssertion:
+    issuer: ""
+    audience: ""
+    keyId: ""
+    lifetimeSeconds: 120
 keycloak:
   host: ""
 cache:

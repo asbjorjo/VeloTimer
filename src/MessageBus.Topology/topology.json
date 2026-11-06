@@ -57,6 +57,18 @@
       {
         "name": "velotime-facilities",
         "subscriptions": []
+      },
+      {
+        "name": "velotime-notifications",
+        "subscriptions": [
+          {
+            "name": "webui-notifications",
+            "requiresSession": false,
+            "rules": [
+              { "name": "NotificationsRefreshRequestedV1", "sqlFilter": "MessageName = 'NotificationsRefreshRequestedV1'" }
+            ]
+          }
+        ]
       }
     ]
   }

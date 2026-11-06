@@ -9,7 +9,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.AddNotificationsApi();
 builder.AddModuleNotifications();
-builder.Services.AddHealthChecks().AddCheck<NotificationsDatabaseHealthCheck>("notifications-storage", tags: ["ready"]);
+builder.AddNotificationsDataProtection();
+builder.Services.AddHealthChecks()
+    .AddCheck<NotificationsDatabaseHealthCheck>("notifications-storage", tags: ["ready"])
+    .AddCheck<NotificationsDataProtectionHealthCheck>("notifications-data-protection", tags: ["ready"]);
 var app = builder.Build();
 app.UseMiddleware<NotificationProblemMiddleware>();
 app.UseStatusCodePages(async context =>
@@ -63,6 +66,28 @@ internal sealed class NotificationsDatabaseHealthCheck(IServiceScopeFactory scop
         catch (Exception e) when (e is not OperationCanceledException)
         {
             return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy("Notifications storage unavailable.");
+        }
+    }
+}
+
+internal sealed class NotificationsDataProtectionHealthCheck(
+    Microsoft.AspNetCore.DataProtection.IDataProtectionProvider protection,
+    StackExchange.Redis.IConnectionMultiplexer redis)
+    : Microsoft.Extensions.Diagnostics.HealthChecks.IHealthCheck
+{
+    public async Task<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult> CheckHealthAsync(
+        Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext context, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await redis.GetDatabase().PingAsync();
+            _ = protection.CreateProtector("Notifications.Snapshot.v1")
+                .Protect(System.Text.Encoding.UTF8.GetBytes("readiness"));
+            return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy();
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy("Notifications protected snapshot key ring unavailable.");
         }
     }
 }

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "velotime.fullname" . }}
+data:
+  OIDC_AUDIENCE: {{ .Values.oidcAudience | default .Values.global.oidcAudience | quote }}
+  Notifications__SessionAssertion__Issuer: {{ .Values.sessionAssertion.issuer | quote }}
+  Notifications__SessionAssertion__Audience: {{ .Values.sessionAssertion.audience | quote }}
+  Notifications__SessionAssertion__MaximumLifetimeSeconds: {{ .Values.sessionAssertion.maximumLifetimeSeconds | quote }}
+  Notifications__SessionAssertion__ClockSkewSeconds: {{ .Values.sessionAssertion.clockSkewSeconds | quote }}
+  {{- include "velotime.oidcConfig" . | nindent 2 }}

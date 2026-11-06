@@ -33,6 +33,7 @@ IResourceBuilder<ProjectResource> facilitiesmigrator;
 IResourceBuilder<ProjectResource> statisticsmigrator;
 IResourceBuilder<ProjectResource> timingmigrator;
 IResourceBuilder<ProjectResource> profilesmigrator;
+IResourceBuilder<ProjectResource> notificationsmigrator;
 IResourceBuilder<IResourceWithConnectionString> velotimedb;
 
 var k8s = builder.AddKubernetesEnvironment("k8s");
@@ -41,6 +42,36 @@ var servicebusconnection = builder.AddConnectionString("MessageBus");
 var statisticsprocsecret = builder.AddParameter("StatisticsProcessorSecret", secret: true);
 var timingprocsecret = builder.AddParameter("TimingProcessorSecret", secret: true);
 var usermigrationsecret = builder.AddParameter("UserMigrationSecret", secret: true);
+
+string? notificationAssertionIssuer = null;
+string? notificationAssertionAudience = null;
+string? notificationAssertionKeyId = null;
+string? notificationAssertionPrivateKey = null;
+string? notificationAssertionPublicKey = null;
+IResourceBuilder<ParameterResource>? notificationAssertionPrivateKeyParameter = null;
+if (builder.ExecutionContext.IsRunMode && builder.Environment.IsDevelopment())
+{
+    notificationAssertionIssuer = builder.Configuration["Notifications:SessionAssertion:Issuer"] ?? "VeloTime.WebUI.Mud";
+    notificationAssertionAudience = builder.Configuration["Notifications:SessionAssertion:Audience"] ?? "VeloTime.Module.Notifications.Api";
+    notificationAssertionKeyId = builder.Configuration["Notifications:SessionAssertion:KeyId"] ?? "aspire-local";
+    notificationAssertionPrivateKey = builder.Configuration["Notifications:SessionAssertion:PrivateKeyPem"];
+    notificationAssertionPublicKey = builder.Configuration[$"Notifications:SessionAssertion:PublicKeys:{notificationAssertionKeyId}"];
+    if (notificationAssertionPrivateKey is null && notificationAssertionPublicKey is null)
+    {
+        using var localNotificationSigner = System.Security.Cryptography.RSA.Create(3072);
+        notificationAssertionPrivateKey = localNotificationSigner.ExportPkcs8PrivateKeyPem();
+        notificationAssertionPublicKey = localNotificationSigner.ExportSubjectPublicKeyInfoPem();
+    }
+    else if (notificationAssertionPrivateKey is null || notificationAssertionPublicKey is null)
+    {
+        throw new InvalidOperationException("Local Notifications assertion configuration must provide both a matching private and public key.");
+    }
+    builder.Configuration["Notifications:SessionAssertion:PrivateKeyPem"] = notificationAssertionPrivateKey;
+    notificationAssertionPrivateKeyParameter = builder.AddParameterFromConfiguration(
+        "notifications-session-assertion-private-key",
+        "Notifications:SessionAssertion:PrivateKeyPem",
+        secret: true);
+}
 
 var velotimerdb = builder.AddConnectionString("VeloTimerDb");
 var velotimeridentitydb = builder.AddConnectionString("VeloTimerIdentityDb");
@@ -106,6 +137,22 @@ var profilesapi = builder.AddProject<Projects.VeloTime_Module_Profiles_Api>("mod
     .WithReference(velotimedb)
     .WithReference(keycloak)
     .WaitFor(velotimedb);
+var notificationsapi = builder.AddProject<Projects.VeloTime_Module_Notifications_Api>("module-notifications-api")
+    .WithHttpEndpoint(name: "http")
+    .WithEnvironment("OIDC_AUDIENCE", oidcAudience)
+    .WithReference(cache)
+    .WithReference(velotimedb)
+    .WithReference(keycloak)
+    .WaitFor(velotimedb);
+if (notificationAssertionIssuer is not null)
+{
+    notificationsapi
+        .WithEnvironment("Notifications__SessionAssertion__Issuer", notificationAssertionIssuer)
+        .WithEnvironment("Notifications__SessionAssertion__Audience", notificationAssertionAudience!)
+        .WithEnvironment("Notifications__SessionAssertion__PublicKeys__" + notificationAssertionKeyId, notificationAssertionPublicKey!)
+        .WithEnvironment("Notifications__SessionAssertion__MaximumLifetimeSeconds", "120")
+        .WithEnvironment("Notifications__SessionAssertion__ClockSkewSeconds", "5");
+}
 
 statisticsapi.WithReference(facilityapi);
 facilityapi.WithReference(timingapi).WithReference(statisticsapi);
@@ -127,11 +174,22 @@ var users = builder.AddProject<Projects.VeloTime_Users_Migration>("users-migrati
 var frontend = builder.AddProject<Projects.VeloTime_WebUI_Mud>("frontend")
     .WithExternalHttpEndpoints()
     .WithReference(cache)
+    .WithReference(servicebusconnection)
     .WithReference(keycloak)
     .WithReference(facilityapi)
     .WithReference(statisticsapi)
     .WithReference(profilesapi)
+    .WithReference(notificationsapi)
     .WithReference(timingapi);
+if (notificationAssertionIssuer is not null)
+{
+    frontend
+        .WithEnvironment("Notifications__SessionAssertion__Issuer", notificationAssertionIssuer)
+        .WithEnvironment("Notifications__SessionAssertion__Audience", notificationAssertionAudience!)
+        .WithEnvironment("Notifications__SessionAssertion__KeyId", notificationAssertionKeyId!)
+        .WithEnvironment("Notifications__SessionAssertion__PrivateKeyPem", notificationAssertionPrivateKeyParameter!)
+        .WithEnvironment("Notifications__SessionAssertion__LifetimeSeconds", "120");
+}
 
 var statsproc = builder.AddProject<Projects.VeloTime_Module_Statistics_Processor>("module-statistics-processor")
     .WithReference(cache)
@@ -193,11 +251,15 @@ if (migrate)
     profilesmigrator = builder.AddProject<Projects.VeloTime_Module_Profiles_Migration>("module-profiles-migration")
         .WaitFor(velotimedb)
         .WithReference(velotimedb);
+    notificationsmigrator = builder.AddProject<Projects.VeloTime_Module_Notifications_Migration>("module-notifications-migration")
+        .WaitFor(velotimedb)
+        .WithReference(velotimedb);
 
     facilityapi.WaitForCompletion(facilitiesmigrator);
     statisticsapi.WaitForCompletion(statisticsmigrator);
     timingapi.WaitForCompletion(timingmigrator);
     profilesapi.WaitForCompletion(profilesmigrator);
+    notificationsapi.WaitForCompletion(notificationsmigrator);
     statsproc.WaitForCompletion(statisticsmigrator);
     timingproc.WaitForCompletion(timingmigrator);
 

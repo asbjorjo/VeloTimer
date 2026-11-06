@@ -1,9 +1,9 @@
 {{- $root := . -}}
 {{- $prefix := .Release.Name -}}
-{{- if gt (len $prefix) 40 -}}
-  {{- $prefix = printf "%s-%s" ($prefix | trunc 31 | trimSuffix "-") ($prefix | sha256sum | trunc 8) -}}
+{{- if gt (len $prefix) 38 -}}
+  {{- $prefix = printf "%s-%s" ($prefix | trunc 29 | trimSuffix "-") ($prefix | sha256sum | trunc 8) -}}
 {{- end -}}
-{{- range $index, $domain := list "facilities" "statistics" "timing" "profiles" -}}
+{{- range $index, $domain := list "facilities" "statistics" "timing" "profiles" "notifications" -}}
 {{- $api := index $root.Subcharts (printf "module-%s-api" $domain) -}}
 {{- $overrides := index $root.Values.migrationJobs.domains $domain | default dict -}}
 {{- $enabled := $api.Values.migration.enabled -}}

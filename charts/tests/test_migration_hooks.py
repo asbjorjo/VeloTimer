@@ -7,7 +7,7 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DOMAINS = ("facilities", "statistics", "timing", "profiles")
+DOMAINS = ("facilities", "statistics", "timing", "profiles", "notifications")
 HELM = os.environ.get("HELM", "helm")
 
 
@@ -35,13 +35,13 @@ def container(job):
 
 
 class MigrationHooksTests(unittest.TestCase):
-    def test_default_install_and_upgrade_have_four_ordered_jobs_and_no_pod_migrations(self):
+    def test_default_install_and_upgrade_have_ordered_jobs_and_no_pod_migrations(self):
         for upgrade in (False, True):
             with self.subTest(upgrade=upgrade):
                 documents = render(upgrade=upgrade)
                 jobs = migrations(documents)
                 self.assertEqual(set(DOMAINS), set(jobs))
-                self.assertEqual(4, sum(doc["kind"] == "Job"
+                self.assertEqual(len(DOMAINS), sum(doc["kind"] == "Job"
                                        and "velotime.io/migration-domain" in doc["metadata"].get("labels", {})
                                        for doc in documents))
                 for domain, job in jobs.items():

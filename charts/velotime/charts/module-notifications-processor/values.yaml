@@ -1,0 +1,27 @@
+enabled: false
+existingSecret: ""
+replicaCount: 1
+cache:
+  host: cache-service
+  port: 6379
+  user: default
+  password: ""
+database:
+  host: postgres-service
+  port: 5432
+  user: velotime
+  password: ""
+secrets:
+  MessageBus: ""
+image:
+  pullPolicy: IfNotPresent
+migration:
+  enabled: true
+  image:
+    pullPolicy: IfNotPresent
+global:
+  image:
+    repository: ghcr.io/asbjorjo/
+    tag: 2.1.0-alpha.33
+  imagePullSecrets:
+    - name: ghcr

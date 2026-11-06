@@ -9,6 +9,15 @@ global:
 valkey:
   replicaCount: 1
   fullnameOverride: cache-service
+  # Notification snapshot tokens require the Data Protection key ring to survive
+  # Valkey restarts and chart upgrades. Keep its PVC on chart uninstall.
+  dataStorage:
+    enabled: true
+    requestedSize: 1Gi
+    keepPvc: true
+  valkeyConfig: |
+    appendonly yes
+    appendfsync everysec
 module-facilities-api:
   cache: &sharedCache
     host: cache-service
@@ -20,12 +29,21 @@ module-timing-api:
   cache: *sharedCache
 module-profiles-api:
   cache: *sharedCache
+module-notifications-api:
+  cache: *sharedCache
+module-notifications-processor:
+  enabled: false
+  cache: *sharedCache
+  secrets:
+    MessageBus: ""
 module-statistics-processor:
   cache: *sharedCache
 module-timing-processor:
   cache: *sharedCache
 webui:
   cache: *sharedCache
+  secrets:
+    MessageBus: ""
 messageBusTopology:
   # pre-install/pre-upgrade hook Job that creates and reconciles Service Bus topics,
   # subscriptions and filter rules. Applications do not provision topology themselves.
@@ -90,6 +108,13 @@ messageBusTopology:
               sqlFilter: MessageName = 'StatisticsValidityThresholdsChangedV1'
     - name: velotime-facilities
       subscriptions: []
+    - name: velotime-notifications
+      subscriptions:
+        - name: webui-notifications
+          requiresSession: false
+          rules:
+            - name: NotificationsRefreshRequestedV1
+              sqlFilter: MessageName = 'NotificationsRefreshRequestedV1'
 migrationJobs:
   backoffLimit: 1
   activeDeadlineSeconds: 600
@@ -103,3 +128,4 @@ migrationJobs:
     statistics: {}
     timing: {}
     profiles: {}
+    notifications: {}
