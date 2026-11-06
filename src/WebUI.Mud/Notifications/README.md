@@ -54,9 +54,15 @@ deadline polling repair hints lost during disconnection. Slow/failing circuit
 callbacks do not fail another subscriber.
 
 The fanout reuses the existing DI-owned `IConnectionMultiplexer` from the `cache`
-registration. It removes connection-event handlers and unsubscribes its channel
-on shutdown, but never disposes that shared connection. No per-replica broker
-subscriptions or server hub clients are created.
+registration. Initial Redis subscription failures (Redis errors and timeouts)
+are logged and retried in the background with exponential delays from 1 to 30
+seconds; they do not block host startup. Active circuits report transport failure
+until the channel is subscribed, then refresh their snapshots on connection.
+After a queue is established, the Redis client restores it on reconnect. Shutdown
+cancels retries, removes connection-event handlers and unsubscribes the channel,
+including a subscription that completes late, but never disposes that shared
+connection. Other services' own Redis startup requirements are unchanged. No
+per-replica broker subscriptions or server hub clients are created.
 
 Deployment still needs `ConnectionStrings:cache`, `ConnectionStrings:MessageBus`,
 Notifications API discovery, shared cookie/Data Protection/token storage, TLS,
