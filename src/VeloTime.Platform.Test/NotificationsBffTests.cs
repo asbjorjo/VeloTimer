@@ -123,7 +123,13 @@ public sealed class NotificationsBffTests
         builder.WebHost.UseTestServer();
         builder.Logging.SetMinimumLevel(LogLevel.Critical);
         builder.Services.AddSingleton(api);
-        builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
+        builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            // Match production's OIDC default challenge: API endpoints must choose
+            // cookie challenge explicitly instead of redirecting to the provider.
+            options.DefaultChallengeScheme = "OidcMustNotBeChallenged";
+        }).AddCookie(options =>
         {
             options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
             options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };

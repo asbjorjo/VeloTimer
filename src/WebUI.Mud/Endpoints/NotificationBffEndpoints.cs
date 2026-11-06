@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using VeloTime.Module.Notifications.Client;
 using VeloTime.Module.Notifications.Interface;
@@ -15,17 +16,22 @@ internal static class NotificationBffEndpoints
     {
         // Deliberately separate from the existing mandatory-login /api group.
         var reader = endpoints.MapGroup("/api/notifications");
+        var cookie = new AuthorizeAttribute { AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme };
         reader.AddEndpointFilter(Guard);
         reader.MapGet("/active", (int? pageSize, string? continuationToken, INotificationsClient client, CancellationToken ct) =>
             client.GetActiveNotificationsAsync(pageSize, continuationToken, null, ct));
         reader.MapGet("/dismissals", (int? pageSize, string? continuationToken, INotificationsClient client, CancellationToken ct) =>
-            client.GetNotificationDismissalsAsync(pageSize, continuationToken, null, ct)).RequireAuthorization();
+            client.GetNotificationDismissalsAsync(pageSize, continuationToken, null, ct)).RequireAuthorization(cookie);
         reader.MapPut("/{id:guid}/dismissal", (Guid id, DismissNotificationRequest body, INotificationsClient client, CancellationToken ct) =>
-            client.DismissNotificationAsync(id, null, body, ct)).RequireAuthorization();
+            client.DismissNotificationAsync(id, null, body, ct)).RequireAuthorization(cookie);
         reader.MapDelete("/{id:guid}/dismissal", (Guid id, string scope, INotificationsClient client, CancellationToken ct) =>
-            client.RestoreNotificationDismissalAsync(id, scope, null, ct)).RequireAuthorization();
+            client.RestoreNotificationDismissalAsync(id, scope, null, ct)).RequireAuthorization(cookie);
 
-        var admin = endpoints.MapGroup("/api/admin/notifications").RequireAuthorization("Notifications.Admin");
+        var admin = endpoints.MapGroup("/api/admin/notifications").RequireAuthorization(new AuthorizeAttribute
+        {
+            AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme,
+            Policy = "Notifications.Admin"
+        });
         admin.AddEndpointFilter(Guard);
         admin.MapGet("", (int? pageSize, string? continuationToken, INotificationsClient client, CancellationToken ct) =>
             client.ListNotificationsAsync(pageSize, continuationToken, null, ct));
