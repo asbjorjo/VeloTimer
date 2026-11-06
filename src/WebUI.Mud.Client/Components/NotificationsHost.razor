@@ -56,7 +56,7 @@
         try
         {
             _anonymous = (await Authentication.GetAuthenticationStateAsync()).User.Identity?.IsAuthenticated != true;
-            var module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/VeloTime.WebUI.Mud.Client/notifications.js");
+            var module = await JS.InvokeAsync<IJSObjectReference>("import", NotificationsBrowserService.ModulePath);
             if (_disposed) { await module.DisposeAsync(); return; }
             _module = module;
             _subscription = await RefreshSource.SubscribeAsync(OnRefreshEvent, _lifetime.Token);

@@ -35,6 +35,27 @@ Both modes retain `NotificationsBrowserService` for browser-origin BFF requests.
 framing, WebSocket, ping, reconnect, visibility listeners, BroadcastChannel,
 logout form interception, or cookie-status probes.
 
+### Published browser module
+
+The hosted WASM client uses `StaticWebAssetProjectMode=Default`. Its
+`wwwroot/notifications.js` publishes as `/notifications.js`, not a Razor class
+library `_content/VeloTime.WebUI.Mud.Client/` asset. Both UI entrypoints import
+the shared `NotificationsBrowserService.ModulePath` (`./notifications.js`),
+relative to the document base. No duplicate script or compatibility route is
+needed. `NotificationsPublishedAssetTests` publishes Release and HTTP-checks
+the exact import against the Production endpoint manifest at root and beneath
+a path base; it does not rely on Development static asset handling.
+
+The small module remains necessary: anonymous dismissals deliberately live in
+browser `sessionStorage`, and InteractiveServer C# HTTP requests do not
+automatically carry the browser's authentication cookies. Browser fetch keeps
+the existing same-origin BFF/antiforgery/cancellation behavior in both Auto
+render modes. Replacing it solely with a JS-wrapper dependency would not
+remove browser interop. SignalR and application logout stay outside this module.
+The path-base smoke check covers module resolution, not full application
+subpath support (the host's document base and existing API/hub URLs still need
+deployment-wide configuration for that).
+
 ## Cross-replica delivery
 
 The existing Azure Service Bus topic `velotime-notifications`, competing logical

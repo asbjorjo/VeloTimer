@@ -9,10 +9,14 @@ namespace VeloTime.WebUI.Mud.Client.Services;
 // leave the server; no HttpContext captured by a long-lived server circuit.
 public sealed class NotificationsBrowserService(IJSRuntime js) : INotificationsService, IAsyncDisposable
 {
+    // The hosted WASM client's wwwroot is published at the app root, not _content.
+    // Keep this relative to the document base for deployments below a path base.
+    public const string ModulePath = "./notifications.js";
+
     private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web);
     private Task<IJSObjectReference>? _module;
     private Task<IJSObjectReference> Module => _module ??= js.InvokeAsync<IJSObjectReference>(
-        "import", "./_content/VeloTime.WebUI.Mud.Client/notifications.js").AsTask();
+        "import", ModulePath).AsTask();
 
     private sealed record BrowserResponse(int Status, string Body, bool Authenticated, bool HasSession);
     private sealed record Response<T>(T Body, bool Authenticated, bool HasSession);

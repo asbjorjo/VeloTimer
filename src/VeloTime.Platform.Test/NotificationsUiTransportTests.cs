@@ -212,7 +212,13 @@ public sealed class NotificationsUiTransportTests
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken ct, object?[]? args)
         {
             ct.ThrowIfCancellationRequested();
-            if (identifier == "import") return ValueTask.FromResult((TValue)(object)this);
+            if (identifier == "import")
+            {
+                // Used by both the browser service and interactive host fixture.
+                // The publish/HTTP regression validates this specifier's route.
+                Assert.Equal(NotificationsBrowserService.ModulePath, Assert.Single(args!));
+                return ValueTask.FromResult((TValue)(object)this);
+            }
             if (identifier == "abort") return ValueTask.FromResult(default(TValue)!);
             if (identifier == "anonymousDismissed") return ValueTask.FromResult((TValue)(object)Array.Empty<string>());
             Assert.Equal("request", identifier);
