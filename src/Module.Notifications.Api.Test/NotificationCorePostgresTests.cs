@@ -19,6 +19,26 @@ public sealed class NotificationCorePostgresTests(PostgresFixture database) : IC
         new("En testmelding", "Norsk tekst"));
 
     [Fact]
+    public void DatabaseTestsUseTheCiPostgresOptInAndCannotSilentlySkipInGitHubActions()
+    {
+        Assert.Equal("NOTIFICATIONS_API_TEST_ADMIN_CONNECTION", PostgresFixture.ConfigurationKey);
+        var databaseTests = new[] { typeof(NotificationCorePostgresTests), typeof(NotificationsApiAuthorizationTests) }
+            .SelectMany(type => type.GetMethods(System.Reflection.BindingFlags.Public
+                | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly))
+            .Where(method => method.ReturnType == typeof(Task)).ToArray();
+        Assert.NotEmpty(databaseTests);
+        Assert.All(databaseTests, method =>
+            Assert.IsType<PostgresFactAttribute>(Assert.Single(method.GetCustomAttributes(typeof(FactAttribute), false))));
+
+        if (string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            Assert.False(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(PostgresFixture.ConfigurationKey)),
+                $"CI must set {PostgresFixture.ConfigurationKey}; otherwise core and API PostgreSQL tests skip.");
+            Assert.Null(new PostgresFactAttribute().Skip);
+        }
+    }
+
+    [Fact]
     public void EffectiveDefaultsAndValidationCodes_AreStable()
     {
         Assert.Equal((NotificationDismissalScope.Permanent, null),

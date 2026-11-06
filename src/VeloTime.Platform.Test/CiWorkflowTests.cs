@@ -6,6 +6,8 @@ namespace VeloTime.Platform.Test;
 public sealed class CiWorkflowTests
 {
     private const string FacilitiesConnectionKey = "FACILITIES_TEST_POSTGRES_ADMIN_CONNECTION";
+    private static readonly string[] NotificationConnectionKeys =
+        ["NOTIFICATIONS_API_TEST_ADMIN_CONNECTION", "NOTIFICATIONS_WORKER_TEST_ADMIN_CONNECTION"];
 
     [Fact]
     public void Definition_RunsMasterAndV2WithFacilitiesPostgresEnabled()
@@ -42,14 +44,15 @@ public sealed class CiWorkflowTests
         Assert.Contains($"{facilities.Port}:5432", Sequence(postgres, "ports"));
         Assert.Contains("pg_isready -U postgres", Scalar(postgres, "options"));
 
-        foreach (var key in new[] { "VELOTIME_TEST_OUTBOX_POSTGRES", "VELOTIME_TEST_STATISTICS_POSTGRES" })
+        foreach (var key in new[] { "VELOTIME_TEST_OUTBOX_POSTGRES", "VELOTIME_TEST_STATISTICS_POSTGRES" }
+                     .Concat(NotificationConnectionKeys))
             Assert.True(new NpgsqlConnectionStringBuilder(Scalar(environment, key)).EquivalentTo(facilities),
                 $"{key} and Facilities must target the same disposable PostgreSQL service.");
 
         var steps = Assert.IsType<YamlSequenceNode>(build.Children[new YamlScalarNode("steps")]);
         var test = Assert.Single(steps.Children.OfType<YamlMappingNode>(),
             step => step.Children.TryGetValue(new YamlScalarNode("name"), out var name) && name.ToString() == "Test");
-        Assert.Equal("dotnet test --logger \"trx\" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov", Scalar(test, "run"));
+        Assert.Equal("dotnet test VeloTimer.sln --logger \"trx\" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov", Scalar(test, "run"));
 
         var summary = Assert.Single(steps.Children.OfType<YamlMappingNode>(),
             step => step.Children.TryGetValue(new YamlScalarNode("name"), out var name) && name.ToString() == "Summarize Test Results");
@@ -74,6 +77,19 @@ public sealed class CiWorkflowTests
 
         var connection = Environment.GetEnvironmentVariable(FacilitiesConnectionKey);
         Assert.False(string.IsNullOrWhiteSpace(connection), $"CI must set {FacilitiesConnectionKey}; otherwise Facilities PostgreSQL tests skip.");
+        Assert.Equal("postgres", new NpgsqlConnectionStringBuilder(connection).Database);
+    }
+
+    [Theory]
+    [InlineData("NOTIFICATIONS_API_TEST_ADMIN_CONNECTION")]
+    [InlineData("NOTIFICATIONS_WORKER_TEST_ADMIN_CONNECTION")]
+    public void GitHubActions_RequiresNotificationEnvironmentSoGatedTestsCannotSilentlySkip(string key)
+    {
+        if (!string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase))
+            return; // Local runs retain the fixtures' explicit PostgreSQL opt-in.
+
+        var connection = Environment.GetEnvironmentVariable(key);
+        Assert.False(string.IsNullOrWhiteSpace(connection), $"CI must set {key}; otherwise Notifications PostgreSQL tests skip.");
         Assert.Equal("postgres", new NpgsqlConnectionStringBuilder(connection).Database);
     }
 
