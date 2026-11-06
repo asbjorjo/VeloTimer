@@ -51,14 +51,16 @@ EventId UUID** to the dedicated literal Redis channel
 Every replica subscribes to that second channel once and dispatches its own
 circuit subscribers. The Redis callback **never broadcasts to SignalR**, avoiding
 double fanout. Each UI subscription bounds EventId deduplication to 256 IDs and
-uses a single bounded callback pump: while a callback is in flight, refresh
-hints coalesce to at most one follow-up (no more than two refresh callbacks per
-pump). A sustained burst cannot extend that pump indefinitely; later hints can
-start another bounded pump. Connection state keeps at most one pending callback
-for each distinct `Connected` and `TransportFailed` kind, coalescing repeats
-without losing both kinds during a refresh burst. Redis delivery does not await
-or create one waiting callback task per hint; slow/failing circuit callbacks do
-not hold Redis's serial message handler or fail another subscriber.
+uses one callback pump with a single pending-refresh flag: while a callback is
+in flight, any number of refresh hints coalesce to at most one queued follow-up.
+A hint arriving during that follow-up queues one more refresh, so freshness is
+not discarded while the pump is active; pending memory remains constant and
+drains when hints stop or the subscription is cancelled. Connection-state
+transitions are kept in at most two pending slots, coalesced in latest order so
+repeated transitions cannot suppress a final `Connected` or
+`TransportFailed` callback. Redis delivery does not await or create one waiting
+callback task per hint; slow/failing circuit callbacks do not hold Redis's
+serial message handler or fail another subscriber.
 
 Failure of either bridge operation propagates for broker retry; repeated hints
 are harmless. Redis pub/sub is not durable: initial/reconnected snapshots and

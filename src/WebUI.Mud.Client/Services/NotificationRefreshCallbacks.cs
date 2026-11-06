@@ -1,21 +1,16 @@
 namespace VeloTime.WebUI.Mud.Client.Services;
 
-// Each subscription has one pump. Refresh hints coalesce to one follow-up while
-// a callback is running; connection-state notifications have two bounded slots.
+// Each subscription has one pump. Pending refresh hints and connection-state
+// transitions coalesce in bounded storage while callbacks are running.
 public sealed class NotificationRefreshCallbacks(Func<NotificationRefreshKind, Task> callback) : IAsyncDisposable
 {
     private const int SeenEventLimit = 256;
-    private const int RefreshCallbacksPerPump = 2;
-    private const int PendingConnectionStateLimit = 2;
     private readonly object _sync = new();
     private readonly HashSet<Guid> _seen = [];
     private readonly Queue<Guid> _order = new();
     private readonly Queue<NotificationRefreshKind> _pendingStates = new(2);
-    private readonly HashSet<NotificationRefreshKind> _pendingStateSet = [];
     private Task? _pump;
     private bool _refreshPending;
-    private int _refreshCallbacks;
-    private int _deliveredStateMask;
     private bool _active;
     private bool _disposed;
 
@@ -30,8 +25,6 @@ public sealed class NotificationRefreshCallbacks(Func<NotificationRefreshKind, T
                 if (_active == value) return;
                 _active = value;
                 ClearPending();
-                _refreshCallbacks = 0;
-                _deliveredStateMask = 0;
             }
         }
     }
@@ -50,16 +43,11 @@ public sealed class NotificationRefreshCallbacks(Func<NotificationRefreshKind, T
 
             if (kind == NotificationRefreshKind.Refresh)
             {
-                if (_refreshCallbacks < RefreshCallbacksPerPump) _refreshPending = true;
+                _refreshPending = true;
             }
             else
             {
-                var bit = 1 << (int)kind;
-                if ((_deliveredStateMask & bit) == 0 && _pendingStateSet.Add(kind))
-                {
-                    if (_pendingStates.Count < PendingConnectionStateLimit) _pendingStates.Enqueue(kind);
-                    else _pendingStateSet.Remove(kind);
-                }
+                QueueConnectionState(kind);
             }
 
             return _pump ?? StartPump();
@@ -68,10 +56,25 @@ public sealed class NotificationRefreshCallbacks(Func<NotificationRefreshKind, T
 
     private Task StartPump()
     {
-        _refreshCallbacks = 0;
-        _deliveredStateMask = 0;
         _pump = PumpAsync();
         return _pump;
+    }
+
+    private void QueueConnectionState(NotificationRefreshKind kind)
+    {
+        if (_pendingStates.Count > 0 && _pendingStates.Last() == kind) return;
+
+        // Keep only the latest ordering of the two connection states. If a
+        // state repeats after its opposite, move it to the end so the final
+        // callback still reflects the latest connection transition.
+        if (_pendingStates.Contains(kind))
+        {
+            var remaining = _pendingStates.Where(state => state != kind).ToArray();
+            _pendingStates.Clear();
+            foreach (var state in remaining) _pendingStates.Enqueue(state);
+        }
+
+        _pendingStates.Enqueue(kind);
     }
 
     private async Task PumpAsync()
@@ -92,25 +95,19 @@ public sealed class NotificationRefreshCallbacks(Func<NotificationRefreshKind, T
                     break;
                 }
 
-                if (_pendingStates.TryDequeue(out kind))
+                if (!_pendingStates.TryDequeue(out kind))
                 {
-                    _pendingStateSet.Remove(kind);
-                    _deliveredStateMask |= 1 << (int)kind;
-                }
-                else if (_refreshPending && _refreshCallbacks < RefreshCallbacksPerPump)
-                {
-                    _refreshPending = false;
-                    _refreshCallbacks++;
-                    kind = NotificationRefreshKind.Refresh;
-                }
-                else
-                {
-                    // Any refreshes arriving during the one follow-up are
-                    // deliberately coalesced away; the next hint starts a new
-                    // bounded pump instead of extending a continuous drain.
-                    ClearPending();
-                    _pump = null;
-                    break;
+                    if (_refreshPending)
+                    {
+                        _refreshPending = false;
+                        kind = NotificationRefreshKind.Refresh;
+                    }
+                    else
+                    {
+                        ClearPending();
+                        _pump = null;
+                        break;
+                    }
                 }
             }
 
@@ -125,7 +122,6 @@ public sealed class NotificationRefreshCallbacks(Func<NotificationRefreshKind, T
     {
         _refreshPending = false;
         _pendingStates.Clear();
-        _pendingStateSet.Clear();
     }
 
     public async ValueTask DisposeAsync()

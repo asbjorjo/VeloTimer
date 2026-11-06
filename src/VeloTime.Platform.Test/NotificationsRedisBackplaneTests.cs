@@ -170,7 +170,7 @@ public sealed class NotificationsRedisBackplaneTests(ITestOutputHelper output)
             Assert.True(host.Services.GetRequiredService<IConnectionMultiplexer>().IsConnected);
             release.SetResult();
             await WaitUntil(() => Volatile.Read(ref slowCalls) == 2, timeout.Token);
-            Assert.InRange(slowCalls, 1, 2); // One in-flight callback and at most one coalesced follow-up.
+            Assert.InRange(slowCalls, 1, 2); // One in-flight callback and at most one queued refresh.
         }
         finally { release.TrySetResult(); }
     }

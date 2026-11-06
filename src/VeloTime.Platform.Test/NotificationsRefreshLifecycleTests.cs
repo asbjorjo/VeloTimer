@@ -75,22 +75,71 @@ public sealed class NotificationsRefreshLifecycleTests
         Assert.All(burst, task => Assert.Same(first, task));
         Assert.Equal(1, burst.Distinct().Count());
 
-        var connected = callbacks.NotifyAsync(NotificationRefreshKind.Connected);
         var failed = callbacks.NotifyAsync(NotificationRefreshKind.TransportFailed);
+        var connected = callbacks.NotifyAsync(NotificationRefreshKind.Connected);
+        var failedAgain = callbacks.NotifyAsync(NotificationRefreshKind.TransportFailed);
         Assert.Same(first, connected);
         Assert.Same(first, failed);
+        Assert.Same(first, failedAgain);
         release.SetResult();
         await Task.WhenAll(burst.Append(first));
 
         Assert.Equal([NotificationRefreshKind.Refresh, NotificationRefreshKind.Refresh],
             received.Where(kind => kind == NotificationRefreshKind.Refresh));
-        Assert.Contains(NotificationRefreshKind.Connected, received);
-        Assert.Contains(NotificationRefreshKind.TransportFailed, received);
-        Assert.Equal(2, received.Count(kind => kind != NotificationRefreshKind.Refresh));
+        Assert.Equal(
+            [NotificationRefreshKind.Connected, NotificationRefreshKind.TransportFailed],
+            received.Where(kind => kind != NotificationRefreshKind.Refresh));
     }
 
     [Fact]
-    public async Task CallbackPumpSuspensionDropsOldPendingWorkAndFailureStillDrainsBoundedFollowup()
+    public async Task RefreshHintDuringFollowupQueuesOneMoreRefreshWithLatestCapturedState()
+    {
+        var firstEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirst = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var followupEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFollowup = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var capturedStates = new ConcurrentQueue<int>();
+        var calls = 0;
+        var state = 0;
+        await using var callbacks = new NotificationRefreshCallbacks(async kind =>
+        {
+            if (kind != NotificationRefreshKind.Refresh) return;
+            capturedStates.Enqueue(Volatile.Read(ref state));
+            switch (Interlocked.Increment(ref calls))
+            {
+                case 1:
+                    firstEntered.TrySetResult();
+                    await releaseFirst.Task;
+                    break;
+                case 2:
+                    followupEntered.TrySetResult();
+                    await releaseFollowup.Task;
+                    break;
+            }
+        }) { Active = true };
+
+        var pump = callbacks.NotifyAsync(NotificationRefreshKind.Refresh);
+        await firstEntered.Task;
+        Volatile.Write(ref state, 1);
+        Assert.Same(pump, callbacks.NotifyAsync(NotificationRefreshKind.Refresh));
+        releaseFirst.SetResult();
+
+        await followupEntered.Task;
+        Assert.Equal(1, capturedStates.Last()); // The follow-up took its snapshot before the new hint.
+        Volatile.Write(ref state, 2);
+        var duringFollowup = callbacks.NotifyAsync(NotificationRefreshKind.Refresh);
+        Assert.Same(pump, duringFollowup);
+        for (var i = 0; i < 10_000; i++)
+            Assert.Same(pump, callbacks.NotifyAsync(NotificationRefreshKind.Refresh));
+
+        releaseFollowup.SetResult();
+        await pump;
+        Assert.Equal(3, calls);
+        Assert.Equal([0, 1, 2], capturedStates);
+    }
+
+    [Fact]
+    public async Task CallbackPumpSuspensionDropsOldPendingWorkAndFailureStillDrainsPendingWork()
     {
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
