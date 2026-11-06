@@ -23,6 +23,11 @@ public sealed class Notification
     public string? RecipientSubject { get; set; }
 
     public DateTimeOffset StartsAtUtc { get; set; }
+    /// <summary>
+    /// Exclusive effective end in UTC. Null means no end; end at or before start
+    /// represents cancellation (an empty active interval), preserving the authored start.
+    /// Create/update require end after start; End may set it to server UTC now.
+    /// </summary>
     public DateTimeOffset? EndsAtUtc { get; set; }
 
     public bool AllowsDurationDismissal { get; set; }

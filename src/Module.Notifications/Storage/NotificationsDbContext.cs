@@ -50,9 +50,9 @@ public sealed class NotificationsDbContext(DbContextOptions<NotificationsDbConte
                     "AND ((default_dismissal_scope = 'duration' AND allows_duration_dismissal) OR " +
                     "(default_dismissal_scope = 'session' AND allows_session_dismissal) OR " +
                     "(default_dismissal_scope = 'permanent' AND allows_permanent_dismissal)))");
-                table.HasCheckConstraint(
-                    "ck_notification_schedule",
-                    "ends_at_utc IS NULL OR ends_at_utc > starts_at_utc");
+                // End cancels a future notice at server-now without moving its start.
+                // End <= start is an empty active interval, not an invalid stored schedule.
+                // Create/update enforce end > start at the authoring boundary.
                 table.HasCheckConstraint(
                     "ck_notification_finite_timestamps",
                     "isfinite(starts_at_utc) AND (ends_at_utc IS NULL OR isfinite(ends_at_utc)) " +

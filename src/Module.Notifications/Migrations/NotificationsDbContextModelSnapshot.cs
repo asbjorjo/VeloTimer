@@ -145,8 +145,6 @@ namespace VeloTime.Module.Notifications.Migrations
 
                             t.HasCheckConstraint("ck_notification_finite_timestamps", "isfinite(starts_at_utc) AND (ends_at_utc IS NULL OR isfinite(ends_at_utc)) AND isfinite(created_at_utc) AND isfinite(updated_at_utc)");
 
-                            t.HasCheckConstraint("ck_notification_schedule", "ends_at_utc IS NULL OR ends_at_utc > starts_at_utc");
-
                             t.HasCheckConstraint("ck_notification_severity", "severity IN ('info', 'warning', 'error')");
 
                             t.HasCheckConstraint("ck_notification_version", "version >= 1");
