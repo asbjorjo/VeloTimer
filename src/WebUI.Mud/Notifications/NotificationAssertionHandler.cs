@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
 using VeloTime.Module.Notifications.Interface.Identity;
 
 namespace VeloTime.WebUI.Mud.Notifications;
@@ -57,11 +58,14 @@ public sealed class NotificationAssertionHandler(
         if (string.IsNullOrWhiteSpace(token))
             throw new NotificationAuthenticationException(401, "notifications.authentication_required");
         var options = oidc.Get("VeloTimeOIDC");
-        var trust = await options.ConfigurationManager!.GetConfigurationAsync(ct);
+        var oidcConfigurationManager = options.ConfigurationManager;
+        if (oidcConfigurationManager is not BaseConfigurationManager configurationManager)
+            throw new InvalidOperationException("Notifications require a refresh-capable OIDC configuration manager.");
+        var trust = await oidcConfigurationManager.GetConfigurationAsync(ct);
         var parameters = options.TokenValidationParameters.Clone();
+        parameters.ConfigurationManager = configurationManager;
         parameters.ValidIssuer = trust.Issuer;
         parameters.ValidIssuers = null;
-        parameters.IssuerSigningKeys = trust.SigningKeys;
         parameters.ValidateIssuerSigningKey = true;
         parameters.ValidateIssuer = true;
         parameters.ValidateAudience = true;
@@ -69,7 +73,8 @@ public sealed class NotificationAssertionHandler(
         parameters.ValidAudiences = null;
         parameters.ValidateLifetime = true;
         parameters.RequireSignedTokens = true;
-        var validated = await new JsonWebTokenHandler().ValidateTokenAsync(token, parameters);
+        var tokenHandler = new JsonWebTokenHandler();
+        var validated = await tokenHandler.ValidateTokenAsync(token, parameters);
         if (!validated.IsValid || validated.SecurityToken is not JsonWebToken jwt ||
             string.IsNullOrWhiteSpace(jwt.Issuer) || string.IsNullOrWhiteSpace(jwt.Subject))
             throw new NotificationAuthenticationException(401, "notifications.invalid_identity");

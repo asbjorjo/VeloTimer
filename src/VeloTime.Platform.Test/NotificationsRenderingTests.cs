@@ -187,6 +187,78 @@ public sealed class NotificationsRenderingTests
     }
 
     [Fact]
+    public async Task DismissalRefreshRetryAndRestoreAreBlockedWhenLoggedOut()
+    {
+        var serviceCalls = new List<string>();
+        var services = Services();
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<INotificationsService>((method, _) =>
+        {
+            serviceCalls.Add(method.Name);
+            throw new InvalidOperationException($"Unexpected request: {method.Name}");
+        }));
+        await using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<NotificationUiState>().SetAuthenticated(false);
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            NotificationDismissals? component = null;
+            var root = await renderer.RenderComponentAsync<Capture<NotificationDismissals>>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            { ["Captured"] = (Action<NotificationDismissals>)(value => component = value) }));
+            await Call(component!, "Load"); // Refresh callback
+            Rerender(component!);
+            var html = root.ToHtmlString();
+            Assert.True(html.Split("disabled", StringSplitOptions.None).Length - 1 >= 2); // Refresh and Retry.
+            Assert.Empty(serviceCalls);
+
+            await Call(component!, "Load"); // Retry callback
+            await Call(component!, "Restore",
+                new NotificationDismissalListItemDTO(Notice(), null, null), NotificationRestoreScope.Account);
+            Assert.Empty(serviceCalls);
+            Assert.Equal("SignInRequired", Field(component!, "_error"));
+            Assert.False((bool)Field(component!, "_busy")!);
+            Assert.False((bool)Field(component!, "_pending")!);
+        });
+    }
+
+    [Fact]
+    public async Task InFlightDismissalLoadCannotRepublishPrivateItemsAfterLogout()
+    {
+        var notice = Notice();
+        var item = new NotificationDismissalListItemDTO(notice,
+            new(NotificationDismissalScope.Permanent, DateTimeOffset.UtcNow, null), null);
+        var pending = new TaskCompletionSource<IReadOnlyList<NotificationDismissalListItemDTO>>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var blockingService = new BlockingDismissalsService(pending);
+        var services = Services();
+        services.AddSingleton<INotificationsService>(blockingService);
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            NotificationDismissals? component = null;
+            var root = await renderer.RenderComponentAsync<Capture<NotificationDismissals>>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            { ["Captured"] = (Action<NotificationDismissals>)(value => component = value) }));
+            var load = Call(component!, "Load");
+            Assert.True((bool)Field(component!, "_busy")!);
+
+            provider.GetRequiredService<NotificationUiState>().SetAuthenticated(false);
+            Rerender(component!);
+            Assert.Empty((IReadOnlyList<NotificationDismissalListItemDTO>)Field(component!, "_items")!);
+            Assert.DoesNotContain("English", root.ToHtmlString());
+
+            pending.SetResult([item]);
+            await load;
+            await Call(component!, "Load"); // A manual Refresh/Retry after logout is still rejected.
+            await Call(component!, "Restore", item, NotificationRestoreScope.Account);
+            Rerender(component!);
+            Assert.Empty((IReadOnlyList<NotificationDismissalListItemDTO>)Field(component!, "_items")!);
+            Assert.DoesNotContain("English", root.ToHtmlString());
+            Assert.Equal("SignInRequired", Field(component!, "_error"));
+            Assert.Equal(1, blockingService.DismissalCalls);
+        });
+    }
+
+    [Fact]
     public void AuthoringAppliesSeverityDefaultsOnlyToNewNoticesAndKeepsExplicitOverrideOnEdit()
     {
         var editor = new VeloTime.WebUI.Mud.Client.Pages.Admin.Notifications();
@@ -252,5 +324,20 @@ public sealed class NotificationsRenderingTests
             builder.AddComponentReferenceCapture(2, value => Captured?.Invoke((T)value));
             builder.CloseComponent();
         }
+    }
+    private sealed class BlockingDismissalsService(
+        TaskCompletionSource<IReadOnlyList<NotificationDismissalListItemDTO>> pending) : INotificationsService
+    {
+        public int DismissalCalls { get; private set; }
+        public Task<IReadOnlyList<NotificationDismissalListItemDTO>> DismissalsAsync(CancellationToken ct)
+        { DismissalCalls++; return pending.Task; }
+        public Task<NotificationUiSnapshot> ActiveAsync(CancellationToken ct) => throw new NotSupportedException();
+        public Task<IReadOnlyList<NotificationAdministrationDTO>> AdministrationAsync(CancellationToken ct) => throw new NotSupportedException();
+        public Task<NotificationDismissalDTO> DismissAsync(Guid id, NotificationDismissalScope scope, CancellationToken ct) => throw new NotSupportedException();
+        public Task<RestoreNotificationDismissalDTO> RestoreAsync(Guid id, NotificationRestoreScope scope, CancellationToken ct) => throw new NotSupportedException();
+        public Task<NotificationAdministrationDTO> GetAsync(Guid id, CancellationToken ct) => throw new NotSupportedException();
+        public Task<NotificationAdministrationDTO> CreateAsync(CreateNotificationRequest request, CancellationToken ct) => throw new NotSupportedException();
+        public Task<NotificationAdministrationDTO> UpdateAsync(Guid id, UpdateNotificationRequest request, CancellationToken ct) => throw new NotSupportedException();
+        public Task<NotificationAdministrationDTO> EndAsync(Guid id, long version, CancellationToken ct) => throw new NotSupportedException();
     }
 }

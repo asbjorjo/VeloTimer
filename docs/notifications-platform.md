@@ -51,15 +51,13 @@ protection of the Redis key ring is an infrastructure/secret-management duty. Th
 bundled Valkey chart enables a retained PVC and AOF (`appendfsync everysec`) for
 this shared cache; size and back up the volume according to deployment policy.
 
-The API is internal by default and WebUI reaches it through Kubernetes service
-discovery. Its HTTPRoute is disabled unless explicitly enabled; because the API
-does not serve WebUI cookie-session semantics, keep browser routes
-`/api/notifications/*` and `/api/notifications/session` on the WebUI BFF. If
-external API access is necessary, require an API-only hostname distinct from
-WebUI's browser hostname and enable
-`module-notifications-api.httpRoute.enabled` with that hostname in
-`module-notifications-api.httpRoute.hostnames`. Never attach the API route to
-WebUI's browser hostname or path.
+The API is internal-only in this release and WebUI reaches it through Kubernetes
+service discovery. The chart has no API HTTPRoute template or opt-in; legacy
+`module-notifications-api.httpRoute.*` values are unsupported and do not publish
+the API. Keep browser routes `/api/notifications/*` and
+`/api/notifications/session` on the WebUI BFF. Remove any manually managed or
+legacy API HTTPRoute resources; do not attach an API route to WebUI's browser
+hostname or path. See the chart README for the same routing constraint.
 
 The topology job declares `velotime-notifications` and a non-session
 `webui-notifications` subscription filtered on
