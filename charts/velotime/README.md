@@ -38,5 +38,13 @@ All three key values (`issuer`, `audience`, `keyId`) must agree across WebUI,
 API and the trusted signer. Install the API public key before deploying the
 WebUI private key. Use TLS, synchronized clocks and a shared Redis backplane for
 multi-replica WebUI SignalR delivery. Helm rendering and tests do not validate
-live Service Bus, Redis, PostgreSQL, ingress affinity, or end-to-end browser
-push delivery.
+live Service Bus, PostgreSQL, ingress affinity, or authenticated end-to-end browser
+push delivery. The opt-in `NotificationsRedisBackplaneTests` does exercise the
+actual SignalR Redis backplane between two local WebUI hub hosts; see the WebUI
+Notifications README for its `VELOTIME_TEST_REDIS` command.
+
+The local instant-delivery acceptance target is **<= 2 seconds** from an outbox
+refresh event becoming publishable until the browser refresh callback runs on every
+connected WebUI replica. Measure bridge receipt and client callback timestamps. A
+chart render, topology unit test, or Redis health check alone does not demonstrate
+that delivery target; record live broker/backplane/browser results separately.

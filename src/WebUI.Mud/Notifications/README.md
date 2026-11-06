@@ -81,3 +81,33 @@ tests also passed. This is compilation/transport evidence, not integrated
 OIDC/broker/Redis/browser delivery validation. Repeat ordinary builds and tests
 after Platform integration. Existing NuGet advisory warnings remain; package
 remediation is central-owner work.
+
+## Integrated Tester checks
+
+`src/VeloTime.Platform.Test` now contains focused notification BFF, ticket/assertion,
+browser transport and rendering regressions, and
+`src/VeloTime.Platform.Test/NotificationsBrowser.test.mjs` verifies browser-side
+storage and SignalR transport behaviors with local fakes. Run the .NET project and
+Node test directly before claiming UI regression coverage. These are unit/component
+checks; they do not prove live two-replica Redis backplane delivery or authenticated
+browser behavior with Azure Service Bus.
+
+An opt-in `NotificationsRedisBackplaneTests` starts two TestServer WebUI hub hosts,
+uses the real Redis SignalR backplane and WebSocket JSON handshake, invokes the
+actual broker bridge against a fixture event, and asserts client receipt within
+2 seconds. It bypasses Azure Service Bus and a full browser. Run it against a
+disposable Redis server:
+
+```sh
+VELOTIME_TEST_REDIS='127.0.0.1:6379,abortConnect=false' \
+  dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj \
+  --configuration Release --filter FullyQualifiedName~NotificationsRedisBackplaneTests
+```
+
+The measurable local instant-delivery acceptance target is **<= 2 seconds** from
+outbox event publication eligibility through SignalR bridge receipt to the connected
+browser refresh callback. Neither unit tests nor static chart rendering establish
+this target; live infrastructure validation must report actual timestamps and
+latency. The disposable local two-host fixture measured 42 ms from bridge invocation
+to TestServer WebSocket receipt; it does not include outbox polling, Azure Service Bus,
+or a real browser.

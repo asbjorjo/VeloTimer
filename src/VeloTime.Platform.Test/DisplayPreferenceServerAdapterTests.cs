@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.JSInterop;
 using System.Text.Json;
+using System.Security.Cryptography;
 using VeloTime.Module.Profiles.Interface.Data;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Services;
@@ -76,12 +78,22 @@ public sealed class DisplayPreferenceServerAdapterTests
     [Fact]
     public async Task ProductionHostRegistersScopedStateAndInitializationUsesBrowserZone()
     {
+        using var signingKey = RSA.Create(2048);
         using var factory = new WebApplicationFactory<DisplayPreferenceService>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Development");
             builder.UseSetting("ConnectionStrings:cache", "127.0.0.1:1,abortConnect=false,connectTimeout=100");
+            builder.UseSetting("Notifications:SessionAssertion:Issuer", "webui-test");
+            builder.UseSetting("Notifications:SessionAssertion:Audience", "notifications-api-test");
+            builder.UseSetting("Notifications:SessionAssertion:KeyId", "test-key");
+            builder.UseSetting("Notifications:SessionAssertion:PrivateKeyPem", signingKey.ExportPkcs8PrivateKeyPem());
             builder.ConfigureTestServices(services =>
             {
+                // This host checks scoped display-preference registration and browser
+                // initialization only; do not start unrelated production consumers
+                // (including the Notifications Service Bus bridge).
+                foreach (var descriptor in services.Where(descriptor => descriptor.ServiceType == typeof(IHostedService)).ToArray())
+                    services.Remove(descriptor);
                 foreach (var descriptor in services.Where(descriptor => descriptor.ServiceType == typeof(IJSRuntime)).ToArray())
                     services.Remove(descriptor);
                 services.AddScoped<IJSRuntime>(_ => new BrowserRuntime("Pacific/Honolulu", "en-US"));

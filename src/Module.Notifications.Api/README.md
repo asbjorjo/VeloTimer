@@ -144,7 +144,9 @@ Source-domain consumers/browser hub behavior were not modified in this phase.
 ## Exact validation (2026-11-06)
 
 Commands ran in `/workspaces/VeloTimer-notifications`, branch `feat/notifications`.
-Temporary implementation probes are not repository tests; Tester owns adding tests.
+The original API phase used temporary implementation probes; those were replaced
+for core/API acceptance by the durable `Module.Notifications.Api.Test` project
+described below. The probe counts remain historical evidence only.
 
 * `OIDC_AUDIENCE=https://build.invalid dotnet build
   src/Module.Notifications.Client/VeloTime.Module.Notifications.Client.csproj
@@ -195,32 +197,82 @@ Temporary implementation probes are not repository tests; Tester owns adding tes
   check absent and finite-timestamp check retained; 128 notices, 1 account dismissal,
   0 session dismissals, 7 slots, 153 outbox hints and revision 153, including 4
   cancelled intervals. Inventory contained only our DB plus PostgreSQL defaults.
-* `git diff --check`: passed. Worker dispatch/claim/restart, outbox failure injection,
-  cross-replica key-ring/backplane/UI acceptance were not run and are not claimed.
+* `git diff --check`: passed. At the API-phase cut, worker dispatch/claim/restart and
+  outbox failure injection had not yet run; see the integrated Tester results below.
 
-## Next owner / Tester acceptance scenarios
+## Durable API/core regression tests
 
-**Tester**, then read-only Reviewer. Coordinator routes the independent Profiles
-readiness regression and UI/platform/worker integration. API/data prerequisite complete.
+`src/Module.Notifications.Api.Test` replaces the API/core temporary probes with
+checked-in validation, cryptographic identity, real API authorization and PostgreSQL
+service tests. Unit and identity tests run without PostgreSQL; every database test
+opts in explicitly. The fixture accepts only a PostgreSQL admin connection to
+`Database=postgres`, creates a GUID-named disposable database, applies the actual
+migrations and drops only that database.
 
-Tester should convert the temporary probes to durable repository tests and cover:
+```sh
+OIDC_AUDIENCE=https://build.invalid \
+NOTIFICATIONS_API_TEST_ADMIN_CONNECTION='Host=127.0.0.1;Database=postgres;Username=postgres;Password=...' \
+  dotnet test src/Module.Notifications.Api.Test/VeloTime.Module.Notifications.Api.Test.csproj \
+  --configuration Release
+```
 
-1. Missing/null/unknown fields, exact enums, defaults/complete overrides, policy and
-   duration bounds, audience privacy, UTC and precision-collapsed schedule rejection.
-2. Anonymous/authenticated/exact role/issuer+subject matrix; invalid JWT never
-   downgrades; missing/tampered/expired/misbound assertion fails explicitly.
-3. All allowed/forbidden scopes, independent account/two-login layers, concurrent
-   first writes and last-committed differing account choice, no-op retries/restore/
-   End, stale versions, future cancellation preserving start.
-4. Inclusive start/exclusive end/snooze expiry, historical/microsecond readback,
-   policy tightening and edits retaining UUID suppression, future/ended restore.
-5. >100 rows, insertion behind cursor and authoring/dismissal revision invalidation,
-   role/login/page/token fences and whole-set deadlines outside the current page.
-6. Failure-injected atomic rollback, worker source/slot claim races, stale generations,
-   outbox retries/duplicates and durable deadline/reconnect recovery after restart.
-7. Fresh BFF login versus reused SSO sid, refresh/reconnect stability, immediate UI
-   logout clearing, signing rotation, bounded revocation, shared protected key ring,
-   no credentials in browser/logs, two-replica SignalR backplane.
-8. Client transport/cancellation/malformed response/errors, visible storage failures,
-   existing-service regression and the recorded Profiles readiness failure.
-   Agree measurable push delivery latency with Coordinator/Platform before acceptance.
+The durable suite covers the four audience kinds and anonymous projection/privacy,
+exact role and issuer/subject selection, default/override policy validation,
+forbidden scopes, UTC start/end/snooze boundaries, dismissal-layer idempotency and
+restore, concurrent application-login dismissals, policy tightening, future End
+cancellation, paging/revision restart, transactional outbox rollback, BFF assertion
+binding and the actual admin permission policy. It is not a full OIDC, broker or
+browser delivery suite.
+
+### Integrated Tester verification (2026-11-06)
+
+* API/core against a disposable PostgreSQL 17 database: **16 passed, 0 skipped,
+  0 failed** with Release and coverage settings.
+* Existing Notifications processor against the same disposable PostgreSQL 17 server:
+  **6 passed, 0 skipped, 0 failed** with Release and coverage settings.
+* Focused Platform notification/server tests with the opt-in local Redis fixture:
+  **38 passed, 0 skipped, 0 failed**. The two-host SignalR WebSocket path measured
+  **42 ms** from bridge invocation to TestServer client receipt (2-second target).
+  This bypasses Azure Service Bus and is not end-to-end browser delivery.
+* `node --test src/VeloTime.Platform.Test/NotificationsBrowser.test.mjs`: **5 passed**.
+  Chart migration/topology tests: **34 passed**; Helm lint/template checks passed.
+* Full Release solution build succeeded with 69 repository warnings and 0 errors.
+  Full Platform test run: **559 passed, 15 skipped, 1 failed**. The failure is
+  unchanged `CiWorkflowTests.Definition_RunsMasterAndV2WithFacilitiesPostgresEnabled`:
+  it expects `dotnet test --logger ...`, while the checked-in workflow invokes
+  `dotnet test VeloTimer.sln --logger ...`. No CI or unrelated test was changed.
+* The known opt-in Profiles readiness check was reproduced separately on PostgreSQL:
+  `ProductionHealthTests.MissingSchema_IsNotReady_ThenMigrationMakesReady_WithoutCreatingPreferences`
+  expected 200 after migration but received 503. It is unrelated and was not changed.
+* No Azure Service Bus credentials or OIDC issuer runtime were configured. Playwright
+  Chromium is available, but a full authenticated WebUI browser runtime could not be
+  started. The live broker and full browser push acceptance remain unverified; no
+  broker pass is inferred from the local backplane fixture.
+
+Processor PostgreSQL claim/retry/deadline tests use a separate opt-in variable and
+also create unique disposable databases:
+
+```sh
+NOTIFICATIONS_WORKER_TEST_ADMIN_CONNECTION='Host=127.0.0.1;Database=postgres;Username=postgres;Password=...' \
+  dotnet test src/Module.Notifications.Processor.Test/VeloTime.Module.Notifications.Processor.Test.csproj \
+  --configuration Release
+```
+
+UI/browser JavaScript regression tests:
+
+```sh
+node --test src/VeloTime.Platform.Test/NotificationsBrowser.test.mjs
+```
+
+Set a measurable local instant-delivery acceptance target of **at most 2 seconds**
+from a refresh event becoming publishable in the outbox until each connected WebUI
+replica invokes its client refresh callback. Record both server bridge receipt and
+client callback timestamps; a successful unit/fixture test is not evidence that a
+broker or multi-replica SignalR delivery met this target. Live Azure Service Bus,
+two-replica Redis backplane, authenticated interactive-browser delivery and latency
+remain deployment-level checks.
+
+The full integrated phase still requires manual selection of Code Reviewer after
+test validation. Coordinate the known Profiles production-readiness 503 with its
+owner; it is unrelated and was not changed here. A full live broker/backplane/browser
+acceptance is not claimed.
