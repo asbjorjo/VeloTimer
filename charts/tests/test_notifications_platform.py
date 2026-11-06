@@ -1,6 +1,8 @@
 import json
 import unittest
 
+import yaml
+
 from test_messagebus_topology import ROOT, render, rendered_topics, run
 from test_migration_hooks import container
 
@@ -57,6 +59,51 @@ class NotificationsPlatformTests(unittest.TestCase):
         hosting = (ROOT / "src/Module.Notifications.Api/HostingExtensions.cs").read_text()
         self.assertIn('"VeloTime.Notifications"', hosting)
         self.assertIn("RedisXmlRepository", hosting)
+
+    def test_api_route_is_internal_by_default_and_opt_in_requires_dedicated_hostname(self):
+        defaults = render()
+        self.assertFalse(any(
+            document["kind"] == "HTTPRoute"
+            and document["metadata"].get("name") == "module-notifications-api"
+            for document in defaults
+        ))
+        webui_route = self.named(defaults, "HTTPRoute", "webui")
+        self.assertEqual(
+            {"type": "PathPrefix", "value": "/"},
+            webui_route["spec"]["rules"][0]["matches"][0]["path"],
+        )
+
+        missing_hostname = run("module-notifications-api.httpRoute.enabled=true")
+        self.assertNotEqual(0, missing_hostname.returncode)
+        self.assertIn("hostnames", missing_hostname.stderr)
+
+        documents = render(
+            "module-notifications-api.httpRoute.enabled=true",
+            "module-notifications-api.httpRoute.hostnames[0]=notifications-api.example.net",
+        )
+        api_route = self.named(documents, "HTTPRoute", "module-notifications-api")
+        self.assertEqual(["notifications-api.example.net"], api_route["spec"]["hostnames"])
+        self.assertEqual(
+            {"type": "PathPrefix", "value": "/api/notifications"},
+            api_route["spec"]["rules"][0]["matches"][0]["path"],
+        )
+        self.assertEqual(
+            {"type": "PathPrefix", "value": "/"},
+            self.named(documents, "HTTPRoute", "webui")["spec"]["rules"][0]["matches"][0]["path"],
+        )
+
+    def test_ci_runs_notifications_api_and_worker_postgres_fixtures(self):
+        workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
+        job = workflow["jobs"]["build"]
+        connection_names = (
+            "NOTIFICATIONS_API_TEST_ADMIN_CONNECTION",
+            "NOTIFICATIONS_WORKER_TEST_ADMIN_CONNECTION",
+        )
+        connections = [job["env"].get(name) for name in connection_names]
+        self.assertTrue(all(connections))
+        self.assertTrue(connections[0] == connections[1])
+        self.assertTrue(all("Host=localhost;" in connection for connection in connections))
+        self.assertEqual("postgres:17-alpine", job["services"]["postgres"]["image"])
 
     def test_api_rejects_partial_signing_key_trust_configuration(self):
         result = run("module-notifications-api.sessionAssertion.keyId=only-kid")

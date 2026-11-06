@@ -5,6 +5,18 @@ processor image is `ghcr.io/asbjorjo/velotime-module-notifications-processor`
 with the chart's `global.image.tag`; the API has its own matching image. The
 Notifications migration hook runs before the API/processor workloads.
 
+The Notifications API is internal by default: WebUI calls it through Kubernetes
+service discovery, while browser notification requests must continue to reach the
+WebUI BFF on the WebUI hostname. Its API routes do not implement the WebUI cookie
+session probe or translate browser cookies into signed assertions. Do not enable
+the API HTTPRoute on a Gateway/hostname used by WebUI. If external API access is
+required, explicitly set `module-notifications-api.httpRoute.enabled=true` and
+provide `module-notifications-api.httpRoute.hostnames` with a dedicated API
+hostname that is distinct from the WebUI browser hostname. The chart requires a
+hostname when this route is enabled and retains the `/api/notifications` prefix;
+do not redirect or proxy the browser's `/api/notifications/*` or
+`/api/notifications/session` traffic away from WebUI.
+
 Before enabling traffic, provision these settings through the chart's existing
 Secret mechanisms (prefer an external-secrets controller in production):
 
