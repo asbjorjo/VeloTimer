@@ -9,6 +9,13 @@ Unrecognized codes, zero/undefined enum values, absent required fields and null
 required collections/objects are validation failures, not implicit defaults.
 Serializer acceptance alone is not domain validation.
 
+API-phase shared revisions: enum converters now reject case aliases as well as numeric
+values (only the documented exact string codes are accepted). Additive generic problem
+codes are `notifications.authentication_required`, `notifications.forbidden`,
+`notifications.dependency_unavailable` and `notifications.request_failed`.
+The BFF-to-API application-login protocol, signing/verification helpers and exact
+configuration names are in [Identity/README.md](Identity/README.md).
+
 ## Ownership and authoring
 
 A dedicated Notifications service exclusively owns notices, account dismissals,
