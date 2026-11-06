@@ -17,6 +17,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
 	  <PackageReference Include="Extensions.MudBlazor.StaticInput" />
     <PackageReference Include="MudBlazor" />
     <PackageReference Include="UnitsNet" />

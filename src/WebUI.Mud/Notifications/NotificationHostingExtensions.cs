@@ -16,6 +16,9 @@ public static class NotificationHostingExtensions
             .AddUserAccessTokenHandler();
         builder.Services.AddScoped<INotificationsService, NotificationsBrowserService>();
         builder.Services.AddScoped<NotificationUiState>();
+        builder.Services.AddSingleton<NotificationRefreshFanout>();
+        builder.Services.AddHostedService(provider => provider.GetRequiredService<NotificationRefreshFanout>());
+        builder.Services.AddScoped<INotificationRefreshSource, ServerNotificationRefreshSource>();
         builder.Services.AddAuthorization(options => options.AddPolicy("Notifications.Admin", policy =>
             policy.RequireAuthenticatedUser().RequireClaim("velotime_permission", "velotime.admin")));
         builder.Services.AddSignalR().AddStackExchangeRedis(

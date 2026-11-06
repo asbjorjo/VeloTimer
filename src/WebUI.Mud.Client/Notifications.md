@@ -1,142 +1,105 @@
-# Notifications presentation and Tester handoff
+# Notifications UI / Tester handoff
 
-## Implemented UI
+## Preserved presentation
 
-MainLayout hosts one notification snackbar at a time alongside the existing
-MudSnackbarProvider. It queues by severity then UUID, deduplicates by UUID/version,
-updates edited content, removes ended/deleted-from-snapshot content, and clears
-private notices immediately on logout/auth failure. There is no automatic close,
-save-on-timeout, or uncontrolled close icon. Only an explicit permitted action
-can dismiss. Failed server/storage saves retain the notice and show a retryable
-localized error. Bodies/titles are encoded plain text, selected in en/nb-NO.
-Actions are keyboard buttons with polite live regions, and the content wraps
-within the viewport. Durations use browser number culture; timestamps/editors
-use the existing effective display preferences, not the server timezone.
+MainLayout shows one snackbar, queued by severity then UUID. Complete snapshots
+reconcile UUID/version, changed/deleted/ended content and locally measured
+deadlines. Concurrent host loads are coalesced; requests and timers are cancelled
+on disposal/auth transitions. Partial pages never replace complete state.
+Revision-conflict retries remain bounded to three.
 
-All authenticated account scopes allowed by the notice are available; session scope
-is shown only when the trusted BFF capability reports a nonblank Keycloak `sid`.
-No permitted account action is automatically executed when session scope is absent.
-With the configured
-default prominent: information permanently, warning one day, error one hour.
-Authors can override those policies and prohibit permanent dismissal. Anonymous
-public notices always offer tab dismissal, regardless of authenticated policy.
-Anonymous state is exclusively `sessionStorage` under
-`velotime:notifications:anonymous:v1:<UUID>`. It survives reload of the same tab;
-it is not an account record or cross-tab shared preference. On login it is ignored,
-not migrated; on logout it resumes. Storage denial is visible and does not falsely
-hide a notice. Native browser duplication/opener storage-copy behavior is not
-represented as server or cross-tab synchronization.
+Titles/bodies remain encoded, localized en/nb-NO plain text. Timestamps and units
+use existing user display preferences. Actions are keyboard buttons with polite
+live regions and wrapping content. Explicit dismissals alone hide notices;
+failed saves retain the notice and localized retry feedback.
 
-Host starts only after interactivity; no prerender connection. Subscribe precedes
-snapshot. Hints/reconnect, deadline timers, tab visibility, auth changes and bounded
-polling reconcile authoritative snapshots. A monotonically measured elapsed time
-anchors deadlines to server-now. Failed snapshots retain only the previous complete
-set; local end-time removal still runs. Paging revision restarts are bounded to
-three. Concurrent hints are coalesced without concurrent host loads. Disposal
-cancels timers/requests/subscriptions. A connection-owner handle prevents the old
-hydration instance from disposing its successor (not an authentication identity).
-Same-origin logout broadcasts contain only `"logout"`, never an identity or notice.
-Logout cancels and suspends content requests. A second tab resumes anonymous
-storage only after the UI-only no-store `/api/notifications/session` capability probe
-confirms the cookie has actually ended; the probe never calls the Notifications
-API. Its exact JSON shape is `{ "authenticated": bool, "hasSession": bool }`;
-no session identifier reaches browser state. `authenticated === false` is required
-to resume anonymous content; missing/invalid responses never resume it.
+Anonymous dismissals remain tab-local `sessionStorage` at
+`velotime:notifications:anonymous:v1:<UUID>`, ignored while authenticated and never
+migrated into account state. Storage failures remain visible.
+Trusted request-local BFF capabilities govern session actions; missing `sid`
+does not hide permitted account actions or automatically save a fallback scope.
+Admin/profile authorization, optimistic editing, UTC editing, and layer-specific
+restores are unchanged. Backend authorization remains authoritative.
 
-`/admin/notifications` and navigation use the existing global permission policy.
-List/create/edit/end cover everyone, authenticated, exact role, exact issuer+subject.
-The editor uses existing ZonedInstantDraft/ZonedInstantEditor, preserves untouched
-UTC precision/offsets, validates end > start and complete policy, and constrains
-duration to 1..31536000 SI seconds. New severity changes select defaults; editing
-severity retains the saved effective policy. Edit/end send optimistic ExpectedVersion.
-409 retains the draft; explicit reload discards it. End uses a confirmation and
-supports cancellation of future notices. Existing unsaved-editor tracking defers
-display preference changes while editing. API authorization remains authoritative.
+## Replacement transport
 
-Profile Show again drains dismissal pages, displays effective account/current-login
-layers, and offers account, currentSession, or both only when applicable. It uses
-the returned remaining layers/IsActive, never promises an ended/future/suppressed
-notice will appear, and never clears other Keycloak sessions. Current-session/both
-restore actions are hidden without the session capability; account restore remains
-available and is never silently upgraded to a combined restore. Authentication
-changes clear management content and invalidate in-flight results. Admin/profile
-lists share host refresh signals without additional hub connections.
+The shared UI contract was compiled before implementing both render modes.
+See `../WebUI.Mud/Notifications/README.md` for exact implementation paths,
+DI registrations, Redis channels, retries, and authentication limits.
 
-## Historical checks (before Keycloak-only simplification)
+WASM uses Microsoft's .NET `HubConnectionBuilder`; InteractiveServer receives
+server-local subscriptions fanned out across replicas through Redis. JavaScript
+is BFF fetch/abort and anonymous storage only. No protocol parser, custom
+networking, cross-tab logout channel, logout form listener, or anonymous probe
+remains. Authentication changes and 401/403 clear private snapshots when
+observed; **instant stale-DOM clearing in inactive tabs after remote Keycloak
+logout is not claimed**.
 
-* Existing typed Notifications client Release build: success, 0 warnings/errors
-  (restore API first for build-generated client prerequisites).
-* Client Release build: success; only three existing BL0005 warnings in
-  TransponderManagement on its initial full compilation.
-* Native host restore on base 874b3a0c: **NU1010** missing central
-  Microsoft.AspNetCore.SignalR.StackExchangeRedis PackageVersion. No central edits.
-* Provisional host Release build with Platform's committed b9031635 central
-  manifest supplied read-only by `DirectoryPackagesPropsPath`: success.
-* `OIDC_AUDIENCE=https://build.invalid dotnet test
-  src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --configuration Release
-  --filter FullyQualifiedName~Notifications --logger trx
-  -p:DirectoryPackagesPropsPath=/workspaces/VeloTimer-notifications-platform/Directory.Packages.props`:
-  30 passed, 0 failed/skipped. Tests cover BFF auth/CSRF/global permission/problems,
-  (historical pre-simplification run; custom assertion/ticket tests since removed), all-page drain/restarts,
-  localized escaped rendering/default choices, save failure/retry, UUID/version
-  reconciliation/end/logout, author defaults/overrides/UTC and profile layer restore.
-* `node --test src/VeloTime.Platform.Test/NotificationsBrowser.test.mjs`:
-  5 passed, 0 failed. Native transport mocked at fetch/WebSocket/DOM boundaries.
-* Both resource files contain the same 69 Notifications keys.
-* Expanded notification + existing OIDC localization/resource/layout regressions:
-  68 passed, 0 failed/skipped with the same test command and filter
-  `FullyQualifiedName~Notifications|FullyQualifiedName~OidcLocalizationTests|FullyQualifiedName~LocalizationContractTests|FullyQualifiedName~MainLayoutCacheIdentityTests`.
-  The layout fixture now supplies the new UI dependencies and explicitly verifies
-  prerender does not request notification snapshots; original identity-race
-  assertions remain unchanged. Final client/host builds had 3/6 warnings
-  respectively, 0 errors.
+## Verification
 
-For the current exact checks and boolean BFF response contract, see
-`../WebUI.Mud/Notifications/README.md`: host/client builds pass; focused .NET suite
-has **40 passed, 0 failed, 1 Redis opt-in skipped**; JavaScript suite has
-**6 passed, 0 failed**. Custom protocol tests/fixture signing configuration were
-removed, replaced with existing OIDC/forwarding and no-session UI regressions.
+Commands run from `/workspaces/VeloTimer-notifications`:
 
-No browser executable/tool was available. HtmlRenderer and mocked browser tests
-are **not** visual, full browser interaction, real OIDC, broker or Redis validation.
-Known central NuGet advisory warnings remain (MessagePack, WebAssembly.Server,
-plus existing Platform test dependencies); no package versions were changed.
-Generated API newline-only output is discarded, not committed.
+* Targeted Platform tests: **72 passed, 0 failed, 0 skipped**, including three
+  real-Redis fixtures. Latest measured bridge-to-both-replicas/Microsoft-client
+  latency: **19 ms** on disposable Redis 7.4.12.
+* Node browser helpers: **6 passed, 0 failed, 0 skipped**.
+* Release builds: host **0 errors / 4 advisory warnings**; client
+  **0 errors / 1 advisory warning**.
+* `git diff --check`: passed.
 
-## Integration / next owner
+```sh
+OIDC_AUDIENCE=https://build.invalid \
+VELOTIME_TEST_REDIS='127.0.0.1:16379,abortConnect=false' \
+dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj \
+  --configuration Release --no-restore \
+  --filter 'FullyQualifiedName~Notifications|FullyQualifiedName~WebUiBffTests.Oidc|FullyQualifiedName~OidcLocalizationTests|FullyQualifiedName~MainLayoutCacheIdentityTests' \
+  --logger trx -v quiet
 
-Next owners: Platform for Keycloak mapper/deployment cleanup, then Tester for live
-browser/session behavior. Targeted builds/tests above use the assigned tree with
-its existing restore assets, not a claim of integrated deployment acceptance. Runtime
-configuration and topology are documented in `../WebUI.Mud/Notifications/README.md`.
-Platform must configure cache/MessageBus/API discovery, matching Keycloak ID/access-token `sid`,
-protected key rings, ingress WebSockets/negotiation affinity and the Redis backplane.
+node --test src/VeloTime.Platform.Test/NotificationsBrowser.test.mjs
 
-Tester scenarios:
+dotnet build src/WebUI.Mud/VeloTime.WebUI.Mud.csproj \
+  --configuration Release --no-restore -v quiet
+dotnet build src/WebUI.Mud.Client/VeloTime.WebUI.Mud.Client.csproj \
+  --configuration Release --no-restore -v quiet
+git diff --check
+```
 
-1. Both InteractiveAuto paths: fresh anonymous load, hydration, navigation, reconnect,
-   single browser connection, cancellation/disposal; online/offline and API 401/403/503.
-2. >100 notices/pages with writes between pages and expiring tokens: only full
-   snapshots replace content; three explicit revision retries maximum.
-3. All audience modes, exact role/issuer/subject and global-admin authorization;
-   inspect public HTTP/push/browser state for sensitive data or actual session IDs.
-4. Same Keycloak `sid` across tabs/refresh versus distinct `sid`; no-sid authenticated
-   active/account/admin operations and 403 on session mutations; trusted ID/access
-   token sid mapper alignment, refresh/renewal, concurrent logins,
-   ticket expiry, logout during snapshot/save, same-origin second-tab logout.
-5. Anonymous sessionStorage reload/new independent tab, storage denied, login does
-   not inherit anonymous dismissals, logout resumes that tab's stored UUIDs.
-6. Warning day/error hour/info permanent; overrides/forbidden permanent, all other
-   allowed actions, failed saves/retry, no saved dismissal from elapsed snackbar time.
-7. Profile account/current-login/both restore; remaining suppression, expired snooze,
-   ended/future notices and no other login cleared.
-8. Author both languages/all targets, duration bounds, UTC/DST gaps/repeats,
-   optimistic edit/end conflict and explicit draft discard; material new UUIDs.
-9. Activation/end/snooze deadlines during broker outage and visibility resume.
-   Duplicate/reordered hints, two WebUI replicas through Redis, broker redelivery.
-10. Keyboard focus/actions and screen reader announcements, mobile wrapping, en/nb-NO
-    content/errors with opposing browser number/date preferences.
+The targeted suite covers official-client startup/reconnect/failure/cancellation/
+restart/disposal, callback deduplication/draining, component first-render gating,
+circuit dispatch, auth restart, 401/403 clearing, and existing BFF/OIDC/paging/
+localized admin/profile behavior.
 
-Record end-to-end committed-write → visible-update latency under two replicas.
-No measurable latency acceptance target has yet been agreed; do not infer one
-from unit tests or claim eventual delivery satisfies instant-push acceptance.
+Opt-in Redis tests cover two-replica WASM/server delivery, no double hub broadcast,
+EventId redelivery deduplication, unsubscribe/suspend/cancel/failure isolation,
+invalid payload rejection, and actual Redis subscription-connection loss/recovery.
+They invoke the actual bridge directly, **not a live Azure Service Bus broker**.
+The local bridge-to-both-replicas-and-client target is <=2 seconds.
+
+Node tests cover same-origin BFF constraints, CSRF, capability headers, storage
+failure/persistence, and request cancellation. Removed fake WebSocket/logout
+tests were replaced with the relevant browser-helper and real .NET lifecycle
+fixtures, not a claim of browser-authenticated logout delivery.
+
+No browser tooling was available; no visual/responsive or full browser validation
+is claimed. Known NuGet advisories include the centrally pinned new client's
+transitive `Microsoft.AspNetCore.SignalR.Common` 10.0.12 (NU1903), existing
+WebAssembly.Server/MessagePack and Platform dependencies. Central upgrades remain
+Coordinator/Platform-owned.
+
+## Next owner: Coordinator selects Tester, then review/push PR 124
+
+1. Exercise both InteractiveAuto paths: fresh prerender/hydration, navigation,
+   anonymous reload/tab dismissal, and dispose/recreate. WASM should have one
+   notification hub connection; Server should have none beyond the normal circuit.
+2. Verify offline/startup exhaustion/reconnect, missed-hint snapshot repair,
+   deadline/end removal and 401/403/503 error states; test active notification bursts.
+3. Run authenticated account/session/no-sid controls, admin edit/end conflicts,
+   profile restore layers, locale/timezone and keyboard/mobile wrapping.
+4. Exercise application logout and remote Keycloak logout with multiple active/
+   inactive tabs. Record actual cookie/token/circuit behavior and timing; do not
+   equate stale-DOM hiding with session revocation or promise immediate cross-tab
+   clearing. Any identity-infrastructure gap belongs to Coordinator/Platform.
+5. Confirm deployment Redis ACLs for
+   `velotime:webui:notifications:server-refresh:v1`, ingress affinity, shared cache
+   configuration and existing broker topology. Measure live outbox/broker/bridge/
+   browser timestamps separately; local fixtures do not establish that latency.

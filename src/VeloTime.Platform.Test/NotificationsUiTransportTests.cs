@@ -214,6 +214,7 @@ public sealed class NotificationsUiTransportTests
             ct.ThrowIfCancellationRequested();
             if (identifier == "import") return ValueTask.FromResult((TValue)(object)this);
             if (identifier == "abort") return ValueTask.FromResult(default(TValue)!);
+            if (identifier == "anonymousDismissed") return ValueTask.FromResult((TValue)(object)Array.Empty<string>());
             Assert.Equal("request", identifier);
             Requests.Add(((string)args![1]!, (string)args[2]!, (string?)args[3]));
             var reply = Replies.Dequeue();

@@ -5,6 +5,7 @@
 @inject ISnackbar Snackbars
 @inject AuthenticationStateProvider Authentication
 @inject NotificationUiState UiState
+@inject INotificationRefreshSource RefreshSource
 @inherits PresentationComponentBase
 @implements IAsyncDisposable
 
@@ -25,14 +26,14 @@
     private CancellationTokenSource? _deadline;
     private CancellationTokenSource? _requests;
     private IJSObjectReference? _module;
-    private DotNetObjectReference<NotificationsHost>? _reference;
-    private readonly string _owner = Guid.NewGuid().ToString("N");
+    private INotificationRefreshSubscription? _subscription;
     private List<NotificationPresentationDTO> _items = [];
     private Snackbar? _snackbar;
     private NotificationPresentationDTO? _shown;
     private bool _anonymous = true, _loading, _pending, _hasSnapshot, _transportFailed, _disposed;
+    // An observed provider logout must not republish a still-authenticated BFF
+    // snapshot while the existing application's cookie logout is in progress.
     private bool _awaitingAnonymous;
-    private bool _suspended;
     private int _epoch;
     private string? _error;
     private DateTimeOffset _serverNow;
@@ -55,34 +56,32 @@
         try
         {
             _anonymous = (await Authentication.GetAuthenticationStateAsync()).User.Identity?.IsAuthenticated != true;
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/VeloTime.WebUI.Mud.Client/notifications.js");
-            if (_disposed) return;
-            _reference = DotNetObjectReference.Create(this);
-            var connected = await _module.InvokeAsync<bool>("subscribe", _reference, _owner);
-            // Connected callback owns the first snapshot; avoid a hydration race
-            // that would start a second request after the same handshake.
-            if (!connected && !_loading && !_hasSnapshot) await Refresh();
+            var module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/VeloTime.WebUI.Mud.Client/notifications.js");
+            if (_disposed) { await module.DisposeAsync(); return; }
+            _module = module;
+            _subscription = await RefreshSource.SubscribeAsync(OnRefreshEvent, _lifetime.Token);
+            await _subscription.SetActiveAsync(true, _lifetime.Token);
+            // Connected (or first transport failure) owns the first snapshot.
+            // WASM startup is asynchronous; never race it with a second load.
         }
         catch (JSDisconnectedException) { }
-        catch (JSException) { _error = "NotificationsFailed"; StateHasChanged(); }
+        catch (OperationCanceledException) when (_disposed) { }
+        catch (Exception) { _error = "NotificationsFailed"; StateHasChanged(); }
     }
 
-    [JSInvokable] public Task Refresh() => InvokeAsync(async () => { UiState.Refresh(); await Load(); });
-    [JSInvokable] public Task Connected() => InvokeAsync(async () => { _transportFailed = false; await Load(); });
-    [JSInvokable] public Task TransportFailed() => InvokeAsync(() => { _transportFailed = true; StateHasChanged(); });
-    [JSInvokable] public Task LoggedOut() => InvokeAsync(() =>
+    private Task OnRefreshEvent(NotificationRefreshKind kind) => _disposed ? Task.CompletedTask : kind switch
     {
-        _epoch++; _anonymous = true; _awaitingAnonymous = true; _items.Clear(); RemoveShown(); _deadline?.Cancel();
-        _suspended = true; _pending = false; _requests?.Cancel();
-        UiState.SetAuthenticated(false);
-        StateHasChanged();
-    });
-    [JSInvokable] public Task ResumeAnonymous() => InvokeAsync(async () =>
+        NotificationRefreshKind.Connected => Connected(),
+        NotificationRefreshKind.TransportFailed => TransportFailed(),
+        _ => Refresh()
+    };
+    public Task Refresh() => InvokeAsync(async () => { if (_disposed) return; UiState.Refresh(); await Load(); });
+    public Task Connected() => InvokeAsync(async () => { if (_disposed) return; _transportFailed = false; await Load(); });
+    public Task TransportFailed() => InvokeAsync(async () =>
     {
         if (_disposed) return;
-        _suspended = false; _awaitingAnonymous = false;
-        _requests?.Dispose(); _requests = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        await Load();
+        _transportFailed = true; StateHasChanged();
+        if (!_loading && !_hasSnapshot) await Load();
     });
 
     private void AuthChanged(Task<AuthenticationState> state) => _ = AuthenticationChanged(state);
@@ -93,16 +92,17 @@
             var auth = await state;
             await InvokeAsync(async () =>
             {
+                if (_disposed) return;
                 _epoch++; _anonymous = auth.User.Identity?.IsAuthenticated != true;
-                _awaitingAnonymous = false;
-                _suspended = false; _requests?.Cancel(); _requests?.Dispose();
+                _awaitingAnonymous = _anonymous;
+                _requests?.Cancel(); _requests?.Dispose();
                 _requests = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
                 UiState.SetAuthenticated(!_anonymous);
                 _items.Clear(); RemoveShown(); _hasSnapshot = false; _deadline?.Cancel();
-                if (_module is not null)
+                if (_subscription is not null)
                 {
-                    var connected = await _module.InvokeAsync<bool>("subscribe", _reference, _owner);
-                    if (!connected) await Load();
+                    await _subscription.SetActiveAsync(false, _lifetime.Token);
+                    await _subscription.SetActiveAsync(true, _lifetime.Token);
                 }
             });
         }
@@ -111,7 +111,7 @@
 
     private async Task Load()
     {
-        if (_disposed || _suspended) return;
+        if (_disposed) return;
         if (_loading) { _pending = true; return; }
         _loading = true; _error = null;
         var epoch = _epoch;
@@ -148,10 +148,10 @@
         {
             _error = e.ResourceKey;
             _failures++;
-            if (e.Status is 401 or 403) { _epoch++; _items.Clear(); RemoveShown(); UiState.SetAuthenticated(false); }
+            if (e.Status is 401 or 403) { _epoch++; _items.Clear(); RemoveShown(); _hasSnapshot = false; UiState.SetAuthenticated(false); }
             else Reconcile(); // Preserve only the previous complete, non-expired snapshot.
         }
-        catch (OperationCanceledException) when (_disposed || _suspended || epoch != _epoch) { }
+        catch (OperationCanceledException) when (_disposed || epoch != _epoch) { }
         catch (Exception) { _failures++; _error = "NotificationsFailed"; Reconcile(); }
         finally
         {
@@ -159,7 +159,7 @@
             if (!_disposed)
             {
                 StateHasChanged();
-                if (!_suspended) Schedule();
+                Schedule();
                 if (_pending) { _pending = false; _ = Load(); }
             }
         }
@@ -235,14 +235,16 @@
     private void RemoveShown() { if (_snackbar is not null) Snackbars.Remove(_snackbar); _snackbar = null; _shown = null; }
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
         _disposed = true; _epoch++;
         Authentication.AuthenticationStateChanged -= AuthChanged;
         _lifetime.Cancel(); _requests?.Cancel(); _requests?.Dispose(); _deadline?.Cancel(); _deadline?.Dispose(); RemoveShown();
         try
         {
-            if (_module is not null) { await _module.InvokeVoidAsync("unsubscribe", _owner); await _module.DisposeAsync(); }
+            if (_subscription is not null) await _subscription.DisposeAsync();
+            if (_module is not null) await _module.DisposeAsync();
         }
         catch (JSDisconnectedException) { }
-        _reference?.Dispose(); _lifetime.Dispose();
+        _lifetime.Dispose();
     }
 }

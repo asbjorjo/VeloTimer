@@ -47,7 +47,6 @@ test("anonymous storage is app and UUID scoped, persists reload, and reports sto
         ui.dismissAnonymous("a");
         assert.deepEqual(ui.anonymousDismissed(["a", "b"]), ["a"]);
         assert.equal(values.get("velotime:notifications:anonymous:v1:a"), "1");
-        // A fresh module/reload reads the same tab's backing store.
         assert.deepEqual(ui.anonymousDismissed(["a"]), ["a"]);
         globalThis.sessionStorage = { setItem() { throw new Error("denied"); }, getItem() { throw new Error("denied"); } };
         assert.throws(() => ui.dismissAnonymous("b"), /denied/);
@@ -55,87 +54,27 @@ test("anonymous storage is app and UUID scoped, persists reload, and reports sto
     } finally { globalThis.sessionStorage = original; }
 });
 
-test("SignalR subscribes before snapshot callback, deduplicates hints and disposes only its owner", async () => {
-    const originals = { fetch: globalThis.fetch, document: globalThis.document, location: globalThis.location,
-        WebSocket: globalThis.WebSocket, BroadcastChannel: globalThis.BroadcastChannel };
-    const listeners = new Map(), sockets = [], calls = [];
-    globalThis.document = { hidden: false, addEventListener: (key, value) => listeners.set(key, value),
-        removeEventListener: (key, value) => { if (listeners.get(key) === value) listeners.delete(key); } };
-    globalThis.location = { href: "https://ui.invalid/profile" };
-    globalThis.BroadcastChannel = undefined;
-    globalThis.fetch = async () => new Response(JSON.stringify({
-        connectionToken: "transport-token", availableTransports: [{ transport: "WebSockets" }]
-    }));
-    class Socket {
-        static OPEN = 1;
-        constructor(url) { this.url = url; this.readyState = 1; sockets.push(this); setTimeout(() => this.onopen(), 0); }
-        send(value) { if (value.includes('"protocol"')) setTimeout(() => this.onmessage({ data: "{}\u001e" }), 0); }
-        close() { this.readyState = 3; this.onclose?.(); }
-        hint(id) { this.onmessage({ data: JSON.stringify({ type: 1, target: "NotificationsRefresh", arguments: [{ eventId: id }] }) + "\u001e" }); }
-    }
-    globalThis.WebSocket = Socket;
-    const dotnet = { invokeMethodAsync: async name => { calls.push(name); } };
+test("BFF cancellation aborts the matching request without affecting another", async () => {
+    const original = globalThis.fetch;
+    const signals = new Map();
+    globalThis.fetch = (path, options) => new Promise((resolve, reject) => {
+        signals.set(path, { signal: options.signal, resolve });
+        options.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+    });
     try {
-        assert.equal(await ui.subscribe(dotnet, "first"), true);
-        assert.deepEqual(calls, ["Connected"]);
-        assert.equal(new URL(sockets[0].url).protocol, "wss:");
-        assert.equal(new URL(sockets[0].url).searchParams.has("access_token"), false);
-        sockets[0].hint("event1"); sockets[0].hint("event1");
-        sockets[0].hint("event2"); // Unique burst hints still coalesce to one refresh.
-        await new Promise(resolve => setTimeout(resolve, 170));
-        assert.deepEqual(calls, ["Connected", "Refresh"]);
-        await ui.subscribe(dotnet, "second");
-        assert.equal(sockets[0].readyState, 3);
-        ui.unsubscribe("first");
-        assert.equal(sockets[1].readyState, 1);
-        listeners.get("visibilitychange")();
-        assert.equal(calls.at(-1), "Refresh");
-        ui.unsubscribe("second");
-        assert.equal(sockets[1].readyState, 3);
-        assert.equal(listeners.size, 0);
-    } finally {
-        ui.unsubscribe("second");
-        Object.assign(globalThis, originals);
-    }
+        const first = ui.request("first", "/api/notifications/first", "GET", null);
+        const second = ui.request("second", "/api/notifications/second", "GET", null);
+        ui.abort("first");
+        await assert.rejects(first, { name: "AbortError" });
+        assert.equal(signals.get("/api/notifications/second").signal.aborted, false);
+        signals.get("/api/notifications/second").resolve(new Response("{}"));
+        await second;
+        ui.abort("second"); // Completed request is no longer retained.
+        assert.equal(signals.get("/api/notifications/second").signal.aborted, false);
+    } finally { globalThis.fetch = original; }
 });
 
-test("logout broadcast resumes only after capability probe confirms anonymous", async () => {
-    const originals = { fetch: globalThis.fetch, document: globalThis.document, location: globalThis.location,
-        WebSocket: globalThis.WebSocket, BroadcastChannel: globalThis.BroadcastChannel };
-    let listener, probes = 0;
-    const calls = [];
-    globalThis.document = { hidden: false, addEventListener() {}, removeEventListener() {} };
-    globalThis.location = { href: "https://ui.invalid/profile" };
-    globalThis.BroadcastChannel = class {
-        addEventListener(_, callback) { listener = callback; }
-        close() {}
-    };
-    globalThis.fetch = async path => {
-        if (path === "/api/notifications/session") {
-            probes++;
-            return new Response(JSON.stringify({ authenticated: probes === 1, hasSession: false }));
-        }
-        return new Response(JSON.stringify({
-            connectionToken: "transport-token", availableTransports: [{ transport: "WebSockets" }]
-        }));
-    };
-    globalThis.WebSocket = class {
-        static OPEN = 1;
-        constructor() { this.readyState = 1; setTimeout(() => this.onopen(), 0); }
-        send(value) { if (value.includes('"protocol"')) setTimeout(() => this.onmessage({ data: "{}\u001e" }), 0); }
-        close() { this.readyState = 3; this.onclose?.(); }
-    };
-    try {
-        await ui.subscribe({ invokeMethodAsync: async name => { calls.push(name); } }, "logout-test");
-        listener({ data: "logout" });
-        await new Promise(resolve => setTimeout(resolve, 20));
-        assert.equal(calls.includes("LoggedOut"), true);
-        assert.equal(calls.includes("ResumeAnonymous"), false);
-        await new Promise(resolve => setTimeout(resolve, 1050));
-        assert.equal(probes, 2);
-        assert.equal(calls.includes("ResumeAnonymous"), true);
-    } finally {
-        ui.unsubscribe("logout-test");
-        Object.assign(globalThis, originals);
-    }
+test("module is browser storage/BFF only, has no transport or logout subscription API", () => {
+    assert.deepEqual(Object.keys(ui).sort(), ["abort", "anonymousDismissed", "dismissAnonymous", "request"]);
+    assert.doesNotMatch(source, /WebSocket|BroadcastChannel|negotiate|invokeMethodAsync|addEventListener|confirmAnonymous/);
 });

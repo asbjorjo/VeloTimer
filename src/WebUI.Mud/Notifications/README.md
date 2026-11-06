@@ -1,127 +1,109 @@
-# Notifications WebUI BFF and delivery
+# Notifications delivery and authentication
 
-WebUI calls the committed `INotificationsClient`, never a service database. All nine
-routes are mirrored at their shared paths. Active is genuinely anonymous; rejected
-cookies or browser bearer credentials fail, never fall back to public data. Reader
-mutations require cookie authentication and antiforgery; authoring additionally
-requires `Notifications.Admin` / `velotime_permission=velotime.admin`. Safe typed
-Problems preserve upstream status/code without exposing upstream details.
+## Exact render paths
 
-The existing Duende user-access-token handler forwards the Keycloak bearer token.
-There is no Notifications issuer, signing key, assertion, application login ID,
-or second token-validation layer. API authorization uses the validated access
-token's issuer/subject/roles and optional `sid`. Missing `sid` does not block
-authenticated active reads, account dismissals/restores, or permitted admin operations.
-Session mutations and restores involving currentSession remain API-authorized and
-fail with 403 `notifications.login_session_required` when the access-token `sid` is absent.
+`WebUI.Mud.Client/Services/INotificationRefreshSource.cs` is a UI-only contract.
+It returns an inactive, async-disposable subscription, with refresh, connected
+(including reconnect), and transport-failure callbacks. `NotificationsHost`
+subscribes only on its first interactive render and marshals callbacks through
+the component's `InvokeAsync`. Nothing subscribes during prerender.
 
-The UI-only `/api/notifications/session` cookie-status probe returns exactly
-`{ "authenticated": bool, "hasSession": bool }`, no-store, without calling the
-Notifications API. No actual `sid` is exposed. `hasSession` uses the protected
-cookie principal's nonblank OIDC `sid`; it never uses browser headers, query values,
-or an unvalidated JWT payload. Reader response headers `X-VeloTime-Authenticated`
-and `X-VeloTime-HasSession` carry the same boolean capabilities for presentation.
-The host applies them only with a completed snapshot under its existing epoch gates.
-A second tab suspends content requests after logout until this probe confirms
-genuine anonymous state; it never forwards another authenticated snapshot while
-the logout POST is still in flight.
+* **InteractiveWebAssembly:** `WebUI.Mud.Client/Program.cs` registers
+  `WasmNotificationRefreshSource`. It builds the official
+  `Microsoft.AspNetCore.SignalR.Client` `HubConnection` to the same-origin public
+  `/hubs/notifications` endpoint. Browser cookies are automatic; there is no
+  access-token provider, bearer URL, identity group, or custom protocol parser.
+  Initial startup has four attempts (immediate, then 1/2/4-second delays).
+  Microsoft's automatic reconnect has four delays (0/2/10/30 seconds).
+  Connected/reconnected callbacks refresh authoritative content. Exhausted
+  retries show a warning while ordinary snapshot deadlines/polling continue.
+  Observed auth changes stop/restart the connection; disposal cancels startup,
+  removes handlers, and disposes the connection.
+* **InteractiveServer:** `NotificationHostingExtensions.AddWebUiNotifications`
+  registers scoped `ServerNotificationRefreshSource` and singleton hosted
+  `NotificationRefreshFanout`. Circuit subscriptions receive server-local callbacks
+  directly. There is **no loopback HubConnection and no notification browser
+  WebSocket**. The application's normal Blazor circuit transport is unchanged.
+  Circuit auth comes from `AuthenticationStateProvider`, not captured HttpContext.
 
-## Exact configuration / Platform integration
+Both modes retain `NotificationsBrowserService` for browser-origin BFF requests.
+`notifications.js` now exports only BFF request/abort and anonymous
+`sessionStorage` helpers. It contains no SignalR networking, negotiation, JSON
+framing, WebSocket, ping, reconnect, visibility listeners, BroadcastChannel,
+logout form interception, or cookie-status probes.
 
-Existing OIDC, shared WebUI cookie/Data Protection/token storage and API discovery
-still apply. No Notifications signing configuration is required. Snapshot
-Data Protection is independent and remains unchanged. Deployment must provide TLS,
-synchronized clocks and Notifications API discovery.
+## Cross-replica delivery
 
-Platform must ensure Keycloak emits matching `sid` in the validated ID token and
-access token, including refreshed access tokens. The trusted ID-token claim is
-only a UI capability hint: if it exists but the access token lacks `sid`, the API
-still rejects session mutations without changing state. If absent, the UI hides
-session actions, retaining all permitted account actions (no automatic fallback
-dismissal). The same Keycloak SSO `sid` shares session dismissal across tabs/refresh;
-different `sid` values remain isolated.
+The existing Azure Service Bus topic `velotime-notifications`, competing logical
+subscription `webui-notifications`, and filter
+`MessageName = 'NotificationsRefreshRequestedV1'` remain unchanged.
+Runtime topology provisioning remains disabled.
 
-`ConnectionStrings:MessageBus` supplies SlimMessageBus Azure Service Bus.
-`ConnectionStrings:cache` supplies the existing Redis connection (not a new
-`Redis` connection name). The SignalR backplane has channel prefix
-`velotime:webui:notifications`. Runtime topology provisioning is disabled.
-Provision `velotime-notifications` / non-session `webui-notifications`, filter
-`MessageName = 'NotificationsRefreshRequestedV1'`, through the Platform job.
-The competing-consumer bridge broadcasts only `{eventId}` on
-`NotificationsRefresh`; Redis fans it out to every WebUI replica. Anonymous hub
-connections are intentional and cannot select groups or invoke content methods.
-Hub connections close at cookie authentication expiry.
+`NotificationsRefreshBridge` broadcasts `{eventId}` once through
+`IHubContext<NotificationsHub>.Clients.All` and the existing SignalR Redis
+backplane (prefix `velotime:webui:notifications`). It also publishes **only the
+EventId UUID** to the dedicated literal Redis channel
+`velotime:webui:notifications:server-refresh:v1`.
 
-Project-local references are UI-owned; central versions are not. Platform must
-provide `Microsoft.AspNetCore.SignalR.StackExchangeRedis` **10.0.12** in
-Directory.Packages.props (its separate SignalR.Client version is not needed by
-this first-party browser transport). Existing centrally-versioned SlimMessageBus
-AzureServiceBus and SystemTextJson packages are referenced by WebUI.
+Every replica subscribes to that second channel once and dispatches its own
+circuit subscribers. The Redis callback **never broadcasts to SignalR**, avoiding
+double fanout. Each UI subscription bounds EventId deduplication to 256 IDs.
+Failure of either bridge operation propagates for broker retry; repeated hints
+are harmless. Redis pub/sub is not durable: initial/reconnected snapshots and
+deadline polling repair hints lost during disconnection. Slow/failing circuit
+callbacks do not fail another subscriber.
 
-## Both InteractiveAuto modes
+The fanout reuses the existing DI-owned `IConnectionMultiplexer` from the `cache`
+registration. It removes connection-event handlers and unsubscribes its channel
+on shutdown, but never disposes that shared connection. No per-replica broker
+subscriptions or server hub clients are created.
 
-The first-party `notifications.js` module runs in the browser for both server
-circuits and WASM. It uses same-origin cookies and CSRF fetch, not access-token
-URLs or long-lived server HttpContext. It negotiates SignalR JSON/WebSockets,
-handshakes before snapshot loading, pings, detects transport silence, reconnects
-with capped backoff, deduplicates minimal EventIds and repairs missed hints on
-tab resume/periodic checks. WebSocket support and usual SignalR negotiation
-affinity are required at the ingress; Redis does not replace sticky negotiation.
-There is no CDN/vendor JS or second .NET/browser connection.
+Deployment still needs `ConnectionStrings:cache`, `ConnectionStrings:MessageBus`,
+Notifications API discovery, shared cookie/Data Protection/token storage, TLS,
+and ordinary SignalR ingress affinity. Redis ACLs must allow publish/subscribe
+on the new server-refresh channel as well as existing backplane channels.
+No AppHost/chart/topology/package-version changes were made. Client's new
+PackageReference uses the existing central **10.0.12** version.
 
-All list adapters drain revision-bound pages before publishing replacements.
-Only explicit `notifications.snapshot_expired` 409 restarts; three attempts
-maximum. Other errors and repeated tokens fail without returning partial lists.
+## Authentication semantics and limits
 
-## Validation baseline
+The BFF continues to use the committed typed Notifications client and existing
+Duende Keycloak token forwarding. Rejected/malformed cookies or browser bearer
+credentials fail rather than downgrade to anonymous data. Reader mutations
+require cookie auth/antiforgery; admin operations also require the existing global
+permission. The API remains authoritative, using validated Keycloak claims.
+No new issuer, signing secret, login-session identity, or database access exists.
 
-On the assigned `3e42f08f` tree after UI simplification:
+Request-local boolean capability headers are applied only with a complete,
+epoch-validated snapshot. Nonblank trusted `sid` enables session actions; account
+actions remain available without it. Missing access-token `sid` is still rejected
+by the API for session mutations. Keycloak ID/access-token mapper alignment,
+including refreshed tokens, remains an integration requirement.
 
-* `dotnet build src/WebUI.Mud/VeloTime.WebUI.Mud.csproj --configuration Release --no-restore -v quiet`:
-  passed, 0 errors, 3 existing NuGet advisory warnings on the final incremental build.
-* `dotnet build src/WebUI.Mud.Client/VeloTime.WebUI.Mud.Client.csproj --configuration Release --no-restore -v quiet`:
-  passed, 0 errors/warnings on the final incremental build.
-* `OIDC_AUDIENCE=https://build.invalid dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj
-  --configuration Release --no-restore --filter 'FullyQualifiedName~Notifications|FullyQualifiedName~WebUiBffTests.Oidc|FullyQualifiedName~OidcLocalizationTests'
-  --logger trx -v quiet`: **40 passed, 0 failed, 1 skipped** (Redis opt-in).
-* `node --test src/VeloTime.Platform.Test/NotificationsBrowser.test.mjs`:
-  **6 passed, 0 failed**.
-* `git diff --check`: passed.
+Private content clears when the host observes an authentication-state change or
+an authoritative 401/403. An anonymous completed snapshot restores tab-local
+anonymous dismissal filtering. After an observed provider logout, still-authenticated
+snapshots are discarded until normal snapshots observe anonymous state (or the
+provider observes login); no probe or cross-tab protocol is used.
+Existing application OIDC/cookie logout and token
+revocation are unchanged. The unused, existing boolean `/api/notifications/session`
+capability endpoint is retained for compatibility; notifications no longer probe it.
 
-Checks include real in-process OIDC callback/ticket reload with Duende bearer
-forwarding to a stub API, bool-only capability/no browser-selected sid, localized
-rendering and no-sid account/session controls, paging and logout suspension.
-These do not validate live Keycloak access-token mapper alignment, token-refresh
-sid stability, Azure Service Bus, Redis delivery or full-browser interaction.
-No browser tools were available; no visual validation is claimed.
-No central packages, AppHost, charts, API tests or snapshot Data Protection changed.
+**There is no notification-specific cross-tab logout coordination.** UI hiding
+does not revoke an identity session. No explicit Keycloak backchannel-logout
+handler or periodically revalidating circuit provider was found in the inspected
+application registration. Keycloak-only logout cannot be claimed to immediately
+clear inactive-tab DOM, invalidate an existing local cookie, or revoke an already
+issued JWT. Those depend on existing identity policy, expiration, and application
+logout handling. Snapshot polling normally runs at up to 60 seconds, subject to
+browser throttling; it is not an instant cross-tab logout guarantee.
 
-## Integrated Tester checks
+## Validation / next owner
 
-`src/VeloTime.Platform.Test` now contains focused notification BFF/capability,
-browser transport and rendering regressions, and
-`src/VeloTime.Platform.Test/NotificationsBrowser.test.mjs` verifies browser-side
-storage and SignalR transport behaviors with local fakes. Run the .NET project and
-Node test directly before claiming UI regression coverage. These are unit/component
-checks; they do not prove live two-replica Redis backplane delivery or authenticated
-browser behavior with Azure Service Bus.
+Contract-first client Release build passed before implementations (0 errors,
+3 pre-existing BL0005 warnings). Behavioral fixtures use the official .NET client,
+not handcrafted SignalR frames. Redis fixtures run two TestServer replicas and
+real disposable Redis, bypassing Azure Service Bus and a full browser.
 
-An opt-in `NotificationsRedisBackplaneTests` starts two TestServer WebUI hub hosts,
-uses the real Redis SignalR backplane and WebSocket JSON handshake, invokes the
-actual broker bridge against a fixture event, and asserts client receipt within
-2 seconds. It bypasses Azure Service Bus and a full browser. Run it against a
-disposable Redis server:
-
-```sh
-VELOTIME_TEST_REDIS='127.0.0.1:6379,abortConnect=false' \
-  dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj \
-  --configuration Release --filter FullyQualifiedName~NotificationsRedisBackplaneTests
-```
-
-The measurable local instant-delivery acceptance target is **<= 2 seconds** from
-outbox event publication eligibility through SignalR bridge receipt to the connected
-browser refresh callback. Neither unit tests nor static chart rendering establish
-this target; live infrastructure validation must report actual timestamps and
-latency. The disposable local two-host fixture measured 42 ms from bridge invocation
-to TestServer WebSocket receipt; it does not include outbox polling, Azure Service Bus,
-or a real browser.
+Current exact checks and interaction handoff are in
+`../../WebUI.Mud.Client/Notifications.md`.

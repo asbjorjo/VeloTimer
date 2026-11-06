@@ -8,9 +8,12 @@ namespace VeloTime.WebUI.Mud.Notifications;
 // No client methods, identity, content, or selectable groups.
 public sealed class NotificationsHub : Hub { }
 
-public sealed class NotificationsRefreshBridge(IHubContext<NotificationsHub> hub)
+public sealed class NotificationsRefreshBridge(IHubContext<NotificationsHub> hub, NotificationRefreshFanout fanout)
     : IConsumer<NotificationsRefreshRequestedV1>
 {
-    public Task OnHandle(NotificationsRefreshRequestedV1 message, CancellationToken cancellationToken) =>
-        hub.Clients.All.SendAsync("NotificationsRefresh", message, cancellationToken);
+    public async Task OnHandle(NotificationsRefreshRequestedV1 message, CancellationToken cancellationToken)
+    {
+        await hub.Clients.All.SendAsync("NotificationsRefresh", message, cancellationToken);
+        await fanout.PublishAsync(message.EventId, cancellationToken);
+    }
 }

@@ -258,7 +258,8 @@ public sealed class NotificationsRenderingTests
             // Fresh object/collection each time, just as after JSON deserialization.
             return new NotificationUiSnapshot(new(now, now, now.AddMinutes(5), null, [current with { }], null), true);
         }));
-        services.AddSingleton<AuthenticationStateProvider>(new AnonymousAuthentication());
+        var authentication = new AnonymousAuthentication();
+        services.AddSingleton<AuthenticationStateProvider>(authentication);
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async () =>
@@ -280,10 +281,132 @@ public sealed class NotificationsRenderingTests
             current = Notice();
             await component.Refresh();
             Assert.Single(snackbar.ShownSnackbars);
-            await component.LoggedOut();
+            await Call(component, "AuthenticationChanged", authentication.GetAuthenticationStateAsync());
             Assert.Empty(snackbar.ShownSnackbars);
-            await component.Refresh(); // No new private snapshot while logout is pending.
-            Assert.Empty(snackbar.ShownSnackbars);
+        });
+    }
+
+    [Fact]
+    public async Task HostSubscribesOnlyOnInteractiveRenderMarshalsCallbacksRestartsForAuthAndDisposes()
+    {
+        var source = new RecordingNotificationRefreshSource();
+        var authenticated = true;
+        var calls = 0;
+        var services = Services();
+        services.AddSingleton<INotificationRefreshSource>(source);
+        services.AddSingleton<IJSRuntime>(new NotificationsUiTransportTests.Browser());
+        services.AddSingleton<AuthenticationStateProvider>(new AnonymousAuthentication());
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<INotificationsService>((method, _) =>
+        {
+            Assert.Equal(nameof(INotificationsService.ActiveAsync), method.Name);
+            calls++;
+            var now = DateTimeOffset.UtcNow;
+            return new NotificationUiSnapshot(new(now, now, now.AddMinutes(5), null,
+                authenticated ? [Notice()] : [], null), authenticated);
+        }));
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        NotificationsHost? host = null;
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await renderer.RenderComponentAsync<Capture<NotificationsHost>>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            { ["Captured"] = (Action<NotificationsHost>)(value => host = value) }));
+            Assert.Equal(0, source.Subscriptions);
+            Assert.Equal(0, calls);
+            await Call(host!, "OnAfterRenderAsync", true);
+            await Call(host!, "OnAfterRenderAsync", false);
+            Assert.Equal(1, source.Subscriptions);
+            Assert.Equal([true], source.Activations);
+            Assert.Equal(1, calls);
+            Assert.Single(provider.GetRequiredService<ISnackbar>().ShownSnackbars);
+        });
+        // Real transport callbacks arrive outside the circuit/render dispatcher.
+        await Task.Run(() => source.Callback!(NotificationRefreshKind.Refresh));
+        Assert.Equal(2, calls);
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await Call(host!, "AuthenticationChanged", Task.FromResult(new AuthenticationState(
+                new(new System.Security.Claims.ClaimsIdentity()))));
+            Assert.Equal([true, false, true], source.Activations);
+            Assert.Empty(provider.GetRequiredService<ISnackbar>().ShownSnackbars);
+            Assert.False(provider.GetRequiredService<NotificationUiState>().Authenticated);
+            Assert.True((bool)Field(host!, "_awaitingAnonymous")!);
+            // A still-authenticated cookie snapshot cannot resurrect content
+            // after a provider logout. Normal snapshots (not probes) repair it.
+            authenticated = false;
+            await source.Callback!(NotificationRefreshKind.Refresh);
+            Assert.False((bool)Field(host!, "_awaitingAnonymous")!);
+            await host!.DisposeAsync();
+            Assert.True(source.Disposed);
+        });
+        var before = calls;
+        await Task.Run(() => source.Callback!(NotificationRefreshKind.Connected));
+        Assert.Equal(before, calls);
+    }
+
+    [Theory]
+    [InlineData(NotificationRefreshKind.Connected)]
+    [InlineData(NotificationRefreshKind.TransportFailed)]
+    public async Task FirstTransportEventOwnsExactlyOneSnapshotAndFailureDoesNotBlockContent(NotificationRefreshKind kind)
+    {
+        var source = new RecordingNotificationRefreshSource { ActivationKind = kind };
+        var calls = 0;
+        var services = Services();
+        services.AddSingleton<INotificationRefreshSource>(source);
+        services.AddSingleton<IJSRuntime>(new NotificationsUiTransportTests.Browser());
+        services.AddSingleton<AuthenticationStateProvider>(new AnonymousAuthentication());
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<INotificationsService>((_, _) =>
+        {
+            calls++;
+            var now = DateTimeOffset.UtcNow;
+            return new NotificationUiSnapshot(new(now, now, now.AddMinutes(5), null, [Notice()], null), true);
+        }));
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            NotificationsHost? host = null;
+            await renderer.RenderComponentAsync<Capture<NotificationsHost>>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            { ["Captured"] = (Action<NotificationsHost>)(value => host = value) }));
+            await Call(host!, "OnAfterRenderAsync", true);
+            Assert.Equal(1, calls);
+            Assert.Single(provider.GetRequiredService<ISnackbar>().ShownSnackbars);
+            Assert.Equal(kind == NotificationRefreshKind.TransportFailed, Field(host!, "_transportFailed"));
+            await source.Callback!(NotificationRefreshKind.Connected);
+            Assert.Equal(2, calls);
+            Assert.False((bool)Field(host!, "_transportFailed")!);
+        });
+    }
+
+    [Theory]
+    [InlineData(401)]
+    [InlineData(403)]
+    public async Task HostAuthorizationFailureClearsPrivateSnapshotAndShowsError(int status)
+    {
+        var rejected = false;
+        var services = Services();
+        services.AddSingleton<AuthenticationStateProvider>(new AnonymousAuthentication());
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<INotificationsService>((_, _) =>
+        {
+            if (rejected) throw new NotificationUiException(status, "notifications.forbidden");
+            var now = DateTimeOffset.UtcNow;
+            return new NotificationUiSnapshot(new(now, now, now.AddMinutes(5), null, [Notice()], null), true);
+        }));
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            NotificationsHost? host = null;
+            var root = await renderer.RenderComponentAsync<Capture<NotificationsHost>>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            { ["Captured"] = (Action<NotificationsHost>)(value => host = value) }));
+            await host!.Refresh();
+            Assert.Single(provider.GetRequiredService<ISnackbar>().ShownSnackbars);
+            rejected = true;
+            await host.Refresh();
+            Assert.Empty(provider.GetRequiredService<ISnackbar>().ShownSnackbars);
+            Assert.False(provider.GetRequiredService<NotificationUiState>().Authenticated);
+            Assert.False((bool)Field(host, "_hasSnapshot")!);
+            Assert.Contains("role=\"alert\"", root.ToHtmlString());
         });
     }
 
@@ -435,6 +558,7 @@ public sealed class NotificationsRenderingTests
         services.AddLogging(); services.AddMudServices();
         services.AddLocalization(o => o.ResourcesPath = "Resources");
         services.AddSingleton<NotificationUiState>();
+        services.AddSingleton<INotificationRefreshSource, RecordingNotificationRefreshSource>();
         services.AddSingleton<NavigationManager>(new TestNavigation());
         services.AddSingleton(PlatformServiceTests.TestProxy.Create<IJSRuntime>((_, _) => null));
         return services;
