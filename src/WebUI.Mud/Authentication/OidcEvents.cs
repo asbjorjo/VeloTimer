@@ -38,6 +38,9 @@ public class OidcEvents : OpenIdConnectEvents
 
     public override async Task TokenValidated(TokenValidatedContext context)
     {
+        // An application login, not the potentially shared Keycloak SSO sid.
+        context.Properties!.Items[VeloTime.Module.Notifications.Interface.Identity.NotificationSessionAssertion.TicketLoginIdProperty]
+            = VeloTime.Module.Notifications.Interface.Identity.NotificationSessionAssertion.NewApplicationLoginId();
         var exp = DateTimeOffset.UtcNow.AddSeconds(double.Parse(context.TokenEndpointResponse!.ExpiresIn));
 
         await _store.StoreTokenAsync(context.Principal!, new UserToken
