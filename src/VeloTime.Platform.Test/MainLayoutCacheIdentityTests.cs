@@ -53,6 +53,11 @@ public sealed class MainLayoutCacheIdentityTests
         builder.Services.AddSingleton<IDisplayPreferenceService>(preferences);
         builder.Services.AddScoped<DisplayPreferenceState>();
         builder.Services.AddScoped<UnsavedChangesTracker>();
+        builder.Services.AddScoped<NotificationUiState>();
+        builder.Services.AddSingleton<INotificationRefreshSource, RecordingNotificationRefreshSource>();
+        var notifications = PlatformServiceTests.TestProxy.Create<INotificationsService>((_, _) =>
+            throw new InvalidOperationException("Prerender must not request notification snapshots."));
+        builder.Services.AddSingleton(notifications);
         await using var provider = builder.Services.BuildServiceProvider();
         await using var scope = provider.CreateAsyncScope();
         await using var renderer = new HtmlRenderer(scope.ServiceProvider, provider.GetRequiredService<ILoggerFactory>());
@@ -81,6 +86,8 @@ public sealed class MainLayoutCacheIdentityTests
             Assert.Contains("Body for current user", root.ToHtmlString());
         });
         Assert.Equal(2, preferences.Reads);
+        Assert.Empty(((PlatformServiceTests.TestProxy)(object)notifications).Calls);
+        Assert.Equal(0, ((RecordingNotificationRefreshSource)provider.GetRequiredService<INotificationRefreshSource>()).Subscriptions);
     }
 
     private static Task Invoke(MainLayout layout, string method, object argument) =>

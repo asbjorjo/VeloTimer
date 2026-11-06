@@ -33,6 +33,7 @@ IResourceBuilder<ProjectResource> facilitiesmigrator;
 IResourceBuilder<ProjectResource> statisticsmigrator;
 IResourceBuilder<ProjectResource> timingmigrator;
 IResourceBuilder<ProjectResource> profilesmigrator;
+IResourceBuilder<ProjectResource> notificationsmigrator;
 IResourceBuilder<IResourceWithConnectionString> velotimedb;
 
 var k8s = builder.AddKubernetesEnvironment("k8s");
@@ -106,6 +107,20 @@ var profilesapi = builder.AddProject<Projects.VeloTime_Module_Profiles_Api>("mod
     .WithReference(velotimedb)
     .WithReference(keycloak)
     .WaitFor(velotimedb);
+var notificationsapi = builder.AddProject<Projects.VeloTime_Module_Notifications_Api>("module-notifications-api")
+    .WithHttpEndpoint(name: "http")
+    .WithEnvironment("OIDC_AUDIENCE", oidcAudience)
+    .WithReference(cache)
+    .WithReference(velotimedb)
+    .WithReference(keycloak)
+    .WaitFor(velotimedb);
+
+var notificationsproc = builder.AddProject<Projects.VeloTime_Module_Notifications_Processor>("module-notifications-processor")
+    .WithReference(cache)
+    .WithReference(velotimedb)
+    .WithReference(servicebusconnection)
+    .WaitFor(cache)
+    .WaitFor(velotimedb);
 
 statisticsapi.WithReference(facilityapi);
 facilityapi.WithReference(timingapi).WithReference(statisticsapi);
@@ -127,10 +142,12 @@ var users = builder.AddProject<Projects.VeloTime_Users_Migration>("users-migrati
 var frontend = builder.AddProject<Projects.VeloTime_WebUI_Mud>("frontend")
     .WithExternalHttpEndpoints()
     .WithReference(cache)
+    .WithReference(servicebusconnection)
     .WithReference(keycloak)
     .WithReference(facilityapi)
     .WithReference(statisticsapi)
     .WithReference(profilesapi)
+    .WithReference(notificationsapi)
     .WithReference(timingapi);
 
 var statsproc = builder.AddProject<Projects.VeloTime_Module_Statistics_Processor>("module-statistics-processor")
@@ -161,9 +178,11 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["ConnectionStrings:MessageB
     var servicebusmanagement = builder.AddConnectionString("MessageBusManagement");
     var messagebustopology = builder.AddProject<Projects.VeloTime_MessageBus_Topology>("messagebus-topology")
         .WithReference(servicebusmanagement);
+    frontend.WaitForCompletion(messagebustopology);
     facilityapi.WaitForCompletion(messagebustopology);
     statisticsapi.WaitForCompletion(messagebustopology);
     timingapi.WaitForCompletion(messagebustopology);
+    notificationsproc.WaitForCompletion(messagebustopology);
     statsproc.WaitForCompletion(messagebustopology);
     timingproc.WaitForCompletion(messagebustopology);
 }
@@ -193,11 +212,16 @@ if (migrate)
     profilesmigrator = builder.AddProject<Projects.VeloTime_Module_Profiles_Migration>("module-profiles-migration")
         .WaitFor(velotimedb)
         .WithReference(velotimedb);
+    notificationsmigrator = builder.AddProject<Projects.VeloTime_Module_Notifications_Migration>("module-notifications-migration")
+        .WaitFor(velotimedb)
+        .WithReference(velotimedb);
 
     facilityapi.WaitForCompletion(facilitiesmigrator);
     statisticsapi.WaitForCompletion(statisticsmigrator);
     timingapi.WaitForCompletion(timingmigrator);
     profilesapi.WaitForCompletion(profilesmigrator);
+    notificationsapi.WaitForCompletion(notificationsmigrator);
+    notificationsproc.WaitForCompletion(notificationsmigrator);
     statsproc.WaitForCompletion(statisticsmigrator);
     timingproc.WaitForCompletion(timingmigrator);
 

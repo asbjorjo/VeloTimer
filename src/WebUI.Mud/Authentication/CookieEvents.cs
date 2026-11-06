@@ -21,6 +21,12 @@ public class CookieEvents : CookieAuthenticationEvents
         }
 
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        if (IsNotifications(context.Request.Path))
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return Results.Problem(statusCode: 401, extensions: new Dictionary<string, object?>
+                { ["code"] = "notifications.authentication_required" }).ExecuteAsync(context.HttpContext);
+        }
         return Task.CompletedTask;
     }
 
@@ -32,6 +38,12 @@ public class CookieEvents : CookieAuthenticationEvents
         }
 
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        if (IsNotifications(context.Request.Path))
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return Results.Problem(statusCode: 403, extensions: new Dictionary<string, object?>
+                { ["code"] = "notifications.forbidden" }).ExecuteAsync(context.HttpContext);
+        }
         return Task.CompletedTask;
     }
 
@@ -52,4 +64,7 @@ public class CookieEvents : CookieAuthenticationEvents
 
         await base.SigningOut(context);
     }
+
+    private static bool IsNotifications(PathString path) =>
+        path.StartsWithSegments("/api/notifications") || path.StartsWithSegments("/api/admin/notifications");
 }

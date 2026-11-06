@@ -35,5 +35,8 @@ builder.Services.AddScoped<ITransponderStatusService, TransponderStatusHttpServi
 builder.Services.AddScoped<IInfrastructureAdministrationService, InfrastructureAdministrationHttpService>();
 builder.Services.AddScoped<IProfileService, ProfileHttpService>();
 builder.Services.AddScoped<IAuthDebugService, AuthDebugHttpService>();
+builder.Services.AddScoped<INotificationsService, NotificationsBrowserService>();
+builder.Services.AddScoped<NotificationUiState>();
+builder.Services.AddScoped<INotificationRefreshSource, WasmNotificationRefreshSource>();
 
 await builder.Build().RunAsync();

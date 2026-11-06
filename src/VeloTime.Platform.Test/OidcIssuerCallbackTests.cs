@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Duende.AccessTokenManagement;
 using Duende.AccessTokenManagement.OpenIdConnect;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -23,6 +24,8 @@ using Microsoft.IdentityModel.Tokens;
 using VeloTime.WebUI.Mud;
 using VeloTime.WebUI.Mud.Endpoints;
 using VeloTime.WebUI.Mud.Services;
+using VeloTime.Module.Notifications.Client;
+using VeloTime.Module.Notifications.Interface.Data;
 using Contracts = VeloTime.Module.Profiles.Client;
 
 namespace VeloTime.Platform.Test;
@@ -70,6 +73,31 @@ public sealed partial class WebUiBffTests
             JsonKeyClaimAction json => $"{action.GetType().Name}:{action.ClaimType}:{json.JsonKey}",
             _ => $"{action.GetType().Name}:{action.ClaimType}"
         };
+    }
+
+    [Fact]
+    public async Task OidcCallback_NotificationsForwardsOnlyExistingUserBearerAndTrustedSessionCapability()
+    {
+        var profiles = PlatformServiceTests.TestProxy.Create<Contracts.IProfilesClient>((_, _) => Snapshot());
+        await using var harness = await OidcHarness.StartAsync(profiles, restorePreFixIssuerDelete: false);
+        using var client = CreateClient(harness.App, origin: OidcOrigin);
+        using (var anonymous = await client.GetAsync("api/notifications/active"))
+            Assert.Equal(HttpStatusCode.OK, anonymous.StatusCode);
+        Assert.Null(Assert.Single(harness.NotificationAuthorization));
+        await harness.SignInThroughOidcCallbackAsync(client);
+        using var session = await client.GetAsync("api/notifications/session");
+        Assert.Equal(new NotificationSessionStatus(true, true),
+            await session.Content.ReadFromJsonAsync<NotificationSessionStatus>());
+        Assert.DoesNotContain(OidcSession, await session.Content.ReadAsStringAsync());
+        for (var i = 0; i < 2; i++)
+        {
+            using var active = await client.GetAsync("api/notifications/active");
+            Assert.Equal(HttpStatusCode.OK, active.StatusCode);
+        }
+        Assert.Equal(new string?[] { null, "Bearer " + harness.AccessToken, "Bearer " + harness.AccessToken },
+            harness.NotificationAuthorization);
+        Assert.All(harness.Tickets.Reloaded, ticket =>
+            Assert.Empty(ticket.Properties.Items.Where(item => item.Key.Contains("notification", StringComparison.OrdinalIgnoreCase))));
     }
 
     [Fact]
@@ -153,6 +181,8 @@ public sealed partial class WebUiBffTests
         internal RecordingHybridCache Cache { get; private set; } = null!;
         internal int TokenRequests { get; private set; }
         internal int UserInfoRequests { get; private set; }
+        internal string AccessToken => accessToken;
+        internal List<string?> NotificationAuthorization { get; } = [];
 
         internal static async Task<OidcHarness> StartAsync(Contracts.IProfilesClient profiles, bool restorePreFixIssuerDelete)
         {
@@ -204,6 +234,18 @@ public sealed partial class WebUiBffTests
             builder.Services.AddSingleton<ITicketStore>(provider => provider.GetRequiredService<RecordingTicketStore>());
             builder.Services.AddTransient<CookieEvents>();
             builder.Services.AddTransient<OidcEvents>();
+            builder.Services.AddOpenIdConnectAccessTokenManagement();
+            builder.Services.AddNotificationsClient().AddDefaultAccessTokenResiliency()
+                .AddUserAccessTokenHandler()
+                .ConfigurePrimaryHttpMessageHandler(() => new StubHandler(request =>
+                {
+                    harness.NotificationAuthorization.Add(request.Headers.Authorization?.ToString());
+                    Assert.All(request.Headers, header => Assert.Contains(header.Key, new[] { "Authorization", "Accept" }));
+                    var now = DateTimeOffset.UtcNow;
+                    return Task.FromResult(Json(new ActiveNotificationsDTO(now, now, now.AddMinutes(5), null, [], null)));
+                }));
+            builder.Services.AddAuthorization(options => options.AddPolicy("Notifications.Admin",
+                policy => policy.RequireAuthenticatedUser().RequireClaim("velotime_permission", "velotime.admin")));
 
             var app = builder.Build();
             app.UseAuthentication();
@@ -211,6 +253,7 @@ public sealed partial class WebUiBffTests
             app.UseAntiforgery();
             app.MapGroup("/authentication").MapLoginAndLogout();
             app.MapBffEndpoints();
+            app.MapNotificationBffEndpoints();
             await app.StartAsync();
             harness.App = app;
             harness.Tickets = app.Services.GetRequiredService<RecordingTicketStore>();

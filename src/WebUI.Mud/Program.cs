@@ -21,6 +21,7 @@ using VeloTime.WebUI.Mud.Services;
 using VeloTime.WebUI.Mud.Localization;
 using Yarp.ReverseProxy.Transforms;
 using VeloTime.Module.Profiles.Client;
+using VeloTime.WebUI.Mud.Notifications;
 
 const string VELOTIME_OIDC_SCHEME = "VeloTimeOIDC";
 
@@ -159,6 +160,7 @@ builder.Services.AddScoped<ITransponderOwnerService, TransponderOwnerService>();
 builder.Services.AddScoped<ITransponderStatusService, TransponderStatusService>();
 builder.Services.AddScoped<IInfrastructureAdministrationService, InfrastructureAdministrationService>();
 builder.Services.AddScoped<ITimingService, TimingService>();
+builder.AddWebUiNotifications();
 
 var app = builder.Build();
 
@@ -197,6 +199,8 @@ app.MapRazorComponents<App>()
 
 app.MapGroup("/authentication").MapLoginAndLogout();
 app.MapBffEndpoints();
+app.MapNotificationBffEndpoints();
+app.MapHub<NotificationsHub>("/hubs/notifications", options => options.CloseOnAuthenticationExpiration = true);
 app.MapLanguageSelectionEndpoints();
 
 app.Run();

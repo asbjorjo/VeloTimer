@@ -1,0 +1,254 @@
+@using VeloTime.Module.Notifications.Interface.Data
+@using VeloTime.Module.Notifications.Interface
+@inject INotificationsService Notices
+@inject IJSRuntime JS
+@inject ISnackbar Snackbars
+@inject AuthenticationStateProvider Authentication
+@inject NotificationUiState UiState
+@inject INotificationRefreshSource RefreshSource
+@inherits PresentationComponentBase
+@implements IAsyncDisposable
+
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error" role="alert">@L[_error]</MudAlert>
+    <MudButton OnClick="Refresh" Disabled="_loading">@L["Retry"]</MudButton>
+}
+@if (_transportFailed) { <MudAlert Severity="Severity.Warning" role="status">@L["NotificationsRealtimeFailed"]</MudAlert> }
+@if (_loading && !_hasSnapshot) { <MudText role="status">@L["NotificationsLoading"]</MudText> }
+@if (_hasSnapshot && !_loading && _items.Count == 0 && _error is null)
+{
+    <span class="mud-sr-only" role="status">@L["NotificationsNoActive"]</span>
+}
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private CancellationTokenSource? _deadline;
+    private CancellationTokenSource? _requests;
+    private IJSObjectReference? _module;
+    private INotificationRefreshSubscription? _subscription;
+    private List<NotificationPresentationDTO> _items = [];
+    private Snackbar? _snackbar;
+    private NotificationPresentationDTO? _shown;
+    private bool _anonymous = true, _loading, _pending, _hasSnapshot, _transportFailed, _disposed;
+    // An observed provider logout must not republish a still-authenticated BFF
+    // snapshot while the existing application's cookie logout is in progress.
+    private bool _awaitingAnonymous;
+    private int _epoch;
+    private string? _error;
+    private DateTimeOffset _serverNow;
+    private long _receivedAt;
+    private DateTimeOffset? _nextChange;
+    private int _failures;
+    private int _shownQueue;
+    private string? _shownCulture;
+    private EffectiveDisplaySettings? _shownSettings;
+    private bool _shownHasSession;
+    protected override void OnInitialized()
+    {
+        _requests = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        Authentication.AuthenticationStateChanged += AuthChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return; // Never subscribe during prerender.
+        try
+        {
+            _anonymous = (await Authentication.GetAuthenticationStateAsync()).User.Identity?.IsAuthenticated != true;
+            var module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/VeloTime.WebUI.Mud.Client/notifications.js");
+            if (_disposed) { await module.DisposeAsync(); return; }
+            _module = module;
+            _subscription = await RefreshSource.SubscribeAsync(OnRefreshEvent, _lifetime.Token);
+            await _subscription.SetActiveAsync(true, _lifetime.Token);
+            // WASM startup can remain stuck in negotiation. Fetch the BFF
+            // snapshot independently; a later connection callback repairs it.
+            if (!_hasSnapshot && !_loading) await Load();
+        }
+        catch (JSDisconnectedException) { }
+        catch (OperationCanceledException) when (_disposed) { }
+        catch (Exception) { _error = "NotificationsFailed"; StateHasChanged(); }
+    }
+
+    private Task OnRefreshEvent(NotificationRefreshKind kind) => _disposed ? Task.CompletedTask : kind switch
+    {
+        NotificationRefreshKind.Connected => Connected(),
+        NotificationRefreshKind.TransportFailed => TransportFailed(),
+        _ => Refresh()
+    };
+    public Task Refresh() => InvokeAsync(async () => { if (_disposed) return; UiState.Refresh(); await Load(); });
+    public Task Connected() => InvokeAsync(async () => { if (_disposed) return; _transportFailed = false; await Load(); });
+    public Task TransportFailed() => InvokeAsync(async () =>
+    {
+        if (_disposed) return;
+        _transportFailed = true; StateHasChanged();
+        if (!_loading && !_hasSnapshot) await Load();
+    });
+
+    private void AuthChanged(Task<AuthenticationState> state) => _ = AuthenticationChanged(state);
+    private async Task AuthenticationChanged(Task<AuthenticationState> state)
+    {
+        try
+        {
+            var auth = await state;
+            await InvokeAsync(async () =>
+            {
+                if (_disposed) return;
+                _epoch++; _anonymous = auth.User.Identity?.IsAuthenticated != true;
+                _awaitingAnonymous = _anonymous;
+                _requests?.Cancel(); _requests?.Dispose();
+                _requests = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+                UiState.SetAuthenticated(!_anonymous);
+                _items.Clear(); RemoveShown(); _hasSnapshot = false; _deadline?.Cancel();
+                if (_subscription is not null)
+                {
+                    await _subscription.SetActiveAsync(false, _lifetime.Token);
+                    await _subscription.SetActiveAsync(true, _lifetime.Token);
+                    // Activation callbacks may synchronously load (server) or
+                    // startup may still be negotiating (WASM).
+                    if (!_hasSnapshot && !_loading) await Load();
+                }
+            });
+        }
+        catch (Exception e) when (_disposed || e is OperationCanceledException or JSDisconnectedException) { }
+    }
+
+    private async Task Load()
+    {
+        if (_disposed) return;
+        if (_loading) { _pending = true; return; }
+        _loading = true; _error = null;
+        var epoch = _epoch;
+        try
+        {
+            var result = await Notices.ActiveAsync(_requests!.Token);
+            if (epoch != _epoch || _disposed) return;
+            if (_awaitingAnonymous && result.Authenticated) return;
+            _awaitingAnonymous = false;
+            if (_anonymous == result.Authenticated)
+            {
+                _items.Clear(); RemoveShown();
+                _anonymous = !result.Authenticated;
+            }
+            var snapshot = result.Snapshot;
+            UiState.SetAuthenticated(result.Authenticated, result.HasSession);
+            var items = snapshot.Items.ToList();
+            if (_anonymous && _module is not null)
+            {
+                try
+                {
+                    var suppressed = await _module.InvokeAsync<string[]>("anonymousDismissed", items.Select(n => n.Id.ToString()).ToArray());
+                    var ids = suppressed.ToHashSet(StringComparer.Ordinal);
+                    items.RemoveAll(n => ids.Contains(n.Id.ToString()));
+                }
+                catch (JSException) { _error = "NotificationsStorageFailed"; }
+            }
+            if (epoch != _epoch || _disposed) return;
+            _items = items; _serverNow = snapshot.ServerNowUtc; _receivedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+            _hasSnapshot = true; _failures = 0; _nextChange = snapshot.NextChangeAtUtc;
+            Reconcile();
+        }
+        catch (NotificationUiException e)
+        {
+            _error = e.ResourceKey;
+            _failures++;
+            if (e.Status is 401 or 403) { _epoch++; _items.Clear(); RemoveShown(); _hasSnapshot = false; UiState.SetAuthenticated(false); }
+            else Reconcile(); // Preserve only the previous complete, non-expired snapshot.
+        }
+        catch (OperationCanceledException) when (_disposed || epoch != _epoch) { }
+        catch (Exception) { _failures++; _error = "NotificationsFailed"; Reconcile(); }
+        finally
+        {
+            _loading = false;
+            if (!_disposed)
+            {
+                StateHasChanged();
+                Schedule();
+                if (_pending) { _pending = false; _ = Load(); }
+            }
+        }
+    }
+    private DateTimeOffset EstimatedNow => _serverNow + System.Diagnostics.Stopwatch.GetElapsedTime(_receivedAt);
+    private void Reconcile()
+    {
+        if (_disposed) return;
+        if (_hasSnapshot) _items.RemoveAll(n => n.EndsAtUtc.HasValue && n.EndsAtUtc <= EstimatedNow);
+        var next = _items.OrderByDescending(n => n.Severity).ThenBy(n => n.Id).FirstOrDefault();
+        if (next is not null && _shown?.Id == next.Id && _shown.Version == next.Version &&
+            _shownQueue == _items.Count - 1 && _shownCulture == System.Globalization.CultureInfo.CurrentUICulture.Name &&
+            _shownSettings == Display && _shownHasSession == UiState.HasSession) return;
+        RemoveShown();
+        if (next is null) return;
+        _shown = next;
+        _shownQueue = _items.Count - 1; _shownCulture = System.Globalization.CultureInfo.CurrentUICulture.Name;
+        _shownSettings = Display;
+        _shownHasSession = UiState.HasSession;
+        var epoch = _epoch;
+        var severity = next.Severity switch { NotificationSeverity.Error => Severity.Error, NotificationSeverity.Warning => Severity.Warning, _ => Severity.Info };
+        _snackbar = Snackbars.Add<NotificationSnackbar>(new()
+        {
+            [nameof(NotificationSnackbar.Notice)] = next,
+            [nameof(NotificationSnackbar.Anonymous)] = _anonymous,
+            [nameof(NotificationSnackbar.HasSession)] = UiState.HasSession,
+            [nameof(NotificationSnackbar.Queued)] = _items.Count - 1,
+            [nameof(NotificationSnackbar.Settings)] = Display,
+            [nameof(NotificationSnackbar.Dismiss)] = (Func<NotificationDismissalScope, Task>)(scope => Dismiss(next, scope, epoch))
+        }, severity, options =>
+        {
+            options.ShowCloseIcon = false;
+            options.RequireInteraction = true;
+        }, "notification:" + next.Id);
+    }
+    private async Task Dismiss(NotificationPresentationDTO notice, NotificationDismissalScope scope, int epoch)
+    {
+        if (epoch != _epoch || _disposed) return;
+        if (!_anonymous && !UiState.HasSession && scope == NotificationDismissalScope.Session) return;
+        if (_anonymous) await _module!.InvokeVoidAsync("dismissAnonymous", notice.Id.ToString());
+        else await Notices.DismissAsync(notice.Id, scope, _requests!.Token);
+        if (epoch != _epoch || _disposed) return;
+        _items.RemoveAll(n => n.Id == notice.Id); RemoveShown(); Reconcile();
+        UiState.Refresh();
+        await Load();
+    }
+    private void Schedule()
+    {
+        _deadline?.Cancel(); _deadline?.Dispose();
+        _deadline = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        // Remove locally-ended notices even when a subsequent refresh fails.
+        var end = _items.Where(n => n.EndsAtUtc.HasValue).Select(n => n.EndsAtUtc!.Value).DefaultIfEmpty(DateTimeOffset.MaxValue).Min();
+        var retry = _failures == 0 ? TimeSpan.FromMinutes(1) :
+            TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, Math.Min(_failures, 5))));
+        var now = _hasSnapshot ? EstimatedNow : DateTimeOffset.UtcNow;
+        var target = now + retry;
+        if (_nextChange <= now && _failures == 0) target = now.AddMilliseconds(100);
+        else if (_nextChange > now && _nextChange < target) target = _nextChange.Value;
+        if (end < target) target = end;
+        var delay = target - now;
+        _ = Wake(TimeSpan.FromMilliseconds(Math.Clamp(delay.TotalMilliseconds, 100, 60000)), _deadline.Token);
+    }
+    private async Task Wake(TimeSpan delay, CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(delay, ct);
+            await InvokeAsync(async () => { Reconcile(); UiState.Refresh(); await Load(); });
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception) when (_disposed) { }
+    }
+    private void RemoveShown() { if (_snackbar is not null) Snackbars.Remove(_snackbar); _snackbar = null; _shown = null; }
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true; _epoch++;
+        Authentication.AuthenticationStateChanged -= AuthChanged;
+        _lifetime.Cancel(); _requests?.Cancel(); _requests?.Dispose(); _deadline?.Cancel(); _deadline?.Dispose(); RemoveShown();
+        try
+        {
+            if (_subscription is not null) await _subscription.DisposeAsync();
+            if (_module is not null) await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { }
+        _lifetime.Dispose();
+    }
+}

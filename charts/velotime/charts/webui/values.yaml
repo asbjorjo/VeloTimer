@@ -1,4 +1,6 @@
 existingSecret: ""
+secrets:
+  MessageBus: ""
 keycloak:
   host: ""
 cache:

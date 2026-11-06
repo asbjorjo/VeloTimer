@@ -38,6 +38,9 @@
             },
             "profiles": {
               "$ref": "#/definitions/domain"
+            },
+            "notifications": {
+              "$ref": "#/definitions/domain"
             }
           }
         }

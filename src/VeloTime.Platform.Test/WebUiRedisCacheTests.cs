@@ -18,6 +18,7 @@ using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -480,6 +481,13 @@ public sealed class WebUiRedisCacheTests(ITestOutputHelper output)
             builder.UseSetting("ConnectionStrings:cache", Environment.GetEnvironmentVariable("VELOTIME_TEST_REDIS")!);
             builder.ConfigureTestServices(services =>
             {
+                // These fixtures exercise actual Redis caching and delegated HTTP clients,
+                // not broker delivery. Retain cache/Redis hosted services; exclude only
+                // the unrelated notification transport consumer requiring a live broker.
+                var transport = Assert.Single(services, descriptor =>
+                    descriptor.ServiceType == typeof(IHostedService)
+                    && descriptor.ImplementationType?.Name == "MessageBusHostedService");
+                services.Remove(transport);
                 foreach (var descriptor in services.Where(d => d.ServiceType == typeof(AuthenticationStateProvider)).ToArray())
                     services.Remove(descriptor);
                 services.AddSingleton<AuthenticationStateProvider>(State);

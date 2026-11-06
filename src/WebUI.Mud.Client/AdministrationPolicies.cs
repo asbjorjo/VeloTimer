@@ -21,6 +21,7 @@ public static class AdministrationPolicies
 
     public static void Configure(AuthorizationOptions options)
     {
+        Add(options, "Notifications.Admin", GlobalPermission);
         Add(options, Facilities, GlobalPermission, FacilitiesPermission);
         Add(options, Timing, GlobalPermission, TimingPermission);
         Add(options, Statistics, GlobalPermission, StatisticsPermission);

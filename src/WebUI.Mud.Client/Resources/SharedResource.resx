@@ -1,5 +1,74 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="NotificationsNoActive" xml:space="preserve"><value>No active notifications.</value></data>
+  <data name="NotificationsRefreshList" xml:space="preserve"><value>Refresh list</value></data>
+  <data name="NotificationsSaving" xml:space="preserve"><value>Saving dismissal…</value></data>
+  <data name="Notifications" xml:space="preserve"><value>Notifications</value></data>
+  <data name="NotificationsLoading" xml:space="preserve"><value>Loading notifications…</value></data>
+  <data name="NotificationsFailed" xml:space="preserve"><value>Notifications could not be updated. Nothing was dismissed. Please retry.</value></data>
+  <data name="NotificationsRealtimeFailed" xml:space="preserve"><value>Live notification updates are reconnecting. Scheduled checks continue.</value></data>
+  <data name="NotificationsStorageFailed" xml:space="preserve"><value>Tab storage is unavailable. This notice was not dismissed. Enable session storage and retry.</value></data>
+  <data name="NotificationsLoginRequired" xml:space="preserve"><value>Sign out and sign in again to establish a notification login session.</value></data>
+  <data name="NotificationsNotAvailable" xml:space="preserve"><value>This notification is no longer available. Refresh and retry.</value></data>
+  <data name="NotificationsVersionConflict" xml:space="preserve"><value>The notification changed. Reload before editing again; reloading discards this draft.</value></data>
+  <data name="NotificationsSnapshotChanged" xml:space="preserve"><value>The notification list changed repeatedly. The previous complete list is retained. Please retry.</value></data>
+  <data name="NotificationsInvalidContent" xml:space="preserve"><value>Provide nonblank titles and bodies in both languages (200 / 4000 characters maximum).</value></data>
+  <data name="NotificationsInvalidAudience" xml:space="preserve"><value>Provide the exact role or both recipient issuer and subject for the selected audience.</value></data>
+  <data name="NotificationsInvalidSchedule" xml:space="preserve"><value>The end must be after the start.</value></data>
+  <data name="NotificationsInvalidPolicy" xml:space="preserve"><value>Allow at least one scope and select an allowed default. Duration must be 1–31536000 seconds when enabled.</value></data>
+  <data name="NotificationsInvalidRequest" xml:space="preserve"><value>The notification request was rejected. Check the values and retry.</value></data>
+  <data name="NotificationsHideTab" xml:space="preserve"><value>Hide for this browser tab</value></data>
+  <data name="NotificationsHideSession" xml:space="preserve"><value>Hide for this login</value></data>
+  <data name="NotificationsHidePermanent" xml:space="preserve"><value>Hide permanently</value></data>
+  <data name="NotificationsHideDuration" xml:space="preserve"><value>Hide for {0}</value></data>
+  <data name="NotificationsDays" xml:space="preserve"><value>{0} day(s)</value></data>
+  <data name="NotificationsHours" xml:space="preserve"><value>{0} hour(s)</value></data>
+  <data name="NotificationsSeconds" xml:space="preserve"><value>{0} second(s)</value></data>
+  <data name="NotificationsQueued" xml:space="preserve"><value>{0} more notification(s) queued</value></data>
+  <data name="NotificationsShowAgain" xml:space="preserve"><value>Show notifications again</value></data>
+  <data name="NotificationsRestoreHelp" xml:space="preserve"><value>Account choices apply to all your logins. Current-login choices affect only this login, never other logins.</value></data>
+  <data name="NotificationsHiddenUntil" xml:space="preserve"><value>Hidden until</value></data>
+  <data name="NotificationsRestoreAccount" xml:space="preserve"><value>Clear account dismissal</value></data>
+  <data name="NotificationsRestoreSession" xml:space="preserve"><value>Clear current-login dismissal</value></data>
+  <data name="NotificationsRestoreBoth" xml:space="preserve"><value>Clear account and current-login dismissals</value></data>
+  <data name="NotificationsRestored" xml:space="preserve"><value>Dismissal cleared. The notification is active.</value></data>
+  <data name="NotificationsRestoredNotActive" xml:space="preserve"><value>Dismissal cleared. The notification is not currently active or another dismissal still applies.</value></data>
+  <data name="NotificationsNoDismissals" xml:space="preserve"><value>No effective dismissals for your account or current login.</value></data>
+  <data name="NotificationsCreate" xml:space="preserve"><value>Create notification</value></data>
+  <data name="NotificationsEmpty" xml:space="preserve"><value>No notifications have been authored.</value></data>
+  <data name="NotificationsEnd" xml:space="preserve"><value>End now</value></data>
+  <data name="NotificationsConfirmEnd" xml:space="preserve"><value>End this notice now? A future notice will be cancelled without becoming active.</value></data>
+  <data name="NotificationsReloadEditor" xml:space="preserve"><value>Discard draft and reload</value></data>
+  <data name="NotificationsPlainText" xml:space="preserve"><value>Plain text only. A materially new message should use a new notification, not reuse a dismissed UUID.</value></data>
+  <data name="NotificationsTitleEn" xml:space="preserve"><value>Title (English)</value></data>
+  <data name="NotificationsBodyEn" xml:space="preserve"><value>Body (English)</value></data>
+  <data name="NotificationsTitleNb" xml:space="preserve"><value>Title (Norwegian Bokmål)</value></data>
+  <data name="NotificationsBodyNb" xml:space="preserve"><value>Body (Norwegian Bokmål)</value></data>
+  <data name="NotificationsSeverity" xml:space="preserve"><value>Severity</value></data>
+  <data name="NotificationsInfo" xml:space="preserve"><value>Information</value></data>
+  <data name="NotificationsWarning" xml:space="preserve"><value>Warning</value></data>
+  <data name="NotificationsError" xml:space="preserve"><value>Error</value></data>
+  <data name="NotificationsAudience" xml:space="preserve"><value>Audience</value></data>
+  <data name="NotificationsAudienceEveryone" xml:space="preserve"><value>Everyone (including anonymous)</value></data>
+  <data name="NotificationsAudienceAuthenticated" xml:space="preserve"><value>Authenticated users</value></data>
+  <data name="NotificationsAudienceRole" xml:space="preserve"><value>Specific role</value></data>
+  <data name="NotificationsAudienceUser" xml:space="preserve"><value>Specific user</value></data>
+  <data name="NotificationsRole" xml:space="preserve"><value>Exact role name</value></data>
+  <data name="NotificationsRecipientIssuer" xml:space="preserve"><value>Recipient issuer</value></data>
+  <data name="NotificationsRecipientSubject" xml:space="preserve"><value>Recipient subject</value></data>
+  <data name="NotificationsExactIdentity" xml:space="preserve"><value>Issuer and subject must match exactly; do not normalize or trim.</value></data>
+  <data name="NotificationsStart" xml:space="preserve"><value>Starts</value></data>
+  <data name="NotificationsHasEnd" xml:space="preserve"><value>Set an end time</value></data>
+  <data name="NotificationsEndTime" xml:space="preserve"><value>Ends</value></data>
+  <data name="NotificationsPolicy" xml:space="preserve"><value>Dismissal policy</value></data>
+  <data name="NotificationsPolicyHelp" xml:space="preserve"><value>New severity defaults: information permanently, warning one day, error one hour. Existing policies and UUID dismissals survive edits. Anonymous users can always hide public notices for their tab.</value></data>
+  <data name="NotificationsAllowDuration" xml:space="preserve"><value>Allow duration dismissal</value></data>
+  <data name="NotificationsAllowSession" xml:space="preserve"><value>Allow current-login dismissal</value></data>
+  <data name="NotificationsAllowPermanent" xml:space="preserve"><value>Allow permanent dismissal</value></data>
+  <data name="NotificationsDurationSeconds" xml:space="preserve"><value>Dismissal duration (seconds, 1–31536000)</value></data>
+  <data name="NotificationsDefaultScope" xml:space="preserve"><value>Default dismissal action</value></data>
+  <data name="NotificationsSaved" xml:space="preserve"><value>Notification saved.</value></data>
+  <data name="NotificationsEnded" xml:space="preserve"><value>Notification ended.</value></data>
   <data name="HallOfFame" xml:space="preserve"><value>Hall of Fame</value></data>
   <data name="HallOfFameDescription" xml:space="preserve"><value>All-time top ten public profiles. Only valid results count.</value></data>
   <data name="HallOfFameLap" xml:space="preserve"><value>Lap</value></data>
