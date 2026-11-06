@@ -181,6 +181,71 @@ public sealed class NotificationsRenderingTests
         });
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task SnackbarJsFailureReflectsModeAtSaveStart(bool anonymous, bool nextAnonymous)
+    {
+        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var provider = Services().BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en");
+            NotificationSnackbar? component = null;
+            var root = await renderer.RenderComponentAsync<Capture<NotificationSnackbar>>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            {
+                ["Captured"] = (Action<NotificationSnackbar>)(value => component = value),
+                ["Parameters"] = new Dictionary<string, object?>
+                {
+                    [nameof(NotificationSnackbar.Notice)] = Notice(),
+                    [nameof(NotificationSnackbar.Anonymous)] = anonymous,
+                    [nameof(NotificationSnackbar.Dismiss)] = (Func<NotificationDismissalScope, Task>)(_ => pending.Task)
+                }
+            }));
+            var save = Call(component!, "Save", NotificationDismissalScope.Permanent);
+            typeof(NotificationSnackbar).GetProperty(nameof(NotificationSnackbar.Anonymous))!.SetValue(component, nextAnonymous);
+            pending.SetException(new JSException("network or storage failure"));
+            await save;
+            Rerender(component!);
+            var html = root.ToHtmlString();
+            Assert.Contains(anonymous ? "Tab storage is unavailable" : "Notifications could not be updated", html);
+            Assert.DoesNotContain(anonymous ? "Notifications could not be updated" : "Tab storage is unavailable", html);
+        });
+    }
+
+    [Fact]
+    public async Task AuthenticatedBrowserSnapshotUsesAccountDismissalWithoutSession()
+    {
+        var notice = Notice();
+        var now = DateTimeOffset.UtcNow;
+        var js = new NotificationsUiTransportTests.Browser();
+        js.Replies.Enqueue((200, new ActiveNotificationsDTO(now, now, now.AddMinutes(5), null, [notice], null), true, false));
+        js.Replies.Enqueue((200, new NotificationDismissalDTO(notice.Id, now,
+            new(NotificationDismissalScope.Permanent, now, null), null), true, false));
+        js.Replies.Enqueue((200, new ActiveNotificationsDTO(now, now, now.AddMinutes(5), null, [], null), true, false));
+        var services = Services();
+        services.AddSingleton<INotificationsService>(new NotificationsBrowserService(js));
+        services.AddSingleton<AuthenticationStateProvider>(new AnonymousAuthentication());
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            NotificationsHost? host = null;
+            await renderer.RenderComponentAsync<Capture<NotificationsHost>>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            { ["Captured"] = (Action<NotificationsHost>)(value => host = value) }));
+            await host!.Refresh();
+            Assert.False((bool)Field(host, "_anonymous")!);
+            Assert.False(provider.GetRequiredService<NotificationUiState>().HasSession);
+            Assert.Single(provider.GetRequiredService<ISnackbar>().ShownSnackbars);
+            await Call(host, "Dismiss", notice, NotificationDismissalScope.Permanent, (int)Field(host, "_epoch")!);
+            Assert.Contains(js.Requests, r => r.Method == "PUT" && r.Path.EndsWith("/dismissal") &&
+                r.Body == "{\"scope\":\"permanent\"}");
+        });
+    }
+
     [Fact]
     public async Task HostDeduplicatesByUuidVersionAndRemovesEndedOrLoggedOutNotices()
     {

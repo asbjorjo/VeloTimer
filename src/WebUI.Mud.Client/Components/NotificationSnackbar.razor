@@ -37,10 +37,11 @@
     {
         if (_saving) return;
         if (!Anonymous && !HasSession && scope == NotificationDismissalScope.Session) return;
+        var anonymous = Anonymous;
         _saving = true; _error = null;
         try { await Dismiss(scope); }
         catch (NotificationUiException e) { _error = e.ResourceKey; }
-        catch (JSException) { _error = "NotificationsStorageFailed"; }
+        catch (JSException) { _error = anonymous ? "NotificationsStorageFailed" : "NotificationsFailed"; }
         catch (OperationCanceledException) { }
         catch (Exception) { _error = "NotificationsFailed"; }
         finally { _saving = false; }

@@ -15,9 +15,8 @@ public sealed class NotificationsBrowserService(IJSRuntime js) : INotificationsS
         "import", "./_content/VeloTime.WebUI.Mud.Client/notifications.js").AsTask();
 
     private sealed record BrowserResponse(int Status, string Body, bool Authenticated, bool HasSession);
-    private bool _authenticated;
-    private bool _hasSession;
-    private async Task<T> Request<T>(string path, string method, object? body, CancellationToken ct)
+    private sealed record Response<T>(T Body, bool Authenticated, bool HasSession);
+    private async Task<Response<T>> RequestWithMetadata<T>(string path, string method, object? body, CancellationToken ct)
     {
         var module = await Module;
         var id = Guid.NewGuid().ToString("N");
@@ -25,8 +24,6 @@ public sealed class NotificationsBrowserService(IJSRuntime js) : INotificationsS
         var response = await module.InvokeAsync<BrowserResponse>("request", ct, id, path, method,
             body is null ? null : JsonSerializer.Serialize(body, _json));
         ct.ThrowIfCancellationRequested();
-        _authenticated = response.Authenticated;
-        _hasSession = response.Authenticated && response.HasSession;
         if (response.Status is < 200 or >= 300)
         {
             string code = "notifications.request_failed";
@@ -38,17 +35,21 @@ public sealed class NotificationsBrowserService(IJSRuntime js) : INotificationsS
             catch (JsonException) { }
             throw new NotificationUiException(response.Status, code);
         }
-        return JsonSerializer.Deserialize<T>(response.Body, _json) ?? throw new NotificationUiException(503, "notifications.request_failed");
+        var result = JsonSerializer.Deserialize<T>(response.Body, _json) ?? throw new NotificationUiException(503, "notifications.request_failed");
+        return new(result, response.Authenticated, response.Authenticated && response.HasSession);
     }
+    private async Task<T> Request<T>(string path, string method, object? body, CancellationToken ct) =>
+        (await RequestWithMetadata<T>(path, method, body, ct)).Body;
     private static async Task Abort(IJSObjectReference module, string id)
     {
         try { await module.InvokeVoidAsync("abort", id); }
         catch (Exception e) when (e is JSException or JSDisconnectedException or ObjectDisposedException) { }
     }
 
-    // Only an explicit revision/expiry conflict restarts paging. Never publish partial pages.
+    // Revision/expiry or a capability change restarts paging. Never publish partial pages.
     private static async Task<(T Page, IReadOnlyList<TItem> Items)> Drain<T, TItem>(
-        Func<string?, Task<T>> fetch, Func<T, IReadOnlyList<TItem>> items, Func<T, string?> token)
+        Func<string?, Task<T>> fetch, Func<T, IReadOnlyList<TItem>> items, Func<T, string?> token,
+        Func<T, T, bool>? compatible = null)
     {
         for (var attempt = 0; ; attempt++)
         {
@@ -58,9 +59,14 @@ public sealed class NotificationsBrowserService(IJSRuntime js) : INotificationsS
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 string? next = null;
                 T page;
+                T first = default!;
+                var hasFirst = false;
                 do
                 {
                     page = await fetch(next);
+                    if (hasFirst && compatible is not null && !compatible(first, page))
+                        throw new NotificationUiException(409, "notifications.snapshot_expired");
+                    if (!hasFirst) { first = page; hasFirst = true; }
                     all.AddRange(items(page));
                     next = token(page);
                     if (next is not null && !seen.Add(next))
@@ -76,9 +82,11 @@ public sealed class NotificationsBrowserService(IJSRuntime js) : INotificationsS
         (token is null ? "" : "&continuationToken=" + Uri.EscapeDataString(token));
     public async Task<NotificationUiSnapshot> ActiveAsync(CancellationToken ct)
     {
-        var result = await Drain(t => Request<ActiveNotificationsDTO>("/api/notifications/active" + PageQuery(t), "GET", null, ct),
-            p => p.Items, p => p.ContinuationToken);
-        return new(result.Page with { Items = result.Items, ContinuationToken = null }, _authenticated, _hasSession);
+        var result = await Drain(t => RequestWithMetadata<ActiveNotificationsDTO>("/api/notifications/active" + PageQuery(t), "GET", null, ct),
+            p => p.Body.Items, p => p.Body.ContinuationToken,
+            (first, page) => first.Authenticated == page.Authenticated && first.HasSession == page.HasSession);
+        return new(result.Page.Body with { Items = result.Items, ContinuationToken = null },
+            result.Page.Authenticated, result.Page.HasSession);
     }
     public async Task<IReadOnlyList<NotificationDismissalListItemDTO>> DismissalsAsync(CancellationToken ct) =>
         (await Drain(t => Request<NotificationDismissalsPageDTO>("/api/notifications/dismissals" + PageQuery(t), "GET", null, ct),
