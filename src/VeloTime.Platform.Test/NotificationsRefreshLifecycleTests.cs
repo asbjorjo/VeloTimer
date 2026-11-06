@@ -56,6 +56,75 @@ public sealed class NotificationsRefreshLifecycleTests
     }
 
     [Fact]
+    public async Task CallbackPumpCoalescesLargeRefreshBurstAndPreservesDistinctConnectionStates()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var received = new ConcurrentQueue<NotificationRefreshKind>();
+        await using var callbacks = new NotificationRefreshCallbacks(async kind =>
+        {
+            received.Enqueue(kind);
+            if (received.Count == 1) { entered.TrySetResult(); await release.Task; }
+        }) { Active = true };
+
+        var first = callbacks.NotifyAsync(NotificationRefreshKind.Refresh, Guid.NewGuid());
+        await entered.Task;
+        var burst = new Task[1000];
+        for (var i = 0; i < burst.Length; i++)
+            burst[i] = callbacks.NotifyAsync(NotificationRefreshKind.Refresh, Guid.NewGuid());
+        Assert.All(burst, task => Assert.Same(first, task));
+        Assert.Equal(1, burst.Distinct().Count());
+
+        var connected = callbacks.NotifyAsync(NotificationRefreshKind.Connected);
+        var failed = callbacks.NotifyAsync(NotificationRefreshKind.TransportFailed);
+        Assert.Same(first, connected);
+        Assert.Same(first, failed);
+        release.SetResult();
+        await Task.WhenAll(burst.Append(first));
+
+        Assert.Equal([NotificationRefreshKind.Refresh, NotificationRefreshKind.Refresh],
+            received.Where(kind => kind == NotificationRefreshKind.Refresh));
+        Assert.Contains(NotificationRefreshKind.Connected, received);
+        Assert.Contains(NotificationRefreshKind.TransportFailed, received);
+        Assert.Equal(2, received.Count(kind => kind != NotificationRefreshKind.Refresh));
+    }
+
+    [Fact]
+    public async Task CallbackPumpSuspensionDropsOldPendingWorkAndFailureStillDrainsBoundedFollowup()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var received = new ConcurrentQueue<NotificationRefreshKind>();
+        var callbacks = new NotificationRefreshCallbacks(async kind =>
+        {
+            received.Enqueue(kind);
+            if (received.Count == 1)
+            {
+                entered.TrySetResult();
+                await release.Task;
+                throw new InvalidOperationException("fixture callback failure");
+            }
+        }) { Active = true };
+
+        var first = callbacks.NotifyAsync(NotificationRefreshKind.Refresh);
+        await entered.Task;
+        _ = callbacks.NotifyAsync(NotificationRefreshKind.Connected);
+        _ = callbacks.NotifyAsync(NotificationRefreshKind.Refresh);
+        callbacks.Active = false;
+        callbacks.Active = true;
+        _ = callbacks.NotifyAsync(NotificationRefreshKind.TransportFailed);
+        _ = callbacks.NotifyAsync(NotificationRefreshKind.Refresh);
+        release.SetResult();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => first);
+        Assert.Equal([NotificationRefreshKind.Refresh, NotificationRefreshKind.Refresh],
+            received.Where(kind => kind == NotificationRefreshKind.Refresh));
+        Assert.DoesNotContain(NotificationRefreshKind.Connected, received);
+        Assert.Contains(NotificationRefreshKind.TransportFailed, received);
+        await callbacks.DisposeAsync();
+    }
+
+    [Fact]
     public async Task MicrosoftClientRetriesStartupReceivesTypedHintsAndRestartsWithoutLeaking()
     {
         using var server = CreateHost();
@@ -122,11 +191,11 @@ public sealed class NotificationsRefreshLifecycleTests
             return Task.CompletedTask;
         }, lifetime.Token);
         await subscription.SetActiveAsync(true, lifetime.Token);
-        await WaitUntil(() => Volatile.Read(ref failures) == 4, TimeSpan.FromSeconds(10));
-        await Task.Delay(200);
+        await WaitUntil(() => Volatile.Read(ref failures) >= 1, TimeSpan.FromSeconds(10));
+        await WaitUntil(() => requests.Count == 4, TimeSpan.FromSeconds(10));
         Assert.Equal(4, requests.Count);
         await subscription.SetActiveAsync(true, lifetime.Token);
-        await WaitUntil(() => Volatile.Read(ref failures) == 5);
+        await WaitUntil(() => requests.Count == 5);
         lifetime.Cancel();
         await subscription.DisposeAsync();
         var count = requests.Count;

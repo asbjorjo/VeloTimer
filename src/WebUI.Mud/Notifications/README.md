@@ -13,6 +13,9 @@ the component's `InvokeAsync`. Nothing subscribes during prerender.
   `Microsoft.AspNetCore.SignalR.Client` `HubConnection` to the same-origin public
   `/hubs/notifications` endpoint. Browser cookies are automatic; there is no
   access-token provider, bearer URL, identity group, or custom protocol parser.
+  The host requests its first BFF snapshot as soon as subscription activation
+  returns, independently of initial Hub negotiation; connected/reconnected
+  callbacks refresh again to repair any missed hints.
   Initial startup has four attempts (immediate, then 1/2/4-second delays).
   Microsoft's automatic reconnect has four delays (0/2/10/30 seconds).
   Connected/reconnected callbacks refresh authoritative content. Exhausted
@@ -47,11 +50,19 @@ EventId UUID** to the dedicated literal Redis channel
 
 Every replica subscribes to that second channel once and dispatches its own
 circuit subscribers. The Redis callback **never broadcasts to SignalR**, avoiding
-double fanout. Each UI subscription bounds EventId deduplication to 256 IDs.
+double fanout. Each UI subscription bounds EventId deduplication to 256 IDs and
+uses a single bounded callback pump: while a callback is in flight, refresh
+hints coalesce to at most one follow-up (no more than two refresh callbacks per
+pump). A sustained burst cannot extend that pump indefinitely; later hints can
+start another bounded pump. Connection state keeps at most one pending callback
+for each distinct `Connected` and `TransportFailed` kind, coalescing repeats
+without losing both kinds during a refresh burst. Redis delivery does not await
+or create one waiting callback task per hint; slow/failing circuit callbacks do
+not hold Redis's serial message handler or fail another subscriber.
+
 Failure of either bridge operation propagates for broker retry; repeated hints
 are harmless. Redis pub/sub is not durable: initial/reconnected snapshots and
-deadline polling repair hints lost during disconnection. Slow/failing circuit
-callbacks do not fail another subscriber.
+deadline polling repair hints lost during disconnection.
 
 The fanout reuses the existing DI-owned `IConnectionMultiplexer` from the `cache`
 registration. Initial Redis subscription failures (Redis errors and timeouts)

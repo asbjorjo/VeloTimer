@@ -40,7 +40,7 @@ public sealed class NotificationRefreshFanout(
                 {
                     // Do not hold Redis's serial queue behind a slow circuit/BFF read.
                     if (!_stopped && Guid.TryParse(message.Message.ToString(), out var id))
-                        _ = DispatchAsync(NotificationRefreshKind.Refresh, id);
+                        Dispatch(NotificationRefreshKind.Refresh, id);
                 });
                 lock (_stateLock)
                 {
@@ -51,7 +51,7 @@ public sealed class NotificationRefreshFanout(
                     }
                 }
                 if (_stopped && _queue is null) await queue.UnsubscribeAsync();
-                if (_connected) _ = DispatchAsync(NotificationRefreshKind.Connected);
+                if (_connected) Dispatch(NotificationRefreshKind.Connected);
                 return; // StackExchange.Redis restores an established subscription itself.
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -65,7 +65,7 @@ public sealed class NotificationRefreshFanout(
             {
                 logger.LogWarning(e, "Notification refresh Redis subscription failed; retrying in {Delay}.", delay);
                 _connected = false;
-                _ = DispatchAsync(NotificationRefreshKind.TransportFailed);
+                Dispatch(NotificationRefreshKind.TransportFailed);
                 try { await Task.Delay(delay, stoppingToken); }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
                 delay = TimeSpan.FromSeconds(Math.Min(delay.TotalSeconds * 2, 30));
@@ -97,7 +97,7 @@ public sealed class NotificationRefreshFanout(
     {
         if (e.ConnectionType != ConnectionType.Subscription || _stopped) return;
         lock (_stateLock) _connected = false;
-        _ = DispatchAsync(NotificationRefreshKind.TransportFailed);
+        Dispatch(NotificationRefreshKind.TransportFailed);
     }
     private void ConnectionRestored(object? sender, ConnectionFailedEventArgs e)
     {
@@ -107,17 +107,16 @@ public sealed class NotificationRefreshFanout(
             if (_queue is null || _stopped) return;
             _connected = true;
         }
-        _ = DispatchAsync(NotificationRefreshKind.Connected);
+        Dispatch(NotificationRefreshKind.Connected);
     }
 
-    private Task DispatchAsync(NotificationRefreshKind kind, Guid? id = null) =>
-        Task.WhenAll(_subscriptions.Values.Select(subscription => NotifyAsync(subscription, kind, id)));
-
-    private async Task NotifyAsync(Subscription subscription, NotificationRefreshKind kind, Guid? id = null)
+    private void Dispatch(NotificationRefreshKind kind, Guid? id = null)
     {
-        try { await subscription.NotifyAsync(kind, id); }
-        catch (Exception e) { logger.LogWarning(e, "Notification refresh subscriber failed."); }
+        foreach (var subscription in _subscriptions.Values) subscription.Notify(kind, id);
     }
+
+    private void LogSubscriberFailure(Exception exception) =>
+        logger.LogWarning(exception, "Notification refresh subscriber failed.");
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
@@ -137,6 +136,8 @@ public sealed class NotificationRefreshFanout(
         private readonly NotificationRefreshCallbacks _callbacks;
         private readonly CancellationTokenRegistration _cancellation;
         private readonly CancellationToken _token;
+        private readonly object _observerLock = new();
+        private Task? _observedPump;
 
         public Subscription(NotificationRefreshFanout owner, Guid id,
             Func<NotificationRefreshKind, Task> callback, CancellationToken token)
@@ -145,7 +146,23 @@ public sealed class NotificationRefreshFanout(
             _cancellation = token.Register(() => _callbacks.Active = false);
         }
 
-        public Task NotifyAsync(NotificationRefreshKind kind, Guid? id) => _callbacks.NotifyAsync(kind, id);
+        public void Notify(NotificationRefreshKind kind, Guid? id)
+        {
+            var pump = _callbacks.NotifyAsync(kind, id);
+            if (pump.IsCompletedSuccessfully) return;
+            lock (_observerLock)
+            {
+                if (ReferenceEquals(_observedPump, pump)) return;
+                _observedPump = pump;
+            }
+            _ = ObservePumpAsync(pump);
+        }
+
+        private async Task ObservePumpAsync(Task pump)
+        {
+            try { await pump; }
+            catch (Exception e) { _owner.LogSubscriberFailure(e); }
+        }
 
         public Task SetActiveAsync(bool active, CancellationToken cancellationToken)
         {

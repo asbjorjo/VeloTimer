@@ -1,9 +1,14 @@
 using System.Globalization;
 using System.Reflection;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http.Connections;
+using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
@@ -344,6 +349,46 @@ public sealed class NotificationsRenderingTests
         Assert.Equal(before, calls);
     }
 
+    [Fact]
+    public async Task WasmNegotiationStallDoesNotDelayFirstBffSnapshot()
+    {
+        using var server = new TestServer(new WebHostBuilder().Configure(_ => { }));
+        var negotiationEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var source = new WasmNotificationRefreshSource(() => new HubConnectionBuilder()
+            .WithUrl("http://localhost/hubs/notifications", options =>
+            {
+                options.Transports = HttpTransportType.LongPolling;
+                options.HttpMessageHandlerFactory = _ =>
+                    new StallingNegotiationHandler(server.CreateHandler(), negotiationEntered);
+            }).Build());
+        var snapshots = 0;
+        var services = Services();
+        services.AddSingleton<INotificationRefreshSource>(source);
+        services.AddSingleton<IJSRuntime>(new NotificationsUiTransportTests.Browser());
+        services.AddSingleton<AuthenticationStateProvider>(new AnonymousAuthentication());
+        services.AddSingleton(PlatformServiceTests.TestProxy.Create<INotificationsService>((method, _) =>
+        {
+            Assert.Equal(nameof(INotificationsService.ActiveAsync), method.Name);
+            Interlocked.Increment(ref snapshots);
+            var now = DateTimeOffset.UtcNow;
+            return new NotificationUiSnapshot(new(now, now, now.AddMinutes(5), null, [], null), false);
+        }));
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        NotificationsHost? host = null;
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await renderer.RenderComponentAsync<Capture<NotificationsHost>>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            { ["Captured"] = (Action<NotificationsHost>)(value => host = value) }));
+            await Call(host!, "OnAfterRenderAsync", true);
+        });
+
+        await negotiationEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(1, Volatile.Read(ref snapshots));
+        Assert.True((bool)Field(host!, "_hasSnapshot")!);
+        await renderer.Dispatcher.InvokeAsync(async () => await host!.DisposeAsync());
+    }
+
     [Theory]
     [InlineData(NotificationRefreshKind.Connected)]
     [InlineData(NotificationRefreshKind.TransportFailed)]
@@ -571,6 +616,20 @@ public sealed class NotificationsRenderingTests
     {
         public override Task<AuthenticationState> GetAuthenticationStateAsync() =>
             Task.FromResult(new AuthenticationState(new(new System.Security.Claims.ClaimsIdentity())));
+    }
+    private sealed class StallingNegotiationHandler(HttpMessageHandler inner,
+        TaskCompletionSource negotiationEntered) : DelegatingHandler(inner)
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            if (request.RequestUri!.AbsolutePath.EndsWith("/negotiate", StringComparison.Ordinal))
+            {
+                negotiationEntered.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            return await base.SendAsync(request, cancellationToken);
+        }
     }
     private sealed class TestNavigation : NavigationManager
     {

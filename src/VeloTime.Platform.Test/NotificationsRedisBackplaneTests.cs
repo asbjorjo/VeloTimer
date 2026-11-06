@@ -154,17 +154,23 @@ public sealed class NotificationsRedisBackplaneTests(ITestOutputHelper output)
             await host.Services.GetRequiredService<IConnectionMultiplexer>().GetSubscriber()
                 .PublishAsync(RedisChannel.Literal(prefix + ":server"), "not-an-event");
             await fanout.PublishAsync(Guid.NewGuid(), default);
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             await WaitUntil(() => RefreshCount(events) == 1 && Volatile.Read(ref slowCalls) == 1, timeout.Token);
             await fanout.PublishAsync(Guid.NewGuid(), default);
             await WaitUntil(() => RefreshCount(events) == 2, timeout.Token);
             Assert.Equal(1, slowCalls); // Still blocked; did not delay the healthy subscriber's next hint.
+            for (var i = 0; i < 250; i++) await fanout.PublishAsync(Guid.NewGuid(), timeout.Token);
+            await WaitUntil(() => RefreshCount(events) == 252, timeout.Token);
+            Assert.Equal(1, slowCalls); // Redis delivery remains independent of the blocked circuit callback.
             Assert.Equal(1, cancelledCalls);
             await good.DisposeAsync();
             await fanout.PublishAsync(Guid.NewGuid(), default);
             await Task.Delay(150, timeout.Token);
-            Assert.Equal(2, RefreshCount(events));
+            Assert.Equal(252, RefreshCount(events));
             Assert.True(host.Services.GetRequiredService<IConnectionMultiplexer>().IsConnected);
+            release.SetResult();
+            await WaitUntil(() => Volatile.Read(ref slowCalls) == 2, timeout.Token);
+            Assert.InRange(slowCalls, 1, 2); // One in-flight callback and at most one coalesced follow-up.
         }
         finally { release.TrySetResult(); }
     }
