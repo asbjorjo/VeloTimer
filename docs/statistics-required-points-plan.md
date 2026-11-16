@@ -389,3 +389,69 @@ upgraded rollout gate. Data & Migrations should assess Sample query indexes at e
 volume: latest-start searches deliberately have no arbitrary lookback (long/invalid
 attempts must remain measurable), while chain materialization is bounded by the chosen
 attempt interval. No schema/index change was made in this processing phase.
+
+
+## Blazor UI handoff (2026-11-16)
+
+Implemented the localized Simple configuration selector using the existing shared
+`StatisticsRequiredCoursePoints` and browser/BFF services. No API, processor,
+storage, shared-contract or package changes are included.
+
+- A checkbox group lists only the selected layout's intermediate points on its
+  continuous, unambiguous forward path, ordered by segment `Order`. Closed paths
+  wrap once; equal endpoints mean one full lap. Endpoint/off-path selections and
+  ambiguous/disconnected geometry are not offered. Selection click order never
+  determines the submitted order.
+- Saved requirements select their exact saved layout, not the first layout sharing
+  endpoints. Only legacy definitions without requirements infer a layout on edit.
+  The editor and configuration list display required points; Multi explains parent
+  inheritance and sends no requirements.
+- Drafts copy the saved snapshot. Unchanged requirements send null (preserve),
+  including threshold-only saves after a layout detail failure. Explicit clearing
+  sends an empty array with null layout ID. Changed selections/layouts send a new
+  ordered replacement. Endpoint/layout changes retain existing selections and show
+  validation instead of dropping or silently reordering the snapshot. Invalid
+  structural saves require restoring the path or explicitly clearing/reselecting.
+- Loading, empty paths/layouts, invalid paths and reference failures have localized
+  states. Loading/failure never clears the selected endpoints or required points.
+  Failures offer retry and retain HTTP authorization feedback. Reference generations
+  ignore abandoned or disposed-editor responses; the existing lifetime cancellation
+  and unsaved-changes/navigation tracking remain in use. A 409 explains the
+  server-authoritative result-dependent structural lock and retains the draft.
+- English and Norwegian Bokmål labels/help/errors cover the fieldset/legend,
+  native labelled checkboxes, selected-point list, explicit clear action and polite
+  loading/validation announcements. Existing responsive grid/unit presentation stays
+  unchanged. No UTC or SI conversion was added.
+
+Checks from `/workspaces/VeloTimer-required-points` with
+`OIDC_AUDIENCE=https://build.invalid`:
+
+- `dotnet build src/WebUI.Mud.Client --configuration Release --no-restore
+  --verbosity quiet`: passed, 0 errors (existing NU1902/NU1903 and BL0005 warnings).
+- `dotnet test src/VeloTime.Platform.Test --configuration Release --no-restore
+  --filter 'FullyQualifiedName~StatisticsRequiredPoints|FullyQualifiedName~StatisticsThreshold|FullyQualifiedName~LocalizationContractTests.Resources_ProvideCompleteNorwegianTranslationsAndMatchingPlaceholders|FullyQualifiedName~WebUiCacheRegressionTests.StatisticsDefinitions'
+  --logger trx /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
+  --verbosity quiet -clp:ErrorsOnly`: 66 passed, 0 failed/skipped. Includes 27 new
+  draft/actual Razor editor regressions for open/closed/full-lap order, bad geometry,
+  reverse selection order, explicit clear, saved-layout choice, threshold preservation
+  during reference failure, changed endpoints/layout, Multi inheritance, 401/403/409,
+  unsaved state, stale requests and en/nb-NO accessible rendering. Initial test-only
+  compile errors were corrected; rendering tests also caught and fixed a string
+  parameter binding that would have hidden the selector behind a spurious warning.
+- `dotnet build src/WebUI.Mud --configuration Release --no-restore
+  --verbosity quiet -clp:ErrorsOnly`: passed, 13 existing warnings, 0 errors.
+- `git diff --check`: passed. Build-generated unrelated OpenAPI was not retained.
+
+Visual validation: no browser automation tool was available. Static HtmlRenderer
+checks validate markup and component/service interactions, not browser layout,
+keyboard operation, screen-reader behavior or real authentication/antiforgery.
+No full-solution, database or live end-to-end UI test was run in this phase.
+
+Next owner: **Tester**, then read-only Reviewer. Manually exercise keyboard selection
+and clear/cancel/navigation prompts, small-screen wrapping with long point names,
+both languages, a wrapped/full-lap layout, changed/missing layouts, slow/failing retry,
+and saved requirements shown in the list. Verify threshold-only edits with recorded
+results succeed while valid requirement changes/clears return 409 and retain the
+draft. Exercise real BFF authorization/antiforgery and reload round-trips. Coordinator
+retains the migration-first/all-readers-upgraded rollout gate and prior processing
+observation-identity/at-least-once publication decisions.

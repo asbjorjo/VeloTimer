@@ -54,28 +54,48 @@ else if (_editing)
                 @if (_type == StatisticsConfigurationType.Simple)
                 {
                     <MudItem xs="12" md="6">
-                        <MudSelect T="Guid?" Value="_facilityId" ValueChanged="SelectFacility" Label="@L["Facility"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="_busy">
+                        <MudSelect T="Guid?" Value="_facilityId" ValueChanged="SelectFacility" Label="@L["Facility"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || _referencesLoading)">
                             @foreach (var facility in _facilities) { <MudSelectItem T="Guid?" Value="@((Guid?)facility.Id)">@facility.Name</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="Guid?" Value="_layoutId" ValueChanged="SelectLayout" Label="@L["CourseLayout"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || !_facilityId.HasValue)">
+                        <MudSelect T="Guid?" Value="_layoutId" ValueChanged="SelectLayout" Label="@L["CourseLayout"]" Required="@(!_id.HasValue)" RequiredError="@L["RequiredError"]" Disabled="@(_busy || _referencesLoading || !_facilityId.HasValue)">
+                            @if (_layoutId.HasValue && !_layouts.Any(layout => layout.Id == _layoutId))
+                            { <MudSelectItem T="Guid?" Value="_layoutId">@L["LayoutIdLabel", _layoutId.Value.ToString()[..8]]</MudSelectItem> }
                             @foreach (var layout in _layouts) { <MudSelectItem T="Guid?" Value="@((Guid?)layout.Id)">@LayoutLabel(layout)</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="Guid?" @bind-Value="_startId" Label="@L["StartCoursepoint"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || !_layoutId.HasValue)">
+                        <MudSelect T="Guid?" @bind-Value="_startId" Label="@L["StartCoursepoint"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || _referencesLoading || !_layoutId.HasValue || _referenceError is not null)">
+                            @if (_startId.HasValue && !_points.Any(point => point.Id == _startId))
+                            { <MudSelectItem T="Guid?" Value="_startId">@PointName(_startId)</MudSelectItem> }
                             @foreach (var point in _points) { <MudSelectItem T="Guid?" Value="@((Guid?)point.Id)">@PointLabel(point)</MudSelectItem> }
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="6">
-                        <MudSelect T="Guid?" @bind-Value="_endId" Label="@L["EndCoursepoint"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || !_layoutId.HasValue)">
+                        <MudSelect T="Guid?" @bind-Value="_endId" Label="@L["EndCoursepoint"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || _referencesLoading || !_layoutId.HasValue || _referenceError is not null)">
+                            @if (_endId.HasValue && !_points.Any(point => point.Id == _endId))
+                            { <MudSelectItem T="Guid?" Value="_endId">@PointName(_endId)</MudSelectItem> }
                             @foreach (var point in _points) { <MudSelectItem T="Guid?" Value="@((Guid?)point.Id)">@PointLabel(point)</MudSelectItem> }
                         </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12">
+                        @if (_facilityId.HasValue && !_referencesLoading && _referenceError is null && _layouts.Count == 0)
+                        {
+                            <MudAlert Severity="Severity.Info" Class="mb-2">@L["NoCourseLayouts"]</MudAlert>
+                        }
+                        <StatisticsRequiredPointsEditor Draft="_requiredPoints" LayoutId="_layoutId" Path="IntermediatePath"
+                                                        PointLabel="RequiredPointName" Loading="_referencesLoading"
+                                                        ReferenceError="@_referenceError" Disabled="_busy" />
+                        @if (_referenceError is not null && _facilityId.HasValue)
+                        {
+                            <MudButton OnClick="ReloadReferences" Disabled="@(_busy || _referencesLoading)">@L["Retry"]</MudButton>
+                        }
                     </MudItem>
                 }
                 else
                 {
+                    <MudItem xs="12"><MudText Typo="Typo.body2">@L["RequiredPointsInherited"]</MudText></MudItem>
                     <MudItem xs="12" md="8">
                         <MudSelect T="Guid?" @bind-Value="_parentId" Label="@L["SimpleParentConfiguration"]" Required="true" RequiredError="@L["RequiredError"]">
                             @foreach (var parent in _configs.Where(config => config.Type == StatisticsConfigurationType.Simple))
@@ -92,7 +112,7 @@ else if (_editing)
             </MudItem>
         </MudGrid>
         <MudStack Row="true" Class="mt-6" Spacing="3">
-            <MudButton OnClick="Save" Disabled="_busy" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save">@L["Save"]</MudButton>
+            <MudButton OnClick="Save" Disabled="@(_busy || _referencesLoading)" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save">@L["Save"]</MudButton>
             <MudButton OnClick="Cancel" Disabled="_busy">@L["Cancel"]</MudButton>
         </MudStack>
     </MudForm>
@@ -130,7 +150,13 @@ else
             <HeaderContent><MudTh>@L["Item"]</MudTh><MudTh>@L["Type"]</MudTh><MudTh>@L["Connection"]</MudTh><MudTh /></HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="@L["Item"]">@ItemName(context.StatisticsItemId)</MudTd><MudTd DataLabel="@L["Type"]">@ConfigurationType(context.Type)</MudTd>
-                <MudTd DataLabel="@L["Connection"]">@ConnectionLabel(context)</MudTd>
+                <MudTd DataLabel="@L["Connection"]">
+                    @ConnectionLabel(context)
+                    @if (context.RequiredCoursePoints?.CoursePointIds is { Count: > 0 } required)
+                    {
+                        <MudText Typo="Typo.body2">@L["RequiredPointsSummary", string.Join(", ", required.Select(RequiredPointName))]</MudText>
+                    }
+                </MudTd>
                 <MudTd DataLabel="@L["Actions"]">
                     <MudTooltip Text="@L["EditConfiguration"]"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditConfiguration(context)" aria-label="@L["EditConfiguration"]" /></MudTooltip>
                     <MudTooltip Text="@L["DeleteConfiguration"]"><MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="() => Delete(context.Id, true)" Disabled="_busy" aria-label="@L["DeleteConfiguration"]" /></MudTooltip>
@@ -155,6 +181,14 @@ else
     private List<CoursePointView> _points = [];
     private readonly Dictionary<Guid, string> _pointNames = [];
     private readonly Dictionary<Guid, Guid> _pointFacilities = [];
+    private readonly Dictionary<Guid, Guid> _layoutFacilities = [];
+    private CourseLayoutDetailView? _layoutDetail;
+    private StatisticsRequiredPointsDraft _requiredPoints = new();
+    private Guid? _originalStartId, _originalEndId;
+    private bool _referencesLoading;
+    private int _referenceVersion;
+    private string? _referenceError;
+    private IReadOnlyList<CoursePointView>? IntermediatePath => StatisticsRequiredPointsDraft.IntermediatePath(_layoutDetail, _startId, _endId);
     private MudForm? _form;
     private bool _loading = true, _busy, _editing, _configurationEditor, _valid;
     private Guid? _id, _itemId, _facilityId, _layoutId, _startId, _endId, _parentId;
@@ -186,10 +220,12 @@ else
             _facilities = (await Facilities.GetFacilitiesAsync(_lifetime.Token)).ToList();
             _pointNames.Clear();
             _pointFacilities.Clear();
+            _layoutFacilities.Clear();
             foreach (var facility in _facilities)
             {
                 foreach (var layout in await Facilities.GetFacilityLayoutsAsync(facility.Id, _lifetime.Token))
                 {
+                    _layoutFacilities[layout.Id] = facility.Id;
                     var detail = await Facilities.GetCourseLayoutDetailAsync(layout.Id, _lifetime.Token);
                     foreach (var point in detail.Segments.SelectMany(segment => new[] { segment.StartPoint, segment.EndPoint }))
                     {
@@ -206,6 +242,12 @@ else
 
     private void New()
     {
+        _referenceVersion++;
+        _referencesLoading = false;
+        _referenceError = null;
+        _layoutDetail = null;
+        _requiredPoints = new();
+        _originalStartId = _originalEndId = null;
         _id = _itemId = _facilityId = _layoutId = _startId = _endId = _parentId = null;
         _configurationEditor = IsConfigurations;
         _type = StatisticsConfigurationType.Simple;
@@ -238,50 +280,117 @@ else
         _parentId = config.ParentConfigId;
         _repetitions = config.Repetitions ?? 2;
         _thresholds = new(config.MinDuration, config.MaxDuration, ThresholdDistance, Display);
-        if (config.CoursePointStart.HasValue && _pointFacilities.TryGetValue(config.CoursePointStart.Value, out var facilityId))
-        {
-            await SelectFacility(facilityId);
-            foreach (var layout in _layouts)
-            {
-                var detail = await Facilities.GetCourseLayoutDetailAsync(layout.Id, _lifetime.Token);
-                var ids = detail.Segments.SelectMany(segment => new[] { segment.StartPoint.Id, segment.EndPoint.Id }).ToHashSet();
-                if (ids.Contains(config.CoursePointStart.Value) && ids.Contains(config.CoursePointEnd.GetValueOrDefault()))
-                {
-                    await SelectLayout(layout.Id);
-                    break;
-                }
-            }
-        }
-        _startId = config.CoursePointStart;
-        _endId = config.CoursePointEnd;
+        _startId = _originalStartId = config.CoursePointStart;
+        _endId = _originalEndId = config.CoursePointEnd;
+        _requiredPoints = new(config.RequiredCoursePoints);
+        _layoutId = config.RequiredCoursePoints?.CourseLayoutId;
+        if (_type != StatisticsConfigurationType.Simple) return;
+        if (_layoutId.HasValue && _layoutFacilities.TryGetValue(_layoutId.Value, out var layoutFacility))
+            _facilityId = layoutFacility;
+        else if (_startId.HasValue && _pointFacilities.TryGetValue(_startId.Value, out var pointFacility))
+            _facilityId = pointFacility;
+        await ReloadReferences(true, config.RequiredCoursePoints is null);
     }
 
     private async Task SelectFacility(Guid? id)
     {
         _facilityId = id;
-        _layoutId = _startId = _endId = null;
-        _points = [];
-        _layouts = id.HasValue ? (await Facilities.GetFacilityLayoutsAsync(id.Value, _lifetime.Token)).ToList() : [];
+        _layoutId = null;
+        // Endpoint and required-point drafts survive reference changes until the user replaces them.
+        await ReloadReferences();
     }
 
     private async Task SelectLayout(Guid? id)
     {
         _layoutId = id;
-        _startId = _endId = null;
-        _points = id.HasValue ? (await Facilities.GetCourseLayoutDetailAsync(id.Value, _lifetime.Token)).Segments
-            .SelectMany(segment => new[] { segment.StartPoint, segment.EndPoint }).DistinctBy(point => point.Id).ToList() : [];
+        await ReloadReferences(false);
+    }
+
+    private Task ReloadReferences() => ReloadReferences(true);
+
+    private async Task ReloadReferences(bool loadLayouts, bool inferLegacyLayout = false)
+    {
+        var version = ++_referenceVersion;
+        var facilityId = _facilityId;
+        var layoutId = _layoutId;
+        var startId = _startId;
+        var endId = _endId;
+        _referencesLoading = true;
+        _referenceError = null;
+        _layoutDetail = null;
+        _points = [];
+        if (loadLayouts) _layouts = [];
+        try
+        {
+            if (!facilityId.HasValue)
+            {
+                if (_id.HasValue) _referenceError = L["RequiredPointsLoadFailed"];
+                return;
+            }
+            var layouts = loadLayouts
+                ? (await Facilities.GetFacilityLayoutsAsync(facilityId.Value, _lifetime.Token)).ToList() : _layouts;
+            if (version != _referenceVersion) return;
+            _layouts = layouts;
+            CourseLayoutDetailView? detail = null;
+            if (layoutId.HasValue)
+            {
+                if (!layouts.Any(layout => layout.Id == layoutId))
+                {
+                    _referenceError = L["RequiredPointsLoadFailed"];
+                    return;
+                }
+                detail = await Facilities.GetCourseLayoutDetailAsync(layoutId.Value, _lifetime.Token);
+            }
+            else if (inferLegacyLayout && startId.HasValue && endId.HasValue)
+            {
+                // Legacy endpoint-only definitions have no saved layout. Never infer over a saved snapshot.
+                foreach (var layout in layouts)
+                {
+                    var candidate = await Facilities.GetCourseLayoutDetailAsync(layout.Id, _lifetime.Token);
+                    if (version != _referenceVersion) return;
+                    var ids = candidate.Segments.SelectMany(segment => new[] { segment.StartPoint.Id, segment.EndPoint.Id }).ToHashSet();
+                    if (ids.Contains(startId.Value) && ids.Contains(endId.Value)) { detail = candidate; break; }
+                }
+            }
+            if (version != _referenceVersion) return;
+            _layoutDetail = detail;
+            if (detail is not null)
+            {
+                _layoutId = detail.Id;
+                _points = detail.Segments.OrderBy(segment => segment.Order)
+                    .SelectMany(segment => new[] { segment.StartPoint, segment.EndPoint }).DistinctBy(point => point.Id).ToList();
+                foreach (var point in _points)
+                {
+                    _pointNames[point.Id] = PointLabel(point);
+                    _pointFacilities[point.Id] = facilityId.Value;
+                }
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (HttpRequestException exception) { if (version == _referenceVersion) _referenceError = $"{L["RequiredPointsLoadFailed"]} {ErrorFor(exception)}"; }
+        catch (Exception) { if (version == _referenceVersion) _referenceError = L["RequiredPointsLoadFailed"]; }
+        finally { if (version == _referenceVersion) _referencesLoading = false; }
     }
 
     private void ChangeType(StatisticsConfigurationType type)
     {
         _type = type;
         _startId = _endId = _parentId = null;
+        _requiredPoints = new();
     }
 
     private async Task Save()
     {
         await _form!.ValidateAsync();
-        if (!_valid || _busy) return;
+        if (!_valid || _busy || _referencesLoading) return;
+        if (_configurationEditor && _type == StatisticsConfigurationType.Simple &&
+            ((_layoutDetail is not null && (!_points.Any(point => point.Id == _startId) || !_points.Any(point => point.Id == _endId))) ||
+             (_startId.HasValue && _pointFacilities.TryGetValue(_startId.Value, out var facility) && facility != _facilityId)))
+        { _error = L["StatisticsEndpointsOutsideLayout"]; return; }
+        if (_configurationEditor && _type == StatisticsConfigurationType.Simple &&
+            (_requiredPoints.Replacement(_layoutId) is not null || _startId != _originalStartId || _endId != _originalEndId) &&
+            !_requiredPoints.MatchesPath(_layoutId, IntermediatePath))
+        { _error = L["RequiredPointsPathChanged"]; return; }
         if (!_configurationEditor && (!_distanceDraft.IsValid || !float.IsFinite((float)_distanceDraft.Metres))) { _error = L["InvalidDistance", _distanceDraft.Settings.Distance(0.001)]; return; }
         if (!_thresholds.IsValid) { _error = L["ThresholdInputOrRangeInvalid"]; return; }
         if (_configurationEditor)
@@ -306,7 +415,8 @@ else
                 await Administration.SaveConfigurationAsync(_id, new(_itemId!.Value, _type,
                     _type == StatisticsConfigurationType.Simple ? _startId : null, _type == StatisticsConfigurationType.Simple ? _endId : null,
                     _type == StatisticsConfigurationType.Multi ? _parentId : null, _type == StatisticsConfigurationType.Multi ? _repetitions : null,
-                    _thresholds.Minimum, _thresholds.Maximum), _lifetime.Token);
+                    _thresholds.Minimum, _thresholds.Maximum)
+                    { RequiredCoursePoints = _type == StatisticsConfigurationType.Simple ? _requiredPoints.Replacement(_layoutId) : null }, _lifetime.Token);
             else
                 await Administration.SaveItemAsync(_id, new(_name, _description, (float)_distanceDraft.Metres, _thresholds.Minimum, _thresholds.Maximum), _lifetime.Token);
             _editing = false;
@@ -337,7 +447,7 @@ else
 
     private async Task Cancel()
     {
-        if (await ConfirmDiscard()) { _editing = false; _error = null; }
+        if (await ConfirmDiscard()) { _referenceVersion++; _referencesLoading = false; _editing = false; _error = null; }
     }
 
     private async Task<bool> ConfirmDiscard() => !_editing || await Dialogs.ShowMessageBoxAsync(L["DiscardChanges"], L["UnsavedChangesLost"], yesText: L["Delete"], cancelText: L["KeepEditingAction"]) == true;
@@ -349,6 +459,8 @@ else
     private string PointLabel(CoursePointView point) => string.IsNullOrWhiteSpace(point.Name) ? L["Point", point.Id.ToString()[..8]].Value : point.Name;
     private string LayoutLabel(CourseLayoutView layout) => L["LayoutIdLabel", layout.Id.ToString()[..8]];
     private string PointName(Guid? id) => id.HasValue && _pointNames.TryGetValue(id.Value, out var name) ? name : L["MissingCoursepoint"].Value;
+    private string RequiredPointName(Guid id) => _points.FirstOrDefault(point => point.Id == id) is { } point ? PointLabel(point)
+        : _pointNames.GetValueOrDefault(id) ?? L["Point", id.ToString()[..8]].Value;
     private string ConfigurationLabel(StatisticsConfigurationDTO config) => $"{ItemName(config.StatisticsItemId)}: {ConnectionLabel(config)}";
     private string ConnectionLabel(StatisticsConfigurationDTO config) => config.Type == StatisticsConfigurationType.Simple
         ? L["ConnectionTo", PointName(config.CoursePointStart), PointName(config.CoursePointEnd)]
@@ -360,10 +472,10 @@ else
     {
         System.Net.HttpStatusCode.Unauthorized => L["SignInRequired"].Value,
         System.Net.HttpStatusCode.Forbidden => L["NoPermission"].Value,
-        System.Net.HttpStatusCode.Conflict => L["ConflictOccurred"].Value,
+        System.Net.HttpStatusCode.Conflict => L["StatisticsStructureLocked"].Value,
         System.Net.HttpStatusCode.BadRequest or System.Net.HttpStatusCode.UnprocessableEntity => L["RequestRejected"].Value,
         System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout => L["ServiceUnavailable"].Value,
         _ => L["RequestFailed"].Value
     };
-    public void Dispose() { _unsavedRegistration?.Dispose(); _lifetime.Cancel(); _lifetime.Dispose(); }
+    public void Dispose() { _referenceVersion++; _unsavedRegistration?.Dispose(); _lifetime.Cancel(); _lifetime.Dispose(); }
 }
