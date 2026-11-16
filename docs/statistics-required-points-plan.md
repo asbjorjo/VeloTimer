@@ -171,3 +171,95 @@ writers before activation. No historical replay/backfill is intended.
   migration and extended to check array/layout SQL types and the non-null true
   outcome default. Unrelated tests and API/processor production code were untouched.
   Build-regenerated OpenAPI was restored to the worktree's initially clean version.
+
+
+## Configuration/API transport handoff (2026-11-16)
+
+Implemented after contracts `33725226` and storage `3234d04f`; production processing,
+revalidation, Razor UI, shared contracts and storage are unchanged.
+
+- Simple writes resolve omitted/null requirements to the existing snapshot on update
+  (none on create). Explicit `{ "courseLayoutId": null, "coursePointIds": [] }`
+  clears; a null/missing inner array is rejected. Multi rejects any non-null object,
+  including an empty clear object.
+- Every Simple save validates the resulting requirements, including preserved ones,
+  against proposed endpoints, current Facilities layout geometry and each point's
+  facility. The validator sorts **segments** by unique `Order`, verifies continuity
+  and unambiguous point occurrence, then validates the supplied snapshot as a strictly
+  increasing subsequence of the forward intermediate path. Closed courses permit
+  one wrap; equal endpoints mean one full lap. It never sorts/replaces the supplied
+  point order to make invalid input succeed. Legacy empty requirements still permit
+  endpoint-only configurations without choosing a layout.
+- Saved arrays are copied, not mutated. Structural comparisons use layout value and
+  point sequence; threshold-only and older-client updates do not erase requirements
+  or trigger collection-reference false conflicts. Simple/dependent Multi result
+  guards remain in the existing locked Statistics transaction. Invalid input returns
+  400; valid structural changes with results return 409. As before, validation may
+  report 400 before the result guard when a proposed structural change is itself invalid.
+- Facilities already exposes `GET /api/facilities/layouts/{id}` with facility and
+  ordered segments. The API-local `ICourseLayoutReferences` HTTP adapter consumes
+  that existing DTO, forwards caller Authorization, treats 404 as a missing reference,
+  and propagates transport/non-success/malformed-response failures rather than accepting
+  an empty fallback. No Facilities database access or contract changes were needed.
+- Statistics point dependencies now include `RequiredCoursePointIds.Contains(id)`.
+  Existing Facilities layout semantic-edit/delete handlers consult dependencies for
+  every old layout point, so they also protect required points. Facility deletion is
+  already blocked while layouts remain. This is the existing cross-service preflight
+  safeguard, not a distributed transaction: concurrent Facilities edits and Statistics
+  creates are not globally serialized. The persisted ordered snapshot remains authoritative;
+  future Simple saves reject stale/invalid references instead of reinterpreting it.
+- Admin and unavailable-public configuration DTO mappings include copied requirements.
+  Existing full-entity configuration cache loaders automatically load both scalar/array
+  fields, and existing definition tag/key invalidation applies to requirement changes.
+  BFF maps generated-client reads/writes, uses a v2 admin configuration cache representation,
+  and copies nested arrays on return so consumers cannot poison cached snapshots.
+  Browser/BFF pass the additive shared property unchanged. Missing definition-list
+  responses now fail explicitly rather than appearing as successful empty lists.
+- Statistics OpenAPI is regenerated and checked in. Typed client code is generated in
+  `obj` by the existing NSwag build target, not checked in. UTC and SI representations,
+  authorization policies and BFF antiforgery behavior are unchanged.
+
+### Exact checks and remaining verification
+
+Commands were run from `/workspaces/VeloTimer-required-points` with
+`OIDC_AUDIENCE=https://build.invalid` for builds/tests:
+
+- `dotnet build src/Module.Statistics.Api --configuration Release`: passed, 0 errors.
+- `dotnet build src/Module.Statistics.Client --configuration Release`: passed,
+  generated the additive NSwag requirements DTO/read/write properties, 0 errors.
+- `dotnet test src/Module.Statistics.Api.Test --configuration Release --filter
+  FullyQualifiedName~StatisticsEndpointTests --logger trx /p:CollectCoverage=true
+  /p:CoverletOutputFormat=lcov`: 26 passed, 0 failed/skipped.
+- New focused required-point API tests: 7 passed. The initial test compile exposed
+  two init-only fixture assignments; fixtures were corrected, with no production
+  behavior workaround.
+- `dotnet test src/Module.Statistics.Api.Test --configuration Release --no-restore
+  --filter 'FullyQualifiedName~StatisticsEndpointTests|FullyQualifiedName~StatisticsRequiredPointsTests|FullyQualifiedName~PublicStatisticsDiscoveryTests'
+  --logger trx /p:CollectCoverage=true /p:CoverletOutputFormat=lcov`: 60 passed,
+  0 failed/skipped. These run on SQLite, not PostgreSQL.
+- `dotnet build src/WebUI.Mud --configuration Release`: initially blocked by missing
+  transitive Profiles/Notifications API assets (NETSDK1004). After `dotnet restore
+  src/Module.Profiles.Api` and `dotnet restore src/Module.Notifications.Api`, retry
+  passed with 0 errors. Existing NU1902/NU1903 dependency advisories and BL0005 Razor
+  warnings remain; API OpenAPI generation also logged existing DataProtection/cache
+  configuration diagnostics without failing the build. Unrelated regenerated API
+  documents were not retained.
+- `dotnet test src/VeloTime.Platform.Test --configuration Release --filter
+  'FullyQualifiedName~StatisticsRequiredPointsTransportTests|FullyQualifiedName~StatisticsThresholdTransportTests|FullyQualifiedName~WebUiCacheRegressionTests.StatisticsDefinitions'
+  --logger trx /p:CollectCoverage=true /p:CoverletOutputFormat=lcov`: 15 passed,
+  0 failed/skipped. Includes 8 new transport cases covering actual generated-client
+  JSON, server create/update preserve/replace/clear, ordered read caching/isolation,
+  and browser serialization/readback. Existing obsolete API/analyzer warnings remain.
+- `git diff --check`: passed. No full solution or PostgreSQL API integration run in
+  this phase. No semantic deviations from the approved contracts.
+
+Next owner: Coordinator for sequential processor/revalidation and UI implementation;
+Tester for independent coverage and broader validation. Do not activate required-point
+saves in production before all processors/revalidation consumers honor the snapshot.
+Tester acceptance scenarios: retain these API/transport regressions; exercise real
+PostgreSQL array-Contains dependency SQL; Facilities actual edit/delete refusal for
+required points; missing/cross-facility point references, reversed open endpoints,
+upstream HTTP/auth/malformed failures; Redis cache serialization and cross-process
+invalidation; end-to-end BFF authorization/antiforgery and unavailable discovery
+mapping. Processor attempt and threshold-revalidation acceptance criteria above
+remain unimplemented by this phase.

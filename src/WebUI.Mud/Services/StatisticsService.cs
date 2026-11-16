@@ -57,7 +57,8 @@ public class StatisticsService(
                         (Contracts.StatisticsConfigurationType)option.Configuration.Type, option.Configuration.CoursePointStart,
                         option.Configuration.CoursePointEnd, option.Configuration.ParentConfigId, option.Configuration.Repetitions,
                         StatisticsDurationTransport.Parse(option.Configuration.MinDuration),
-                        StatisticsDurationTransport.Parse(option.Configuration.MaxDuration)),
+                        StatisticsDurationTransport.Parse(option.Configuration.MaxDuration))
+                    { RequiredCoursePoints = StatisticsRequiredPointsTransport.Map(option.Configuration) },
                     (Contracts.PublicStatisticsConfigurationUnavailableReason)option.Reason)).ToList());
         }, cancellationToken);
 

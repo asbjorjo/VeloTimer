@@ -32,13 +32,18 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
     private async Task<IReadOnlyList<Contracts.StatisticsConfigurationDTO>> GetConfigurationsCoreAsync(CancellationToken cancellationToken)
     {
         var snapshots = await cache.GetAdminAsync(
-            AdministrationAuthorization.StatisticsPolicy, "statistics-admin-configurations", "all-configurations-v1",
+            AdministrationAuthorization.StatisticsPolicy, "statistics-admin-configurations", "all-configurations-required-points-v2",
             (IStatisticsClient factoryClient, CancellationToken token) => Execute(async () =>
                 (await factoryClient.ListStatisticsConfigurationsAsync(null, token)
                     ?? throw new InvalidDataException("The statistics configuration list is missing."))
                 .Select(config => Map(config)).ToArray()),
             [DefinitionsTag], cancellationToken);
-        return snapshots.ToArray();
+        // The cache owns its nested snapshots too; do not expose mutable point arrays to callers.
+        return snapshots.Select(config => config with
+        {
+            RequiredCoursePoints = config.RequiredCoursePoints is { } requirements
+                ? new(requirements.CourseLayoutId, requirements.CoursePointIds!.ToArray()) : null
+        }).ToArray();
     }
 
     public Task SaveItemAsync(Guid? id, Contracts.SaveStatisticsItemRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
@@ -73,7 +78,12 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
             StatisticsItemId = request.StatisticsItemId, Type = (int)request.Type, CoursePointStart = request.CoursePointStart,
             CoursePointEnd = request.CoursePointEnd, ParentConfigId = request.ParentConfigId, Repetitions = request.Repetitions,
             MinDuration = StatisticsDurationTransport.Format(request.MinDuration),
-            MaxDuration = StatisticsDurationTransport.Format(request.MaxDuration)
+            MaxDuration = StatisticsDurationTransport.Format(request.MaxDuration),
+            RequiredCoursePoints = request.RequiredCoursePoints is { } requirements ? new StatisticsRequiredCoursePoints
+            {
+                CourseLayoutId = requirements.CourseLayoutId,
+                CoursePointIds = requirements.CoursePointIds?.ToArray()
+            } : null
         };
         var response = await cache.WriteAndInvalidateAsync(
             () => id.HasValue ? client.UpdateStatisticsConfigurationAsync(id.Value, body, cancellationToken) : client.CreateStatisticsConfigurationAsync(body, cancellationToken),
@@ -115,9 +125,10 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
              (config.CoursePointStart is not null || config.CoursePointEnd is not null ||
               config.ParentConfigId is null || config.Repetitions is null or <= 0)))
             throw new InvalidDataException("The statistics configuration response has an invalid shape.");
-        return new(config.Id, config.StatisticsItemId, (Contracts.StatisticsConfigurationType)config.Type,
+        return new Contracts.StatisticsConfigurationDTO(config.Id, config.StatisticsItemId, (Contracts.StatisticsConfigurationType)config.Type,
             config.CoursePointStart, config.CoursePointEnd, config.ParentConfigId, config.Repetitions,
-            StatisticsDurationTransport.Parse(config.MinDuration), StatisticsDurationTransport.Parse(config.MaxDuration));
+            StatisticsDurationTransport.Parse(config.MinDuration), StatisticsDurationTransport.Parse(config.MaxDuration))
+        { RequiredCoursePoints = StatisticsRequiredPointsTransport.Map(config) };
     }
 
     private static async Task<TResult> Execute<TResult>(Func<Task<TResult>> action)
