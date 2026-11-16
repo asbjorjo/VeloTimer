@@ -63,5 +63,17 @@ public sealed class StatisticsValidityTests
         Assert.True(StatisticsDurationBounds.Effective(Duration(10), Duration(20), Duration(21), null).IsDisjoint);
     }
 
+    [Theory]
+    [InlineData(0, false, StatisticsEntryInvalidReason.NonPositiveDuration)]
+    [InlineData(10, false, StatisticsEntryInvalidReason.InvalidContributor)]
+    [InlineData(10, true, StatisticsEntryInvalidReason.RequiredCoursePointsNotSatisfied)]
+    public void CheckpointFailurePrecedesBoundsButNotNonpositiveOrContributors(
+        int seconds, bool contributorsValid, StatisticsEntryInvalidReason expected)
+    {
+        Assert.Equal(expected, StatisticsValidityEvaluator.Evaluate(TimeSpan.FromSeconds(seconds),
+            contributorsValid, new(TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(30)),
+            requiredCoursePointsSatisfied: false));
+    }
+
     private static TimeSpan? Duration(int? seconds) => seconds is null ? null : TimeSpan.FromSeconds(seconds.Value);
 }

@@ -40,13 +40,14 @@ public static class StatisticsValidityEvaluator
     /// <summary>
     /// Returns the first applicable invalidity reason, or null when valid. Order: nonpositive duration
     /// (independent of bounds; also covers infinite/NaN raw speed), invalid contributor (Multi only),
-    /// below the inclusive minimum, above the inclusive maximum.
+    /// unsatisfied required course points, below the inclusive minimum, above the inclusive maximum.
     /// </summary>
     public static StatisticsEntryInvalidReason? Evaluate(TimeSpan duration, bool contributorsValid,
-        StatisticsDurationBounds bounds)
+        StatisticsDurationBounds bounds, bool requiredCoursePointsSatisfied = true)
     {
         if (duration <= TimeSpan.Zero) return StatisticsEntryInvalidReason.NonPositiveDuration;
         if (!contributorsValid) return StatisticsEntryInvalidReason.InvalidContributor;
+        if (!requiredCoursePointsSatisfied) return StatisticsEntryInvalidReason.RequiredCoursePointsNotSatisfied;
         if (bounds.Minimum.HasValue && duration < bounds.Minimum.Value) return StatisticsEntryInvalidReason.BelowMinimumDuration;
         if (bounds.Maximum.HasValue && duration > bounds.Maximum.Value) return StatisticsEntryInvalidReason.AboveMaximumDuration;
         return null;
