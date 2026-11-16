@@ -1568,6 +1568,16 @@
               "null",
               "string"
             ]
+          },
+          "requiredCoursePoints": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StatisticsRequiredCoursePoints"
+              }
+            ]
           }
         }
       },
@@ -1669,6 +1679,16 @@
               "null",
               "string"
             ]
+          },
+          "requiredCoursePoints": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StatisticsRequiredCoursePoints"
+              }
+            ]
           }
         }
       },
@@ -1711,6 +1731,32 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "StatisticsRequiredCoursePoints": {
+        "required": [
+          "courseLayoutId",
+          "coursePointIds"
+        ],
+        "type": "object",
+        "properties": {
+          "courseLayoutId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "coursePointIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },

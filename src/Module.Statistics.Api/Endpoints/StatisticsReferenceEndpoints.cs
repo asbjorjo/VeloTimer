@@ -18,7 +18,7 @@ internal static class StatisticsReferenceEndpoints
         }).Produces<DependencySummary>();
         references.MapGet("/coursepoints/{id:guid}/dependencies", async (Guid id, StatisticsDbContext storage, CancellationToken cancellationToken) =>
         {
-            var configs = await storage.Set<SimpleStatisticsItemConfig>().CountAsync(config => config.CoursePointStart == id || config.CoursePointEnd == id, cancellationToken);
+            var configs = await storage.Set<SimpleStatisticsItemConfig>().CountAsync(config => config.CoursePointStart == id || config.CoursePointEnd == id || config.RequiredCoursePointIds.Contains(id), cancellationToken);
             var samples = await storage.Set<Sample>().CountAsync(sample => sample.CoursePointStartId == id || sample.CoursePointEndId == id, cancellationToken);
             return Results.Ok(new DependencySummary(configs + samples, $"This coursepoint is used by {configs} statistics configuration(s) and {samples} recorded sample(s). Create a new layout instead of changing recorded course geometry."));
         }).Produces<DependencySummary>();

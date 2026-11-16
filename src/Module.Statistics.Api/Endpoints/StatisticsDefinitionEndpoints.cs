@@ -139,7 +139,7 @@ internal static class StatisticsDefinitionEndpoints
     }
 
     private static async Task<string?> ValidateConfiguration(SaveStatisticsConfigurationRequest request,
-        StatisticsDbContext storage, ICoursePointReferences points, CancellationToken cancellationToken)
+        StatisticsDbContext storage, ICoursePointReferences points, ICourseLayoutReferences layouts, CancellationToken cancellationToken)
     {
         if (ValidateBounds(request.MinDuration, request.MaxDuration) is { } error) return error;
         var item = await storage.Set<StatisticsItem>().FindAsync([request.StatisticsItemId], cancellationToken);
@@ -154,9 +154,25 @@ internal static class StatisticsDefinitionEndpoints
             var startFacility = await points.GetFacilityAsync(request.CoursePointStart!.Value, cancellationToken);
             var endFacility = request.CoursePointStart == request.CoursePointEnd ? startFacility : await points.GetFacilityAsync(request.CoursePointEnd!.Value, cancellationToken);
             if (startFacility is null || endFacility is null || startFacility != endFacility) return "Both coursepoints must exist in the same facility.";
+            if (request.RequiredCoursePoints is { } requirements)
+            {
+                if (StatisticsRequiredPointsValidation.ValidateShape(requirements, request.CoursePointStart.Value, request.CoursePointEnd.Value) is { } shapeError)
+                    return shapeError;
+                if (requirements.CoursePointIds!.Count > 0)
+                {
+                    var layout = await layouts.GetLayoutAsync(requirements.CourseLayoutId!.Value, cancellationToken);
+                    if (layout is null) return "Select an existing layout for required coursepoints.";
+                    if (StatisticsRequiredPointsValidation.ValidatePath(layout, startFacility.Value, request.CoursePointStart.Value,
+                        request.CoursePointEnd.Value, requirements.CoursePointIds) is { } pathError) return pathError;
+                    foreach (var pointId in requirements.CoursePointIds)
+                        if (await points.GetFacilityAsync(pointId, cancellationToken) != startFacility)
+                            return "All required coursepoints must exist in the endpoints' facility.";
+                }
+            }
         }
         else if (request.Type == StatisticsConfigurationType.Multi)
         {
+            if (request.RequiredCoursePoints is not null) return "Multi configurations inherit requirements from their Simple parent.";
             if (request.CoursePointStart is not null || request.CoursePointEnd is not null) return "Multi configurations inherit their coursepoints from their parent.";
             if (request.Repetitions is null or <= 0) return "Repetitions must be a positive integer.";
             if (!await storage.Set<SimpleStatisticsItemConfig>().AnyAsync(config => config.Id == request.ParentConfigId, cancellationToken)) return "Select an existing Simple configuration as the parent.";
@@ -166,7 +182,7 @@ internal static class StatisticsDefinitionEndpoints
     }
 
     private static async Task<Results<Created<StatisticsConfigurationDTO>, ProblemHttpResult>> CreateConfiguration(
-        SaveStatisticsConfigurationRequest request, StatisticsDbContext storage, ICoursePointReferences points, HybridCache cache,
+        SaveStatisticsConfigurationRequest request, StatisticsDbContext storage, ICoursePointReferences points, ICourseLayoutReferences layouts, HybridCache cache,
         ICacheInvalidationOperations invalidation,
         ILogger<StatisticsDbContext> logger, StatisticsValidityScheduler scheduler, IServiceProvider services, CancellationToken cancellationToken)
     {
@@ -175,9 +191,11 @@ internal static class StatisticsDefinitionEndpoints
         {
             if (!await LockConfigurationScope(request, null, storage, scheduler, cancellationToken))
                 return Conflict("The parent configuration moved to another item. Retry with current state.");
-            if (await ValidateConfiguration(request, storage, points, cancellationToken) is { } error) return Invalid(error);
+            if (await ValidateConfiguration(request, storage, points, layouts, cancellationToken) is { } error) return Invalid(error);
             StatisticsItemConfig config = request.Type == StatisticsConfigurationType.Simple
-                ? new SimpleStatisticsItemConfig { StatisticsItem = null!, CoursePointStart = request.CoursePointStart!.Value, CoursePointEnd = request.CoursePointEnd!.Value }
+                ? new SimpleStatisticsItemConfig { StatisticsItem = null!, CoursePointStart = request.CoursePointStart!.Value, CoursePointEnd = request.CoursePointEnd!.Value,
+                    RequiredCourseLayoutId = request.RequiredCoursePoints?.CourseLayoutId,
+                    RequiredCoursePointIds = request.RequiredCoursePoints?.CoursePointIds?.ToArray() ?? [] }
                 : new MultiStatisticsItemConfig { StatisticsItem = null!, ParentConfig = null!, ParentConfigId = request.ParentConfigId!.Value, Repetitions = request.Repetitions!.Value };
             config.Id = Guid.NewGuid();
             config.StatisticsItemId = request.StatisticsItemId;
@@ -200,7 +218,7 @@ internal static class StatisticsDefinitionEndpoints
     }
 
     private static async Task<Results<Ok<StatisticsConfigurationDTO>, NotFound, ProblemHttpResult>> UpdateConfiguration(
-        Guid id, SaveStatisticsConfigurationRequest request, StatisticsDbContext storage, ICoursePointReferences points, HybridCache cache,
+        Guid id, SaveStatisticsConfigurationRequest request, StatisticsDbContext storage, ICoursePointReferences points, ICourseLayoutReferences layouts, HybridCache cache,
         ICacheInvalidationOperations invalidation,
         ILogger<StatisticsDbContext> logger, StatisticsValidityScheduler scheduler, IServiceProvider services, CancellationToken cancellationToken)
     {
@@ -217,11 +235,15 @@ internal static class StatisticsDefinitionEndpoints
             if (config.StatisticsItemId != existingItemId)
                 return Conflict("The configuration moved to another item. Retry with current state.");
             if (ToDto(config).Type != request.Type) return Invalid("Configuration type cannot be changed.");
-            if (await ValidateConfiguration(request, storage, points, cancellationToken) is { } error) return Invalid(error);
-            var proposed = new StatisticsConfigurationDTO(id, request.StatisticsItemId, request.Type, request.CoursePointStart, request.CoursePointEnd, request.ParentConfigId, request.Repetitions);
+            // Resolve preserve semantics before validating against proposed endpoints and detecting structural changes.
+            if (config is SimpleStatisticsItemConfig existingSimple && request.RequiredCoursePoints is null)
+                request = request with { RequiredCoursePoints = new(existingSimple.RequiredCourseLayoutId, existingSimple.RequiredCoursePointIds.ToArray()) };
+            if (await ValidateConfiguration(request, storage, points, layouts, cancellationToken) is { } error) return Invalid(error);
+            var proposed = new StatisticsConfigurationDTO(id, request.StatisticsItemId, request.Type, request.CoursePointStart, request.CoursePointEnd, request.ParentConfigId, request.Repetitions)
+            { RequiredCoursePoints = request.RequiredCoursePoints };
             var childIds = storage.Set<MultiStatisticsItemConfig>().Where(child => child.ParentConfigId == id).Select(child => child.Id);
             var structural = ToDto(config) with { MinDuration = null, MaxDuration = null };
-            if (structural != proposed && await storage.Set<StatisticsEntry>()
+            if (!SameStructure(structural, proposed) && await storage.Set<StatisticsEntry>()
                 .AnyAsync(entry => entry.StatisticsItemConfigId == id || childIds.Contains(entry.StatisticsItemConfigId), cancellationToken))
             {
                 return Conflict("Recorded results depend on this configuration. Create a new definition instead.");
@@ -236,6 +258,8 @@ internal static class StatisticsDefinitionEndpoints
             {
                 simple.CoursePointStart = request.CoursePointStart!.Value;
                 simple.CoursePointEnd = request.CoursePointEnd!.Value;
+                simple.RequiredCourseLayoutId = request.RequiredCoursePoints?.CourseLayoutId;
+                simple.RequiredCoursePointIds = request.RequiredCoursePoints?.CoursePointIds?.ToArray() ?? [];
             }
             else if (config is MultiStatisticsItemConfig multi)
             {
@@ -316,10 +340,16 @@ internal static class StatisticsDefinitionEndpoints
     private static StatisticsItemDTO ToDto(StatisticsItem item) => new(item.Id, item.Name, item.Description, item.Distance, item.MinDuration, item.MaxDuration);
     private static StatisticsConfigurationDTO ToDto(StatisticsItemConfig config) => config switch
     {
-        SimpleStatisticsItemConfig simple => new(simple.Id, simple.StatisticsItemId, StatisticsConfigurationType.Simple, simple.CoursePointStart, simple.CoursePointEnd, null, null, simple.MinDuration, simple.MaxDuration),
+        SimpleStatisticsItemConfig simple => new(simple.Id, simple.StatisticsItemId, StatisticsConfigurationType.Simple, simple.CoursePointStart, simple.CoursePointEnd, null, null, simple.MinDuration, simple.MaxDuration)
+        { RequiredCoursePoints = simple.RequiredCoursePointIds.Length == 0 ? null : new(simple.RequiredCourseLayoutId, simple.RequiredCoursePointIds.ToArray()) },
         MultiStatisticsItemConfig multi => new(multi.Id, multi.StatisticsItemId, StatisticsConfigurationType.Multi, null, null, multi.ParentConfigId, multi.Repetitions, multi.MinDuration, multi.MaxDuration),
         _ => throw new InvalidOperationException("Unknown configuration type.")
     };
+    private static bool SameStructure(StatisticsConfigurationDTO current, StatisticsConfigurationDTO proposed) =>
+        (current with { RequiredCoursePoints = null }) == (proposed with { RequiredCoursePoints = null }) &&
+        current.RequiredCoursePoints?.CourseLayoutId == proposed.RequiredCoursePoints?.CourseLayoutId &&
+        (current.RequiredCoursePoints?.CoursePointIds ?? []).SequenceEqual(proposed.RequiredCoursePoints?.CoursePointIds ?? []);
+
     private static ProblemHttpResult Invalid(string detail) => TypedResults.Problem(detail: detail, statusCode: StatusCodes.Status400BadRequest);
     private static ProblemHttpResult Conflict(string detail) => TypedResults.Problem(detail: detail, statusCode: StatusCodes.Status409Conflict);
 }

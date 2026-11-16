@@ -196,7 +196,8 @@ internal sealed class PublicStatisticsDiscovery(
     private static StatisticsConfigurationDTO ToDto(StatisticsItemConfig config) => config switch
     {
         SimpleStatisticsItemConfig simple => new(config.Id, config.StatisticsItemId,
-            StatisticsConfigurationType.Simple, simple.CoursePointStart, simple.CoursePointEnd, null, null, config.MinDuration, config.MaxDuration),
+            StatisticsConfigurationType.Simple, simple.CoursePointStart, simple.CoursePointEnd, null, null, config.MinDuration, config.MaxDuration)
+        { RequiredCoursePoints = simple.RequiredCoursePointIds.Length == 0 ? null : new(simple.RequiredCourseLayoutId, simple.RequiredCoursePointIds.ToArray()) },
         MultiStatisticsItemConfig multi => new(config.Id, config.StatisticsItemId,
             StatisticsConfigurationType.Multi, null, null, multi.ParentConfigId, multi.Repetitions, config.MinDuration, config.MaxDuration),
         _ => throw new InvalidOperationException("Unknown statistics configuration type.")

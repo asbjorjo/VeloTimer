@@ -21,6 +21,7 @@ namespace VeloTime.Module.Statistics.Api.Test;
 public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection connection = new("Data Source=:memory:");
+    public Action<IServiceCollection>? ConfigureAdditionalServices { get; init; }
     public string? PostgreSqlConnectionString { get; init; }
     private string? postgresAdminConnectionString;
     private string? ownedPostgresConnectionString;
@@ -80,6 +81,7 @@ public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
             }).AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, TestAuthenticationHandler>(
                 TestAuthenticationHandler.AuthenticationSchemeName,
                 _ => { });
+            ConfigureAdditionalServices?.Invoke(services);
         });
     }
 

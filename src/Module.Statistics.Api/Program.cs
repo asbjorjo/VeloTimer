@@ -11,6 +11,8 @@ builder.AddModuleAuthentication();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient<ICoursePointReferences, CoursePointReferences>(client =>
     client.BaseAddress = new Uri("https+http://module-facilities-api"));
+builder.Services.AddHttpClient<ICourseLayoutReferences, CourseLayoutReferences>(client =>
+    client.BaseAddress = new Uri("https+http://module-facilities-api"));
 builder.Services.AddHttpClient<IPublicCoursePointNames, PublicCoursePointNames>(client =>
     client.BaseAddress = new Uri("https+http://module-facilities-api"));
 builder.Services.AddScoped<PublicStatisticsDiscovery>();
