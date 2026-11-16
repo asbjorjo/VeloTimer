@@ -21,7 +21,24 @@ public class StatisticsDbContext : BaseDbContext
             modelBuilder.HasPostgresExtension("public", "pg_trgm");
         }
 
-        modelBuilder.Entity<Sample>();
+        modelBuilder.Entity<Sample>(e =>
+        {
+            // Completion messages lack a facility ID; do not put it before the exact times.
+            e.HasIndex(s => new { s.TransponderId, s.TimeStart, s.TimeEnd })
+                .HasDatabaseName("ix_sample_transponder_completion")
+                .IsCreatedConcurrently();
+            // Equality prefixes followed by time support backward LIMIT 1 scans; no DESC twin needed.
+            e.HasIndex(s => new { s.TransponderId, s.FacilityId, s.CoursePointStartId, s.TimeStart })
+                .HasDatabaseName("ix_sample_transponder_facility_start_time")
+                .IsCreatedConcurrently();
+            e.HasIndex(s => new { s.TransponderId, s.FacilityId, s.CoursePointEndId, s.TimeEnd })
+                .HasDatabaseName("ix_sample_transponder_facility_end_time")
+                .IsCreatedConcurrently();
+            // No point equality in attempt evidence; keep both times as searchable index keys.
+            e.HasIndex(s => new { s.TransponderId, s.FacilityId, s.TimeEnd, s.TimeStart })
+                .HasDatabaseName("ix_sample_transponder_facility_attempt")
+                .IsCreatedConcurrently();
+        });
         modelBuilder.Entity<StatisticsItem>(e =>
         {
             if (Database.IsNpgsql())

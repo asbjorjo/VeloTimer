@@ -70,6 +70,22 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.HasKey("Id")
                         .HasName("pk_sample");
 
+                    b.HasIndex("TransponderId", "TimeStart", "TimeEnd")
+                        .HasDatabaseName("ix_sample_transponder_completion")
+                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+
+                    b.HasIndex("TransponderId", "FacilityId", "CoursePointEndId", "TimeEnd")
+                        .HasDatabaseName("ix_sample_transponder_facility_end_time")
+                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+
+                    b.HasIndex("TransponderId", "FacilityId", "CoursePointStartId", "TimeStart")
+                        .HasDatabaseName("ix_sample_transponder_facility_start_time")
+                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+
+                    b.HasIndex("TransponderId", "FacilityId", "TimeEnd", "TimeStart")
+                        .HasDatabaseName("ix_sample_transponder_facility_attempt")
+                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+
                     b.ToTable("sample", "statistics");
                 });
 
