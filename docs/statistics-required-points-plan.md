@@ -266,3 +266,126 @@ invalidation; PostgreSQL serialization/deadlock retry preservation with concurre
   requirement replacement; end-to-end BFF authorization/antiforgery and unavailable discovery
 mapping. Processor attempt and threshold-revalidation acceptance criteria above
 remain unimplemented by this phase.
+
+
+## Processing/revalidation handoff (2026-11-16)
+
+Implemented after contracts `33725226`, persistence `3234d04f`, API `4b6f0541` /
+`d1a8ffdd`, and BFF transport `6291e60b`. No UI, API, schema, shared contracts,
+bus registration, topology, agent headers or installation correlation were changed.
+
+### Evidence and attempt rules
+
+- Only Simple configurations with a nonempty ordered `RequiredCoursePointIds` use
+  the new reader. Empty requirements keep legacy selection and contributor behavior.
+- `Timing.AgentService` samples adjacent passings within an installation.
+  `TimingSampleHandler` resolves **each endpoint at its event instant** using the
+  existing Facilities distance API, persists the resolved Sample, then publishes
+  SampleComplete. The new reader consumes these persisted facts, not current
+  Facilities mappings or a live layout. PostgreSQL message endpoints are normalized
+  to persisted microsecond precision before identity matching.
+- Recover the completion's facility from its exact persisted edge (transponder,
+  both times and both points). Missing evidence, an empty facility or multiple
+  matching facilities throws: processing fails/retries rather than acknowledging
+  a guessed result. Exact duplicate samples in one facility are equivalent evidence.
+- Select the newest observed configured start at or before the completing segment's
+  start, considering both arrival and departure observations in that facility for
+  that transponder. Never search backwards for a different start whose requirements
+  happen to pass. Equal configured start/end means a lap, excluding its final arrival
+  from start selection. With no start evidence there is no measurable attempt and no
+  entry (legacy no-start behavior); do not invent a start timestamp.
+- For that selected interval, require one continuous chain of positive-duration
+  edges whose point **and timestamp** endpoints join exactly. Inspect all touching
+  edges, including spanning overlaps; ignore only adjacent positive edges strictly
+  outside the attempt that agree on its boundary point and collapse identical duplicate edges. Gaps, mismatched joins,
+  branches/overlaps, zero/negative intervals and conflicting equal-time observations
+  fail closed. Internal starts/finishes separate attempts and cannot be crossed.
+  Required points must occur once each, in stored sequence, strictly between start
+  and finish; extra non-required intermediate points are allowed. No unordered-presence
+  or subsequence search may hide an earlier out-of-order required crossing.
+- Persist false even when nonpositive duration takes reason precedence. Shared
+  evaluation is nonpositive → invalid contributor → checkpoint failure → duration
+  bounds. Revalidation explicitly projects the persisted independent boolean, never
+  reruns the chain or changes that outcome. Missing/out-of-order checkpoints retain
+  a measured invalid Simple entry rather than discarding it.
+
+The evidence identity is `(transponder, facility, course point, persisted UTC instant)`.
+This is sufficient for the requested **course-point observation** ordering, assuming
+that identity denotes the same observation regardless of which installation reported
+it. Matching a point alone or bridging a time gap is never sufficient. We cannot
+certify installation/passing provenance: neither Statistics Sample nor the completion
+contract carries installation or passing IDs. Coincident identical observations from
+two installations are indistinguishable from duplicate delivery. This implementation
+makes no same-installation guarantee. If that stronger guarantee, sub-microsecond
+identity, or distinguishing physically separate attempts sharing all boundary facts
+is required, Coordinator must first approve an installation/passing/attempt evidence
+contract and durable storage rollout; it cannot safely be inferred here. No such
+unapproved contract was added.
+
+### Transactions, delivery and late arrival
+
+- Existing owning/dependent item locks, per-transponder ownership transaction,
+  cancellation, persisted UTC/SI measurements, cache definitions and live-bound reads
+  remain in place. New Simple insertions schedule dependent Multi jobs atomically.
+  Multi selection and the exact-count/all-valid fully-contained contributor query
+  are unchanged. Multi's own checkpoint outcome remains the default true.
+- A required attempt is identified for replay by configuration/transponder/facility/
+  persisted finish instant. Existing entries are returned unchanged, not rebuilt
+  with newly arrived evidence or a newer start. Their required-parent Multi windows
+  likewise reuse the original persisted result for that finish/facility. This relies
+  on the existing per-transponder transaction lock across processor replicas; direct
+  callers must preserve that lock. Legacy configurations retain their old behavior.
+- Processor creation publication currently occurs **after commit, without an outbox**.
+  Therefore replay returns the original entry for republication of the same
+  EntryCreated payload, rather than suppressing it and losing publication on a failed
+  send. Duplicate event deliveries remain possible (at least once); required Simple
+  and Multi rows do not duplicate. Exactly-once broker publication is not claimed.
+  Existing crash-after-commit/before-publish recovery still requires source redelivery;
+  a processor transactional-outbox/inbox change is separate Coordinator/Platform work.
+- Sample/message insertion order does not define course order. All evidence already
+  persisted when classification reads it can participate, including evidence whose
+  own completion message has not yet been consumed. Evidence arriving after that read
+  cannot repair the retained outcome, even on duplicate completion or threshold edits.
+  No historical repair/replay, waiting window or new continuation event is introduced.
+
+### Checks and remaining owners
+
+Commands executed from `/workspaces/VeloTimer-required-points`:
+
+- `OIDC_AUDIENCE=https://build.invalid dotnet test
+  src/VeloTime.Module.Statistics.Test --configuration Release --no-restore --logger trx
+  /p:CollectCoverage=true /p:CoverletOutputFormat=lcov`: **54 passed**, zero failed/skipped.
+- `OIDC_AUDIENCE=https://build.invalid VELOTIME_TEST_STATISTICS_POSTGRES=<isolated
+  localhost PostgreSQL 17 connection> dotnet test src/VeloTime.Workers.Test
+  --configuration Release --filter
+  'FullyQualifiedName~StatisticsValidityPostgreSqlTests|FullyQualifiedName~StatisticsValidityCoalescingPostgreSqlTests|FullyQualifiedName~TimingSampleEventTimeTests|FullyQualifiedName~StatisticsProcessorRegistrationTests|FullyQualifiedName~WorkerHandlerTests'
+  --logger trx /p:CollectCoverage=true /p:CoverletOutputFormat=lcov`: **43 passed**,
+  zero failed/skipped. Includes real handler post-commit publication failures followed
+  by retry in fresh contexts, late checkpoint insertion, immutable false persistence,
+  microsecond boundaries, dependent Multi retry/contributor failure, threshold tightening
+  and loosening, and hidden checkpoint failures in the raw-SQL revalidation projection.
+  An initial run without the PostgreSQL environment correctly skipped the database
+  tests; the subsequent isolated-database runs above executed them, not skips.
+- `OIDC_AUDIENCE=https://build.invalid dotnet build src/Module.Statistics.Processor
+  --configuration Release --no-restore`: succeeded, **0 errors**, six existing NU1902
+  WebUtilities warnings. Worker graph also emits existing migration nullable/NU1903
+  warnings. Initial OpenAPI generation logged the existing absent Redis data-protection
+  configuration but completed; no generated API changes are included.
+- `git diff --check`: clean (only repository line-ending conversion notices).
+
+Next owner: **Tester**, then read-only Reviewer. In addition to the committed cases,
+exercise two processor replicas receiving the same required completion concurrently,
+rollback/cancellation during evidence reads and ownership assignment, accepted-send /
+lost-ack redelivery, full valid closed laps with unselected points and overlapping
+installations, temporally reassigned points whose adjacent mappings disagree, and
+threshold changes racing creation. Verify original parent payloads/rows are reused,
+checkpoint failures never turn valid, exact Multi contributor semantics remain intact,
+and no extra ownership or creation side effects escape rollback.
+
+Coordinator should confirm the observation-identity assumption above and the existing
+at-least-once publication semantics before activation, coordinate any stronger evidence
+or transactional-outbox requirement, and retain the prior migration-first/all-readers-
+upgraded rollout gate. Data & Migrations should assess Sample query indexes at expected
+volume: latest-start searches deliberately have no arbitrary lookback (long/invalid
+attempts must remain measurable), while chain materialization is bounded by the chosen
+attempt interval. No schema/index change was made in this processing phase.
