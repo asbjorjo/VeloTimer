@@ -236,11 +236,14 @@ internal static class StatisticsDefinitionEndpoints
                 return Conflict("The configuration moved to another item. Retry with current state.");
             if (ToDto(config).Type != request.Type) return Invalid("Configuration type cannot be changed.");
             // Resolve preserve semantics before validating against proposed endpoints and detecting structural changes.
-            if (config is SimpleStatisticsItemConfig existingSimple && request.RequiredCoursePoints is null)
-                request = request with { RequiredCoursePoints = new(existingSimple.RequiredCourseLayoutId, existingSimple.RequiredCoursePointIds.ToArray()) };
-            if (await ValidateConfiguration(request, storage, points, layouts, cancellationToken) is { } error) return Invalid(error);
+            // Keep the original request unchanged: transaction retries must preserve the newly loaded snapshot,
+            // not turn a prior attempt's preserved value into an explicit replacement.
+            var proposedRequest = config is SimpleStatisticsItemConfig existingSimple && request.RequiredCoursePoints is null
+                ? request with { RequiredCoursePoints = new(existingSimple.RequiredCourseLayoutId, existingSimple.RequiredCoursePointIds.ToArray()) }
+                : request;
+            if (await ValidateConfiguration(proposedRequest, storage, points, layouts, cancellationToken) is { } error) return Invalid(error);
             var proposed = new StatisticsConfigurationDTO(id, request.StatisticsItemId, request.Type, request.CoursePointStart, request.CoursePointEnd, request.ParentConfigId, request.Repetitions)
-            { RequiredCoursePoints = request.RequiredCoursePoints };
+            { RequiredCoursePoints = proposedRequest.RequiredCoursePoints };
             var childIds = storage.Set<MultiStatisticsItemConfig>().Where(child => child.ParentConfigId == id).Select(child => child.Id);
             var structural = ToDto(config) with { MinDuration = null, MaxDuration = null };
             if (!SameStructure(structural, proposed) && await storage.Set<StatisticsEntry>()
@@ -258,8 +261,8 @@ internal static class StatisticsDefinitionEndpoints
             {
                 simple.CoursePointStart = request.CoursePointStart!.Value;
                 simple.CoursePointEnd = request.CoursePointEnd!.Value;
-                simple.RequiredCourseLayoutId = request.RequiredCoursePoints?.CourseLayoutId;
-                simple.RequiredCoursePointIds = request.RequiredCoursePoints?.CoursePointIds?.ToArray() ?? [];
+                simple.RequiredCourseLayoutId = proposedRequest.RequiredCoursePoints?.CourseLayoutId;
+                simple.RequiredCoursePointIds = proposedRequest.RequiredCoursePoints?.CoursePointIds?.ToArray() ?? [];
             }
             else if (config is MultiStatisticsItemConfig multi)
             {

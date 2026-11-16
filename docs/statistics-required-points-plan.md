@@ -191,7 +191,9 @@ revalidation, Razor UI, shared contracts and storage are unchanged.
   point order to make invalid input succeed. Legacy empty requirements still permit
   endpoint-only configurations without choosing a layout.
 - Saved arrays are copied, not mutated. Structural comparisons use layout value and
-  point sequence; threshold-only and older-client updates do not erase requirements
+  point sequence; preserve resolution is local to each transaction attempt so a retry
+  reloads the current snapshot instead of overwriting it with a previous attempt.
+  Threshold-only and older-client updates do not erase requirements
   or trigger collection-reference false conflicts. Simple/dependent Multi result
   guards remain in the existing locked Statistics transaction. Invalid input returns
   400; valid structural changes with results return 409. As before, validation may
@@ -260,6 +262,7 @@ Tester acceptance scenarios: retain these API/transport regressions; exercise re
 PostgreSQL array-Contains dependency SQL; Facilities actual edit/delete refusal for
 required points; missing/cross-facility point references, reversed open endpoints,
 upstream HTTP/auth/malformed failures; Redis cache serialization and cross-process
-invalidation; end-to-end BFF authorization/antiforgery and unavailable discovery
+invalidation; PostgreSQL serialization/deadlock retry preservation with concurrent
+  requirement replacement; end-to-end BFF authorization/antiforgery and unavailable discovery
 mapping. Processor attempt and threshold-revalidation acceptance criteria above
 remain unimplemented by this phase.
