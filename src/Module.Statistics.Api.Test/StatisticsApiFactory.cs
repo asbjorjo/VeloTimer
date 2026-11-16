@@ -164,6 +164,8 @@ public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
     {
         public Task<Guid?> GetFacilityAsync(Guid pointId, CancellationToken cancellationToken) =>
             Task.FromResult<Guid?>(pointId == Guid.Empty ? null : Guid.Parse("00000000-0000-0000-0000-000000000001"));
+        public Task<bool> CanResolveDistanceAsync(Guid startPointId, Guid endPointId, CancellationToken cancellationToken) =>
+            Task.FromResult(true);
     }
 
     private sealed class TestStatisticsDbContext(DbContextOptions<StatisticsDbContext> options) : StatisticsDbContext(options)

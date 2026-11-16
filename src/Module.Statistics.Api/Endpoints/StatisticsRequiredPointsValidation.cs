@@ -45,4 +45,24 @@ internal static class StatisticsRequiredPointsValidation
         }
         return null;
     }
+
+    // Return every point in the validated forward itinerary. Optional observations can create
+    // sample edges across non-adjacent points, so they all participate in resolver preflight.
+    internal static IReadOnlyList<Guid> GetItineraryPoints(CourseLayoutDTO layout, Guid start, Guid end)
+    {
+        var segments = layout.Segments.OrderBy(segment => segment.Order).ToArray();
+        var path = segments.Select(segment => segment.Start.Id).Append(segments[^1].End.Id).ToArray();
+        var closed = path[0] == path[^1];
+        if (closed) path = path[..^1];
+        var startIndex = Array.IndexOf(path, start);
+        var endIndex = Array.IndexOf(path, end);
+        var count = closed
+            ? (endIndex - startIndex + path.Length) % path.Length
+            : endIndex - startIndex;
+        if (closed && count == 0) count = path.Length;
+        return Enumerable.Range(0, count + 1)
+            .Select(offset => path[(startIndex + offset) % path.Length])
+            .Distinct()
+            .ToArray();
+    }
 }

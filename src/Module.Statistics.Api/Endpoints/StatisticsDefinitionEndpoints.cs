@@ -164,6 +164,19 @@ internal static class StatisticsDefinitionEndpoints
                     if (layout is null) return "Select an existing layout for required coursepoints.";
                     if (StatisticsRequiredPointsValidation.ValidatePath(layout, startFacility.Value, request.CoursePointStart.Value,
                         request.CoursePointEnd.Value, requirements.CoursePointIds) is { } pathError) return pathError;
+                    // Optional observations may be any point along this itinerary, not only a
+                    // configured checkpoint. Facilities selects layouts by both endpoints and
+                    // rejects anything other than one; probing each point against itself detects
+                    // any competing layout. Since ValidatePath checked full-layout continuity,
+                    // every pair of itinerary points then resolves in this same unique layout.
+                    var itineraryPoints = StatisticsRequiredPointsValidation.GetItineraryPoints(layout,
+                        request.CoursePointStart.Value, request.CoursePointEnd.Value);
+                    foreach (var pointId in itineraryPoints)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (!await points.CanResolveDistanceAsync(pointId, pointId, cancellationToken))
+                            return "Facilities cannot resolve every possible sample point on the required path. Choose an unambiguous layout.";
+                    }
                     foreach (var pointId in requirements.CoursePointIds)
                         if (await points.GetFacilityAsync(pointId, cancellationToken) != startFacility)
                             return "All required coursepoints must exist in the endpoints' facility.";
