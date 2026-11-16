@@ -26,16 +26,10 @@ public class StatisticsService(
         activity?.SetTag("TransponderId", transponderId);
         IEnumerable<StatisticsEntry> entries = new List<StatisticsEntry>();
 
-        var statsItems = (await GetStatisticsItemConfigByEndCoursePoint(endPoint, cancellationToken)).ToList();
+        var (statsItems, dependentItems) = await LockCompletionDefinitionsAsync(endPoint, cancellationToken);
 
         if (statsItems.Any())
         {
-            var dependentItems = await scheduler.GetDependentMultiItemIdsByParentConfigAsync(
-                statsItems.Select(c => c.Id), cancellationToken);
-            // Take the complete scope in UUID order, exclusively when scheduling will write it.
-            // Do not upgrade individual shared locks after inserting (concurrent writers could deadlock).
-            await scheduler.LockItemsAsync(statsItems.Select(c => c.StatisticsItemId).Concat(dependentItems),
-                dependentItems.Count > 0 ? StatisticsItemLockMode.Exclusive : StatisticsItemLockMode.Shared, cancellationToken);
             var bounds = await ReadCurrentBoundsAsync(statsItems.Select(c => c.Id), cancellationToken);
             foreach (var statsItem in statsItems)
             {
@@ -86,6 +80,50 @@ public class StatisticsService(
         activity?.SetTag("EntriesCreated", entries.Count());
 
         return entries;
+    }
+
+    /// <summary>
+    /// Discovery is only a lock-scope hint. Reload the entire endpoint selection, including item
+    /// navigation/requirements, without cache or tracking after locking. A definition may have been
+    /// added, deleted, moved or retargeted while we waited; dependencies may have moved too.
+    /// Roll back only our lock attempt before retrying so we never extend/upgrade an existing scope
+    /// out of UUID order. The caller transaction uses READ COMMITTED and stays intact, including
+    /// its transponder lock; all entry writes occur only after this scope is verified.
+    /// </summary>
+    private async Task<(List<SimpleStatisticsItemConfig> Configs, IReadOnlyList<Guid> Dependents)>
+        LockCompletionDefinitionsAsync(Guid endPoint, CancellationToken cancellationToken)
+    {
+        async Task<List<SimpleStatisticsItemConfig>> ReadAsync() =>
+            await storage.Set<SimpleStatisticsItemConfig>().AsNoTracking()
+                .Where(c => c.CoursePointEnd == endPoint).Include(c => c.StatisticsItem)
+                .ToListAsync(cancellationToken);
+
+        var configs = await ReadAsync();
+        var dependents = await scheduler.GetDependentMultiItemIdsByParentConfigAsync(configs.Select(c => c.Id), cancellationToken);
+        var transaction = storage.Database.CurrentTransaction;
+        const string savepoint = "statistics_completion_scope";
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (transaction is not null) await transaction.CreateSavepointAsync(savepoint, cancellationToken);
+            var mode = dependents.Count > 0 ? StatisticsItemLockMode.Exclusive : StatisticsItemLockMode.Shared;
+            var locked = await scheduler.LockItemsAsync(configs.Select(c => c.StatisticsItemId).Concat(dependents), mode, cancellationToken);
+            var current = await ReadAsync();
+            var currentDependents = await scheduler.GetDependentMultiItemIdsByParentConfigAsync(current.Select(c => c.Id), cancellationToken);
+            var currentMode = currentDependents.Count > 0 ? StatisticsItemLockMode.Exclusive : StatisticsItemLockMode.Shared;
+            if (mode == currentMode && locked.ToHashSet().SetEquals(current.Select(c => c.StatisticsItemId).Concat(currentDependents)))
+            {
+                if (transaction is not null) await transaction.ReleaseSavepointAsync(savepoint, cancellationToken);
+                return (current, currentDependents);
+            }
+            if (transaction is not null)
+            {
+                await transaction.RollbackToSavepointAsync(savepoint, cancellationToken);
+                await transaction.ReleaseSavepointAsync(savepoint, cancellationToken);
+            }
+            configs = current;
+            dependents = currentDependents;
+        }
     }
 
     private static StatisticsEntry CreateSimpleEntry(SimpleStatisticsItemConfig config, Guid transponderId,
