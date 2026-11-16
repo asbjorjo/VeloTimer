@@ -98,6 +98,12 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("is_valid");
 
+                    b.Property<bool>("RequiredCoursePointsSatisfied")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("required_course_points_satisfied");
+
                     b.Property<double>("Speed")
                         .HasColumnType("double precision")
                         .HasColumnName("speed");
@@ -149,7 +155,7 @@ namespace VeloTime.Module.Statistics.Migrations
 
                     b.ToTable("statistics_entry", "statistics", t =>
                         {
-                            t.HasCheckConstraint("ck_statistics_entry_validity", "(is_valid AND invalid_reason IS NULL) OR (NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3))");
+                            t.HasCheckConstraint("ck_statistics_entry_validity", "(is_valid AND invalid_reason IS NULL) OR (NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3, 4))");
                         });
                 });
 
@@ -340,6 +346,17 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.Property<Guid>("CoursePointStart")
                         .HasColumnType("uuid")
                         .HasColumnName("course_point_start");
+
+                    b.Property<Guid?>("RequiredCourseLayoutId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("required_course_layout_id");
+
+                    b.PrimitiveCollection<Guid[]>("RequiredCoursePointIds")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid[]")
+                        .HasDefaultValue(new Guid[0])
+                        .HasColumnName("required_course_point_ids");
 
                     b.HasIndex("StatisticsItemId", "CoursePointStart", "CoursePointEnd")
                         .HasDatabaseName("ix_statistics_item_config_statistics_item_id_course_point_star");

@@ -782,8 +782,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         Assert.False(db.Database.HasPendingModelChanges());
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
         var applied = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
-        Assert.Equal(11, applied.Length);
-        Assert.Equal("20261104094426_statistics_coalesce_multi_rescan", applied[^1]);
+        Assert.Equal(12, applied.Length);
+        Assert.Equal("20261116120249_statistics_required_course_points", applied[^1]);
         Assert.False(await db.Database.SqlQueryRaw<bool>("""
             SELECT EXISTS (SELECT 1 FROM information_schema.tables
             WHERE table_schema = 'statistics' AND table_name = 'statistics_entry_contributor') AS "Value"
@@ -792,6 +792,21 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
             SELECT EXISTS (SELECT 1 FROM information_schema.columns
             WHERE table_schema = 'statistics' AND table_name = 'statistics_entry'
               AND column_name = 'has_complete_contributor_lineage') AS "Value"
+            """).SingleAsync());
+        Assert.Equal("_uuid", await db.Database.SqlQueryRaw<string>("""
+            SELECT udt_name AS "Value" FROM information_schema.columns
+            WHERE table_schema = 'statistics' AND table_name = 'statistics_item_config'
+              AND column_name = 'required_course_point_ids'
+            """).SingleAsync());
+        Assert.Equal("uuid", await db.Database.SqlQueryRaw<string>("""
+            SELECT udt_name AS "Value" FROM information_schema.columns
+            WHERE table_schema = 'statistics' AND table_name = 'statistics_item_config'
+              AND column_name = 'required_course_layout_id'
+            """).SingleAsync());
+        Assert.Equal("true", await db.Database.SqlQueryRaw<string>("""
+            SELECT column_default AS "Value" FROM information_schema.columns
+            WHERE table_schema = 'statistics' AND table_name = 'statistics_entry'
+              AND column_name = 'required_course_points_satisfied' AND is_nullable = 'NO'
             """).SingleAsync());
         var config = Simple();
         db.Add(config);

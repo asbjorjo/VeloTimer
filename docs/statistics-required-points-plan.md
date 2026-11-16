@@ -50,3 +50,124 @@ Dependencies: confirmed semantics precede contract; contract precedes storage/AP
 ## Out of scope unless confirmed otherwise
 
 Historical replay or checkpoint reclassification of existing entries, new rejected-result UI, changes to duration thresholds, manual override, and changes to unrelated timing samples or public result shapes.
+
+
+## Storage phase handoff (2026-11-16)
+
+Storage is additive and implements the approved contracts from `33725226`; API and
+processor behavior is deliberately unchanged in this phase.
+
+### Exact entity fields and caller obligations
+
+- `SimpleStatisticsItemConfig.RequiredCourseLayoutId : Guid?` maps to
+  `statistics.statistics_item_config.required_course_layout_id` (`uuid`, nullable).
+  It identifies the Facilities layout validated at the structural save, not an EF
+  navigation/foreign key or a live instruction to resolve/reorder points.
+- `SimpleStatisticsItemConfig.RequiredCoursePointIds : Guid[]` maps to
+  `required_course_point_ids` (`uuid[]`, PostgreSQL default `ARRAY[]::uuid[]`). The CLR
+  default is empty. EF requires a non-null collection for Simple; the physical TPH
+  column is nullable because Multi does not map these properties. Existing Simple
+  rows receive an empty array; Multi ignores these columns and inherits its parent.
+  SQLite test contexts use EF's built-in primitive-collection JSON representation;
+  only PostgreSQL receives the array SQL default. No converter or additional table
+  is necessary. Existing indexes are unchanged: processing loads requirements by
+  configuration, not by searching inside the array.
+- `StatisticsEntry.RequiredCoursePointsSatisfied : bool { get; init; } = true` maps
+  to `statistics.statistics_entry.required_course_points_satisfied` (`boolean NOT
+  NULL DEFAULT TRUE`). Set it explicitly at Simple entry creation when requirements
+  exist. Existing entries, new unconfigured entries and Multi entries default true.
+  Multi validity is still determined from contributors, not its own checkpoints.
+  The field records the original attempt outcome independently of `InvalidReason`;
+  false must survive duration precedence and threshold revalidation. EF rejects
+  tracked changes after insertion (`PropertySaveBehavior.Throw`). This is not a
+  database trigger: bulk/raw SQL writers must also leave the outcome untouched.
+
+API must copy a validated collection into a new array, compare IDs by sequence and
+layout ID by value, and never mutate a saved array in place. Requirements are an
+immutable configured snapshot, not a live layout view. Later Facilities layout
+changes do not alter stored order. At structural saves, revalidate preserved as
+well as replaced references against the proposed endpoints/facility/layout and
+block structural changes after Simple/dependent Multi results exist. If current
+layout references no longer validate, reject the save rather than silently reorder
+the snapshot. Null/omitted replacement preserves both fields on update; explicit
+empty replacement clears the array and layout ID. Multi requests cannot configure
+these fields. Reference validity, uniqueness, endpoint exclusion, order and
+structural-edit guards remain API responsibilities; no cross-service database
+access or foreign keys are introduced.
+
+Processor must enforce the stored sequence, persist the original satisfaction
+outcome before saving, and use the approved reason precedence (nonpositive,
+invalid contributor, checkpoint failure, duration bounds). Revalidation must project
+and consume the independent outcome without rewriting it; late arrivals do not
+repair classifications. Storage alone does not yet enforce this behavior.
+
+### Migration and deployment
+
+`20261116120249_statistics_required_course_points` lives in actual
+`src/Module.Statistics/Migrations` with its generated designer and updated snapshot.
+It adds only the three columns and expands `ck_statistics_entry_validity` from
+reasons 0–3 to 0–4; existing values/classifications are untouched. Both Up and Down
+retain the existing PostgreSQL `NOT VALID` convention: new/updated rows are checked,
+no historical entry-table validation scan is added. A future explicit validation
+may be scheduled separately. The extension configuration, history conventions and
+existing indexes are unchanged; EF history remains `ef.__ef_migrations_history`.
+No application row-history triggers/tables exist for these entities to extend.
+
+Apply using the Statistics migration worker before deploying readers/writers of
+these fields. PostgreSQL 11+ constant defaults avoid rewriting historical rows,
+but `ALTER TABLE` still requires access-exclusive locks; schedule for low traffic
+and configure operational lock/timeouts as appropriate. Migration permissions on
+the Statistics tables/history schema are required. Only an isolated disposable
+PostgreSQL 17 verification database was migrated during implementation.
+
+Down is fail-closed, not a lossy reason remap: within the migration transaction it
+locks both tables and refuses when any configured layout/nonempty snapshot,
+unsatisfied outcome (even hidden by a duration reason), or reason 4 exists. When
+only legacy-compatible data exists it removes the fields and restores reasons 0–3.
+Do not use transaction-suppressed execution. Stop feature writers before downgrade;
+if blocked, retain the additive schema and roll forward, or obtain explicit approval
+for a separately planned archival/data-remediation operation. Do not blindly clear
+requirements or convert checkpoint failures to an unrelated reason.
+
+Old code can read/write legacy data after Up because fields have defaults. However,
+old processors/revalidation do not honor checkpoint outcomes and old API clients
+cannot manage them yet. Do not enable required-point saves or reason-4 processing
+until all dependent API/processor/revalidation consumers are upgraded; drain old
+writers before activation. No historical replay/backfill is intended.
+
+### Storage checks and Tester scenarios
+
+- Release build of `src/Module.Statistics.Migration` (including domain): passed,
+  zero errors. Existing NU1902 WebUtilities advisories remain; checked-in EF tool
+  10.0.9 also warns that runtime 10.0.12 is newer.
+- `dotnet ef migrations has-pending-model-changes --project src/Module.Statistics
+  --configuration Release --no-build`: no pending changes. Forward and reverse
+  migration scripts generated successfully and inspected for defaults, unchanged
+  history schema, transactional guard and validity values.
+- Existing domain tests via `OIDC_AUDIENCE=https://build.invalid dotnet test
+  src/VeloTime.Module.Statistics.Test --configuration Release --logger trx
+  /p:CollectCoverage=true /p:CoverletOutputFormat=lcov`: 27 passed, none failed/skipped.
+- Temporary, uncommitted storage harness run with `dotnet run --project
+  /tmp/velotimer-required-points-storage-check --configuration Release`: 13 checks
+  passed against disposable PostgreSQL 17 plus SQLite. It migrated from the prior
+  schema with legacy Simple/Multi rows and all reasons 0–3; verified defaults and
+  preservation, ordered array/layout round-trip, explicit false versus SQL true
+  default, reason 4 acceptance/reason 5 rejection, tracked outcome immutability,
+  blocked/atomic downgrade for configuration, checkpoint reason and hidden
+  checkpoint failure, safe legacy-only downgrade/re-upgrade, and SQLite JSON
+  sequence round-trip. Tester should turn these into persistent focused regression
+  coverage; SQLite alone does not prove PostgreSQL migration behavior. Also test
+  null/omitted versus empty replacement and reference validation in the API phase,
+  and creation/revalidation reason precedence and immutable late-arrival behavior
+  in the processor phase.
+- Existing PostgreSQL validity/coalescing worker regressions via
+  `OIDC_AUDIENCE=https://build.invalid VELOTIME_TEST_STATISTICS_POSTGRES=<isolated
+  PostgreSQL connection> dotnet test src/VeloTime.Workers.Test --configuration Release
+  --filter 'FullyQualifiedName~StatisticsValidityPostgreSqlTests|FullyQualifiedName~StatisticsValidityCoalescingPostgreSqlTests'
+  --logger trx /p:CollectCoverage=true /p:CoverletOutputFormat=lcov`: 22 passed,
+  none failed/skipped. Initial execution needed `dotnet restore src/Module.Timing.Api`
+  for missing transitive assets; then identified the stale 11-migration/latest-ID
+  assertion. Only that directly related schema regression was updated to 12/the new
+  migration and extended to check array/layout SQL types and the non-null true
+  outcome default. Unrelated tests and API/processor production code were untouched.
+  Build-regenerated OpenAPI was restored to the worktree's initially clean version.

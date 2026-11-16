@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.EntityFrameworkCore.Metadata;
 using VeloTime.Module.Common;
 using VeloTime.Module.Statistics.Model;
 
@@ -48,6 +49,11 @@ public class StatisticsDbContext : BaseDbContext
                 .IsRequired()
                 .OnDelete(DeleteBehavior.ClientNoAction);
             e.HasIndex(s => new { s.StatisticsItemId, s.CoursePointStart, s.CoursePointEnd });
+            e.Property(s => s.RequiredCoursePointIds).IsRequired();
+            if (Database.IsNpgsql())
+            {
+                e.Property(s => s.RequiredCoursePointIds).HasDefaultValue(Array.Empty<Guid>());
+            }
 
         });
         modelBuilder.Entity<MultiStatisticsItemConfig>(e =>
@@ -61,11 +67,13 @@ public class StatisticsDbContext : BaseDbContext
         modelBuilder.Entity<StatisticsEntry>(e =>
         {
             e.Property(s => s.IsValid).HasDefaultValue(true);
+            e.Property(s => s.RequiredCoursePointsSatisfied).HasDefaultValue(true)
+                .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Throw);
             if (Database.IsNpgsql())
             {
                 e.ToTable(t => t.HasCheckConstraint("ck_statistics_entry_validity",
                     "(is_valid AND invalid_reason IS NULL) OR " +
-                    "(NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3))"));
+                    "(NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3, 4))"));
             }
             e.HasIndex(s => new { s.StatisticsItemId, s.Id })
                 .IsCreatedConcurrently();
