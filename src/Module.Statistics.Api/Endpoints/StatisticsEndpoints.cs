@@ -13,6 +13,7 @@ internal static class StatisticsEndpoints
         statistics.MapStatsProfileEndpoints();
         statistics.MapOwnerProfileEndpoints();
         statistics.MapStatisticsDefinitionEndpoints();
+        statistics.MapAdminStatisticsEntryEndpoints();
         statistics.MapStatisticsReferenceEndpoints();
     }
 }
