@@ -69,6 +69,13 @@ public sealed partial class WebUiBffTests
     [InlineData("direction=previous")]
     [InlineData("pageSize=2&pageSize=3")]
     [InlineData("offset=0")]
+    [InlineData("minSpeed=NaN")]
+    [InlineData("maxSpeed=-1")]
+    [InlineData("minDuration=00:00:02&maxDuration=-00:00:01")]
+    [InlineData("minDuration=bad")]
+    [InlineData("sort=speed&sort=duration")]
+    [InlineData("maxSpeed=1&maxSpeed=2")]
+    [InlineData("order=ASC")]
     public async Task ManualInvalidationBffRejectsInvalidQueriesBeforeService(string query)
     {
         var administration = PlatformServiceTests.TestProxy.Create<IStatisticsAdministrationService>((_, _) => throw new InvalidOperationException("must not call"));
@@ -133,7 +140,9 @@ public sealed class StatisticsManualInvalidationTransportTests
     {
         var expected = Entry();
         var request = new GetAdminStatisticsEntriesRequest(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), false,
-            new(expected.TimeEnd, expected.Id), AdminStatisticsEntriesPageDirection.Next, 17);
+            new(default, expected.Id, AdminStatisticsEntriesSort.Speed, AdminStatisticsEntriesSortOrder.Ascending, Speed: "NaN"),
+            AdminStatisticsEntriesPageDirection.Next, 17, TimeSpan.FromTicks(-19), TimeSpan.FromSeconds(2), 0.125, 25.75,
+            AdminStatisticsEntriesSort.Speed, AdminStatisticsEntriesSortOrder.Ascending);
         var generated = new Api.AdminStatisticsEntryDTO
         {
             Id = expected.Id, TimeStart = expected.TimeStart, TimeEnd = expected.TimeEnd,
@@ -163,8 +172,14 @@ public sealed class StatisticsManualInvalidationTransportTests
                 Assert.Equal(StatisticsEntriesQuery.EncodeCursor(request.Cursor!), args[5]);
                 Assert.Equal("next", args[6]);
                 Assert.Equal(17, args[7]);
+                Assert.Equal("-00:00:00.0000019", args[8]);
+                Assert.Equal("00:00:02", args[9]);
+                Assert.Equal("0.125", args[10]);
+                Assert.Equal("25.75", args[11]);
+                Assert.Equal("speed", args[12]);
+                Assert.Equal("asc", args[13]);
                 return new Api.AdminStatisticsEntriesPageDTO { Items = [generated],
-                    Previous = new() { Id = expected.Id, TimeEnd = expected.TimeEnd }, Next = null };
+                    Previous = new() { Id = expected.Id, Sort = 2, Order = 1, Speed = "NaN" }, Next = null };
             }
             Assert.Equal("SetStatisticsEntryManualInvalidationAsync", method.Name);
             Assert.Equal(expected.Id, args[0]);
