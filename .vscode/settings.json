@@ -13,5 +13,6 @@
         "git fetch": true,
         "git worktree": true
     },
-    "dotnet.defaultSolution": "VeloTimer.sln"
+    "dotnet.defaultSolution": "VeloTimer.sln",
+    "dotnet.unitTests.runSettingsPath": ".vscode/tests.runsettings"
 }

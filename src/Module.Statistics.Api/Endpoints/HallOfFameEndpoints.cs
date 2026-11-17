@@ -58,13 +58,18 @@ internal static class HallOfFameEndpoints
             return TypedResults.Ok(new HallOfFameDTO(true, [], laps));
         }
 
-        var winners = entries.GroupBy(entry => new { entry.StatsProfileUserId, entry.StatsProfile!.ProfileName, entry.StatisticsItem.Distance, entry.FacilityId })
-            .OrderBy(group => group.Min(entry => entry.Duration));
-
-        var times = await winners
+        // A correlated anti-join keeps the winning entry's facility/speed together
+        // and applies the top-ten limit in SQL, before materializing any results.
+        var winners = entries.Where(entry => !entries.Any(other =>
+            other.StatsProfileUserId == entry.StatsProfileUserId &&
+            (other.Duration < entry.Duration ||
+             other.Duration == entry.Duration && other.TimeEnd < entry.TimeEnd ||
+             other.Duration == entry.Duration && other.TimeEnd == entry.TimeEnd && other.Id.CompareTo(entry.Id) < 0)));
+        var times = await winners.OrderBy(entry => entry.Duration)
+            .ThenBy(entry => entry.TimeEnd).ThenBy(entry => entry.Id)
             .Take(HallOfFameQuery.Limit)
-            .Select(entry => new HallOfFameTimeDTO(entry.Key.ProfileName,
-                entry.Min(entry => entry.Duration), entry.Key.Distance / entry.Min(entry => entry.Duration).TotalSeconds, entry.Key.FacilityId))
+            .Select(entry => new HallOfFameTimeDTO(entry.StatsProfile!.ProfileName,
+                entry.Duration, entry.Speed, entry.FacilityId))
             .ToListAsync(cancellationToken);
         return TypedResults.Ok(new HallOfFameDTO(true, times, []));
     }
