@@ -34,7 +34,8 @@ internal static class AdminStatisticsEntryEndpoints
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     // Cursor uses the invariant UTC round-trip timestamp|UUID encoding used by public Statistics paging.
@@ -176,7 +177,7 @@ internal static class AdminStatisticsEntryEndpoints
     private static DateTimeOffset Utc(DateTime value) =>
         new(DateTime.SpecifyKind(value, DateTimeKind.Utc));
 
-    private static async Task<Results<Ok<AdminStatisticsEntryDTO>, NotFound, ValidationProblem, ForbidHttpResult>> SetManualInvalidation(
+    private static async Task<Results<Ok<AdminStatisticsEntryDTO>, NotFound, ValidationProblem, ForbidHttpResult, ProblemHttpResult>> SetManualInvalidation(
         Guid id, StatisticsEntryManualInvalidationRequest request, ClaimsPrincipal user, HttpContext http,
         StatisticsDbContext storage, StatisticsValidityScheduler scheduler, CancellationToken cancellationToken)
     {
@@ -191,7 +192,7 @@ internal static class AdminStatisticsEntryEndpoints
         if (!Guid.TryParse(user.FindFirstValue("sub") ?? user.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId) || actorId == Guid.Empty)
             return TypedResults.Forbid();
 
-        return await StatisticsDefinitionTransaction.RunAsync<Results<Ok<AdminStatisticsEntryDTO>, NotFound, ValidationProblem, ForbidHttpResult>>(
+        return await StatisticsDefinitionTransaction.RunAsync<Results<Ok<AdminStatisticsEntryDTO>, NotFound, ValidationProblem, ForbidHttpResult, ProblemHttpResult>>(
             storage, async () =>
             {
                 var target = await storage.Set<StatisticsEntry>().AsNoTracking()
@@ -219,6 +220,12 @@ internal static class AdminStatisticsEntryEndpoints
                 if (entry is null) return TypedResults.NotFound();
                 if (entry.StatisticsItemId != target.StatisticsItemId || entry.StatisticsItemConfigId != target.StatisticsItemConfigId)
                     throw new InvalidOperationException($"Statistics entry {id} changed identity while acquiring its item lock.");
+
+                if (!request.IsManuallyInvalidated &&
+                    entry.InvalidReason != StatisticsEntryInvalidReason.ManuallyInvalidated)
+                    return TypedResults.Problem(
+                        detail: "Only a manually invalidated entry can be restored.",
+                        statusCode: StatusCodes.Status409Conflict);
 
                 var wasValid = entry.IsValid;
                 if (request.IsManuallyInvalidated)
