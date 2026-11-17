@@ -24,4 +24,7 @@ public class StatisticsEntry
     public bool RequiredCoursePointsSatisfied { get; init; } = true;
     public bool IsValid { get; set; } = true;
     public StatisticsEntryInvalidReason? InvalidReason { get; set; }
+    public Guid? ManualInvalidationChangedByUserId { get; set; }
+    public DateTimeOffset? ManualInvalidationChangedAtUtc { get; set; }
+    public string? ManualInvalidationNote { get; set; }
 }

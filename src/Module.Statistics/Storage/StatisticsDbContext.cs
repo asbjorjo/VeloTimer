@@ -86,11 +86,15 @@ public class StatisticsDbContext : BaseDbContext
             e.Property(s => s.IsValid).HasDefaultValue(true);
             e.Property(s => s.RequiredCoursePointsSatisfied).HasDefaultValue(true)
                 .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Throw);
+            e.Property(s => s.ManualInvalidationNote).HasMaxLength(500);
             if (Database.IsNpgsql())
             {
                 e.ToTable(t => t.HasCheckConstraint("ck_statistics_entry_validity",
                     "(is_valid AND invalid_reason IS NULL) OR " +
-                    "(NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3, 4))"));
+                    "(NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3, 4, 5)) AND " +
+                    "(invalid_reason IS DISTINCT FROM 5 OR " +
+                    "(manual_invalidation_changed_by_user_id IS NOT NULL AND " +
+                    "manual_invalidation_changed_at_utc IS NOT NULL))"));
             }
             e.HasIndex(s => new { s.StatisticsItemId, s.Id })
                 .IsCreatedConcurrently();

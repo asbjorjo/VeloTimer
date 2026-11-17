@@ -17,9 +17,15 @@ scheduling protocol. Multi validity has no persisted contributor links or proof 
   remain unchanged. Npgsql intervals/timestamps persist at microsecond precision;
   UI/API must preserve canonical persisted precision, including untouched saves.
 * `StatisticsEntry.IsValid` has CLR/database default true; `InvalidReason` is nullable
-  integer using the agreed enum values 0..3. The check requires valid/no reason or
-  invalid/a known reason. It does **not** require positive measurement duration:
-  zero/negative measurements must remain stored and be classified asynchronously.
+  integer using the shared enum values 0..5. Values 0..4 retain their existing meaning,
+  including `RequiredCoursePointsNotSatisfied=4`; `ManuallyInvalidated=5` is active only
+  when the entry is invalid with that reason. The check requires valid/no reason or
+  invalid/a known reason, and requires changed-by user ID plus UTC change time for reason 5.
+  Nullable audit fields store the latest manual state-change actor, timestamp, and optional
+  note (up to 500 characters); audit fields intentionally remain after restoration, so no
+  separate active flag is persisted. The actor UUID is an opaque identifier, not a cross-service
+  foreign key. It does **not** require positive measurement duration: zero/negative
+  measurements must remain stored and be classified asynchronously.
   Evaluate NonPositiveDuration, InvalidContributor, BelowMinimumDuration, then
   AboveMaximumDuration. Reclassification changes validity only, not creation events,
   measurements or window endpoints.
@@ -68,6 +74,15 @@ scheduling protocol. Multi validity has no persisted contributor links or proof 
   Apply before deploying the matching scheduler/worker; stop old schedulers/workers
   so they cannot keep restarting active Multi sweeps or ignore requested follow-ups.
   Down only drops the flag and would lose queued follow-ups; it was not executed.
+
+* `20261117081217_statistics_manual_invalidation` additively adds nullable audit
+  columns to `statistics.statistics_entry` and widens the validity CHECK to accept reason
+  5 while preserving reasons 0..4 and the validity/null invariant. The CHECK remains
+  **NOT VALID**, enforcing new writes without scanning historical entries; existing rows
+  receive null audit fields and are not backfilled. The EF history-schema migration is empty
+  and there is no row-history table to mirror. Apply this migration before deploying a writer
+  that persists manual state; older readers may not understand reason 5, so coordinate the
+  API/consumer rollout. Down fails closed if any manual reason or retained audit data exists.
 
 Deployment requires PostgreSQL 11+ fast constant defaults, table-owner/index/DDL
 privileges, the existing `public.pg_trgm` prerequisite, and allowance for short
