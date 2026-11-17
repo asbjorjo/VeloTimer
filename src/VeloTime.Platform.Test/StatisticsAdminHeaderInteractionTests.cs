@@ -247,6 +247,7 @@ public sealed partial class StatisticsAdminHeaderInteractionTests
         public readonly List<Guid> ContributionRequests = [];
         public readonly List<CancellationToken> ContributionTokens = [];
         public readonly List<Guid[]> NameRequests = [];
+        public readonly List<CancellationToken> NameTokens = [];
         public Func<Guid, CancellationToken, Task<StatisticsEntryContributionsDTO>>? ContributionsRespond;
         public Func<IReadOnlyList<Guid>, CancellationToken, Task<IReadOnlyDictionary<Guid, string>>>? NamesRespond;
         public readonly Guid StartPointId = Guid.NewGuid();
@@ -283,6 +284,7 @@ public sealed partial class StatisticsAdminHeaderInteractionTests
                         var ids = (IReadOnlyList<Guid>)args[0]!;
                         var namesToken = (CancellationToken)args[1]!;
                         NameRequests.Add(ids.ToArray());
+                        NameTokens.Add(namesToken);
                         return NamesRespond is null ? Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>
                             { [StartPointId] = "Sample start", [EndPointId] = "Sample finish" }) : NamesRespond(ids, namesToken);
                     case nameof(IStatisticsAdministrationService.SetManualInvalidationAsync): Writes++; return entry;
@@ -381,6 +383,15 @@ public sealed partial class StatisticsAdminHeaderInteractionTests
             }
             Assert.Fail($"Expected {count} contribution requests, got {ContributionRequests.Count}.");
         }
+        public async Task WaitForNameRequests(int count)
+        {
+            for (var i = 0; i < 100; i++)
+            {
+                if (await Renderer.Dispatcher.InvokeAsync(() => NameRequests.Count >= count)) return;
+                await Task.Delay(20);
+            }
+            Assert.Fail($"Expected {count} course-point name requests, got {NameRequests.Count}.");
+        }
         public async Task WaitForQueries(int count)
         {
             for (var i = 0; i < 100; i++)
@@ -437,6 +448,40 @@ public sealed partial class StatisticsAdminHeaderInteractionTests
         }
         public IEnumerable<T> Components<T>() => Frames().Where(frame => frame.FrameType == RenderTreeFrameType.Component).Select(frame => frame.Component).OfType<T>();
         private int Id(IComponent component) => Frames().Single(frame => frame.FrameType == RenderTreeFrameType.Component && ReferenceEquals(frame.Component, component)).ComponentId;
+        public int ComponentId(IComponent component) => Id(component);
+        public IEnumerable<RenderTreeFrame> Frames(IComponent component) => Frames(Id(component));
+        public bool ElementContainsComponent(IComponent rootComponent, string elementName, int childComponentId)
+        {
+            var rootId = Id(rootComponent);
+            var owners = Frames(rootId).Where(frame => frame.FrameType == RenderTreeFrameType.Component)
+                .Select(frame => frame.ComponentId).Append(rootId).Distinct();
+            foreach (var ownerId in owners)
+            {
+                var frames = GetCurrentRenderTreeFrames(ownerId);
+                for (var i = 0; i < frames.Count; i++)
+                {
+                    var element = frames.Array[i];
+                    if (element.FrameType != RenderTreeFrameType.Element || element.ElementName != elementName) continue;
+                    var end = Math.Min(frames.Count, i + element.ElementSubtreeLength);
+                    for (var j = i + 1; j < end; j++)
+                        if (frames.Array[j].FrameType == RenderTreeFrameType.Component &&
+                            ComponentContains(frames.Array[j].ComponentId, childComponentId, []))
+                            return true;
+                }
+            }
+            return false;
+        }
+        private bool ComponentContains(int componentId, int targetComponentId, HashSet<int> visited)
+        {
+            if (componentId == targetComponentId) return true;
+            if (!visited.Add(componentId)) return false;
+            var frames = GetCurrentRenderTreeFrames(componentId);
+            for (var i = 0; i < frames.Count; i++)
+                if (frames.Array[i].FrameType == RenderTreeFrameType.Component &&
+                    ComponentContains(frames.Array[i].ComponentId, targetComponentId, visited))
+                    return true;
+            return false;
+        }
         public string Text(IComponent component) => string.Concat(Frames(Id(component)).Where(frame => frame.FrameType == RenderTreeFrameType.Text).Select(frame => frame.TextContent));
         public bool IsNativeButton(IComponent component) => Frames(Id(component)).Any(frame => frame.FrameType == RenderTreeFrameType.Element && frame.ElementName == "button");
         public IReadOnlyDictionary<string, object?> ElementAttributes(string elementName, string attributeName, object value)

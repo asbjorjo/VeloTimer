@@ -116,6 +116,95 @@ public sealed class StatisticsEntryContributionsTransportTests
         Assert.False(result.PassingsTruncated);
     }
 
+    [Theory]
+    [InlineData("timeout")]
+    [InlineData("broken-circuit")]
+    [InlineData("non-caller-cancellation")]
+    public async Task TimingResilienceFailuresKeepSamplesMarkPassingsUnavailableAndLog(string failureKind)
+    {
+        var entryId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
+        Exception failure = failureKind switch
+        {
+            "timeout" => new Polly.Timeout.TimeoutRejectedException("Timing timed out"),
+            "broken-circuit" => new Polly.CircuitBreaker.BrokenCircuitException("Timing circuit is open"),
+            _ => new OperationCanceledException("Timing canceled outside the caller")
+        };
+        var statistics = StatsClient(_ => Samples(entryId, Guid.NewGuid(), from, from.AddHours(1),
+            Sample(Guid.NewGuid(), from, from.AddMinutes(1), Guid.NewGuid(), Guid.NewGuid())));
+        var timing = PlatformServiceTests.TestProxy.Create<ITimingClient>((_, args) =>
+        {
+            Assert.False(((CancellationToken)args[^1]!).IsCancellationRequested);
+            throw failure;
+        });
+        using var host = new WebUiCacheTestHost(statistics, timing);
+        var logger = new RecordingLogger<StatisticsAdministrationService>();
+        var service = new StatisticsAdministrationService(statistics, host.Cache, timing, logger);
+
+        var result = await service.GetEntryContributionsAsync(entryId);
+
+        Assert.Equal(StatisticsEntryPassingsStatus.Unavailable, result.PassingsStatus);
+        Assert.Null(result.Passings);
+        Assert.False(result.PassingsTruncated);
+        Assert.Single(result.Samples);
+        var log = Assert.Single(logger.Entries);
+        Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Error, log.Level);
+        Assert.Same(failure, log.Exception);
+    }
+
+    [Fact]
+    public async Task CallerCancellationDuringTimingRequestPropagatesWithoutBeingMappedOrLogged()
+    {
+        var entryId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
+        var statistics = StatsClient(_ => Samples(entryId, Guid.NewGuid(), from, from.AddHours(1)));
+        using var cancellation = new CancellationTokenSource();
+        var timing = PlatformServiceTests.TestProxy.Create<ITimingClient>((_, args) =>
+        {
+            var token = (CancellationToken)args[^1]!;
+            Assert.Equal(cancellation.Token, token);
+            cancellation.Cancel();
+            throw new OperationCanceledException(token);
+        });
+        using var host = new WebUiCacheTestHost(statistics, timing);
+        var logger = new RecordingLogger<StatisticsAdministrationService>();
+        var service = new StatisticsAdministrationService(statistics, host.Cache, timing, logger);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.GetEntryContributionsAsync(entryId, cancellation.Token));
+
+        Assert.Empty(logger.Entries);
+    }
+
+    [Theory]
+    [InlineData(401)]
+    [InlineData(403)]
+    [InlineData(404)]
+    public async Task TimingClientUnauthorizedForbiddenAndNotFoundStatusesKeepTheirExplicitSemantics(int status)
+    {
+        var entryId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
+        var statistics = StatsClient(_ => Samples(entryId, Guid.NewGuid(), from, from.AddHours(1),
+            Sample(Guid.NewGuid(), from, from.AddMinutes(1), Guid.NewGuid(), Guid.NewGuid())));
+        var timing = PlatformServiceTests.TestProxy.Create<ITimingClient>((_, _) =>
+            throw new TimingApi.ApiException("Timing response", status, "", new Dictionary<string, IEnumerable<string>>(), null!));
+        using var host = new WebUiCacheTestHost(statistics, timing);
+        var service = new StatisticsAdministrationService(statistics, host.Cache, timing,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<StatisticsAdministrationService>.Instance);
+
+        if (status == 403)
+        {
+            var result = await service.GetEntryContributionsAsync(entryId);
+            Assert.Equal(StatisticsEntryPassingsStatus.Forbidden, result.PassingsStatus);
+            Assert.Null(result.Passings);
+            Assert.Single(result.Samples);
+        }
+        else
+        {
+            var error = await Assert.ThrowsAsync<HttpRequestException>(() => service.GetEntryContributionsAsync(entryId));
+            Assert.Equal((HttpStatusCode)status, error.StatusCode);
+        }
+    }
+
     [Fact]
     public async Task OverlongStatisticsWindowIsExplicitAndShortCircuitsTiming()
     {
@@ -248,6 +337,16 @@ public sealed class StatisticsEntryContributionsTransportTests
         TransponderId = transponder, From = from, To = to,
         Passings = passing is null ? [] : [passing], Truncated = truncated
     };
+
+    private sealed class RecordingLogger<T> : Microsoft.Extensions.Logging.ILogger<T>
+    {
+        public List<(Microsoft.Extensions.Logging.LogLevel Level, Exception? Exception)> Entries { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+        public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId,
+            TState state, Exception? exception, Func<TState, Exception?, string> formatter) where TState : notnull =>
+            Entries.Add((logLevel, exception));
+    }
 }
 
 public sealed partial class WebUiBffTests

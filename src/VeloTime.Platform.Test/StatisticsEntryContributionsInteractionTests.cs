@@ -3,6 +3,7 @@ using MudBlazor;
 using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.WebUI.Mud.Client.Services;
+using VeloTime.WebUI.Mud.Client.ViewModel;
 
 namespace VeloTime.Platform.Test;
 
@@ -110,6 +111,64 @@ public sealed partial class StatisticsAdminHeaderInteractionTests
         Assert.Contains("Retried finish", test.AllText());
         Assert.Equal(2, test.ContributionRequests.Count);
         Assert.Equal(3, test.NameRequests.Count);
+    }
+
+    [Fact]
+    public async Task ExpandedDetailsAreInTheTableBodyAndStayVisibleWhileNamesLoadAndIgnoreStaleNames()
+    {
+        await using var test = new Harness();
+        var pendingNames = new TaskCompletionSource<IReadOnlyDictionary<Guid, string>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var nameAttempt = 0;
+        test.NamesRespond = (_, _) => Interlocked.Increment(ref nameAttempt) == 1
+            ? pendingNames.Task
+            : Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>
+                { [test.StartPointId] = "Fresh start", [test.EndPointId] = "Fresh finish" });
+        await test.Start();
+
+        var opening = test.ClickToggle();
+        await test.WaitForContributionRequests(1);
+        await test.WaitForNameRequests(1);
+        await test.Settle();
+
+        var panelId = $"statistics-contributions-{test.Entry.Id:N}";
+        var row = test.Renderer.Components<MudTr>().Single(component =>
+            test.Renderer.Frames(component).Any(frame => frame.FrameType == RenderTreeFrameType.Element && frame.ElementName == "section") &&
+            test.Renderer.Frames(component).Any(frame => frame.FrameType == RenderTreeFrameType.Attribute &&
+                frame.AttributeName == "id" && Equals(frame.AttributeValue, panelId)));
+        var rowId = test.Renderer.ComponentId(row);
+        var cell = test.Renderer.Components<MudTd>().Single(component =>
+            test.Renderer.Frames(component).Any(frame => frame.FrameType == RenderTreeFrameType.Element && frame.ElementName == "section") &&
+            test.Renderer.Frames(component).Any(frame => frame.FrameType == RenderTreeFrameType.Attribute &&
+                frame.AttributeName == "id" && Equals(frame.AttributeValue, panelId)));
+        Assert.Contains(test.Renderer.Frames(row), frame => frame.FrameType == RenderTreeFrameType.Element && frame.ElementName == "tr");
+        Assert.True(test.Renderer.ElementContainsComponent(row, "tr", test.Renderer.ComponentId(cell)));
+        Assert.Contains(test.Renderer.Frames(cell), frame => frame.FrameType == RenderTreeFrameType.Element && frame.ElementName == "td");
+        Assert.Contains(test.Renderer.Frames(cell), frame => frame.FrameType == RenderTreeFrameType.Element && frame.ElementName == "section");
+        var table = test.Renderer.Components<MudTable<AdminStatisticsEntryDTO>>().Single();
+        Assert.True(test.Renderer.ElementContainsComponent(table, "tbody", rowId));
+
+        var pendingText = test.AllText();
+        Assert.Contains("Statistics samples", pendingText);
+        Assert.Contains("Course-point name unavailable", pendingText);
+        Assert.Contains("Finish point", pendingText);
+        Assert.Contains("Finish stand", pendingText);
+        Assert.Contains("Loading course-point names", pendingText);
+        Assert.DoesNotContain("Loading entry contributions", pendingText);
+        Assert.False(test.NameTokens[0].IsCancellationRequested);
+
+        await test.ClickText("Refresh");
+        Assert.True(test.NameTokens[0].IsCancellationRequested);
+        pendingNames.SetResult(new Dictionary<Guid, string>
+            { [test.StartPointId] = "Stale start", [test.EndPointId] = "Stale finish" });
+        await opening;
+        Assert.DoesNotContain("Stale start", test.AllText());
+        Assert.DoesNotContain("Stale finish", test.AllText());
+
+        await test.ClickToggle();
+        Assert.Contains("Fresh start", test.AllText());
+        Assert.Contains("Fresh finish", test.AllText());
+        Assert.Equal(2, test.ContributionRequests.Count);
+        Assert.Equal(2, test.NameRequests.Count);
     }
 
     [Fact]
