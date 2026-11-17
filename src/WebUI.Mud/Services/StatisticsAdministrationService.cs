@@ -1,4 +1,5 @@
 using System.Net;
+using System.Globalization;
 using System.Text.Json;
 using VeloTime.Module.Statistics.Client;
 using VeloTime.Module.Common;
@@ -10,6 +11,45 @@ namespace VeloTime.WebUI.Mud.Services;
 public sealed class StatisticsAdministrationService(IStatisticsClient client, WebUiCache cache) : IStatisticsAdministrationService
 {
     private const string DefinitionsTag = "velotime:webui:statistics-definitions";
+
+    public Task<Contracts.AdminStatisticsEntriesPageDTO> ListEntriesAsync(Contracts.GetAdminStatisticsEntriesRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        var page = await client.ListAdminStatisticsEntriesAsync(request.FacilityId, request.StatisticsItemId,
+            request.StatisticsItemConfigId, request.TransponderId, request.IsValid,
+            request.Cursor is { } cursor ? StatisticsEntriesQuery.EncodeCursor(cursor) : null,
+            request.Direction?.ToString().ToLowerInvariant(), request.PageSize, cancellationToken);
+        if (page?.Items is null) throw new InvalidDataException("The statistics entry page is missing.");
+        return new Contracts.AdminStatisticsEntriesPageDTO(page.Items.Select(MapEntry).ToArray(), MapCursor(page.Previous), MapCursor(page.Next));
+    });
+
+    public Task<Contracts.AdminStatisticsEntryDTO> SetManualInvalidationAsync(Guid id, Contracts.StatisticsEntryManualInvalidationRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        var entry = await client.SetStatisticsEntryManualInvalidationAsync(id, new StatisticsEntryManualInvalidationRequest
+        {
+            IsManuallyInvalidated = request.IsManuallyInvalidated, Note = request.Note
+        }, cancellationToken);
+        if (entry?.Id != id) throw new InvalidDataException("The saved statistics entry has an unexpected ID.");
+        return MapEntry(entry);
+    });
+
+    private static Contracts.AdminStatisticsEntryCursorDTO? MapCursor(AdminStatisticsEntryCursorDTO? cursor) =>
+        cursor is null ? null : new(cursor.TimeEnd, cursor.Id);
+
+    private static Contracts.AdminStatisticsEntryDTO MapEntry(AdminStatisticsEntryDTO entry)
+    {
+        // Recorded durations can be zero or negative: these are important administrative results.
+        if (!TimeSpan.TryParseExact(entry.Duration, "c", CultureInfo.InvariantCulture, out var duration))
+            throw new InvalidDataException("The recorded statistics duration is invalid.");
+        return new(entry.Id, entry.TimeStart, entry.TimeEnd, entry.StatisticsItemId, entry.StatisticsItemName,
+            entry.StatisticsItemConfigId, (Contracts.StatisticsConfigurationType)entry.StatisticsItemConfigType,
+            entry.FacilityId, entry.TransponderId, entry.StatsProfileUserId, entry.ProfileName, duration,
+            entry.SpeedMetresPerSecond is { } speed && double.IsFinite(speed) ? speed : null,
+            entry.IsValid, entry.InvalidReason is { } reason ? (Contracts.StatisticsEntryInvalidReason)reason : null,
+            entry.IsManuallyInvalidated, entry.ManualInvalidationChangedByUserId, entry.ManualInvalidationChangedAtUtc,
+            entry.ManualInvalidationNote);
+    }
 
     public Task<IReadOnlyList<Contracts.StatisticsItemDTO>> GetItemsAsync(CancellationToken cancellationToken = default) =>
         GetItemsCoreAsync(cancellationToken);

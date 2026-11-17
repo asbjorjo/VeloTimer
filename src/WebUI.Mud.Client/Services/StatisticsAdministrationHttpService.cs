@@ -7,6 +7,18 @@ public sealed class StatisticsAdministrationHttpService(HttpClient client) : ISt
 {
     private const string Root = "api/admin/statistics";
 
+    public async Task<AdminStatisticsEntriesPageDTO> ListEntriesAsync(GetAdminStatisticsEntriesRequest request, CancellationToken cancellationToken = default) =>
+        await client.GetFromJsonAsync<AdminStatisticsEntriesPageDTO>($"{Root}/entries?{StatisticsEntriesQuery.Encode(request)}", cancellationToken)
+        ?? throw new InvalidDataException("The statistics entry page is missing.");
+
+    public async Task<AdminStatisticsEntryDTO> SetManualInvalidationAsync(Guid id, StatisticsEntryManualInvalidationRequest request, CancellationToken cancellationToken = default)
+    {
+        using var response = await client.PutAsJsonAsync($"{Root}/entries/{id}/manual-invalidation", request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<AdminStatisticsEntryDTO>(cancellationToken)
+            ?? throw new InvalidDataException("The statistics entry is missing.");
+    }
+
     public async Task<IReadOnlyList<StatisticsItemDTO>> GetItemsAsync(CancellationToken cancellationToken = default) =>
         await client.GetFromJsonAsync<List<StatisticsItemDTO>>($"{Root}/items", cancellationToken) ?? throw new InvalidDataException("The statistics definition list is missing.");
 

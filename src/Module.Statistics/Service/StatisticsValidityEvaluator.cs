@@ -54,8 +54,12 @@ public static class StatisticsValidityEvaluator
     }
 
     /// <summary>Applies a classification; returns true when stored validity changes.</summary>
-    public static bool Apply(StatisticsEntry entry, StatisticsEntryInvalidReason? reason)
+    /// <param name="allowManualInvalidationOverride">True only for an explicit administrator restore.</param>
+    public static bool Apply(StatisticsEntry entry, StatisticsEntryInvalidReason? reason,
+        bool allowManualInvalidationOverride = false)
     {
+        if (entry.InvalidReason == StatisticsEntryInvalidReason.ManuallyInvalidated && !allowManualInvalidationOverride)
+            return false;
         var valid = reason is null;
         if (entry.IsValid == valid && entry.InvalidReason == reason) return false;
         entry.IsValid = valid;

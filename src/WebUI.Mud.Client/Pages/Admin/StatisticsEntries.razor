@@ -1,0 +1,215 @@
+@page "/admin/statistics/entries"
+@inherits PresentationComponentBase
+@attribute [Authorize(Policy = AdministrationPolicies.Statistics)]
+@using System.Net
+@using VeloTime.Module.Statistics.Interface.Data
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@inject IStatisticsAdministrationService Administration
+@inject IFacilityService Facilities
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+@implements IDisposable
+
+<PageTitle>@L["StatisticsEntries"]</PageTitle>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+    <MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">@L["StatisticsEntries"]</MudText>
+    <MudText Class="mb-4">@L["StatisticsEntriesHelp"]</MudText>
+    @if (_referenceError is not null)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mb-3" role="alert">@_referenceError
+            <MudButton OnClick="LoadReferences" Disabled="Busy">@L["Retry"]</MudButton>
+        </MudAlert>
+    }
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="Guid?" Value="_itemId" ValueChanged="SelectItem" Label="@L["StatisticsItemLabel"]" Disabled="Busy">
+                <MudSelectItem T="Guid?" Value="@((Guid?)null)">@L["StatisticsAllItems"]</MudSelectItem>
+                @foreach (var item in _items) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Name</MudSelectItem> }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="Guid?" @bind-Value="_configurationId" Label="@L["Configuration"]" Disabled="Busy">
+                <MudSelectItem T="Guid?" Value="@((Guid?)null)">@L["StatisticsAllConfigurations"]</MudSelectItem>
+                @foreach (var config in _configurations.Where(config => !_itemId.HasValue || config.StatisticsItemId == _itemId))
+                { <MudSelectItem T="Guid?" Value="@((Guid?)config.Id)">@ConfigurationLabel(config)</MudSelectItem> }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="Guid?" @bind-Value="_facilityId" Label="@L["Facility"]" Disabled="Busy">
+                <MudSelectItem T="Guid?" Value="@((Guid?)null)">@L["HallOfFameAllFacilities"]</MudSelectItem>
+                @foreach (var facility in _facilities) { <MudSelectItem T="Guid?" Value="@((Guid?)facility.Id)">@facility.Name</MudSelectItem> }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="bool?" @bind-Value="_isValid" Label="@L["StatisticsValidity"]" Disabled="Busy">
+                <MudSelectItem T="bool?" Value="@((bool?)null)">@L["StatisticsAllValidity"]</MudSelectItem>
+                <MudSelectItem T="bool?" Value="@((bool?)true)">@L["StatisticsValid"]</MudSelectItem>
+                <MudSelectItem T="bool?" Value="@((bool?)false)">@L["StatisticsInvalid"]</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+    <MudStack Row="true" Wrap="Wrap.Wrap" Class="mb-4">
+        <MudButton OnClick="ApplyFilters" Disabled="Busy" Variant="Variant.Filled" Color="Color.Primary">@L["ApplyFilters"]</MudButton>
+        <MudButton OnClick="Refresh" Disabled="Busy" StartIcon="@Icons.Material.Filled.Refresh">@L["Refresh"]</MudButton>
+    </MudStack>
+    @if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-4" role="alert">@_error</MudAlert> }
+    @if (_loading)
+    {
+        <div role="status" aria-live="polite"><MudProgressLinear Indeterminate="true" Color="Color.Primary" /><MudText>@L["Loading"]</MudText></div>
+    }
+    @if (_page is not null)
+    {
+        <MudTable T="AdminStatisticsEntryDTO" Items="_page.Items" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Md" Style="overflow-wrap:anywhere">
+            <HeaderContent>
+                <MudTh>@L["StatisticsEntry"]</MudTh><MudTh>@L["Profile"] / @L["Transponder"]</MudTh>
+                <MudTh>@L["Facility"] / @L["StatisticsEntryTime"]</MudTh><MudTh>@L["Duration"] / @L["SpeedInUnit", Display.SpeedUnit]</MudTh>
+                <MudTh>@L["StatisticsValidity"]</MudTh><MudTh>@L["StatisticsManualAudit"]</MudTh><MudTh>@L["Actions"]</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="@L["StatisticsEntry"]">
+                    <MudText>@context.StatisticsItemName</MudText><MudText Typo="Typo.caption">@context.Id</MudText>
+                    <MudText Typo="Typo.caption">@L["Configuration"]: @context.StatisticsItemConfigId (@L[context.StatisticsItemConfigType == StatisticsConfigurationType.Simple ? "Simple" : "Multi"])</MudText>
+                </MudTd>
+                <MudTd DataLabel="@($"{L["Profile"]} / {L["Transponder"]}")">
+                    <MudText>@(context.ProfileName ?? L["NoStatisticsProfile"].Value)</MudText>
+                    @if (context.StatsProfileUserId.HasValue) { <MudText Typo="Typo.caption">@context.StatsProfileUserId</MudText> }
+                    <MudText Typo="Typo.caption">@L["TransponderId"]: @context.TransponderId</MudText>
+                </MudTd>
+                <MudTd DataLabel="@($"{L["Facility"]} / {L["StatisticsEntryTime"]}")">
+                    <MudText>@FacilityName(context.FacilityId)</MudText>
+                    <MudText Typo="Typo.caption">@L["StatisticsEntryStart"]: @Display.Timestamp(context.TimeStart)</MudText>
+                    <MudText Typo="Typo.caption">@L["StatisticsEntryEnd"]: @Display.Timestamp(context.TimeEnd)</MudText>
+                </MudTd>
+                <MudTd DataLabel="@($"{L["Duration"]} / {L["SpeedInUnit", Display.SpeedUnit]}")">
+                    <MudText>@context.Duration.ToString("g", Display.NumberCulture)</MudText><MudText>@Speed(context.SpeedMetresPerSecond)</MudText>
+                </MudTd>
+                <MudTd DataLabel="@L["StatisticsValidity"]">
+                    <MudText>@L[context.IsValid ? "StatisticsValid" : "StatisticsInvalid"]</MudText>
+                    @if (!context.IsValid) { <MudText Typo="Typo.caption">@Reason(context.InvalidReason)</MudText> }
+                </MudTd>
+                <MudTd DataLabel="@L["StatisticsManualAudit"]">
+                    <MudText>@L[context.IsManuallyInvalidated ? "StatisticsManualActive" : "StatisticsManualInactive"]</MudText>
+                    @if (context.ManualInvalidationChangedAtUtc.HasValue)
+                    {
+                        <MudText Typo="Typo.caption">@Display.Timestamp(context.ManualInvalidationChangedAtUtc)</MudText>
+                        <MudText Typo="Typo.caption">@L["StatisticsManualActor"]: @(context.ManualInvalidationChangedByUserId?.ToString() ?? L["Unknown"].Value)</MudText>
+                        <MudText Typo="Typo.body2" Style="white-space:pre-wrap">@(context.ManualInvalidationNote ?? L["StatisticsNoNote"].Value)</MudText>
+                    }
+                </MudTd>
+                <MudTd DataLabel="@L["Actions"]">
+                    <MudButton OnClick="() => ChangeManualState(context)" Disabled="Busy" Color="Color.Primary"
+                               aria-label="@L[context.IsManuallyInvalidated ? "StatisticsRestoreEntry" : "StatisticsMarkEntry", context.Id]">
+                        @L[context.IsManuallyInvalidated ? "StatisticsRestore" : "StatisticsMarkInvalid"]
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText role="status">@L["StatisticsEntriesEmpty"]</MudText></NoRecordsContent>
+        </MudTable>
+        <MudStack Row="true" Wrap="Wrap.Wrap" Class="mt-4">
+            <MudButton OnClick="Previous" Disabled="@(Busy || _page.Previous is null)">@L["PreviousResults"]</MudButton>
+            <MudButton OnClick="Next" Disabled="@(Busy || _page.Next is null)">@L["NextResults"]</MudButton>
+        </MudStack>
+    }
+</MudContainer>
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<StatisticsItemDTO> _items = [];
+    private IReadOnlyList<StatisticsConfigurationDTO> _configurations = [];
+    private IReadOnlyList<FacilityView> _facilities = [];
+    private AdminStatisticsEntriesPageDTO? _page;
+    private GetAdminStatisticsEntriesRequest _request = new();
+    private Guid? _itemId, _configurationId, _facilityId;
+    private bool? _isValid;
+    private bool _loading, _saving, _referencesLoading;
+    private bool Busy => _loading || _saving || _referencesLoading;
+    private string? _error, _referenceError;
+
+    protected override Task OnInitializedAsync() => Task.WhenAll(LoadReferences(), Load(new()));
+
+    private async Task LoadReferences()
+    {
+        _referencesLoading = true;
+        _referenceError = null;
+        try
+        {
+            var items = Administration.GetItemsAsync(_lifetime.Token);
+            var configurations = Administration.GetConfigurationsAsync(_lifetime.Token);
+            var facilities = Facilities.GetFacilitiesAsync(_lifetime.Token);
+            await Task.WhenAll(items, configurations, facilities);
+            if (_lifetime.IsCancellationRequested) return;
+            _items = await items;
+            _configurations = await configurations;
+            _facilities = (await facilities).ToArray();
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception exception) { _referenceError = ErrorFor(exception); }
+        finally { _referencesLoading = false; }
+    }
+
+    private async Task Load(GetAdminStatisticsEntriesRequest request)
+    {
+        _loading = true;
+        _error = null;
+        _page = null;
+        _request = request;
+        try
+        {
+            var page = await Administration.ListEntriesAsync(request, _lifetime.Token);
+            if (!_lifetime.IsCancellationRequested) _page = page;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception exception) { _error = ErrorFor(exception); }
+        finally { _loading = false; }
+    }
+
+    private void SelectItem(Guid? id) { _itemId = id; _configurationId = null; }
+    private Task ApplyFilters() => Busy ? Task.CompletedTask : Load(new(_facilityId, _itemId, _configurationId, IsValid: _isValid));
+    private Task Refresh() => Busy ? Task.CompletedTask : Load(_request);
+    private Task Previous() => Busy || _page?.Previous is not { } cursor ? Task.CompletedTask : Load(_request with { Cursor = cursor, Direction = AdminStatisticsEntriesPageDirection.Previous });
+    private Task Next() => Busy || _page?.Next is not { } cursor ? Task.CompletedTask : Load(_request with { Cursor = cursor, Direction = AdminStatisticsEntriesPageDirection.Next });
+
+    private async Task ChangeManualState(AdminStatisticsEntryDTO entry)
+    {
+        if (Busy) return;
+        _saving = true;
+        _error = null;
+        try
+        {
+            var parameters = new DialogParameters<StatisticsEntryInvalidationDialog> { { dialog => dialog.Entry, entry } };
+            var dialog = await Dialogs.ShowAsync<StatisticsEntryInvalidationDialog>(L[entry.IsManuallyInvalidated ? "StatisticsRestore" : "StatisticsMarkInvalid"], parameters,
+                new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small });
+            var result = await dialog.Result;
+            if (_lifetime.IsCancellationRequested || result is null || result.Canceled || result.Data is not StatisticsEntryManualInvalidationRequest request) return;
+            await Administration.SetManualInvalidationAsync(entry.Id, request, _lifetime.Token);
+            if (_lifetime.IsCancellationRequested) return;
+            Snackbar.Add(L["StatisticsManualSaved"], Severity.Success);
+            await Load(_request);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception exception) { _error = ErrorFor(exception); }
+        finally { _saving = false; }
+    }
+
+    private string ConfigurationLabel(StatisticsConfigurationDTO config) =>
+        $"{_items.FirstOrDefault(item => item.Id == config.StatisticsItemId)?.Name ?? config.StatisticsItemId.ToString()} — {L[config.Type == StatisticsConfigurationType.Simple ? "Simple" : "Multi"]} — {config.Id}";
+    private string FacilityName(Guid id) => _facilities.FirstOrDefault(facility => facility.Id == id)?.Name ?? id.ToString();
+    private string Reason(StatisticsEntryInvalidReason? reason) => reason.HasValue && Enum.IsDefined(reason.Value)
+        ? L[$"StatisticsInvalidReason{reason.Value}"].Value : L["Unknown"].Value;
+    private string Speed(double? metresPerSecond)
+    {
+        if (metresPerSecond is not { } value || !double.IsFinite(value)) return L["StatisticsSpeedUnavailable"];
+        var speed = UnitsNet.Speed.FromMetersPerSecond(value);
+        var displayValue = Display.SpeedUnit switch { "mph" => speed.MilesPerHour, "m/s" => speed.MetersPerSecond, _ => speed.KilometersPerHour };
+        return double.IsFinite(displayValue) ? $"{displayValue.ToString("N3", Display.NumberCulture)} {Display.SpeedUnit}" : L["StatisticsSpeedUnavailable"].Value;
+    }
+    private string ErrorFor(Exception exception) => exception switch
+    {
+        HttpRequestException { StatusCode: HttpStatusCode.Unauthorized } => L["SignInRequired"],
+        HttpRequestException { StatusCode: HttpStatusCode.Forbidden } => L["NoPermission"],
+        HttpRequestException { StatusCode: HttpStatusCode.Conflict or HttpStatusCode.NotFound } => L["StatisticsEntryChanged"],
+        HttpRequestException { StatusCode: HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity } => L["RequestRejected"],
+        _ => L["StatisticsEntriesFailed"]
+    };
+    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+}

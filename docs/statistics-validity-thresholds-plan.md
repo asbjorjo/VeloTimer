@@ -17,7 +17,7 @@ Save threshold updates promptly and trigger durable, asynchronous historical rev
 - Unset configuration bounds inherit global bounds. Global bounds are hard limits: configurations may narrow but never broaden the effective approved range.
 - Allow saving broader requested local values, but warn that global limits take precedence and show the actual effective bounds.
 - Every contributing lap must be valid for a Multi result to be valid, and its total must satisfy the Multi item's own effective bounds. Never skip invalid laps to assemble a valid result.
-- No rejected-results inspection screen or manual per-entry override.
+- No rejected-only inspection screen; administrators manage manual validity within the general Statistics Entries page at `/admin/statistics/entries`. A manual mark stays authoritative through historical revalidation; its latest state-change actor, UTC time, and optional note are retained.
 - Thresholds are optional; unset global bounds are unbounded. Boundaries are inclusive. No arbitrary default speeds.
 - During background revalidation, old classifications and temporarily stale Multi results may remain visible. This is explicitly accepted eventual consistency, not an error or a reason to hide all affected results.
 
@@ -99,4 +99,4 @@ Contracts precede storage/services/UI/deployment. Storage precedes dependent beh
 
 ## Exclusions
 
-No per-rider thresholds, manual validity override, rejected-entry deletion, inferred/default speed limits, raw Timing sample changes, public speed-unit/paging redesign, inspection screen, atomic historical cutover, query-time revision gates, or unrelated cleanup.
+No per-rider thresholds, rider-initiated validity requests, rejected-entry deletion, inferred/default speed limits, raw Timing sample changes, public speed-unit/paging redesign, dedicated rejected-only inspection screen, atomic historical cutover, query-time revision gates, or unrelated cleanup.

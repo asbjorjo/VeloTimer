@@ -623,4 +623,40 @@
   <data name="RequiredPointsSummary" xml:space="preserve"><value>Required points: {0}</value></data>
   <data name="StatisticsStructureLocked" xml:space="preserve"><value>The change conflicts with the current definition. Structural changes, including required points, are locked once this configuration or a dependent Multi has results. Keep the structure unchanged or create a new configuration. Your draft is retained.</value></data>
   <data name="StatisticsEndpointsOutsideLayout" xml:space="preserve"><value>Select start and finish points belonging to the selected facility and layout. Existing endpoint selections have not been cleared.</value></data>
+  <data name="StatisticsEntries" xml:space="preserve"><value>Statistics entries</value></data>
+  <data name="StatisticsEntriesHelp" xml:space="preserve"><value>Review recorded entries, including invalid results. Marking overrides automatic validation until restored. Pages contain up to 50 entries, newest completion first.</value></data>
+  <data name="StatisticsAllItems" xml:space="preserve"><value>All items</value></data>
+  <data name="StatisticsAllConfigurations" xml:space="preserve"><value>All configurations</value></data>
+  <data name="StatisticsValidity" xml:space="preserve"><value>Validity</value></data>
+  <data name="StatisticsAllValidity" xml:space="preserve"><value>Valid and invalid</value></data>
+  <data name="StatisticsValid" xml:space="preserve"><value>Valid</value></data>
+  <data name="StatisticsInvalid" xml:space="preserve"><value>Invalid</value></data>
+  <data name="StatisticsEntry" xml:space="preserve"><value>Entry</value></data>
+  <data name="StatisticsEntryTime" xml:space="preserve"><value>Time</value></data>
+  <data name="StatisticsEntryStart" xml:space="preserve"><value>Start</value></data>
+  <data name="StatisticsEntryEnd" xml:space="preserve"><value>End</value></data>
+  <data name="StatisticsManualAudit" xml:space="preserve"><value>Manual validation history</value></data>
+  <data name="StatisticsManualActive" xml:space="preserve"><value>Manually invalidated</value></data>
+  <data name="StatisticsManualInactive" xml:space="preserve"><value>No active manual invalidation</value></data>
+  <data name="StatisticsManualActor" xml:space="preserve"><value>Changed by</value></data>
+  <data name="StatisticsNoNote" xml:space="preserve"><value>No note</value></data>
+  <data name="StatisticsMarkInvalid" xml:space="preserve"><value>Mark invalid</value></data>
+  <data name="StatisticsRestore" xml:space="preserve"><value>Restore automatic validation</value></data>
+  <data name="StatisticsMarkEntry" xml:space="preserve"><value>Mark entry {0} invalid</value></data>
+  <data name="StatisticsRestoreEntry" xml:space="preserve"><value>Restore automatic validation for entry {0}</value></data>
+  <data name="StatisticsMarkConfirm" xml:space="preserve"><value>Manually invalidate this entry? This applies even if it is already automatically invalid. It remains manually invalid until explicitly restored.</value></data>
+  <data name="StatisticsRestoreConfirm" xml:space="preserve"><value>Remove manual invalidation and evaluate this entry automatically again? Automatic checks may still leave it invalid. The note records this change and replaces the previous audit note.</value></data>
+  <data name="StatisticsManualNote" xml:space="preserve"><value>Note (optional)</value></data>
+  <data name="StatisticsManualNoteHelp" xml:space="preserve"><value>Up to 500 characters. Stored with your user ID and the time of this change as the latest manual audit.</value></data>
+  <data name="StatisticsEntriesEmpty" xml:space="preserve"><value>No entries match these filters on this page.</value></data>
+  <data name="StatisticsManualSaved" xml:space="preserve"><value>Manual validation state saved.</value></data>
+  <data name="StatisticsSpeedUnavailable" xml:space="preserve"><value>Speed unavailable</value></data>
+  <data name="StatisticsEntryChanged" xml:space="preserve"><value>This entry changed or is no longer available. Refresh before trying again.</value></data>
+  <data name="StatisticsEntriesFailed" xml:space="preserve"><value>Could not complete the request. Check your connection and retry using Refresh.</value></data>
+  <data name="StatisticsInvalidReasonNonPositiveDuration" xml:space="preserve"><value>Duration is zero or negative</value></data>
+  <data name="StatisticsInvalidReasonInvalidContributor" xml:space="preserve"><value>An underlying entry is invalid</value></data>
+  <data name="StatisticsInvalidReasonBelowMinimumDuration" xml:space="preserve"><value>Below minimum duration</value></data>
+  <data name="StatisticsInvalidReasonAboveMaximumDuration" xml:space="preserve"><value>Above maximum duration</value></data>
+  <data name="StatisticsInvalidReasonRequiredCoursePointsNotSatisfied" xml:space="preserve"><value>Required course points not satisfied</value></data>
+  <data name="StatisticsInvalidReasonManuallyInvalidated" xml:space="preserve"><value>Manually invalidated</value></data>
 </root>

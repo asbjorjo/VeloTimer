@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **authorization:** map identity claims to explicit permission claims and enforce named policies for modules, scoped coursepoint linking, and ownership isolation.
 * **timing:** allow signed-in users to register transponders and end or delete their own ownership periods; allow timing administrators to manage all ownerships.
 * **api:** add validated relationship editing, cross-module dependency checks, deletion safeguards, and cache invalidation.
+* **statistics:** allow administrators to mark entries invalid and restore them with an audited state change; manual invalidity remains sticky through revalidation and excluded from public results.
 
 ### Bug Fixes
 

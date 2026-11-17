@@ -114,6 +114,19 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("is_valid");
 
+                    b.Property<DateTimeOffset?>("ManualInvalidationChangedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("manual_invalidation_changed_at_utc");
+
+                    b.Property<Guid?>("ManualInvalidationChangedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("manual_invalidation_changed_by_user_id");
+
+                    b.Property<string>("ManualInvalidationNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("manual_invalidation_note");
+
                     b.Property<bool>("RequiredCoursePointsSatisfied")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -161,6 +174,10 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasDatabaseName("ix_statistics_entry_statistics_item_id_id")
                         .HasAnnotation("Npgsql:CreatedConcurrently", true);
 
+                    b.HasIndex("TimeEnd", "Id")
+                        .HasDatabaseName("ix_statistics_entry_time_end_id")
+                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+
                     b.HasIndex("StatisticsItemId", "TransponderId", "TimeStart", "TimeEnd")
                         .HasDatabaseName("ix_statistics_entry_statistics_item_id_transponder_id_time_sta");
 
@@ -171,7 +188,7 @@ namespace VeloTime.Module.Statistics.Migrations
 
                     b.ToTable("statistics_entry", "statistics", t =>
                         {
-                            t.HasCheckConstraint("ck_statistics_entry_validity", "(is_valid AND invalid_reason IS NULL) OR (NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3, 4))");
+                            t.HasCheckConstraint("ck_statistics_entry_validity", "(is_valid AND invalid_reason IS NULL) OR (NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3, 4, 5)) AND (invalid_reason IS DISTINCT FROM 5 OR (manual_invalidation_changed_by_user_id IS NOT NULL AND manual_invalidation_changed_at_utc IS NOT NULL))");
                         });
                 });
 
