@@ -1053,6 +1053,58 @@
         }
       }
     },
+    "/api/statistics/admin/entries/{id}/samples": {
+      "get": {
+        "tags": [
+          "StatisticsEntries"
+        ],
+        "summary": "Get up to 500 Statistics samples contained in an entry window",
+        "description": "Uses the entry transponder and inclusive UTC bounds. Orders by TimeStart, TimeEnd, then Id; Truncated indicates additional matches. Quantities use SI units. Responses are no-store. A nonfinite stored distance returns 409.",
+        "operationId": "GetAdminStatisticsEntrySamples",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminStatisticsEntrySamplesDTO"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/statistics/admin/entries/{id}/manual-invalidation": {
       "put": {
         "tags": [
@@ -1414,6 +1466,99 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "AdminStatisticsEntrySamplesDTO": {
+        "required": [
+          "entryId",
+          "transponderId",
+          "timeStart",
+          "timeEnd",
+          "samples",
+          "truncated"
+        ],
+        "type": "object",
+        "properties": {
+          "entryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "transponderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "timeStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timeEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminStatisticsSampleDTO"
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AdminStatisticsSampleDTO": {
+        "required": [
+          "id",
+          "timeStart",
+          "timeEnd",
+          "coursePointStartId",
+          "coursePointEndId",
+          "distanceMetres",
+          "duration",
+          "speedMetresPerSecond",
+          "facilityId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "timeStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timeEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "coursePointStartId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "coursePointEndId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "distanceMetres": {
+            "type": "number",
+            "format": "double"
+          },
+          "duration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": "string"
+          },
+          "speedMetresPerSecond": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "facilityId": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       },
