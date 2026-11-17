@@ -9,6 +9,12 @@ internal static class StatisticsAdministrationEndpoints
     internal static void MapStatisticsAdministrationEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var statistics = endpoints.MapGroup("/admin/statistics").RequireAuthorization(AdministrationAuthorization.StatisticsPolicy);
+        statistics.MapGet("/entries/{id:guid}/contributions", async (Guid id,
+            IStatisticsAdministrationService service, CancellationToken cancellationToken) =>
+            TypedResults.Ok(await service.GetEntryContributionsAsync(id, cancellationToken)));
+        statistics.MapPost("/course-point-names/resolve", async (Guid[] coursePointIds,
+            IStatisticsAdministrationService service, CancellationToken cancellationToken) =>
+            TypedResults.Ok(await service.GetCoursePointNamesAsync(coursePointIds, cancellationToken)));
         statistics.MapGet("/entries", async (HttpContext http, IStatisticsAdministrationService service, CancellationToken cancellationToken) =>
         {
             var duplicates = http.Request.Query.Where(pair => pair.Value.Count != 1)

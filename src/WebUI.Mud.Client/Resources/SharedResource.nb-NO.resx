@@ -672,4 +672,32 @@
   <data name="StatisticsInvalidReasonAboveMaximumDuration" xml:space="preserve"><value>Over største varighet</value></data>
   <data name="StatisticsInvalidReasonRequiredCoursePointsNotSatisfied" xml:space="preserve"><value>Påkrevde løypepunkter er ikke oppfylt</value></data>
   <data name="StatisticsInvalidReasonManuallyInvalidated" xml:space="preserve"><value>Manuelt ugyldiggjort</value></data>
+  <data name="StatisticsShowContributions" xml:space="preserve"><value>Vis bidrag for {0}</value></data>
+  <data name="StatisticsHideContributions" xml:space="preserve"><value>Skjul bidrag for {0}</value></data>
+  <data name="StatisticsEntryContributions" xml:space="preserve"><value>Bidrag til oppføring</value></data>
+  <data name="StatisticsContributionsLoading" xml:space="preserve"><value>Laster inn bidrag til oppføringen …</value></data>
+  <data name="StatisticsContributionSamples" xml:space="preserve"><value>Statistikkprøver</value></data>
+  <data name="StatisticsContributionPassings" xml:space="preserve"><value>Tidtakingspasseringer</value></data>
+  <data name="StatisticsContributionSamplesEmpty" xml:space="preserve"><value>Ingen statistikkprøver bidro til denne oppføringen.</value></data>
+  <data name="StatisticsContributionPassingsEmpty" xml:space="preserve"><value>Fant ingen samsvarende tidtakingspasseringer.</value></data>
+  <data name="StatisticsContributionsTruncated" xml:space="preserve"><value>Viser de første {0} samsvarende postene. Flere poster er utelatt.</value></data>
+  <data name="StatisticsCoursePointNamesFailed" xml:space="preserve"><value>Kunne ikke laste inn navn på løypepunkter. Prøvene er fortsatt tilgjengelige. Prøv navneoppslaget på nytt.</value></data>
+  <data name="StatisticsCoursePointNamesLoading" xml:space="preserve"><value>Laster inn navn på løypepunkter …</value></data>
+  <data name="StatisticsCoursePointNameMissing" xml:space="preserve"><value>Navn på løypepunkt er ikke tilgjengelig</value></data>
+  <data name="StatisticsPassingsForbidden" xml:space="preserve"><value>Du har ikke tilgang til å vise tidtakingspasseringer. Statistikkprøvene vises fortsatt.</value></data>
+  <data name="StatisticsPassingsWindowTooLarge" xml:space="preserve"><value>Denne oppføringen dekker mer enn det støttede tidtakingsvinduet på sju dager. Passeringer vises ikke for vinduer over sju dager.</value></data>
+  <data name="StatisticsPassingsUnavailable" xml:space="preserve"><value>Tidtakingspasseringer er midlertidig utilgjengelige. Statistikkprøvene vises fortsatt. Dette betyr ikke at resultatet er tomt.</value></data>
+  <data name="StatisticsContributionStart" xml:space="preserve"><value>Start</value></data>
+  <data name="StatisticsContributionEnd" xml:space="preserve"><value>Slutt</value></data>
+  <data name="StatisticsContributionCoursePointStart" xml:space="preserve"><value>Startløypepunkt</value></data>
+  <data name="StatisticsContributionCoursePointEnd" xml:space="preserve"><value>Sluttløypepunkt</value></data>
+  <data name="StatisticsContributionTime" xml:space="preserve"><value>Passeringstid</value></data>
+  <data name="StatisticsContributionTimingPoint" xml:space="preserve"><value>Tidtakingspunkt</value></data>
+  <data name="StatisticsContributionInstallation" xml:space="preserve"><value>Installasjon</value></data>
+  <data name="StatisticsContributionFlags" xml:space="preserve"><value>Signalflagg</value></data>
+  <data name="StatisticsContributionLowBattery" xml:space="preserve"><value>Lavt batteri</value></data>
+  <data name="StatisticsContributionLowStrength" xml:space="preserve"><value>Lav signalstyrke</value></data>
+  <data name="StatisticsContributionLowHits" xml:space="preserve"><value>Få treff</value></data>
+  <data name="StatisticsContributionFlagOn" xml:space="preserve"><value>Ja</value></data>
+  <data name="StatisticsContributionFlagOff" xml:space="preserve"><value>Nei</value></data>
 </root>

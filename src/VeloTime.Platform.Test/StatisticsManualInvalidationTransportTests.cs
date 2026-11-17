@@ -189,7 +189,7 @@ public sealed class StatisticsManualInvalidationTransportTests
             return generated;
         });
         using var cache = new WebUiCacheTestHost(client);
-        var service = new StatisticsAdministrationService(client, cache.Cache);
+        var service = cache.StatisticsAdministration(client);
         for (var i = 0; i < 2; i++)
         {
             var page = await service.ListEntriesAsync(request, cancellation.Token);

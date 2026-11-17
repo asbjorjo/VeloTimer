@@ -9,3 +9,10 @@ GET {{Module.Statistics.Api_HostAddress}}/api/statistics/hall-of-fame?category=l
 
 ### Public lap totals using the current Lap distance
 GET {{Module.Statistics.Api_HostAddress}}/api/statistics/hall-of-fame?category=laps
+
+### Administrative samples: entry identity and inclusive bounds are authoritative in the response
+@entryId = 00000000-0000-0000-0000-000000000001
+@statisticsAdminToken = REPLACE_WITH_ACCESS_TOKEN
+GET {{Module.Statistics.Api_HostAddress}}/api/statistics/admin/entries/{{entryId}}/samples
+Authorization: Bearer {{statisticsAdminToken}}
+Accept: application/json

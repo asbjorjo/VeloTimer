@@ -25,6 +25,15 @@ internal static class AdminStatisticsEntryEndpoints
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
+        entries.MapGet("{id:guid}/samples", GetSamples)
+            .WithName("GetAdminStatisticsEntrySamples")
+            .WithSummary("Get up to 500 Statistics samples contained in an entry window")
+            .WithDescription("Uses the entry transponder and inclusive UTC bounds. Orders by TimeStart, TimeEnd, then Id; Truncated indicates additional matches. Quantities use SI units. Responses are no-store. A nonfinite stored distance returns 409.")
+            .Produces<AdminStatisticsEntrySamplesDTO>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         entries.MapPut("{id:guid}/manual-invalidation", SetManualInvalidation)
             .WithName("SetStatisticsEntryManualInvalidation")
             .WithSummary("Mark a Statistics entry manually invalid or restore automatic validity")
@@ -34,6 +43,41 @@ internal static class AdminStatisticsEntryEndpoints
             .Produces(StatusCodes.Status403Forbidden)
             .Produces(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+    }
+
+    private static async Task<Results<Ok<AdminStatisticsEntrySamplesDTO>, NotFound, ProblemHttpResult>> GetSamples(
+        Guid id, HttpContext http, StatisticsDbContext storage, ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        http.Response.Headers.CacheControl = "no-store";
+        var entry = await storage.Set<StatisticsEntry>().AsNoTracking()
+            .Where(value => value.Id == id)
+            .Select(value => new { value.Id, value.TransponderId, value.TimeStart, value.TimeEnd })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (entry is null) return TypedResults.NotFound();
+
+        const int limit = 500;
+        var samples = await storage.Set<Sample>().AsNoTracking()
+            .Where(sample => sample.TransponderId == entry.TransponderId &&
+                sample.TimeStart >= entry.TimeStart && sample.TimeEnd <= entry.TimeEnd)
+            .OrderBy(sample => sample.TimeStart).ThenBy(sample => sample.TimeEnd).ThenBy(sample => sample.Id)
+            .Take(limit + 1)
+            .ToListAsync(cancellationToken);
+        var truncated = samples.Count > limit;
+        if (truncated) samples.RemoveAt(limit);
+        if (samples.Any(sample => !double.IsFinite(sample.Distance)))
+        {
+            loggerFactory.CreateLogger("StatisticsEntrySamples").LogWarning(
+                "Statistics entry {EntryId} has a sample with nonfinite distance in its window.", id);
+            return TypedResults.Problem(
+                detail: "A sample has an invalid stored distance and must be corrected before these samples can be loaded.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+        return TypedResults.Ok(new AdminStatisticsEntrySamplesDTO(entry.Id, entry.TransponderId,
+            Utc(entry.TimeStart), Utc(entry.TimeEnd), samples.Select(sample => new AdminStatisticsSampleDTO(
+                sample.Id, Utc(sample.TimeStart), Utc(sample.TimeEnd), sample.CoursePointStartId,
+                sample.CoursePointEndId, sample.Distance, sample.Duration,
+                double.IsFinite(sample.Speed) ? sample.Speed : null, sample.FacilityId)).ToList(), truncated));
     }
 
     // Raw single-valued query parsing ensures API and BFF reject the same malformed values.

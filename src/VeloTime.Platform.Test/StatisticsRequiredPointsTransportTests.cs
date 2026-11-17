@@ -49,7 +49,7 @@ public sealed class StatisticsRequiredPointsTransportTests
         using var http = new HttpClient(handler) { BaseAddress = new Uri("https://statistics.invalid") };
         var client = new StatisticsClient(http);
         using var cache = new WebUiCacheTestHost(client);
-        await new StatisticsAdministrationService(client, cache.Cache).SaveConfigurationAsync(update ? id : null,
+        await cache.StatisticsAdministration(client).SaveConfigurationAsync(update ? id : null,
             new(item, Contracts.StatisticsConfigurationType.Simple, start, end, null, null) { RequiredCoursePoints = requirements });
         Assert.Equal(1, calls);
     }
@@ -72,7 +72,7 @@ public sealed class StatisticsRequiredPointsTransportTests
             };
         });
         using var cache = new WebUiCacheTestHost(client);
-        var service = new StatisticsAdministrationService(client, cache.Cache);
+        var service = cache.StatisticsAdministration(client);
         var snapshot = Assert.Single(await service.GetConfigurationsAsync());
         Assert.Equal(layout, snapshot.RequiredCoursePoints!.CourseLayoutId);
         Assert.Equal(new[] { first, second }, snapshot.RequiredCoursePoints.CoursePointIds);

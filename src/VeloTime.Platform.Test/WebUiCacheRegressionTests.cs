@@ -326,7 +326,7 @@ public sealed class WebUiCacheRegressionTests
             return item;
         });
         using var host = new WebUiCacheTestHost(statistics);
-        var service = new StatisticsAdministrationService(statistics, host.Cache);
+        var service = host.StatisticsAdministration(statistics);
         var items = await service.GetItemsAsync();
         ((VeloTime.Module.Statistics.Interface.Data.StatisticsItemDTO[])items)[0] = new(itemId, "Poisoned", "", 1);
         Assert.Equal(250, Assert.Single(await service.GetItemsAsync()).Distance);

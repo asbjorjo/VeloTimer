@@ -672,4 +672,32 @@
   <data name="StatisticsInvalidReasonAboveMaximumDuration" xml:space="preserve"><value>Above maximum duration</value></data>
   <data name="StatisticsInvalidReasonRequiredCoursePointsNotSatisfied" xml:space="preserve"><value>Required course points not satisfied</value></data>
   <data name="StatisticsInvalidReasonManuallyInvalidated" xml:space="preserve"><value>Manually invalidated</value></data>
+  <data name="StatisticsShowContributions" xml:space="preserve"><value>Show contributions for {0}</value></data>
+  <data name="StatisticsHideContributions" xml:space="preserve"><value>Hide contributions for {0}</value></data>
+  <data name="StatisticsEntryContributions" xml:space="preserve"><value>Entry contributions</value></data>
+  <data name="StatisticsContributionsLoading" xml:space="preserve"><value>Loading entry contributions…</value></data>
+  <data name="StatisticsContributionSamples" xml:space="preserve"><value>Statistics samples</value></data>
+  <data name="StatisticsContributionPassings" xml:space="preserve"><value>Timing passings</value></data>
+  <data name="StatisticsContributionSamplesEmpty" xml:space="preserve"><value>No Statistics samples contributed to this entry.</value></data>
+  <data name="StatisticsContributionPassingsEmpty" xml:space="preserve"><value>No matching Timing passings were found.</value></data>
+  <data name="StatisticsContributionsTruncated" xml:space="preserve"><value>Showing the first {0} matching records; additional records were omitted.</value></data>
+  <data name="StatisticsCoursePointNamesFailed" xml:space="preserve"><value>Course-point names could not be loaded. Samples remain available; retry the name lookup.</value></data>
+  <data name="StatisticsCoursePointNamesLoading" xml:space="preserve"><value>Loading course-point names…</value></data>
+  <data name="StatisticsCoursePointNameMissing" xml:space="preserve"><value>Course-point name unavailable</value></data>
+  <data name="StatisticsPassingsForbidden" xml:space="preserve"><value>You do not have permission to view Timing passings. Statistics samples are still shown.</value></data>
+  <data name="StatisticsPassingsWindowTooLarge" xml:space="preserve"><value>This entry spans more than the supported seven-day Timing window. Passings are not available for windows over seven days.</value></data>
+  <data name="StatisticsPassingsUnavailable" xml:space="preserve"><value>Timing passings are temporarily unavailable. Statistics samples are still shown; this is not an empty result.</value></data>
+  <data name="StatisticsContributionStart" xml:space="preserve"><value>Start</value></data>
+  <data name="StatisticsContributionEnd" xml:space="preserve"><value>End</value></data>
+  <data name="StatisticsContributionCoursePointStart" xml:space="preserve"><value>Start course point</value></data>
+  <data name="StatisticsContributionCoursePointEnd" xml:space="preserve"><value>End course point</value></data>
+  <data name="StatisticsContributionTime" xml:space="preserve"><value>Passing time</value></data>
+  <data name="StatisticsContributionTimingPoint" xml:space="preserve"><value>Timing point</value></data>
+  <data name="StatisticsContributionInstallation" xml:space="preserve"><value>Installation</value></data>
+  <data name="StatisticsContributionFlags" xml:space="preserve"><value>Signal flags</value></data>
+  <data name="StatisticsContributionLowBattery" xml:space="preserve"><value>Low battery</value></data>
+  <data name="StatisticsContributionLowStrength" xml:space="preserve"><value>Low signal strength</value></data>
+  <data name="StatisticsContributionLowHits" xml:space="preserve"><value>Low hits</value></data>
+  <data name="StatisticsContributionFlagOn" xml:space="preserve"><value>Yes</value></data>
+  <data name="StatisticsContributionFlagOff" xml:space="preserve"><value>No</value></data>
 </root>

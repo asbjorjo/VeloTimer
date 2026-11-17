@@ -5,11 +5,121 @@ using VeloTime.Module.Statistics.Client;
 using VeloTime.Module.Common;
 using VeloTime.WebUI.Mud.Client.Services;
 using Contracts = VeloTime.Module.Statistics.Interface.Data;
+using TimingContracts = VeloTime.Module.Timing.Interface.Data;
 
 namespace VeloTime.WebUI.Mud.Services;
 
-public sealed class StatisticsAdministrationService(IStatisticsClient client, WebUiCache cache) : IStatisticsAdministrationService
+public sealed class StatisticsAdministrationService(IStatisticsClient client, WebUiCache cache,
+    VeloTime.Module.Timing.Client.ITimingClient timing, ILogger<StatisticsAdministrationService> logger) : IStatisticsAdministrationService
 {
+    public Task<StatisticsEntryContributionsDTO> GetEntryContributionsAsync(Guid entryId, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        AdminStatisticsEntrySamplesDTO response;
+        Contracts.AdminStatisticsSampleDTO[] samples;
+        try
+        {
+            response = await client.GetAdminStatisticsEntrySamplesAsync(entryId, cancellationToken);
+            if (response is null || response.EntryId != entryId || response.TransponderId == Guid.Empty ||
+                response.Samples is null || response.Samples.Count > 500)
+                throw new InvalidDataException("The statistics entry samples response is invalid.");
+            samples = response.Samples.Select(MapSample).ToArray();
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Statistics entry contributions could not be loaded.");
+            throw;
+        }
+
+        var from = response.TimeStart.ToUniversalTime();
+        var to = response.TimeEnd.ToUniversalTime();
+        StatisticsEntryContributionsDTO Result(StatisticsEntryPassingsStatus status,
+            IReadOnlyList<TimingContracts.PassingDTO>? passings = null, bool truncated = false) =>
+            new(response.EntryId, response.TransponderId, from, to, samples, response.Truncated,
+                passings, truncated, status);
+
+        // Never clip or split the authoritative window into misleading partial results.
+        if (to - from > TimeSpan.FromDays(7)) return Result(StatisticsEntryPassingsStatus.WindowTooLarge);
+        try
+        {
+            var passings = await timing.GetTransponderPassingsAsync(response.TransponderId,
+                from.ToString("O", CultureInfo.InvariantCulture), to.ToString("O", CultureInfo.InvariantCulture), cancellationToken);
+            if (passings is null || passings.TransponderId != response.TransponderId ||
+                passings.From != from || passings.To != to || passings.Passings is null || passings.Passings.Count > 500)
+                throw new InvalidDataException("The timing passings response is invalid.");
+            return Result(StatisticsEntryPassingsStatus.Available, passings.Passings.Select(p =>
+            {
+                if (p is null || p.Id == Guid.Empty || p.Time < from || p.Time > to ||
+                    p.TimingPointDescription is null || p.InstallationDescription is null)
+                    throw new InvalidDataException("A timing passing response is invalid.");
+                return new TimingContracts.PassingDTO(p.Id, p.Time.ToUniversalTime(), p.TimingPointId,
+                    p.TimingPointDescription, p.InstallationId, p.InstallationDescription, p.FacilityId,
+                    p.LowBattery, p.LowStrength, p.LowHits);
+            }).ToArray(), passings.Truncated);
+        }
+        catch (VeloTime.Module.Timing.Client.ApiException exception) when (exception.StatusCode == 403)
+        {
+            return Result(StatisticsEntryPassingsStatus.Forbidden);
+        }
+        catch (VeloTime.Module.Timing.Client.ApiException exception) when (exception.StatusCode is 401 or 404)
+        {
+            logger.LogWarning("Timing contributions request was rejected with status {Status}.", exception.StatusCode);
+            throw new HttpRequestException("Timing contributions could not be loaded.", exception, (HttpStatusCode)exception.StatusCode);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return Result(StatisticsEntryPassingsStatus.Forbidden);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.NotFound)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is VeloTime.Module.Timing.Client.ApiException or HttpRequestException
+            or TimeoutException or InvalidDataException or Newtonsoft.Json.JsonException
+            or Polly.Timeout.TimeoutRejectedException or Polly.CircuitBreaker.BrokenCircuitException
+            || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(exception, "Timing contributions are unavailable; Statistics samples remain available.");
+            return Result(StatisticsEntryPassingsStatus.Unavailable);
+        }
+    });
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetCoursePointNamesAsync(IReadOnlyList<Guid> coursePointIds,
+        CancellationToken cancellationToken = default)
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        if (coursePointIds is null || coursePointIds.Count > 1000 || coursePointIds.Contains(Guid.Empty))
+            throw new HttpRequestException("Supply at most 1000 nonempty course-point IDs.", null, HttpStatusCode.BadRequest);
+        try
+        {
+            var names = new Dictionary<Guid, string>();
+            foreach (var id in coursePointIds.Distinct())
+                names.Add(id, await CoursePointNames.GetAsync(cache, id, cancellationToken));
+            return names;
+        }
+        catch (VeloTime.Module.Facilities.Client.ApiException exception)
+        {
+            logger.LogError(exception, "Contribution course-point names could not be resolved.");
+            throw new HttpRequestException("Contribution course-point names could not be resolved.", exception,
+                exception.StatusCode is 401 or 403 or 404 ? (HttpStatusCode)exception.StatusCode : HttpStatusCode.BadGateway);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Contribution course-point names could not be resolved.");
+            throw;
+        }
+    }
+
+    private static Contracts.AdminStatisticsSampleDTO MapSample(AdminStatisticsSampleDTO sample)
+    {
+        if (sample is null || sample.Id == Guid.Empty || !double.IsFinite(sample.DistanceMetres) ||
+            !TimeSpan.TryParseExact(sample.Duration, "c", CultureInfo.InvariantCulture, out var duration))
+            throw new InvalidDataException("A statistics sample response is invalid.");
+        return new(sample.Id, sample.TimeStart.ToUniversalTime(), sample.TimeEnd.ToUniversalTime(),
+            sample.CoursePointStartId, sample.CoursePointEndId, sample.DistanceMetres, duration,
+            sample.SpeedMetresPerSecond is { } speed && double.IsFinite(speed) ? speed : null, sample.FacilityId);
+    }
+
     private const string DefinitionsTag = "velotime:webui:statistics-definitions";
 
     public Task<Contracts.AdminStatisticsEntriesPageDTO> ListEntriesAsync(Contracts.GetAdminStatisticsEntriesRequest request, CancellationToken cancellationToken = default) => Execute(async () =>

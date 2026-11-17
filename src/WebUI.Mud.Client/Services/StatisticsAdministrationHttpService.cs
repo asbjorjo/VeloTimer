@@ -7,6 +7,18 @@ public sealed class StatisticsAdministrationHttpService(HttpClient client) : ISt
 {
     private const string Root = "api/admin/statistics";
 
+    public async Task<StatisticsEntryContributionsDTO> GetEntryContributionsAsync(Guid entryId, CancellationToken cancellationToken = default) =>
+        await client.GetFromJsonAsync<StatisticsEntryContributionsDTO>($"{Root}/entries/{entryId:D}/contributions", cancellationToken)
+        ?? throw new InvalidDataException("The statistics entry contributions are missing.");
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetCoursePointNamesAsync(IReadOnlyList<Guid> coursePointIds, CancellationToken cancellationToken = default)
+    {
+        using var response = await client.PostAsJsonAsync($"{Root}/course-point-names/resolve", coursePointIds, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<Dictionary<Guid, string>>(cancellationToken)
+            ?? throw new InvalidDataException("The course-point names are missing.");
+    }
+
     public async Task<AdminStatisticsEntriesPageDTO> ListEntriesAsync(GetAdminStatisticsEntriesRequest request, CancellationToken cancellationToken = default) =>
         await client.GetFromJsonAsync<AdminStatisticsEntriesPageDTO>($"{Root}/entries?{StatisticsEntriesQuery.Encode(request)}", cancellationToken)
         ?? throw new InvalidDataException("The statistics entry page is missing.");

@@ -79,7 +79,7 @@ public sealed class NoContentClientCallTests
         using var cacheHost = new WebUiCacheTestHost(facilities, timing, statistics);
         var transponders = new TransponderManagementService(timing, UnusedOwners());
         var infrastructure = new InfrastructureAdministrationService(facilities, timing, cacheHost.Cache);
-        var definitions = new StatisticsAdministrationService(statistics, cacheHost.Cache);
+        var definitions = cacheHost.StatisticsAdministration(statistics);
         var id = Guid.NewGuid();
         using var cancellation = new CancellationTokenSource();
         var token = cancellation.Token;
@@ -128,7 +128,7 @@ public sealed class NoContentClientCallTests
         [
             () => new TransponderManagementService(timing, UnusedOwners()).SaveOwnershipAsync(id, new(id, id, DateTimeOffset.UtcNow, null)),
             () => new InfrastructureAdministrationService(new Facilities.FacilitiesClient(http), timing, cacheHost.Cache).DeleteFacilityAsync(id),
-            () => new StatisticsAdministrationService(new Statistics.StatisticsClient(http), cacheHost.Cache).DeleteItemAsync(id)
+            () => cacheHost.StatisticsAdministration(new Statistics.StatisticsClient(http)).DeleteItemAsync(id)
         ];
         foreach (var action in actions)
         {
@@ -153,7 +153,7 @@ public sealed class NoContentClientCallTests
         using var cacheHost = new WebUiCacheTestHost();
         var transponders = new TransponderManagementService(timing, UnusedOwners());
         var infrastructure = new InfrastructureAdministrationService(new Facilities.FacilitiesClient(http), timing, cacheHost.Cache);
-        var definitions = new StatisticsAdministrationService(new Statistics.StatisticsClient(http), cacheHost.Cache);
+        var definitions = cacheHost.StatisticsAdministration(new Statistics.StatisticsClient(http));
         var id = Guid.NewGuid();
 
         await Assert.ThrowsAsync<Timing.ApiException>(() => transponders.SaveTransponderAsync(id, "Label"));
