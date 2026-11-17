@@ -4,6 +4,8 @@ namespace VeloTime.WebUI.Mud.Client.Services;
 
 public interface IStatisticsAdministrationService
 {
+    Task<AdminStatisticsEntriesPageDTO> ListEntriesAsync(GetAdminStatisticsEntriesRequest request, CancellationToken cancellationToken = default);
+    Task<AdminStatisticsEntryDTO> SetManualInvalidationAsync(Guid id, StatisticsEntryManualInvalidationRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<StatisticsItemDTO>> GetItemsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<StatisticsConfigurationDTO>> GetConfigurationsAsync(CancellationToken cancellationToken = default);
     Task SaveItemAsync(Guid? id, SaveStatisticsItemRequest request, CancellationToken cancellationToken = default);

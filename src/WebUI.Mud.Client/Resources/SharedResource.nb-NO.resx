@@ -623,4 +623,40 @@
   <data name="RequiredPointsSummary" xml:space="preserve"><value>Påkrevde punkter: {0}</value></data>
   <data name="StatisticsStructureLocked" xml:space="preserve"><value>Endringen er i konflikt med gjeldende definisjon. Strukturendringer, inkludert påkrevde punkter, er låst når denne konfigurasjonen eller en avhengig Multi har resultater. Behold strukturen eller opprett en ny konfigurasjon. Utkastet ditt beholdes.</value></data>
   <data name="StatisticsEndpointsOutsideLayout" xml:space="preserve"><value>Velg start- og målpunkter som tilhører valgt anlegg og løypeoppsett. Eksisterende endepunkter er ikke fjernet.</value></data>
+  <data name="StatisticsEntries" xml:space="preserve"><value>Statistikkoppføringer</value></data>
+  <data name="StatisticsEntriesHelp" xml:space="preserve"><value>Se registrerte oppføringer, også ugyldige resultater. Manuell ugyldiggjøring overstyrer automatisk validering frem til gjenoppretting. Sidene inneholder opptil 50 oppføringer, med nyeste sluttid først.</value></data>
+  <data name="StatisticsAllItems" xml:space="preserve"><value>Alle øvelser</value></data>
+  <data name="StatisticsAllConfigurations" xml:space="preserve"><value>Alle konfigurasjoner</value></data>
+  <data name="StatisticsValidity" xml:space="preserve"><value>Gyldighet</value></data>
+  <data name="StatisticsAllValidity" xml:space="preserve"><value>Gyldige og ugyldige</value></data>
+  <data name="StatisticsValid" xml:space="preserve"><value>Gyldig</value></data>
+  <data name="StatisticsInvalid" xml:space="preserve"><value>Ugyldig</value></data>
+  <data name="StatisticsEntry" xml:space="preserve"><value>Oppføring</value></data>
+  <data name="StatisticsEntryTime" xml:space="preserve"><value>Tid</value></data>
+  <data name="StatisticsEntryStart" xml:space="preserve"><value>Start</value></data>
+  <data name="StatisticsEntryEnd" xml:space="preserve"><value>Slutt</value></data>
+  <data name="StatisticsManualAudit" xml:space="preserve"><value>Historikk for manuell validering</value></data>
+  <data name="StatisticsManualActive" xml:space="preserve"><value>Manuelt ugyldiggjort</value></data>
+  <data name="StatisticsManualInactive" xml:space="preserve"><value>Ingen aktiv manuell ugyldiggjøring</value></data>
+  <data name="StatisticsManualActor" xml:space="preserve"><value>Endret av</value></data>
+  <data name="StatisticsNoNote" xml:space="preserve"><value>Ingen merknad</value></data>
+  <data name="StatisticsMarkInvalid" xml:space="preserve"><value>Merk som ugyldig</value></data>
+  <data name="StatisticsRestore" xml:space="preserve"><value>Gjenopprett automatisk validering</value></data>
+  <data name="StatisticsMarkEntry" xml:space="preserve"><value>Merk oppføring {0} som ugyldig</value></data>
+  <data name="StatisticsRestoreEntry" xml:space="preserve"><value>Gjenopprett automatisk validering for oppføring {0}</value></data>
+  <data name="StatisticsMarkConfirm" xml:space="preserve"><value>Vil du ugyldiggjøre denne oppføringen manuelt? Dette gjelder også oppføringer som allerede er automatisk ugyldige. Oppføringen forblir manuelt ugyldig til den gjenopprettes eksplisitt.</value></data>
+  <data name="StatisticsRestoreConfirm" xml:space="preserve"><value>Vil du fjerne manuell ugyldiggjøring og evaluere oppføringen automatisk igjen? Automatiske kontroller kan fortsatt gjøre den ugyldig. Merknaden dokumenterer endringen og erstatter forrige revisjonsmerknad.</value></data>
+  <data name="StatisticsManualNote" xml:space="preserve"><value>Merknad (valgfritt)</value></data>
+  <data name="StatisticsManualNoteHelp" xml:space="preserve"><value>Opptil 500 tegn. Lagres med bruker-ID-en din og tidspunktet for endringen som siste manuelle revisjon.</value></data>
+  <data name="StatisticsEntriesEmpty" xml:space="preserve"><value>Ingen oppføringer samsvarer med filtrene på denne siden.</value></data>
+  <data name="StatisticsManualSaved" xml:space="preserve"><value>Manuell valideringstilstand er lagret.</value></data>
+  <data name="StatisticsSpeedUnavailable" xml:space="preserve"><value>Hastighet utilgjengelig</value></data>
+  <data name="StatisticsEntryChanged" xml:space="preserve"><value>Oppføringen er endret eller ikke lenger tilgjengelig. Oppdater før du prøver igjen.</value></data>
+  <data name="StatisticsEntriesFailed" xml:space="preserve"><value>Kunne ikke fullføre forespørselen. Kontroller tilkoblingen og prøv igjen med Oppdater.</value></data>
+  <data name="StatisticsInvalidReasonNonPositiveDuration" xml:space="preserve"><value>Varigheten er null eller negativ</value></data>
+  <data name="StatisticsInvalidReasonInvalidContributor" xml:space="preserve"><value>En underliggende oppføring er ugyldig</value></data>
+  <data name="StatisticsInvalidReasonBelowMinimumDuration" xml:space="preserve"><value>Under minste varighet</value></data>
+  <data name="StatisticsInvalidReasonAboveMaximumDuration" xml:space="preserve"><value>Over største varighet</value></data>
+  <data name="StatisticsInvalidReasonRequiredCoursePointsNotSatisfied" xml:space="preserve"><value>Påkrevde løypepunkter er ikke oppfylt</value></data>
+  <data name="StatisticsInvalidReasonManuallyInvalidated" xml:space="preserve"><value>Manuelt ugyldiggjort</value></data>
 </root>
