@@ -157,6 +157,7 @@
         <ChildRowContent Context="entry">
             @if (IsExpanded(entry.Id))
             {
+                <MudTr>
                     <MudTd colspan="8" Class="pa-2 pa-sm-4">
                         <section id="@ContributionsPanelId(entry.Id)" aria-label="@L["StatisticsEntryContributions", entry.StatisticsItemName]" class="statistics-contributions" @onclick:stopPropagation="true">
                             <MudPaper Outlined="true" Class="pa-3 pa-sm-4">
@@ -274,6 +275,7 @@
                             </MudPaper>
                         </section>
                     </MudTd>
+                </MudTr>
             }
         </ChildRowContent>
         <NoRecordsContent>
@@ -465,6 +467,8 @@
             var ids = state.Result!.Samples
                 .SelectMany(sample => new[] { sample.CoursePointStartId, sample.CoursePointEndId })
                 .Distinct().ToArray();
+            // Async event handlers only render automatically at their first yield and completion.
+            StateHasChanged();
             var names = await Administration.GetCoursePointNamesAsync(ids, token);
             if (!IsCurrentContributionLoad(entryId, cancellation, version, token)) return;
             state.CoursePointNames.Clear();
