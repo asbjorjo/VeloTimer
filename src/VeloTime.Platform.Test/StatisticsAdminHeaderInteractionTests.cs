@@ -138,6 +138,68 @@ public sealed class StatisticsAdminHeaderInteractionTests
         Assert.Null(test.Last.MinSpeedMetresPerSecond);
     }
 
+    [Fact]
+    public async Task HeaderControlsRemainKeyboardAccessibleAndMountedWhileLoadingAndEmpty()
+    {
+        await using var test = new Harness();
+        await test.Start();
+        test.AssertResponsiveHeader();
+        test.AssertHeaderControls();
+
+        var pending = new TaskCompletionSource<AdminStatisticsEntriesPageDTO>(TaskCreationOptions.RunContinuationsAsynchronously);
+        test.Respond = (_, _) => pending.Task;
+        var loading = test.ClickSort("duration");
+        await test.WaitForQueries(2);
+        test.AssertResponsiveHeader();
+        test.AssertHeaderControls();
+        Assert.All(test.Renderer.Components<MudTextField<string>>(), field => Assert.False(field.Disabled));
+        Assert.Contains(test.Renderer.Frames(), frame => frame.FrameType == RenderTreeFrameType.Attribute &&
+            frame.AttributeName == "role" && Equals(frame.AttributeValue, "status"));
+
+        pending.SetResult(new([], null, null));
+        await loading;
+        await test.Settle();
+        Assert.Empty(test.Renderer.Components<MudTable<AdminStatisticsEntryDTO>>().Single().Items);
+        test.AssertResponsiveHeader();
+        test.AssertHeaderControls();
+        Assert.Contains(test.Renderer.Frames(), frame => frame.FrameType == RenderTreeFrameType.Attribute &&
+            frame.AttributeName == "role" && Equals(frame.AttributeValue, "status"));
+    }
+
+    [Fact]
+    public async Task BrowserLocaleAndSpeedUnitChangesReformatAppliedBoundsWithoutQueryOrCanonicalDrift()
+    {
+        await using var test = new Harness("en-US", "mph");
+        await test.Start();
+        await test.Edit(2, "10");
+        await test.Edit(3, "20");
+        await test.Settle();
+
+        var applied = test.Last;
+        Assert.Equal(UnitsNet.Speed.FromMilesPerHour(10).MetersPerSecond, applied.MinSpeedMetresPerSecond!.Value, 12);
+        Assert.Equal(UnitsNet.Speed.FromMilesPerHour(20).MetersPerSecond, applied.MaxSpeedMetresPerSecond!.Value, 12);
+        var queryCount = test.Queries.Count;
+
+        await test.ChangeDisplaySettings("nb-NO", "km/h");
+        var fields = test.Renderer.Components<MudTextField<string>>().ToArray();
+        var culture = CultureInfo.GetCultureInfo("nb-NO");
+        Assert.Contains(",", fields[2].Value);
+        Assert.Contains(",", fields[3].Value);
+        Assert.True(double.TryParse(fields[2].Value, NumberStyles.Float, culture, out var minimumInKmh));
+        Assert.True(double.TryParse(fields[3].Value, NumberStyles.Float, culture, out var maximumInKmh));
+        Assert.Equal(UnitsNet.Speed.FromMetersPerSecond(applied.MinSpeedMetresPerSecond.Value).KilometersPerHour, minimumInKmh, 12);
+        Assert.Equal(UnitsNet.Speed.FromMetersPerSecond(applied.MaxSpeedMetresPerSecond.Value).KilometersPerHour, maximumInKmh, 12);
+        Assert.EndsWith("(km/h)", fields[2].Label);
+        Assert.EndsWith("(km/h)", fields[3].Label);
+        Assert.Equal(queryCount, test.Queries.Count);
+        Assert.Equal(applied, test.Last);
+
+        await test.Edit(2, fields[2].Value);
+        await test.Settle();
+        Assert.Equal(queryCount, test.Queries.Count);
+        Assert.Equal(applied, test.Last);
+    }
+
     [Theory]
     [InlineData("success")]
     [InlineData("failure")]
@@ -181,7 +243,7 @@ public sealed class StatisticsAdminHeaderInteractionTests
         public GetAdminStatisticsEntriesRequest Last => Queries[^1];
         public Func<GetAdminStatisticsEntriesRequest, CancellationToken, Task<AdminStatisticsEntriesPageDTO>>? Respond;
         public int Writes;
-        private readonly EffectiveDisplaySettings settings;
+        private EffectiveDisplaySettings settings;
         private readonly AdminStatisticsEntryDTO entry = StatisticsManualInvalidationTransportTests.Entry();
         public Harness(string locale = "en-US", string unit = "m/s")
         {
@@ -223,8 +285,41 @@ public sealed class StatisticsAdminHeaderInteractionTests
             };
             return new([entry], cursor, cursor);
         }
-        public Task Start() => Renderer.Dispatcher.InvokeAsync(() => Renderer.Start(ParameterView.FromDictionary(new Dictionary<string, object?>
-        { [nameof(StatisticsManualInvalidationPageTests.PageHost.Settings)] = settings })));
+        public Task Start() => Renderer.Dispatcher.InvokeAsync(() => Renderer.Start(SettingsParameters()));
+        private ParameterView SettingsParameters() => ParameterView.FromDictionary(new Dictionary<string, object?>
+        { [nameof(StatisticsManualInvalidationPageTests.PageHost.Settings)] = settings });
+        public Task ChangeDisplaySettings(string locale, string unit)
+        {
+            settings = EffectiveDisplaySettings.Create(new("m", unit, "utc", null), "Europe/Oslo", locale, CultureInfo.GetCultureInfo(locale));
+            return Renderer.Dispatcher.InvokeAsync(() => Renderer.Update(SettingsParameters()));
+        }
+        public void AssertResponsiveHeader()
+        {
+            var region = Renderer.ElementAttributes("div", "role", "region");
+            Assert.Equal("Statistics entries", region["aria-label"]);
+            Assert.Equal("0", region["tabindex"]);
+            Assert.Equal("overflow-x:auto; width:100%;", region["style"]);
+            var table = Renderer.Components<MudTable<AdminStatisticsEntryDTO>>().Single();
+            Assert.Equal(Breakpoint.None, table.Breakpoint);
+            Assert.Contains("min-width:80rem", table.Style);
+        }
+        public void AssertHeaderControls()
+        {
+            var fields = Renderer.Components<MudTextField<string>>().ToArray();
+            Assert.Collection(fields,
+                field => Assert.Equal("Minimum duration", field.Label),
+                field => Assert.Equal("Maximum duration", field.Label),
+                field => Assert.Contains("Minimum speed", field.Label),
+                field => Assert.Contains("Maximum speed", field.Label));
+            Assert.Single(Renderer.Components<MudSelect<bool?>>());
+            Assert.Equal(new bool?[] { null, true, false }, Renderer.Components<MudSelectItem<bool?>>().Select(item => item.Value));
+            foreach (var label in new[] { "completion", "duration", "speed" })
+            {
+                var button = Renderer.Components<MudButton>().Single(button => button.UserAttributes?.TryGetValue("aria-label", out var value) == true &&
+                    value.ToString()!.Contains(label, StringComparison.OrdinalIgnoreCase));
+                Assert.True(Renderer.IsNativeButton(button));
+            }
+        }
         public Task ClickSort(string label) => Renderer.Dispatcher.InvokeAsync(() =>
         {
             var button = Renderer.Components<MudButton>().Single(button => button.UserAttributes?.TryGetValue("aria-label", out var value) == true &&
@@ -286,6 +381,7 @@ public sealed class StatisticsAdminHeaderInteractionTests
             root = AssignRootComponentId(new StatisticsManualInvalidationPageTests.PageHost());
             return RenderRootComponentAsync(root, parameters);
         }
+        public Task Update(ParameterView parameters) => RenderRootComponentAsync(root, parameters);
         public IEnumerable<RenderTreeFrame> Frames(int? id = null)
         {
             var frames = GetCurrentRenderTreeFrames(id ?? root);
@@ -301,6 +397,19 @@ public sealed class StatisticsAdminHeaderInteractionTests
         private int Id(IComponent component) => Frames().Single(frame => frame.FrameType == RenderTreeFrameType.Component && ReferenceEquals(frame.Component, component)).ComponentId;
         public string Text(IComponent component) => string.Concat(Frames(Id(component)).Where(frame => frame.FrameType == RenderTreeFrameType.Text).Select(frame => frame.TextContent));
         public bool IsNativeButton(IComponent component) => Frames(Id(component)).Any(frame => frame.FrameType == RenderTreeFrameType.Element && frame.ElementName == "button");
+        public IReadOnlyDictionary<string, object?> ElementAttributes(string elementName, string attributeName, object value)
+        {
+            var frames = Frames().ToArray();
+            for (var i = 0; i < frames.Length; i++)
+            {
+                if (frames[i].FrameType != RenderTreeFrameType.Element || frames[i].ElementName != elementName) continue;
+                var attributes = new Dictionary<string, object?>();
+                for (var j = i + 1; j < frames.Length && frames[j].FrameType == RenderTreeFrameType.Attribute; j++)
+                    attributes[frames[j].AttributeName] = frames[j].AttributeValue;
+                if (Equals(attributes.GetValueOrDefault(attributeName), value)) return attributes;
+            }
+            throw new InvalidOperationException($"No {elementName} element with {attributeName}={value} was rendered.");
+        }
         public Task Click(IComponent component) => Event(component, "onclick", new MouseEventArgs());
         public Task Input(IComponent component, string value) => Event(component, "oninput", new ChangeEventArgs { Value = value });
         private Task Event(IComponent component, string name, EventArgs args)
