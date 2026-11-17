@@ -111,12 +111,17 @@ public sealed class StatisticsRevalidationService(
             if (!configs.TryGetValue(row.StatisticsItemConfigId, out var config))
                 throw new InvalidOperationException(
                     $"Statistics entry {row.Id} references configuration {row.StatisticsItemConfigId}, which does not belong to item {itemId}.");
+            // Manual invalidation takes precedence until an explicit restore clears reason 5.
+            // Keep scanning these rows so the keyset checkpoint can progress, but never classify them.
+            if (row.InvalidReason == StatisticsEntryInvalidReason.ManuallyInvalidated)
+                continue;
             if (phase == StatisticsValidityRevalidationPhase.Simple && config is SimpleStatisticsItemConfig)
                 classified.Add((row, StatisticsValidityEvaluator.Evaluate(row.Duration, true, bounds[config.Id], row.RequiredCoursePointsSatisfied)));
         }
         if (phase == StatisticsValidityRevalidationPhase.Multi)
         {
-            var multiRows = rows.Where(r => configs[r.StatisticsItemConfigId] is MultiStatisticsItemConfig).ToList();
+            var multiRows = rows.Where(r => r.InvalidReason != StatisticsEntryInvalidReason.ManuallyInvalidated &&
+                configs[r.StatisticsItemConfigId] is MultiStatisticsItemConfig).ToList();
             var contributorsValid = await StatisticsService.ReadMultiContributorValidityAsync(
                 storage, multiRows.Select(r => r.Id), cancellationToken);
             classified.AddRange(multiRows.Select(r => (r, StatisticsValidityEvaluator.Evaluate(
@@ -131,6 +136,8 @@ public sealed class StatisticsRevalidationService(
             var valid = reason is null;
             // Validity only: measurements, ownership and creation events are untouched.
             var updated = await storage.Set<StatisticsEntry>().Where(e => ids.Contains(e.Id))
+                // Recheck the active manual reason in SQL in case an admin invalidated a row after the page read.
+                .Where(e => e.InvalidReason != StatisticsEntryInvalidReason.ManuallyInvalidated)
                 .ExecuteUpdateAsync(s => s.SetProperty(e => e.IsValid, valid).SetProperty(e => e.InvalidReason, reason), cancellationToken);
             if (updated != ids.Count)
                 throw new InvalidOperationException($"Expected to reclassify {ids.Count} entries of item {itemId}, updated {updated}.");
