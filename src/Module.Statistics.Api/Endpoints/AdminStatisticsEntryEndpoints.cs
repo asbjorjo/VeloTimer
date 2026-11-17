@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
@@ -11,9 +12,6 @@ namespace VeloTime.Module.Statistics.Api.Endpoints;
 
 internal static class AdminStatisticsEntryEndpoints
 {
-    private static readonly HashSet<string> QueryKeys =
-        ["facilityId", "statisticsItemId", "statisticsItemConfigId", "transponderId", "isValid", "cursor", "direction", "pageSize"];
-
     internal static void MapAdminStatisticsEntryEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var entries = endpoints.MapGroup("/admin/entries")
@@ -38,72 +36,23 @@ internal static class AdminStatisticsEntryEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
-    // Cursor uses the invariant UTC round-trip timestamp|UUID encoding used by public Statistics paging.
-    // Raw single-valued query parsing ensures malformed and duplicate values are explicitly rejected.
+    // Raw single-valued query parsing ensures API and BFF reject the same malformed values.
+    // Named parameters preserve OpenAPI/NSwag query discovery; the shared parser is authoritative.
     private static async Task<Results<Ok<AdminStatisticsEntriesPageDTO>, ValidationProblem>> List(
         HttpContext http, StatisticsDbContext storage, CancellationToken cancellationToken,
         Guid? facilityId = null, Guid? statisticsItemId = null, Guid? statisticsItemConfigId = null,
         Guid? transponderId = null, bool? isValid = null, string? cursor = null,
-        string? direction = null, int pageSize = 50)
+        string? direction = null, int pageSize = 50,
+        string? minDuration = null, string? maxDuration = null,
+        string? minSpeed = null, string? maxSpeed = null, string? sort = null, string? order = null)
     {
         http.Response.Headers.CacheControl = "no-store";
-        var errors = new Dictionary<string, string[]>();
-        var values = new Dictionary<string, string?>();
-        foreach (var parameter in http.Request.Query)
-        {
-            if (!QueryKeys.Contains(parameter.Key))
-                errors[parameter.Key] = ["Unsupported Statistics entry query parameter."];
-            if (parameter.Value.Count != 1)
-                errors[parameter.Key] = ["Supply this query parameter exactly once."];
-            else
-                values[parameter.Key] = parameter.Value[0];
-        }
-        if (errors.Count != 0) return TypedResults.ValidationProblem(errors);
-
-        string? Value(string key) => values.GetValueOrDefault(key);
-        Guid? ParseId(string key)
-        {
-            if (!values.ContainsKey(key)) return null;
-            if (Guid.TryParseExact(Value(key), "D", out var id) && id != Guid.Empty) return id;
-            errors[key] = ["A nonempty ID in UUID D format is required."];
-            return null;
-        }
-
-        _ = ParseId("facilityId");
-        _ = ParseId("statisticsItemId");
-        _ = ParseId("statisticsItemConfigId");
-        _ = ParseId("transponderId");
-        var facility = facilityId;
-        var item = statisticsItemId;
-        var config = statisticsItemConfigId;
-        var transponder = transponderId;
-        var valid = isValid;
-
-        AdminStatisticsEntryCursorDTO? parsedCursor = null;
-        if (values.ContainsKey("cursor"))
-        {
-            if (PublicStatisticsQuery.TryParseCursor(Value("cursor"), out var publicCursor))
-                parsedCursor = new(publicCursor!.TimeEnd, publicCursor.Id);
-            else errors["cursor"] = ["Use a UTC round-trip timestamp, |, and an entry UUID."];
-        }
-        var parsedDirection = Value("direction") switch
-        {
-            "next" => AdminStatisticsEntriesPageDirection.Next,
-            "previous" => AdminStatisticsEntriesPageDirection.Previous,
-            _ => (AdminStatisticsEntriesPageDirection?)null
-        };
-        if (values.ContainsKey("direction") && parsedDirection is null)
-            errors["direction"] = ["Direction must be next or previous."];
-        if ((parsedCursor is null) != (parsedDirection is null))
-            errors["cursor"] = ["Cursor and direction must be supplied together."];
-
-        var requestedPageSize = pageSize;
-        if (requestedPageSize is < 1 or > 100)
-            errors["pageSize"] = ["Page size must be an integer from 1 through 100."];
-
-        if (errors.Count != 0) return TypedResults.ValidationProblem(errors);
-        var request = new GetAdminStatisticsEntriesRequest(facility, item, config, transponder, valid,
-            parsedCursor, parsedDirection, requestedPageSize);
+        var duplicates = http.Request.Query.Where(pair => pair.Value.Count != 1)
+            .ToDictionary(pair => pair.Key, _ => new[] { "Supply this query parameter exactly once." });
+        if (duplicates.Count != 0) return TypedResults.ValidationProblem(duplicates);
+        var values = http.Request.Query.ToDictionary(pair => pair.Key, pair => (string?)pair.Value[0]);
+        if (!AdminStatisticsEntriesQuery.TryParse(values, out var request, out var errors))
+            return TypedResults.ValidationProblem(errors);
         return TypedResults.Ok(await QueryPage(storage, request, cancellationToken));
     }
 
@@ -117,11 +66,19 @@ internal static class AdminStatisticsEntryEndpoints
         if (request.TransponderId is { } transponderId) filtered = filtered.Where(entry => entry.TransponderId == transponderId);
         if (request.IsValid is { } isValid) filtered = filtered.Where(entry => entry.IsValid == isValid);
 
+        if (request.MinDuration is { } minDuration) filtered = DurationBound(filtered, minDuration, minimum: true);
+        if (request.MaxDuration is { } maxDuration) filtered = DurationBound(filtered, maxDuration, minimum: false);
+        // PostgreSQL considers NaN greater than all other doubles, and NaN = NaN. Explicitly
+        // exclude all non-finite rows whenever either speed bound is present.
+        if (request.MinSpeedMetresPerSecond.HasValue || request.MaxSpeedMetresPerSecond.HasValue)
+            filtered = filtered.Where(entry => entry.Speed > double.NegativeInfinity && entry.Speed < double.PositiveInfinity);
+        if (request.MinSpeedMetresPerSecond is { } minSpeed) filtered = filtered.Where(entry => entry.Speed >= minSpeed);
+        if (request.MaxSpeedMetresPerSecond is { } maxSpeed) filtered = filtered.Where(entry => entry.Speed <= maxSpeed);
+
         var previousDirection = request.Direction == AdminStatisticsEntriesPageDirection.Previous;
-        var pageQuery = request.Cursor is { } anchor ? Boundary(filtered, anchor, previousDirection) : filtered;
-        var ordered = previousDirection
-            ? pageQuery.OrderBy(entry => entry.TimeEnd).ThenBy(entry => entry.Id)
-            : pageQuery.OrderByDescending(entry => entry.TimeEnd).ThenByDescending(entry => entry.Id);
+        var descending = request.Order == AdminStatisticsEntriesSortOrder.Descending;
+        var pageQuery = request.Cursor is { } anchor ? Boundary(filtered, anchor, previousDirection == descending) : filtered;
+        var ordered = Order(pageQuery, request.Sort, descending != previousDirection);
         var rows = await ordered.Take(request.PageSize + 1)
             .Select(entry => new EntryPageRow(entry.Id, entry.TimeStart, entry.TimeEnd,
                 entry.StatisticsItemId, entry.StatisticsItem.Name, entry.StatisticsItemConfigId,
@@ -144,16 +101,56 @@ internal static class AdminStatisticsEntryEndpoints
             return new([], null, null);
         }
 
-        var first = Cursor(rows[0]);
-        var last = Cursor(rows[^1]);
-        var previous = previousDirection && lookahead || await Boundary(filtered, first, true).AnyAsync(cancellationToken);
-        var next = !previousDirection && lookahead || await Boundary(filtered, last, false).AnyAsync(cancellationToken);
+        var first = Cursor(rows[0], request);
+        var last = Cursor(rows[^1], request);
+        var previous = previousDirection && lookahead || await Boundary(filtered, first, descending).AnyAsync(cancellationToken);
+        var next = !previousDirection && lookahead || await Boundary(filtered, last, !descending).AnyAsync(cancellationToken);
         return new(rows.Select(ToDto).ToList(), previous ? first : null, next ? last : null);
     }
+
+    private static IQueryable<StatisticsEntry> DurationBound(IQueryable<StatisticsEntry> query, TimeSpan bound, bool minimum)
+    {
+        // PostgreSQL intervals have microsecond precision. Round inward so binding a sub-
+        // microsecond bound cannot truncate it and accidentally include an out-of-range row.
+        var ticks = (minimum ? decimal.Ceiling(bound.Ticks / 10m) : decimal.Floor(bound.Ticks / 10m)) * 10;
+        if (ticks > long.MaxValue || ticks < long.MinValue) return query.Where(_ => false);
+        var aligned = TimeSpan.FromTicks((long)ticks);
+        return minimum ? query.Where(entry => entry.Duration >= aligned) : query.Where(entry => entry.Duration <= aligned);
+    }
+
+    private static IOrderedQueryable<StatisticsEntry> Order(IQueryable<StatisticsEntry> query,
+        AdminStatisticsEntriesSort sort, bool descending) => (sort, descending) switch
+    {
+        (AdminStatisticsEntriesSort.Duration, true) => query.OrderByDescending(entry => entry.Duration).ThenByDescending(entry => entry.Id),
+        (AdminStatisticsEntriesSort.Duration, false) => query.OrderBy(entry => entry.Duration).ThenBy(entry => entry.Id),
+        (AdminStatisticsEntriesSort.Speed, true) => query.OrderByDescending(entry => entry.Speed).ThenByDescending(entry => entry.Id),
+        (AdminStatisticsEntriesSort.Speed, false) => query.OrderBy(entry => entry.Speed).ThenBy(entry => entry.Id),
+        (_, true) => query.OrderByDescending(entry => entry.TimeEnd).ThenByDescending(entry => entry.Id),
+        _ => query.OrderBy(entry => entry.TimeEnd).ThenBy(entry => entry.Id)
+    };
 
     private static IQueryable<StatisticsEntry> Boundary(IQueryable<StatisticsEntry> query,
         AdminStatisticsEntryCursorDTO cursor, bool greater)
     {
+        if (cursor.Sort == AdminStatisticsEntriesSort.Duration)
+        {
+            var duration = cursor.Duration!.Value;
+            return greater
+                ? query.Where(entry => EF.Functions.GreaterThan(
+                    ValueTuple.Create(entry.Duration, entry.Id), ValueTuple.Create(duration, cursor.Id)))
+                : query.Where(entry => EF.Functions.LessThan(
+                    ValueTuple.Create(entry.Duration, entry.Id), ValueTuple.Create(duration, cursor.Id)));
+        }
+        if (cursor.Sort == AdminStatisticsEntriesSort.Speed)
+        {
+            var speed = double.Parse(cursor.Speed!, CultureInfo.InvariantCulture);
+            // Row comparisons run in PostgreSQL, including its native NaN equality/ordering.
+            return greater
+                ? query.Where(entry => EF.Functions.GreaterThan(
+                    ValueTuple.Create(entry.Speed, entry.Id), ValueTuple.Create(speed, cursor.Id)))
+                : query.Where(entry => EF.Functions.LessThan(
+                    ValueTuple.Create(entry.Speed, entry.Id), ValueTuple.Create(speed, cursor.Id)));
+        }
         var timeEnd = cursor.TimeEnd.UtcDateTime;
         return greater
             ? query.Where(entry => EF.Functions.GreaterThan(
@@ -162,7 +159,11 @@ internal static class AdminStatisticsEntryEndpoints
                 ValueTuple.Create(entry.TimeEnd, entry.Id), ValueTuple.Create(timeEnd, cursor.Id)));
     }
 
-    private static AdminStatisticsEntryCursorDTO Cursor(EntryPageRow row) => new(Utc(row.TimeEnd), row.Id);
+    private static AdminStatisticsEntryCursorDTO Cursor(EntryPageRow row, GetAdminStatisticsEntriesRequest request) =>
+        new(request.Sort == AdminStatisticsEntriesSort.TimeEnd ? Utc(row.TimeEnd) : default, row.Id,
+            request.Sort, request.Order,
+            request.Sort == AdminStatisticsEntriesSort.Duration ? row.Duration : null,
+            request.Sort == AdminStatisticsEntriesSort.Speed ? row.Speed.ToString("R", CultureInfo.InvariantCulture) : null);
 
     private static AdminStatisticsEntryDTO ToDto(EntryPageRow row) => new(
         row.Id, Utc(row.TimeStart), Utc(row.TimeEnd), row.StatisticsItemId, row.StatisticsItemName,
