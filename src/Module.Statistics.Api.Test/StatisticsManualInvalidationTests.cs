@@ -203,6 +203,39 @@ public sealed class StatisticsManualInvalidationTests
     }
 
     [PublicStatisticsPostgreSqlFact]
+    public async Task InvalidatingLastMatchingPageRecoversToFirstFilteredPage()
+    {
+        await using var host = await PublicStatisticsTestHost.CreateAsync(postgres: true);
+        var config = Config();
+        var newest = Entry(config, 1);
+        var older = Entry(config, 2, completed: Completed.AddMinutes(-1));
+        await host.SeedAsync(newest, older);
+        using var client = Admin(host);
+
+        var first = await Page(client, "isValid=true&pageSize=1");
+        Assert.Equal(newest.Id, Assert.Single(first.Items).Id);
+        Assert.Null(first.Previous);
+        var anchor = Assert.IsType<AdminStatisticsEntryCursorDTO>(first.Next);
+        Assert.Equal(newest.Id, anchor.Id);
+        Assert.Equal(new DateTimeOffset(newest.TimeEnd), anchor.TimeEnd);
+        var pageTwoQuery = "isValid=true&" + Cursor(anchor, "next", pageSize: 1);
+        var second = await Page(client, pageTwoQuery);
+        Assert.Equal(older.Id, Assert.Single(second.Items).Id);
+        Assert.NotNull(second.Previous);
+        Assert.Null(second.Next);
+
+        var invalidated = await Set(client, older.Id, true, "Review");
+        Assert.False(invalidated.IsValid);
+        Assert.True(invalidated.IsManuallyInvalidated);
+        var recovered = await Page(client, pageTwoQuery);
+        var survivor = Assert.Single(recovered.Items);
+        Assert.Equal(newest.Id, survivor.Id);
+        Assert.True(survivor.IsValid);
+        Assert.Null(recovered.Previous);
+        Assert.Null(recovered.Next);
+    }
+
+    [PublicStatisticsPostgreSqlFact]
     public async Task ManualInvalidationIsImmediatelyExcludedFromPublicResultsAndBestResults()
     {
         await using var host = await PublicStatisticsTestHost.CreateAsync(postgres: true);
@@ -264,13 +297,14 @@ public sealed class StatisticsManualInvalidationTests
     }
 
     private static StatisticsEntry Entry(SimpleStatisticsItemConfig config, int index,
-        StatisticsEntryInvalidReason? reason = null, bool checkpoints = true) => new()
+        StatisticsEntryInvalidReason? reason = null, bool checkpoints = true, DateTime? completed = null) => new()
     {
         Id = Guid.Parse($"80000000-0000-0000-0000-{index:D12}"), StatisticsItem = config.StatisticsItem,
         StatisticsItemId = config.StatisticsItemId, StatisticsItemConfig = config, StatisticsItemConfigId = config.Id,
         FacilityId = PublicStatisticsTestHost.Facility, TransponderId = Guid.NewGuid(),
         StatsProfile = new() { UserId = Guid.NewGuid(), ProfileName = "Rider", IsPublic = true },
-        TimeEnd = Completed, TimeStart = reason == StatisticsEntryInvalidReason.NonPositiveDuration ? Completed : Completed.AddSeconds(-10),
+        TimeEnd = completed ?? Completed, TimeStart = reason == StatisticsEntryInvalidReason.NonPositiveDuration
+            ? completed ?? Completed : (completed ?? Completed).AddSeconds(-10),
         Duration = reason == StatisticsEntryInvalidReason.NonPositiveDuration ? TimeSpan.Zero : TimeSpan.FromSeconds(10),
         Speed = reason == StatisticsEntryInvalidReason.NonPositiveDuration ? double.PositiveInfinity : 25,
         IsValid = reason is null, InvalidReason = reason, RequiredCoursePointsSatisfied = checkpoints
@@ -298,8 +332,8 @@ public sealed class StatisticsManualInvalidationTests
         Assert.True(response.Headers.CacheControl?.NoStore);
         return (await response.Content.ReadFromJsonAsync<AdminStatisticsEntriesPageDTO>())!;
     }
-    private static string Cursor(AdminStatisticsEntryCursorDTO cursor, string direction) =>
-        $"pageSize=2&cursor={Uri.EscapeDataString(cursor.TimeEnd.ToString("O", System.Globalization.CultureInfo.InvariantCulture) + "|" + cursor.Id)}&direction={direction}";
+    private static string Cursor(AdminStatisticsEntryCursorDTO cursor, string direction, int pageSize = 2) =>
+        $"pageSize={pageSize}&cursor={Uri.EscapeDataString(cursor.TimeEnd.ToString("O", System.Globalization.CultureInfo.InvariantCulture) + "|" + cursor.Id)}&direction={direction}";
     private static async Task<long> Generation(PublicStatisticsTestHost host, Guid itemId)
     {
         await using var scope = host.App.Services.CreateAsyncScope();
