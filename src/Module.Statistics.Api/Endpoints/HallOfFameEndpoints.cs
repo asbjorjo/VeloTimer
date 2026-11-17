@@ -58,13 +58,12 @@ internal static class HallOfFameEndpoints
             return TypedResults.Ok(new HallOfFameDTO(true, [], laps));
         }
 
-        // A correlated anti-join keeps the winning entry's facility/speed together
-        // and applies the top-ten limit in SQL, before materializing any results.
-        var winners = entries.Where(entry => !entries.Any(other =>
-            other.StatsProfileUserId == entry.StatsProfileUserId &&
-            (other.Duration < entry.Duration ||
-             other.Duration == entry.Duration && other.TimeEnd < entry.TimeEnd ||
-             other.Duration == entry.Duration && other.TimeEnd == entry.TimeEnd && other.Id.CompareTo(entry.Id) < 0)));
+        var winners = entries.GroupBy(entry => new { entry.StatsProfileUserId, entry.StatsProfile!.ProfileName })
+            .Select(group => group.OrderBy(entry => entry.Duration)
+                .ThenBy(entry => entry.TimeEnd)
+                .ThenBy(entry => entry.Id)
+                .First());
+
         var times = await winners.OrderBy(entry => entry.Duration)
             .ThenBy(entry => entry.TimeEnd).ThenBy(entry => entry.Id)
             .Take(HallOfFameQuery.Limit)
