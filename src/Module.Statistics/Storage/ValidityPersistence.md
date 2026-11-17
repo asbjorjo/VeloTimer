@@ -107,6 +107,34 @@ scheduling protocol. Multi validity has no persisted contributor links or proof 
   tuple boundaries were index conditions and no sort/seq scan remained. This was not
   the full joined endpoint query or a fresh full-chain migration. The container was removed.
 
+* `20261117112649_statistics_entry_admin_duration_speed_indexes` adds non-partial
+  B-trees `ix_statistics_entry_duration_id` on `(duration, id)` and
+  `ix_statistics_entry_speed_id` on `(speed, id)` **CONCURRENTLY** for unfiltered
+  administrative keyset pagination. Each supports both ordering directions and includes
+  valid and invalid entries; optional filters may remain residual. PostgreSQL native
+  double ordering, including NaN and infinities, is retained. The migration changes no
+  rows, UTC/SI values, constraints, or history convention; old and new binaries remain
+  compatible. Index availability is a performance prerequisite, not a functional one.
+  Budget disk/IO and waits for existing transactions; use a table-owning DDL role.
+  Do not enclose Up or Down in an external transaction or use a transaction-wrapped
+  idempotent script for concurrent DDL. Because both builds and the EF history insert
+  are nontransactional, a failure can leave either index INVALID or valid without the
+  history row. Inspect **both** indexes in `pg_index` and EF history; after approval,
+  concurrently drop whichever of these migration-owned indexes exist before retrying
+  an unrecorded migration. Do not mask an incompatible or invalid index with
+  `IF NOT EXISTS`. Down concurrently drops only these indexes; partial rollback may
+  likewise require inspection and an approved retry. Schedule rollback separately and
+  allow for degraded pagination performance; row data remains unchanged.
+  Focused validation (2026-11-17): Release migration-worker build and EF pending-model
+  check passed; generated Up/Down SQL placed concurrent DDL outside transactions. On a
+  disposable PostgreSQL 17 representative 100,000-row table with tied values and
+  non-finite speeds, generated Up/Down applied, both indexes were ready/valid, and
+  row count, duration sum, and NaN count were unchanged after rollback. Unforced
+  `EXPLAIN (ANALYZE, BUFFERS)` for each sort showed forward index-only scans for first
+  and ascending next pages, backward scans for previous pages, with tuple boundaries as
+  index conditions. This is not the full joined endpoint query or a fresh full-chain
+  migration. The container was removed.
+
 Deployment requires PostgreSQL 11+ fast constant defaults, table-owner/index/DDL
 privileges, the existing `public.pg_trgm` prerequisite, and allowance for short
 exclusive DDL locks and the measured concurrent-index build. The configuration table

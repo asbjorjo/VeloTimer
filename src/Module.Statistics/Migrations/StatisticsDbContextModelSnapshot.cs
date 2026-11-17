@@ -170,6 +170,14 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.HasIndex("StatsProfileUserId")
                         .HasDatabaseName("ix_statistics_entry_stats_profile_user_id");
 
+                    b.HasIndex("Duration", "Id")
+                        .HasDatabaseName("ix_statistics_entry_duration_id")
+                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+
+                    b.HasIndex("Speed", "Id")
+                        .HasDatabaseName("ix_statistics_entry_speed_id")
+                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+
                     b.HasIndex("StatisticsItemId", "Id")
                         .HasDatabaseName("ix_statistics_entry_statistics_item_id_id")
                         .HasAnnotation("Npgsql:CreatedConcurrently", true);

@@ -103,6 +103,13 @@ public class StatisticsDbContext : BaseDbContext
             e.HasIndex(s => new { s.TimeEnd, s.Id })
                 .IsCreatedConcurrently()
                 .HasDatabaseName("ix_statistics_entry_time_end_id");
+            // One non-partial B-tree per sort supports both directions and UUID ties.
+            e.HasIndex(s => new { s.Duration, s.Id })
+                .IsCreatedConcurrently()
+                .HasDatabaseName("ix_statistics_entry_duration_id");
+            e.HasIndex(s => new { s.Speed, s.Id })
+                .IsCreatedConcurrently()
+                .HasDatabaseName("ix_statistics_entry_speed_id");
             e.HasOne(e => e.StatisticsItem)
                 .WithMany()
                 .IsRequired()
