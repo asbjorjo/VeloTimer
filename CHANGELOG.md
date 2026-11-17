@@ -21,6 +21,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.40"></a>
+## [2.1.0-alpha.40](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.40) (2026-11-17)
+
+### Bug Fixes
+
+* **statistics:** get hall of fame using group by ([694c2fc](https://www.github.com/asbjorjo/VeloTimer/commit/694c2fceea0f49cb1cc4687933b874c361d6aec6))
+
 <a name="2.1.0-alpha.39"></a>
 ## [2.1.0-alpha.39](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.39) (2026-11-17)
 
