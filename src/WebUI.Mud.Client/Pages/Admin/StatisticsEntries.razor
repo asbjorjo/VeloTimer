@@ -52,7 +52,8 @@
     {
         <div role="status" aria-live="polite"><MudProgressLinear Indeterminate="true" Color="Color.Primary" /><MudText>@L["Loading"]</MudText></div>
     }
-    <MudTable T="AdminStatisticsEntryDTO" Items="Rows" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Md" Style="overflow-wrap:anywhere">
+    <div role="region" aria-label="@L["StatisticsEntries"]" tabindex="0" style="overflow-x:auto; width:100%;">
+    <MudTable T="AdminStatisticsEntryDTO" Items="Rows" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.None" Style="min-width:80rem; overflow-wrap:anywhere">
         <HeaderContent>
             <MudTh>@L["StatisticsEntry"]</MudTh>
             <MudTh>@L["Profile"] / @L["Transponder"]</MudTh>
@@ -151,6 +152,7 @@
             @if (!_loading && _error is null) { <MudText role="status">@L["StatisticsEntriesEmpty"]</MudText> }
         </NoRecordsContent>
     </MudTable>
+    </div>
     <MudStack Row="true" Wrap="Wrap.Wrap" Class="mt-4">
         <MudButton OnClick="Previous" Disabled="@(Busy || _page?.Previous is null)">@L["PreviousResults"]</MudButton>
         <MudButton OnClick="Next" Disabled="@(Busy || _page?.Next is null)">@L["NextResults"]</MudButton>
