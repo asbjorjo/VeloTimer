@@ -202,8 +202,7 @@ internal static class StatisticsDefinitionEndpoints
         var cacheKeys = Array.Empty<string>();
         var result = await StatisticsDefinitionTransaction.RunAsync<Results<Created<StatisticsConfigurationDTO>, ProblemHttpResult>>(storage, async () =>
         {
-            if (!await LockConfigurationScope(request, null, storage, scheduler, cancellationToken))
-                return Conflict("The parent configuration moved to another item. Retry with current state.");
+            await LockConfigurationScope(request, null, storage, scheduler, cancellationToken);
             if (await ValidateConfiguration(request, storage, points, layouts, cancellationToken) is { } error) return Invalid(error);
             StatisticsItemConfig config = request.Type == StatisticsConfigurationType.Simple
                 ? new SimpleStatisticsItemConfig { StatisticsItem = null!, CoursePointStart = request.CoursePointStart!.Value, CoursePointEnd = request.CoursePointEnd!.Value,
@@ -241,8 +240,7 @@ internal static class StatisticsDefinitionEndpoints
             var existingItemId = await storage.Set<StatisticsItemConfig>().AsNoTracking()
                 .Where(config => config.Id == id).Select(config => (Guid?)config.StatisticsItemId).SingleOrDefaultAsync(cancellationToken);
             if (existingItemId is null) return TypedResults.NotFound();
-            if (!await LockConfigurationScope(request, existingItemId, storage, scheduler, cancellationToken))
-                return Conflict("The parent configuration moved to another item. Retry with current state.");
+            await LockConfigurationScope(request, existingItemId, storage, scheduler, cancellationToken);
             var config = await storage.Set<StatisticsItemConfig>().FindAsync([id], cancellationToken);
             if (config is null) return TypedResults.NotFound();
             if (config.StatisticsItemId != existingItemId)
@@ -298,29 +296,41 @@ internal static class StatisticsDefinitionEndpoints
         return result;
     }
 
-    private static async Task<bool> LockConfigurationScope(SaveStatisticsConfigurationRequest request, Guid? previousItemId,
+    private static async Task LockConfigurationScope(SaveStatisticsConfigurationRequest request, Guid? previousItemId,
         StatisticsDbContext storage, StatisticsValidityScheduler scheduler, CancellationToken cancellationToken)
     {
-        var itemIds = new List<Guid> { request.StatisticsItemId };
-        if (previousItemId is { } previous) itemIds.Add(previous);
-        // Lock a Multi's parent item too: inserting/changing dependencies must serialize with parent saves.
-        if (request.ParentConfigId is { } parentId)
+        var transaction = storage.Database.CurrentTransaction!;
+        const string savepoint = "statistics_configuration_scope";
+        while (true)
         {
-            var parentItemId = await storage.Set<SimpleStatisticsItemConfig>().AsNoTracking()
-                .Where(parent => parent.Id == parentId).Select(parent => (Guid?)parent.StatisticsItemId)
-                .SingleOrDefaultAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            await transaction.CreateSavepointAsync(savepoint, cancellationToken);
+            var itemIds = new HashSet<Guid> { request.StatisticsItemId };
+            if (previousItemId is { } previous) itemIds.Add(previous);
+            // Dependency writers serialize with the proposed Simple parent's owner as well.
+            var parentItemId = await ReadParentItemId();
             if (parentItemId is { } parent) itemIds.Add(parent);
+            // Expand ALL direct owners before locking. Separate ordered scopes can still acquire
+            // A,M then B, inverting completion's single globally ordered B,M acquisition.
+            await scheduler.LockThresholdScopeAsync(itemIds, true, cancellationToken);
+            var currentParentItemId = await ReadParentItemId();
+            if (currentParentItemId == parentItemId)
+            {
+                await transaction.ReleaseSavepointAsync(savepoint, cancellationToken);
+                return;
+            }
+            // The proposed parent's owner moved while we waited. Release this entire scope
+            // before rediscovering, including that owner's dependencies. The scheduler likewise
+            // retries moving dependencies without ever extending locks out of global order.
+            await transaction.RollbackToSavepointAsync(savepoint, cancellationToken);
+            await transaction.ReleaseSavepointAsync(savepoint, cancellationToken);
         }
-        foreach (var itemId in itemIds.Distinct().Order())
-            await scheduler.LockThresholdScopeAsync(itemId, true, cancellationToken);
-        if (request.ParentConfigId is { } currentParentId)
-        {
-            var currentParentItemId = await storage.Set<SimpleStatisticsItemConfig>().AsNoTracking()
-                .Where(parent => parent.Id == currentParentId).Select(parent => (Guid?)parent.StatisticsItemId)
-                .SingleOrDefaultAsync(cancellationToken);
-            if (currentParentItemId is { } current && !itemIds.Contains(current)) return false;
-        }
-        return true;
+
+        Task<Guid?> ReadParentItemId() => request.ParentConfigId is { } parentId
+            ? storage.Set<SimpleStatisticsItemConfig>().AsNoTracking()
+                .Where(parent => parent.Id == parentId).Select(parent => (Guid?)parent.StatisticsItemId)
+                .SingleOrDefaultAsync(cancellationToken)
+            : Task.FromResult<Guid?>(null);
     }
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteConfiguration(
