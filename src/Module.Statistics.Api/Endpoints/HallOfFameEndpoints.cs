@@ -59,7 +59,7 @@ internal static class HallOfFameEndpoints
         }
 
         var winners = entries.GroupBy(entry => new { entry.StatsProfileUserId, entry.StatsProfile!.ProfileName, entry.StatisticsItem.Distance, entry.FacilityId })
-            .OrderByDescending(group => group.Min(entry => entry.Duration));
+            .OrderBy(group => group.Min(entry => entry.Duration));
 
         var times = await winners
             .Take(HallOfFameQuery.Limit)
