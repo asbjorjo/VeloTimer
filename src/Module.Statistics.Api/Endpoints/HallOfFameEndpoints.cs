@@ -58,17 +58,13 @@ internal static class HallOfFameEndpoints
             return TypedResults.Ok(new HallOfFameDTO(true, [], laps));
         }
 
-        var winners = entries.GroupBy(entry => new { entry.StatsProfileUserId, entry.StatsProfile!.ProfileName })
-            .Select(group => group.OrderBy(entry => entry.Duration)
-                .ThenBy(entry => entry.TimeEnd)
-                .ThenBy(entry => entry.Id)
-                .First());
+        var winners = entries.GroupBy(entry => new { entry.StatsProfileUserId, entry.StatsProfile!.ProfileName, entry.StatisticsItem.Distance, entry.FacilityId })
+            .OrderByDescending(group => group.Min(entry => entry.Duration));
 
-        var times = await winners.OrderBy(entry => entry.Duration)
-            .ThenBy(entry => entry.TimeEnd).ThenBy(entry => entry.Id)
+        var times = await winners
             .Take(HallOfFameQuery.Limit)
-            .Select(entry => new HallOfFameTimeDTO(entry.StatsProfile!.ProfileName,
-                entry.Duration, entry.Speed, entry.FacilityId))
+            .Select(entry => new HallOfFameTimeDTO(entry.Key.ProfileName,
+                entry.Min(entry => entry.Duration), entry.Key.Distance / entry.Min(entry => entry.Duration).TotalSeconds, entry.Key.FacilityId))
             .ToListAsync(cancellationToken);
         return TypedResults.Ok(new HallOfFameDTO(true, times, []));
     }
