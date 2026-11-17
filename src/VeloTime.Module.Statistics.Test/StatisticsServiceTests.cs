@@ -8,7 +8,7 @@ using VeloTime.Module.Statistics.Storage;
 
 namespace VeloTime.Module.Statistics.Test;
 
-public sealed class StatisticsServiceTests
+public sealed partial class StatisticsServiceTests
 {
     [Fact]
     public async Task GetMultiStatisticsItemConfigs_ReturnsConfigsByDescendingRepetitions()

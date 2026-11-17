@@ -17,6 +17,8 @@ public class StatisticsService(
     /// transaction (StatisticsOwnershipService) on PostgreSQL. Owning and dependent items are locked
     /// before live bounds are read. Insertions schedule dependent Multi revalidation atomically, including
     /// windows created before a late Simple entry arrived. Invalid measurements are retained and published.
+    /// Required-point replays return the original persisted entry for at-least-once publication retry;
+    /// they never reassess checkpoints or insert another row. The caller must serialize by transponder.
     /// </summary>
     public async Task<IEnumerable<StatisticsEntry>> ProcessCompletedAsync(Guid transponderId, DateTime startTime, DateTime endTime, Guid startPoint, Guid endPoint, CancellationToken cancellationToken = default)
     {
@@ -24,22 +26,31 @@ public class StatisticsService(
         activity?.SetTag("TransponderId", transponderId);
         IEnumerable<StatisticsEntry> entries = new List<StatisticsEntry>();
 
-        var statsItems = (await GetStatisticsItemConfigByEndCoursePoint(endPoint, cancellationToken)).ToList();
+        var (statsItems, dependentItems) = await LockCompletionDefinitionsAsync(endPoint, cancellationToken);
 
         if (statsItems.Any())
         {
-            var dependentItems = await scheduler.GetDependentMultiItemIdsByParentConfigAsync(
-                statsItems.Select(c => c.Id), cancellationToken);
-            // Take the complete scope in UUID order, exclusively when scheduling will write it.
-            // Do not upgrade individual shared locks after inserting (concurrent writers could deadlock).
-            await scheduler.LockItemsAsync(statsItems.Select(c => c.StatisticsItemId).Concat(dependentItems),
-                dependentItems.Count > 0 ? StatisticsItemLockMode.Exclusive : StatisticsItemLockMode.Shared, cancellationToken);
             var bounds = await ReadCurrentBoundsAsync(statsItems.Select(c => c.Id), cancellationToken);
             foreach (var statsItem in statsItems)
             {
                 // Each item has its own start, independent of the completing segment's start.
                 // Include adjacent earlier segments and prefer the persisted current segment when
                 // it covers the entire item, rather than reaching back to a previous lap.
+                if (statsItem.RequiredCoursePointIds.Length > 0)
+                {
+                    var attempt = await new RequiredCoursePointAttemptReader(storage).ReadAsync(statsItem,
+                        transponderId, Persisted(startTime), Persisted(endTime), startPoint, cancellationToken);
+                    if (attempt is null) continue;
+                    if (attempt.ExistingEntry is not null)
+                    {
+                        entries = entries.Append(attempt.ExistingEntry);
+                        continue;
+                    }
+                    var requiredEntry = CreateSimpleEntry(statsItem, transponderId, Persisted(attempt.TimeStart),
+                        Persisted(endTime), attempt.FacilityId, attempt.Satisfied, Bounds(bounds, statsItem.Id));
+                    entries = entries.Append(requiredEntry);
+                    continue;
+                }
                 var start = await storage.Set<Sample>()
                     .Where(s =>
                         s.TransponderId == transponderId
@@ -55,32 +66,80 @@ public class StatisticsService(
                     // stored classification matches what readers and revalidation observe.
                     var timeStart = Persisted(start.TimeStart);
                     var timeEnd = Persisted(endTime);
-                    var duration = timeEnd - timeStart;
-                    StatisticsEntry entry = new()
-                    {
-                        TransponderId = transponderId,
-                        TimeStart = timeStart,
-                        TimeEnd = timeEnd,
-                        StatisticsItemId = statsItem.StatisticsItem.Id,
-                        Duration = duration,
-                        // Raw SI speed is retained even when nonfinite (zero duration); validity excludes it.
-                        Speed = statsItem.StatisticsItem.Distance / duration.TotalSeconds,
-                        StatisticsItemConfigId = statsItem.Id,
-                        FacilityId = start.FacilityId,
-                    };
-                    StatisticsValidityEvaluator.Apply(entry,
-                        StatisticsValidityEvaluator.Evaluate(duration, contributorsValid: true, Bounds(bounds, statsItem.Id)));
+                    var entry = CreateSimpleEntry(statsItem, transponderId, timeStart, timeEnd,
+                        start.FacilityId, true, Bounds(bounds, statsItem.Id));
                     entries = entries.Append(entry);
                 }
             }
-            await storage.AddRangeAsync(entries, cancellationToken);
+            var newEntries = entries.Where(e => storage.Entry(e).State == EntityState.Detached).ToList();
+            await storage.AddRangeAsync(newEntries, cancellationToken);
             await storage.SaveChangesAsync(cancellationToken);
-            if (entries.Any())
+            if (newEntries.Count > 0)
                 await scheduler.ScheduleDependentMultiRevalidationAsync(dependentItems, cancellationToken);
         }
         activity?.SetTag("EntriesCreated", entries.Count());
 
         return entries;
+    }
+
+    /// <summary>
+    /// Discovery is only a lock-scope hint. Reload the entire endpoint selection, including item
+    /// navigation/requirements, without cache or tracking after locking. A definition may have been
+    /// added, deleted, moved or retargeted while we waited; dependencies may have moved too.
+    /// Roll back only our lock attempt before retrying so we never extend/upgrade an existing scope
+    /// out of UUID order. The caller transaction uses READ COMMITTED and stays intact, including
+    /// its transponder lock; all entry writes occur only after this scope is verified.
+    /// </summary>
+    private async Task<(List<SimpleStatisticsItemConfig> Configs, IReadOnlyList<Guid> Dependents)>
+        LockCompletionDefinitionsAsync(Guid endPoint, CancellationToken cancellationToken)
+    {
+        async Task<List<SimpleStatisticsItemConfig>> ReadAsync() =>
+            await storage.Set<SimpleStatisticsItemConfig>().AsNoTracking()
+                .Where(c => c.CoursePointEnd == endPoint).Include(c => c.StatisticsItem)
+                .ToListAsync(cancellationToken);
+
+        var configs = await ReadAsync();
+        var dependents = await scheduler.GetDependentMultiItemIdsByParentConfigAsync(configs.Select(c => c.Id), cancellationToken);
+        var transaction = storage.Database.CurrentTransaction;
+        const string savepoint = "statistics_completion_scope";
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (transaction is not null) await transaction.CreateSavepointAsync(savepoint, cancellationToken);
+            var mode = dependents.Count > 0 ? StatisticsItemLockMode.Exclusive : StatisticsItemLockMode.Shared;
+            var locked = await scheduler.LockItemsAsync(configs.Select(c => c.StatisticsItemId).Concat(dependents), mode, cancellationToken);
+            var current = await ReadAsync();
+            var currentDependents = await scheduler.GetDependentMultiItemIdsByParentConfigAsync(current.Select(c => c.Id), cancellationToken);
+            var currentMode = currentDependents.Count > 0 ? StatisticsItemLockMode.Exclusive : StatisticsItemLockMode.Shared;
+            if (mode == currentMode && locked.ToHashSet().SetEquals(current.Select(c => c.StatisticsItemId).Concat(currentDependents)))
+            {
+                if (transaction is not null) await transaction.ReleaseSavepointAsync(savepoint, cancellationToken);
+                return (current, currentDependents);
+            }
+            if (transaction is not null)
+            {
+                await transaction.RollbackToSavepointAsync(savepoint, cancellationToken);
+                await transaction.ReleaseSavepointAsync(savepoint, cancellationToken);
+            }
+            configs = current;
+            dependents = currentDependents;
+        }
+    }
+
+    private static StatisticsEntry CreateSimpleEntry(SimpleStatisticsItemConfig config, Guid transponderId,
+        DateTime start, DateTime end, Guid facilityId, bool checkpointsSatisfied, StatisticsDurationBounds bounds)
+    {
+        var duration = end - start;
+        var entry = new StatisticsEntry
+        {
+            TransponderId = transponderId, TimeStart = start, TimeEnd = end,
+            StatisticsItemId = config.StatisticsItem.Id, StatisticsItemConfigId = config.Id,
+            Duration = duration, Speed = config.StatisticsItem.Distance / duration.TotalSeconds,
+            FacilityId = facilityId, RequiredCoursePointsSatisfied = checkpointsSatisfied
+        };
+        StatisticsValidityEvaluator.Apply(entry, StatisticsValidityEvaluator.Evaluate(duration,
+            contributorsValid: true, bounds, checkpointsSatisfied));
+        return entry;
     }
 
     /// <summary>
@@ -92,6 +151,7 @@ public class StatisticsService(
     /// window. Exactly Repetitions entries must match and all must be valid. The Multi items are
     /// share-locked before reading live bounds and contributors (requires the caller's transaction on
     /// PostgreSQL). Later parent insertions/validity changes durably reschedule these items.
+    /// Required-parent replays return existing windows without changing their endpoints or contributors.
     /// </summary>
     public async Task<IEnumerable<StatisticsEntry>> ProcessEntryAsync(Guid transponderId, Guid statisticsItemId, Guid configId, DateTime startTime, DateTime endTime, CancellationToken cancellationToken = default)
     {
@@ -104,6 +164,12 @@ public class StatisticsService(
         {
             await scheduler.LockItemsAsync(multiItems.Select(m => m.StatisticsItemId), StatisticsItemLockMode.Shared, cancellationToken);
             var bounds = await ReadCurrentBoundsAsync(multiItems.Select(m => m.Id), cancellationToken);
+            // Required-point completions replay their original creation payload after a failed publish.
+            // Make those dependent creations idempotent too, without changing legacy window selection.
+            var parentRequirements = await storage.Set<SimpleStatisticsItemConfig>().AsNoTracking()
+                .Where(c => c.Id == configId).Select(c => c.RequiredCoursePointIds).SingleOrDefaultAsync(cancellationToken);
+            var replaySafe = parentRequirements is { Length: > 0 };
+            var newEntries = new List<StatisticsEntry>();
             var maxRepetitions = multiItems.Max(m => m.Repetitions);
             var allEntries = await storage.Set<StatisticsEntry>()
                 .AsNoTracking()
@@ -121,6 +187,18 @@ public class StatisticsService(
                 // duration equal to the persisted endpoint difference.
                 var timeStart = Persisted(relevantEntries.Last().TimeStart);
                 var timeEnd = Persisted(relevantEntries.First().TimeEnd);
+                if (replaySafe)
+                {
+                    var facility = relevantEntries.First().FacilityId;
+                    var existing = await storage.Set<StatisticsEntry>().FirstOrDefaultAsync(e =>
+                        e.TransponderId == transponderId && e.StatisticsItemConfigId == multiItem.Id
+                        && e.TimeEnd == timeEnd && e.FacilityId == facility, cancellationToken);
+                    if (existing is not null)
+                    {
+                        entries = entries.Append(existing);
+                        continue;
+                    }
+                }
                 var duration = timeEnd - timeStart;
                 StatisticsEntry entry = new()
                 {
@@ -134,15 +212,16 @@ public class StatisticsService(
                     FacilityId = relevantEntries.First().FacilityId,
                 };
                 entries = entries.Append(entry);
+                newEntries.Add(entry);
             }
 
             // Insert inside the caller's transaction so one bounded, set-based query can classify all
             // new windows by the very same rule as historical revalidation. No provisional row is
             // committed or published before classification succeeds.
-            await storage.AddRangeAsync(entries, cancellationToken);
+            await storage.AddRangeAsync(newEntries, cancellationToken);
             await storage.SaveChangesAsync(cancellationToken);
-            var contributorsValid = await ReadMultiContributorValidityAsync(storage, entries.Select(e => e.Id), cancellationToken);
-            foreach (var entry in entries)
+            var contributorsValid = await ReadMultiContributorValidityAsync(storage, newEntries.Select(e => e.Id), cancellationToken);
+            foreach (var entry in newEntries)
                 StatisticsValidityEvaluator.Apply(entry, StatisticsValidityEvaluator.Evaluate(entry.Duration,
                     contributorsValid[entry.Id], Bounds(bounds, entry.StatisticsItemConfigId)));
             await storage.SaveChangesAsync(cancellationToken);

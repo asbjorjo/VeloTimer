@@ -25,6 +25,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Module.Statistics.Api\VeloTime.Module.Statistics.Api.csproj" />
+    <ProjectReference Include="..\Module.Facilities.Api\VeloTime.Module.Facilities.Api.csproj" Aliases="FacilitiesApi" />
+    <ProjectReference Include="..\Module.Facilities\VeloTime.Module.Facilities.csproj" />
+    <ProjectReference Include="..\Module.Facilities.Api.Test\VeloTime.Module.Facilities.Api.Test.csproj">
+      <Aliases>FacilitiesApiTest</Aliases>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>

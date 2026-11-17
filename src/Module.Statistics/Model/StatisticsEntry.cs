@@ -17,6 +17,11 @@ public class StatisticsEntry
     public TimeSpan Duration { get; init; }
     public double Speed { get; init; }
     public Guid FacilityId { get; init; }
+    /// <summary>Attempt-time checkpoint outcome, independent of InvalidReason. False is retained
+    /// even when another failure has display precedence. True for legacy/unconfigured entries
+    /// and Multi entries (which use contributor validity). Never reassess after late arrivals
+    /// or threshold edits.</summary>
+    public bool RequiredCoursePointsSatisfied { get; init; } = true;
     public bool IsValid { get; set; } = true;
     public StatisticsEntryInvalidReason? InvalidReason { get; set; }
 }

@@ -112,7 +112,7 @@ public sealed class StatisticsRevalidationService(
                 throw new InvalidOperationException(
                     $"Statistics entry {row.Id} references configuration {row.StatisticsItemConfigId}, which does not belong to item {itemId}.");
             if (phase == StatisticsValidityRevalidationPhase.Simple && config is SimpleStatisticsItemConfig)
-                classified.Add((row, StatisticsValidityEvaluator.Evaluate(row.Duration, true, bounds[config.Id])));
+                classified.Add((row, StatisticsValidityEvaluator.Evaluate(row.Duration, true, bounds[config.Id], row.RequiredCoursePointsSatisfied)));
         }
         if (phase == StatisticsValidityRevalidationPhase.Multi)
         {
@@ -195,7 +195,7 @@ public sealed class StatisticsRevalidationService(
         var names = Names();
         // Native PostgreSQL uuid comparison/order on the (statistics_item_id, id) index; no OFFSET.
         var sql = $"SELECT e.{names.EntryId}, e.{names.EntryConfig}, e.{names.EntryDuration}, " +
-            $"e.{names.EntryValid}, e.{names.EntryReason} " +
+            $"e.{names.EntryValid}, e.{names.EntryReason}, e.{names.EntryCheckpoints} " +
             $"FROM {names.EntryTable} AS e WHERE e.{names.EntryItem} = @item " +
             (cursor.HasValue ? $"AND e.{names.EntryId} > @cursor " : "") +
             $"ORDER BY e.{names.EntryId} LIMIT @limit";
@@ -203,7 +203,7 @@ public sealed class StatisticsRevalidationService(
         if (cursor.HasValue) parameters.Add(new NpgsqlParameter("cursor", cursor.Value));
         var rows = await storage.Database.SqlQueryRaw<EntryRowData>(sql, parameters.ToArray()).ToListAsync(cancellationToken);
         return rows.Select(r => new EntryRow(r.Id, r.StatisticsItemConfigId, r.Duration,
-            r.IsValid, r.InvalidReason is null ? null : (StatisticsEntryInvalidReason)r.InvalidReason.Value)).ToList();
+            r.IsValid, r.RequiredCoursePointsSatisfied, r.InvalidReason is null ? null : (StatisticsEntryInvalidReason)r.InvalidReason.Value)).ToList();
     }
 
     private void RequireNpgsql()
@@ -232,14 +232,15 @@ public sealed class StatisticsRevalidationService(
         public TimeSpan Duration { get; init; }
         public bool IsValid { get; init; }
         public int? InvalidReason { get; init; }
+        public bool RequiredCoursePointsSatisfied { get; init; }
     }
 
     private sealed record EntryRow(Guid Id, Guid StatisticsItemConfigId, TimeSpan Duration,
-        bool IsValid, StatisticsEntryInvalidReason? InvalidReason);
+        bool IsValid, bool RequiredCoursePointsSatisfied, StatisticsEntryInvalidReason? InvalidReason);
 
     private sealed record StoreNames(string JobTable, string JobItem, string JobGeneration, string JobPending,
         string JobPhase, string JobCursor, string JobRescan, string EntryTable, string EntryId, string EntryItem, string EntryConfig,
-        string EntryDuration, string EntryValid, string EntryReason)
+        string EntryDuration, string EntryValid, string EntryReason, string EntryCheckpoints)
     {
         public static StoreNames For(DbContext storage)
         {
@@ -257,7 +258,8 @@ public sealed class StatisticsRevalidationService(
                 J(nameof(StatisticsValidityRevalidation.MultiRescanPending)),
                 sql.DelimitIdentifier(entryStore.Name, entryStore.Schema),
                 E(nameof(StatisticsEntry.Id)), E(nameof(StatisticsEntry.StatisticsItemId)), E(nameof(StatisticsEntry.StatisticsItemConfigId)),
-                E(nameof(StatisticsEntry.Duration)), E(nameof(StatisticsEntry.IsValid)), E(nameof(StatisticsEntry.InvalidReason)));
+                E(nameof(StatisticsEntry.Duration)), E(nameof(StatisticsEntry.IsValid)), E(nameof(StatisticsEntry.InvalidReason)),
+                E(nameof(StatisticsEntry.RequiredCoursePointsSatisfied)));
         }
     }
 }

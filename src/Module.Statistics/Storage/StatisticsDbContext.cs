@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.EntityFrameworkCore.Metadata;
 using VeloTime.Module.Common;
 using VeloTime.Module.Statistics.Model;
 
@@ -20,7 +21,24 @@ public class StatisticsDbContext : BaseDbContext
             modelBuilder.HasPostgresExtension("public", "pg_trgm");
         }
 
-        modelBuilder.Entity<Sample>();
+        modelBuilder.Entity<Sample>(e =>
+        {
+            // Completion messages lack a facility ID; do not put it before the exact times.
+            e.HasIndex(s => new { s.TransponderId, s.TimeStart, s.TimeEnd })
+                .HasDatabaseName("ix_sample_transponder_completion")
+                .IsCreatedConcurrently();
+            // Equality prefixes followed by time support backward LIMIT 1 scans; no DESC twin needed.
+            e.HasIndex(s => new { s.TransponderId, s.FacilityId, s.CoursePointStartId, s.TimeStart })
+                .HasDatabaseName("ix_sample_transponder_facility_start_time")
+                .IsCreatedConcurrently();
+            e.HasIndex(s => new { s.TransponderId, s.FacilityId, s.CoursePointEndId, s.TimeEnd })
+                .HasDatabaseName("ix_sample_transponder_facility_end_time")
+                .IsCreatedConcurrently();
+            // No point equality in attempt evidence; keep both times as searchable index keys.
+            e.HasIndex(s => new { s.TransponderId, s.FacilityId, s.TimeEnd, s.TimeStart })
+                .HasDatabaseName("ix_sample_transponder_facility_attempt")
+                .IsCreatedConcurrently();
+        });
         modelBuilder.Entity<StatisticsItem>(e =>
         {
             if (Database.IsNpgsql())
@@ -48,6 +66,11 @@ public class StatisticsDbContext : BaseDbContext
                 .IsRequired()
                 .OnDelete(DeleteBehavior.ClientNoAction);
             e.HasIndex(s => new { s.StatisticsItemId, s.CoursePointStart, s.CoursePointEnd });
+            e.Property(s => s.RequiredCoursePointIds).IsRequired();
+            if (Database.IsNpgsql())
+            {
+                e.Property(s => s.RequiredCoursePointIds).HasDefaultValue(Array.Empty<Guid>());
+            }
 
         });
         modelBuilder.Entity<MultiStatisticsItemConfig>(e =>
@@ -61,11 +84,13 @@ public class StatisticsDbContext : BaseDbContext
         modelBuilder.Entity<StatisticsEntry>(e =>
         {
             e.Property(s => s.IsValid).HasDefaultValue(true);
+            e.Property(s => s.RequiredCoursePointsSatisfied).HasDefaultValue(true)
+                .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Throw);
             if (Database.IsNpgsql())
             {
                 e.ToTable(t => t.HasCheckConstraint("ck_statistics_entry_validity",
                     "(is_valid AND invalid_reason IS NULL) OR " +
-                    "(NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3))"));
+                    "(NOT is_valid AND invalid_reason IS NOT NULL AND invalid_reason IN (0, 1, 2, 3, 4))"));
             }
             e.HasIndex(s => new { s.StatisticsItemId, s.Id })
                 .IsCreatedConcurrently();

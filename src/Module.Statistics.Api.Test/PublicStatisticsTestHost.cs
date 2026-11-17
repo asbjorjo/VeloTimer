@@ -129,6 +129,11 @@ internal sealed class PublicStatisticsTestHost : IAsyncDisposable
             if (FacilityFailures.TryGetValue(pointId, out var failure)) throw failure;
             return Task.FromResult(Facilities.GetValueOrDefault(pointId));
         }
+        public Task<bool> CanResolveDistanceAsync(Guid startPointId, Guid endPointId, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(true);
+        }
         public Task<string?> GetNameAsync(Guid pointId, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();

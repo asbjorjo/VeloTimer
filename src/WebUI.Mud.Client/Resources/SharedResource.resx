@@ -609,4 +609,18 @@
   <data name="ThresholdDurationRange" xml:space="preserve"><value>duration {0} — {1}</value></data>
   <data name="ThresholdSpeedRange" xml:space="preserve"><value>speed {0} — {1}</value></data>
   <data name="ThresholdSettingsSaved" xml:space="preserve"><value>Settings saved. Historical revalidation runs in the background; existing results may remain unchanged until it finishes.</value></data>
+  <data name="RequiredIntermediatePoints" xml:space="preserve"><value>Required intermediate points</value></data>
+  <data name="RequiredIntermediatePointsHelp" xml:space="preserve"><value>Optional. Select points that must be passed between start and finish. They are saved in forward course order; closed courses wrap, and equal start and finish means one full lap. Missing or out-of-order observations make the result invalid; late observations do not repair it.</value></data>
+  <data name="RequiredPointsLoading" xml:space="preserve"><value>Loading course points. Your selections are retained.</value></data>
+  <data name="RequiredPointsChoosePath" xml:space="preserve"><value>Select a layout and endpoints on one continuous, unambiguous forward course. Equal endpoints require a closed course.</value></data>
+  <data name="RequiredPointsNoIntermediates" xml:space="preserve"><value>There are no intermediate points on this path.</value></data>
+  <data name="RequiredPointsPathChanged" xml:space="preserve"><value>The selected requirements no longer match the layout and forward path. Restore the layout/endpoints, or explicitly clear and reselect the required points before saving structural changes. Unchanged requirements are preserved on threshold-only saves.</value></data>
+  <data name="RequiredPointsLoadFailed" xml:space="preserve"><value>Could not load the selected course layout. Existing points and requirements are retained. Retry or select a layout; no requirements have been cleared.</value></data>
+  <data name="SelectedRequiredPoints" xml:space="preserve"><value>Selected required points (course order)</value></data>
+  <data name="NoRequiredPoints" xml:space="preserve"><value>No required intermediate points.</value></data>
+  <data name="ClearRequiredPoints" xml:space="preserve"><value>Clear required points</value></data>
+  <data name="RequiredPointsInherited" xml:space="preserve"><value>Multi configurations inherit the required intermediate points from their Simple parent.</value></data>
+  <data name="RequiredPointsSummary" xml:space="preserve"><value>Required points: {0}</value></data>
+  <data name="StatisticsStructureLocked" xml:space="preserve"><value>The change conflicts with the current definition. Structural changes, including required points, are locked once this configuration or a dependent Multi has results. Keep the structure unchanged or create a new configuration. Your draft is retained.</value></data>
+  <data name="StatisticsEndpointsOutsideLayout" xml:space="preserve"><value>Select start and finish points belonging to the selected facility and layout. Existing endpoint selections have not been cleared.</value></data>
 </root>

@@ -93,12 +93,43 @@ public sealed class StatisticsValidityScheduler(StatisticsDbContext storage)
     /// Lock scope for a threshold save: the item and, when requested, dependent Multi items, locked
     /// exclusively in one ordered statement. Call before reading/validating definitions.
     /// </summary>
-    public async Task<IReadOnlyCollection<Guid>> LockThresholdScopeAsync(Guid itemId, bool includeDependentMultiItems,
+    public Task<IReadOnlyCollection<Guid>> LockThresholdScopeAsync(Guid itemId, bool includeDependentMultiItems,
+        CancellationToken cancellationToken = default) =>
+        LockThresholdScopeAsync([itemId], includeDependentMultiItems, cancellationToken);
+
+    /// <summary>
+    /// Expands all direct owners together, then locks the combined scope once in global UUID order.
+    /// Retries discovery after releasing this attempt's locks if dependencies grew while waiting.
+    /// Call before acquiring item locks; subsequent calls are safe while the direct owners stay locked.
+    /// </summary>
+    public async Task<IReadOnlyCollection<Guid>> LockThresholdScopeAsync(IEnumerable<Guid> itemIds, bool includeDependentMultiItems,
         CancellationToken cancellationToken = default)
     {
-        var scope = new List<Guid> { itemId };
-        if (includeDependentMultiItems) scope.AddRange(await GetDependentMultiItemIdsAsync([itemId], cancellationToken));
-        return await LockItemsAsync(scope, StatisticsItemLockMode.Exclusive, cancellationToken);
+        var ids = itemIds.Distinct().ToArray();
+        var transaction = storage.Database.CurrentTransaction;
+        const string savepoint = "statistics_threshold_scope";
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (transaction is not null) await transaction.CreateSavepointAsync(savepoint, cancellationToken);
+            var dependents = includeDependentMultiItems
+                ? await GetDependentMultiItemIdsAsync(ids, cancellationToken) : [];
+            var locked = await LockItemsAsync(ids.Concat(dependents), StatisticsItemLockMode.Exclusive, cancellationToken);
+            var currentDependents = includeDependentMultiItems
+                ? await GetDependentMultiItemIdsAsync(ids, cancellationToken) : [];
+            if (currentDependents.All(locked.Contains))
+            {
+                if (transaction is not null) await transaction.ReleaseSavepointAsync(savepoint, cancellationToken);
+                return locked;
+            }
+            // Never append newly discovered items to held locks: they may sort before them.
+            // Locked direct owners prevent additions after validation; removals are harmless.
+            if (transaction is not null)
+            {
+                await transaction.RollbackToSavepointAsync(savepoint, cancellationToken);
+                await transaction.ReleaseSavepointAsync(savepoint, cancellationToken);
+            }
+        }
     }
 
     /// <summary>

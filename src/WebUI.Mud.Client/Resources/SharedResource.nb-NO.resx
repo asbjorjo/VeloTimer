@@ -609,4 +609,18 @@
   <data name="ThresholdDurationRange" xml:space="preserve"><value>varighet {0} — {1}</value></data>
   <data name="ThresholdSpeedRange" xml:space="preserve"><value>hastighet {0} — {1}</value></data>
   <data name="ThresholdSettingsSaved" xml:space="preserve"><value>Innstillingene er lagret. Historiske resultater valideres på nytt i bakgrunnen og kan være uendret frem til arbeidet er ferdig.</value></data>
+  <data name="RequiredIntermediatePoints" xml:space="preserve"><value>Påkrevde mellompunkter</value></data>
+  <data name="RequiredIntermediatePointsHelp" xml:space="preserve"><value>Valgfritt. Velg punkter som må passeres mellom start og mål. De lagres i løyperekkefølge fremover; lukkede løyper fortsetter rundt, og lik start og mål betyr én hel runde. Manglende passeringer eller feil rekkefølge gjør resultatet ugyldig; sene passeringer retter det ikke opp.</value></data>
+  <data name="RequiredPointsLoading" xml:space="preserve"><value>Laster løypepunkter. Valgene dine beholdes.</value></data>
+  <data name="RequiredPointsChoosePath" xml:space="preserve"><value>Velg et løypeoppsett og endepunkter på én sammenhengende, entydig løype fremover. Like endepunkter krever en lukket løype.</value></data>
+  <data name="RequiredPointsNoIntermediates" xml:space="preserve"><value>Det er ingen mellompunkter på denne strekningen.</value></data>
+  <data name="RequiredPointsPathChanged" xml:space="preserve"><value>De valgte kravene samsvarer ikke lenger med løypeoppsettet og strekningen fremover. Gjenopprett oppsettet/endepunktene, eller tøm og velg de påkrevde punktene på nytt før du lagrer strukturendringer. Uendrede krav beholdes når bare grensene lagres.</value></data>
+  <data name="RequiredPointsLoadFailed" xml:space="preserve"><value>Kunne ikke laste det valgte løypeoppsettet. Eksisterende punkter og krav beholdes. Prøv igjen eller velg et oppsett; ingen krav er fjernet.</value></data>
+  <data name="SelectedRequiredPoints" xml:space="preserve"><value>Valgte påkrevde punkter (løyperekkefølge)</value></data>
+  <data name="NoRequiredPoints" xml:space="preserve"><value>Ingen påkrevde mellompunkter.</value></data>
+  <data name="ClearRequiredPoints" xml:space="preserve"><value>Fjern påkrevde punkter</value></data>
+  <data name="RequiredPointsInherited" xml:space="preserve"><value>Multi-konfigurasjoner arver påkrevde mellompunkter fra Simple-forelderen.</value></data>
+  <data name="RequiredPointsSummary" xml:space="preserve"><value>Påkrevde punkter: {0}</value></data>
+  <data name="StatisticsStructureLocked" xml:space="preserve"><value>Endringen er i konflikt med gjeldende definisjon. Strukturendringer, inkludert påkrevde punkter, er låst når denne konfigurasjonen eller en avhengig Multi har resultater. Behold strukturen eller opprett en ny konfigurasjon. Utkastet ditt beholdes.</value></data>
+  <data name="StatisticsEndpointsOutsideLayout" xml:space="preserve"><value>Velg start- og målpunkter som tilhører valgt anlegg og løypeoppsett. Eksisterende endepunkter er ikke fjernet.</value></data>
 </root>

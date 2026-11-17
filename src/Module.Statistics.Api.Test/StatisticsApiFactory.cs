@@ -21,6 +21,7 @@ namespace VeloTime.Module.Statistics.Api.Test;
 public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
 {
     private readonly SqliteConnection connection = new("Data Source=:memory:");
+    public Action<IServiceCollection>? ConfigureAdditionalServices { get; init; }
     public string? PostgreSqlConnectionString { get; init; }
     private string? postgresAdminConnectionString;
     private string? ownedPostgresConnectionString;
@@ -80,6 +81,7 @@ public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
             }).AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, TestAuthenticationHandler>(
                 TestAuthenticationHandler.AuthenticationSchemeName,
                 _ => { });
+            ConfigureAdditionalServices?.Invoke(services);
         });
     }
 
@@ -162,6 +164,8 @@ public sealed class StatisticsApiFactory : WebApplicationFactory<Program>
     {
         public Task<Guid?> GetFacilityAsync(Guid pointId, CancellationToken cancellationToken) =>
             Task.FromResult<Guid?>(pointId == Guid.Empty ? null : Guid.Parse("00000000-0000-0000-0000-000000000001"));
+        public Task<bool> CanResolveDistanceAsync(Guid startPointId, Guid endPointId, CancellationToken cancellationToken) =>
+            Task.FromResult(true);
     }
 
     private sealed class TestStatisticsDbContext(DbContextOptions<StatisticsDbContext> options) : StatisticsDbContext(options)

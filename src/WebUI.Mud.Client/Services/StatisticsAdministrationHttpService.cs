@@ -8,10 +8,10 @@ public sealed class StatisticsAdministrationHttpService(HttpClient client) : ISt
     private const string Root = "api/admin/statistics";
 
     public async Task<IReadOnlyList<StatisticsItemDTO>> GetItemsAsync(CancellationToken cancellationToken = default) =>
-        await client.GetFromJsonAsync<List<StatisticsItemDTO>>($"{Root}/items", cancellationToken) ?? [];
+        await client.GetFromJsonAsync<List<StatisticsItemDTO>>($"{Root}/items", cancellationToken) ?? throw new InvalidDataException("The statistics definition list is missing.");
 
     public async Task<IReadOnlyList<StatisticsConfigurationDTO>> GetConfigurationsAsync(CancellationToken cancellationToken = default) =>
-        await client.GetFromJsonAsync<List<StatisticsConfigurationDTO>>($"{Root}/configurations", cancellationToken) ?? [];
+        await client.GetFromJsonAsync<List<StatisticsConfigurationDTO>>($"{Root}/configurations", cancellationToken) ?? throw new InvalidDataException("The statistics definition list is missing.");
 
     public Task SaveItemAsync(Guid? id, SaveStatisticsItemRequest request, CancellationToken cancellationToken = default) =>
         SendAsync(id.HasValue ? HttpMethod.Put : HttpMethod.Post, $"{Root}/items{(id.HasValue ? $"/{id}" : "")}", request, cancellationToken);
