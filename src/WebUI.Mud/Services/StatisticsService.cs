@@ -171,16 +171,7 @@ public class StatisticsService(
     }
 
     private Task<string> GetCoursePointNameAsync(Guid coursePointId, CancellationToken cancellationToken) =>
-        cache.GetPublicAsync(
-            "course-point-name", "string-v1", coursePointId.ToString("N"),
-            async (IFacilitiesClient factoryClient, CancellationToken token) =>
-            {
-                var point = await factoryClient.CoursepointAsync(coursePointId, cancellationToken: token);
-                if (point is null || point.Id != coursePointId || string.IsNullOrWhiteSpace(point.Name))
-                    throw new HttpRequestException("A course-point name could not be resolved.", null, HttpStatusCode.BadGateway);
-                return point.Name;
-            },
-            [FacilitiesCacheTags.Relationships], cancellationToken);
+        CoursePointNames.GetAsync(cache, coursePointId, cancellationToken);
 
     private Task<string> GetFacilityNameAsync(Guid facilityId, CancellationToken cancellationToken) =>
         cache.GetPublicAsync(

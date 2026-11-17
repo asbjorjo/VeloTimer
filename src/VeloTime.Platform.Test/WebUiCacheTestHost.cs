@@ -47,6 +47,11 @@ internal sealed class WebUiCacheTestHost : IDisposable
         Authentication.User = Principal();
     }
 
+    internal StatisticsAdministrationService StatisticsAdministration(VeloTime.Module.Statistics.Client.IStatisticsClient statistics) =>
+        new(statistics, Cache,
+            PlatformServiceTests.TestProxy.Create<VeloTime.Module.Timing.Client.ITimingClient>((_, _) => throw new NotSupportedException()),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<StatisticsAdministrationService>.Instance);
+
     internal static void Register(IServiceCollection services)
     {
         services.AddLogging();

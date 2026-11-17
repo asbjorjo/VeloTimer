@@ -51,7 +51,7 @@ public sealed class StatisticsThresholdTransportTests
                 ParentConfigId = body.ParentConfigId, Repetitions = body.Repetitions, MinDuration = minText, MaxDuration = maxText };
         });
         using var cache = new WebUiCacheTestHost(client);
-        var service = new StatisticsAdministrationService(client, cache.Cache);
+        var service = cache.StatisticsAdministration(client);
         await service.SaveItemAsync(update ? id : null, new("Lap", "", 250, min, max), cancellation.Token);
         await service.SaveConfigurationAsync(update ? id : null, new(itemId, Contracts.StatisticsConfigurationType.Simple,
             Guid.NewGuid(), Guid.NewGuid(), null, null, min, max), cancellation.Token);
@@ -82,7 +82,7 @@ public sealed class StatisticsThresholdTransportTests
             _ => throw new NotSupportedException(method.Name)
         });
         using var cache = new WebUiCacheTestHost(client);
-        var service = new StatisticsAdministrationService(client, cache.Cache);
+        var service = cache.StatisticsAdministration(client);
         Assert.Equal(min, Assert.Single(await service.GetItemsAsync()).MinDuration);
         Assert.Equal(max, Assert.Single(await service.GetItemsAsync()).MaxDuration);
         Assert.Equal(min, Assert.Single(await service.GetConfigurationsAsync()).MinDuration);
