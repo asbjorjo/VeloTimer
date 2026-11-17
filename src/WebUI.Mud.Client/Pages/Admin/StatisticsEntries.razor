@@ -53,7 +53,7 @@
         <div role="status" aria-live="polite"><MudProgressLinear Indeterminate="true" Color="Color.Primary" /><MudText>@L["Loading"]</MudText></div>
     }
     <div role="region" aria-label="@L["StatisticsEntries"]" tabindex="0" style="overflow-x:auto; width:100%;">
-    <MudTable T="AdminStatisticsEntryDTO" Items="Rows" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.None" Style="min-width:80rem; overflow-wrap:anywhere">
+    <MudTable T="AdminStatisticsEntryDTO" Items="Rows" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.None" OnRowClick="EntryRowClicked" Style="min-width:80rem; overflow-wrap:anywhere">
         <HeaderContent>
             <MudTh>@L["StatisticsEntry"]</MudTh>
             <MudTh>@L["Profile"] / @L["Transponder"]</MudTh>
@@ -113,6 +113,12 @@
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="@L["StatisticsEntry"]">
+                <span @onclick:stopPropagation="true"><MudIconButton Icon="@(IsExpanded(context.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                               Size="Size.Small" Color="Color.Default"
+                               aria-label="@L[IsExpanded(context.Id) ? "StatisticsHideContributions" : "StatisticsShowContributions", context.StatisticsItemName]"
+                               aria-expanded="@IsExpanded(context.Id).ToString().ToLowerInvariant()"
+                               aria-controls="@ContributionsPanelId(context.Id)"
+                               OnClick="() => ToggleContributions(context.Id)" /></span>
                 <MudText>@context.StatisticsItemName</MudText><MudText Typo="Typo.caption">@context.Id</MudText>
                 <MudText Typo="Typo.caption">@L["Configuration"]: @context.StatisticsItemConfigId (@L[context.StatisticsItemConfigType == StatisticsConfigurationType.Simple ? "Simple" : "Multi"])</MudText>
             </MudTd>
@@ -142,12 +148,134 @@
                 }
             </MudTd>
             <MudTd DataLabel="@L["Actions"]">
-                <MudButton OnClick="() => ChangeManualState(context)" Disabled="Busy" Color="Color.Primary"
+                <span @onclick:stopPropagation="true"><MudButton OnClick="() => ChangeManualState(context)" Disabled="Busy" Color="Color.Primary"
                            aria-label="@L[context.IsManuallyInvalidated ? "StatisticsRestoreEntry" : "StatisticsMarkEntry", context.Id]">
                     @L[context.IsManuallyInvalidated ? "StatisticsRestore" : "StatisticsMarkInvalid"]
-                </MudButton>
+                </MudButton></span>
             </MudTd>
         </RowTemplate>
+        <ChildRowContent Context="entry">
+            @if (IsExpanded(entry.Id))
+            {
+                    <MudTd colspan="8" Class="pa-2 pa-sm-4">
+                        <section id="@ContributionsPanelId(entry.Id)" aria-label="@L["StatisticsEntryContributions", entry.StatisticsItemName]" class="statistics-contributions" @onclick:stopPropagation="true">
+                            <MudPaper Outlined="true" Class="pa-3 pa-sm-4">
+                                <MudText Typo="Typo.h6">@L["StatisticsEntryContributions"]</MudText>
+                                <MudText Typo="Typo.caption">@Display.Timestamp(entry.TimeStart) — @Display.Timestamp(entry.TimeEnd)</MudText>
+                                @if (_contributions.TryGetValue(entry.Id, out var details))
+                                {
+                                    @if (details.Loading)
+                                    {
+                                        <div role="status" aria-live="polite" class="my-3"><MudProgressLinear Indeterminate="true" Color="Color.Primary" /><MudText>@L["StatisticsContributionsLoading"]</MudText></div>
+                                    }
+                                    else if (details.Error is not null)
+                                    {
+                                        <MudAlert Severity="Severity.Error" role="alert" Class="my-3">
+                                            @details.Error
+                                            <span @onclick:stopPropagation="true"><MudButton OnClick="() => RetryContributions(entry.Id)" Disabled="details.Loading">@L["Retry"]</MudButton></span>
+                                        </MudAlert>
+                                    }
+                                    else if (details.Result is { } result)
+                                    {
+                                        <MudText Typo="Typo.subtitle1" Class="mt-3">@L["StatisticsContributionSamples"]</MudText>
+                                        @if (result.SamplesTruncated)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" Dense="true" role="status">@L["StatisticsContributionsTruncated", result.Samples.Count]</MudAlert>
+                                        }
+                                        @if (details.NamesError is not null)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" Dense="true" role="alert">
+                                                @L["StatisticsCoursePointNamesFailed"]
+                                                <span @onclick:stopPropagation="true"><MudButton OnClick="() => RetryCoursePointNames(entry.Id)" Disabled="details.NamesLoading">@L["Retry"]</MudButton></span>
+                                            </MudAlert>
+                                        }
+                                        @if (details.NamesLoading)
+                                        {
+                                            <div role="status" aria-live="polite"><MudProgressCircular Indeterminate="true" Size="Size.Small" /> @L["StatisticsCoursePointNamesLoading"]</div>
+                                        }
+                                        @if (result.Samples.Count == 0)
+                                        {
+                                            <MudText Typo="Typo.body2" role="status">@L["StatisticsContributionSamplesEmpty"]</MudText>
+                                        }
+                                        else
+                                        {
+                                            <div class="statistics-contributions-table" role="region" aria-label="@L["StatisticsContributionSamples"]" tabindex="0">
+                                                <table class="mud-table-root mud-table-dense">
+                                                    <thead><tr>
+                                                        <th scope="col">@L["StatisticsContributionStart"]</th><th scope="col">@L["StatisticsContributionEnd"]</th>
+                                                        <th scope="col">@L["StatisticsContributionCoursePointStart"]</th><th scope="col">@L["StatisticsContributionCoursePointEnd"]</th>
+                                                        <th scope="col">@L["Distance"]</th><th scope="col">@L["Duration"]</th><th scope="col">@L["SpeedInUnit", Display.SpeedUnit]</th><th scope="col">@L["Facility"]</th>
+                                                    </tr></thead>
+                                                    <tbody>
+                                                        @foreach (var sample in result.Samples)
+                                                        {
+                                                            <tr>
+                                                                <td data-label="@L["StatisticsContributionStart"]">@Display.Timestamp(sample.TimeStart)</td><td data-label="@L["StatisticsContributionEnd"]">@Display.Timestamp(sample.TimeEnd)</td>
+                                                                <td data-label="@L["StatisticsContributionCoursePointStart"]">@CoursePointName(details, sample.CoursePointStartId)</td><td data-label="@L["StatisticsContributionCoursePointEnd"]">@CoursePointName(details, sample.CoursePointEndId)</td>
+                                                                <td data-label="@L["Distance"]">@Display.Distance(sample.DistanceMetres)</td><td data-label="@L["Duration"]">@sample.Duration.ToString("g", Display.NumberCulture)</td>
+                                                                <td data-label="@L["SpeedInUnit", Display.SpeedUnit]">@Speed(sample.SpeedMetresPerSecond)</td><td data-label="@L["Facility"]">@FacilityName(sample.FacilityId)</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        }
+                                        <MudText Typo="Typo.subtitle1" Class="mt-4">@L["StatisticsContributionPassings"]</MudText>
+                                        @if (result.PassingsStatus == StatisticsEntryPassingsStatus.Forbidden)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" role="status">@L["StatisticsPassingsForbidden"]</MudAlert>
+                                        }
+                                        else if (result.PassingsStatus == StatisticsEntryPassingsStatus.WindowTooLarge)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" role="status">@L["StatisticsPassingsWindowTooLarge"]</MudAlert>
+                                        }
+                                        else if (result.PassingsStatus == StatisticsEntryPassingsStatus.Unavailable)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" role="status">@L["StatisticsPassingsUnavailable"]</MudAlert>
+                                        }
+                                        else if (result.PassingsTruncated)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" Dense="true" role="status">@L["StatisticsContributionsTruncated", result.Passings?.Count ?? 0]</MudAlert>
+                                        }
+                                        @if (result.PassingsStatus == StatisticsEntryPassingsStatus.Available)
+                                        {
+                                            @if (result.Passings is { Count: 0 })
+                                            {
+                                                <MudText Typo="Typo.body2" role="status">@L["StatisticsContributionPassingsEmpty"]</MudText>
+                                            }
+                                            else if (result.Passings is { } passings)
+                                            {
+                                                <div class="statistics-contributions-table" role="region" aria-label="@L["StatisticsContributionPassings"]" tabindex="0">
+                                                    <table class="mud-table-root mud-table-dense">
+                                                        <thead><tr>
+                                                            <th scope="col">@L["StatisticsContributionTime"]</th><th scope="col">@L["StatisticsContributionTimingPoint"]</th><th scope="col">@L["StatisticsContributionInstallation"]</th><th scope="col">@L["StatisticsContributionFlags"]</th>
+                                                        </tr></thead>
+                                                        <tbody>
+                                                            @foreach (var passing in passings)
+                                                            {
+                                                                <tr>
+                                                                    <td data-label="@L["StatisticsContributionTime"]">@Display.Timestamp(passing.Time)<MudText Typo="Typo.caption">@passing.Id</MudText></td>
+                                                                    <td data-label="@L["StatisticsContributionTimingPoint"]">@(string.IsNullOrWhiteSpace(passing.TimingPointDescription) ? L["Unknown"].Value : passing.TimingPointDescription)</td>
+                                                                    <td data-label="@L["StatisticsContributionInstallation"]">@(string.IsNullOrWhiteSpace(passing.InstallationDescription) ? L["Unknown"].Value : passing.InstallationDescription)</td>
+                                                                    <td data-label="@L["StatisticsContributionFlags"]"><MudChipSet T="string" ReadOnly="true" Class="flex-wrap">
+                                                                        <MudChip T="string" Size="Size.Small" Color="@(passing.LowBattery ? Color.Warning : Color.Default)">@L["StatisticsContributionLowBattery"]: @FlagValue(passing.LowBattery)</MudChip>
+                                                                        <MudChip T="string" Size="Size.Small" Color="@(passing.LowStrength ? Color.Warning : Color.Default)">@L["StatisticsContributionLowStrength"]: @FlagValue(passing.LowStrength)</MudChip>
+                                                                        <MudChip T="string" Size="Size.Small" Color="@(passing.LowHits ? Color.Warning : Color.Default)">@L["StatisticsContributionLowHits"]: @FlagValue(passing.LowHits)</MudChip>
+                                                                    </MudChipSet></td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            }
+                                        }
+                                    }
+                                }
+                            </MudPaper>
+                        </section>
+                    </MudTd>
+            }
+        </ChildRowContent>
         <NoRecordsContent>
             @if (!_loading && _error is null) { <MudText role="status">@L["StatisticsEntriesEmpty"]</MudText> }
         </NoRecordsContent>
@@ -168,6 +296,10 @@
     private AdminStatisticsEntriesPageDTO? _page;
     private GetAdminStatisticsEntriesRequest _request = new();
     private CancellationTokenSource? _activeLoad;
+    private CancellationTokenSource? _activeContributionsLoad;
+    private readonly Dictionary<Guid, EntryContributionsState> _contributions = [];
+    private Guid? _expandedEntryId;
+    private int _contributionsVersion;
     private Guid? _itemId, _configurationId, _facilityId;
     private bool? _isValid;
     private string _minDurationDraft = "", _maxDurationDraft = "", _minSpeedDraft = "", _maxSpeedDraft = "";
@@ -177,6 +309,17 @@
     private bool _loading, _saving, _referencesLoading;
     private int _loadVersion;
     private bool Busy => _loading || _saving || _referencesLoading;
+
+    private sealed class EntryContributionsState
+    {
+        public StatisticsEntryContributionsDTO? Result { get; set; }
+        public Dictionary<Guid, string> CoursePointNames { get; } = [];
+        public string? Error { get; set; }
+        public string? NamesError { get; set; }
+        public bool Loading { get; set; }
+        public bool NamesLoading { get; set; }
+        public bool NamesLoaded { get; set; }
+    }
 
     protected override Task OnInitializedAsync() => Task.WhenAll(LoadReferences(), Load(_request));
 
@@ -219,8 +362,156 @@
         finally { _referencesLoading = false; }
     }
 
+    private bool IsExpanded(Guid id) => _expandedEntryId == id;
+    private string ContributionsPanelId(Guid id) => $"statistics-contributions-{id:N}";
+
+    private Task EntryRowClicked(TableRowClickEventArgs<AdminStatisticsEntryDTO> args) => args.Item is null ? Task.CompletedTask : ToggleContributions(args.Item.Id);
+
+    private Task ToggleContributions(Guid entryId)
+    {
+        if (_expandedEntryId == entryId)
+        {
+            CancelContributionLoad();
+            _expandedEntryId = null;
+            return Task.CompletedTask;
+        }
+
+        CancelContributionLoad();
+        _expandedEntryId = entryId;
+        if (!_contributions.TryGetValue(entryId, out var state))
+            _contributions[entryId] = state = new EntryContributionsState();
+        if (state.Result is null && state.Error is null) return LoadContributions(entryId, state);
+        if (state.Result is not null && !state.NamesLoaded && state.NamesError is null)
+            return LoadCoursePointNames(entryId, state);
+        return Task.CompletedTask;
+    }
+
+    private Task RetryContributions(Guid entryId)
+    {
+        if (_expandedEntryId != entryId || !_contributions.TryGetValue(entryId, out var state)) return Task.CompletedTask;
+        return LoadContributions(entryId, state);
+    }
+
+    private async Task LoadContributions(Guid entryId, EntryContributionsState state)
+    {
+        var (cancellation, version) = StartContributionLoad();
+        var token = cancellation.Token;
+        state.Loading = true;
+        state.Error = null;
+        state.Result = null;
+        state.CoursePointNames.Clear();
+        state.NamesError = null;
+        state.NamesLoaded = false;
+        state.NamesLoading = false;
+        try
+        {
+            var result = await Administration.GetEntryContributionsAsync(entryId, token);
+            if (!IsCurrentContributionLoad(entryId, cancellation, version, token)) return;
+            state.Result = result;
+            state.Loading = false;
+            await ResolveCoursePointNames(entryId, state, cancellation, version, token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            if (IsCurrentContributionLoad(entryId, cancellation, version, token)) state.Error = ErrorFor(exception);
+        }
+        finally
+        {
+            if (version == _contributionsVersion && ReferenceEquals(_activeContributionsLoad, cancellation))
+            {
+                state.Loading = false;
+                state.NamesLoading = false;
+                _activeContributionsLoad = null;
+            }
+            cancellation.Dispose();
+        }
+    }
+
+    private Task RetryCoursePointNames(Guid entryId)
+    {
+        if (_expandedEntryId != entryId || !_contributions.TryGetValue(entryId, out var state) || state.Result is null) return Task.CompletedTask;
+        return LoadCoursePointNames(entryId, state);
+    }
+
+    private async Task LoadCoursePointNames(Guid entryId, EntryContributionsState state)
+    {
+        var (cancellation, version) = StartContributionLoad();
+        var token = cancellation.Token;
+        state.NamesError = null;
+        state.NamesLoading = true;
+        try
+        {
+            await ResolveCoursePointNames(entryId, state, cancellation, version, token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        finally
+        {
+            if (version == _contributionsVersion && ReferenceEquals(_activeContributionsLoad, cancellation))
+            {
+                state.NamesLoading = false;
+                _activeContributionsLoad = null;
+            }
+            cancellation.Dispose();
+        }
+    }
+
+    private async Task ResolveCoursePointNames(Guid entryId, EntryContributionsState state,
+        CancellationTokenSource cancellation, int version, CancellationToken token)
+    {
+        state.NamesLoading = true;
+        try
+        {
+            var ids = state.Result!.Samples
+                .SelectMany(sample => new[] { sample.CoursePointStartId, sample.CoursePointEndId })
+                .Distinct().ToArray();
+            var names = await Administration.GetCoursePointNamesAsync(ids, token);
+            if (!IsCurrentContributionLoad(entryId, cancellation, version, token)) return;
+            state.CoursePointNames.Clear();
+            foreach (var (id, name) in names) state.CoursePointNames[id] = name;
+            state.NamesLoaded = true;
+            state.NamesError = null;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch (Exception exception)
+        {
+            if (IsCurrentContributionLoad(entryId, cancellation, version, token)) state.NamesError = ErrorFor(exception);
+        }
+        finally
+        {
+            if (IsCurrentContributionLoad(entryId, cancellation, version, token)) state.NamesLoading = false;
+        }
+    }
+
+    private (CancellationTokenSource Source, int Version) StartContributionLoad()
+    {
+        CancelContributionLoad();
+        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _activeContributionsLoad = cancellation;
+        return (cancellation, ++_contributionsVersion);
+    }
+
+    private bool IsCurrentContributionLoad(Guid entryId, CancellationTokenSource cancellation, int version, CancellationToken token) =>
+        version == _contributionsVersion && _expandedEntryId == entryId && ReferenceEquals(_activeContributionsLoad, cancellation) && !token.IsCancellationRequested;
+
+    private void CancelContributionLoad()
+    {
+        _contributionsVersion++;
+        _activeContributionsLoad?.Cancel();
+        _activeContributionsLoad = null;
+    }
+
+    private string CoursePointName(EntryContributionsState state, Guid id) =>
+        state.CoursePointNames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name)
+            ? name : L["StatisticsCoursePointNameMissing"].Value;
+
+    private string FlagValue(bool value) => L[value ? "StatisticsContributionFlagOn" : "StatisticsContributionFlagOff"].Value;
+
     private async Task Load(GetAdminStatisticsEntriesRequest request)
     {
+        CancelContributionLoad();
+        _expandedEntryId = null;
+        _contributions.Clear();
         _activeLoad?.Cancel();
         var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         _activeLoad = cancellation;
@@ -422,6 +713,7 @@
     public void Dispose()
     {
         _lifetime.Cancel();
+        CancelContributionLoad();
         _activeLoad?.Cancel();
         _lifetime.Dispose();
     }
