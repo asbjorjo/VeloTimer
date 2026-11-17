@@ -979,6 +979,48 @@
               "format": "int32",
               "default": 50
             }
+          },
+          {
+            "name": "minDuration",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxDuration",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minSpeed",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxSpeed",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1211,6 +1253,14 @@
           }
         }
       },
+      "AdminStatisticsEntriesSort": {
+        "type": "integer",
+        "default": 0
+      },
+      "AdminStatisticsEntriesSortOrder": {
+        "type": "integer",
+        "default": 0
+      },
       "AdminStatisticsEntryCursorDTO": {
         "required": [
           "timeEnd",
@@ -1225,6 +1275,25 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "sort": {
+            "$ref": "#/components/schemas/AdminStatisticsEntriesSort"
+          },
+          "order": {
+            "$ref": "#/components/schemas/AdminStatisticsEntriesSortOrder"
+          },
+          "duration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "speed": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

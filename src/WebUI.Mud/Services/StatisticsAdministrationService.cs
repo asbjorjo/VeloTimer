@@ -18,9 +18,12 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
         var page = await client.ListAdminStatisticsEntriesAsync(request.FacilityId, request.StatisticsItemId,
             request.StatisticsItemConfigId, request.TransponderId, request.IsValid,
             request.Cursor is { } cursor ? StatisticsEntriesQuery.EncodeCursor(cursor) : null,
-            request.Direction?.ToString().ToLowerInvariant(), request.PageSize, cancellationToken);
+            request.Direction?.ToString().ToLowerInvariant(), request.PageSize,
+            request.MinDuration?.ToString("c", CultureInfo.InvariantCulture), request.MaxDuration?.ToString("c", CultureInfo.InvariantCulture),
+            request.MinSpeedMetresPerSecond?.ToString("R", CultureInfo.InvariantCulture), request.MaxSpeedMetresPerSecond?.ToString("R", CultureInfo.InvariantCulture),
+            Contracts.AdminStatisticsEntriesQuery.SortValue(request.Sort), Contracts.AdminStatisticsEntriesQuery.OrderValue(request.Order), cancellationToken);
         if (page?.Items is null) throw new InvalidDataException("The statistics entry page is missing.");
-        return new Contracts.AdminStatisticsEntriesPageDTO(page.Items.Select(MapEntry).ToArray(), MapCursor(page.Previous), MapCursor(page.Next));
+        return new Contracts.AdminStatisticsEntriesPageDTO(page.Items.Select(MapEntry).ToArray(), MapCursor(page.Previous, request), MapCursor(page.Next, request));
     });
 
     public Task<Contracts.AdminStatisticsEntryDTO> SetManualInvalidationAsync(Guid id, Contracts.StatisticsEntryManualInvalidationRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
@@ -34,8 +37,26 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
         return MapEntry(entry);
     });
 
-    private static Contracts.AdminStatisticsEntryCursorDTO? MapCursor(AdminStatisticsEntryCursorDTO? cursor) =>
-        cursor is null ? null : new(cursor.TimeEnd, cursor.Id);
+    private static Contracts.AdminStatisticsEntryCursorDTO? MapCursor(AdminStatisticsEntryCursorDTO? cursor,
+        Contracts.GetAdminStatisticsEntriesRequest request)
+    {
+        if (cursor is null) return null;
+        TimeSpan? duration = null;
+        if (cursor.Duration is not null)
+        {
+            if (!TimeSpan.TryParseExact(cursor.Duration, "c", CultureInfo.InvariantCulture, out var parsed))
+                throw new InvalidDataException("The statistics entry cursor duration is invalid.");
+            duration = parsed;
+        }
+        var mapped = new Contracts.AdminStatisticsEntryCursorDTO(cursor.TimeEnd, cursor.Id,
+            (Contracts.AdminStatisticsEntriesSort)cursor.Sort, (Contracts.AdminStatisticsEntriesSortOrder)cursor.Order,
+            duration, cursor.Speed);
+        if (mapped.Sort != request.Sort || mapped.Order != request.Order)
+            throw new InvalidDataException("The statistics entry cursor has an unexpected sort or order.");
+        try { _ = Contracts.AdminStatisticsEntriesQuery.EncodeCursor(mapped); }
+        catch (ArgumentException exception) { throw new InvalidDataException("The statistics entry cursor is invalid.", exception); }
+        return mapped;
+    }
 
     private static Contracts.AdminStatisticsEntryDTO MapEntry(AdminStatisticsEntryDTO entry)
     {

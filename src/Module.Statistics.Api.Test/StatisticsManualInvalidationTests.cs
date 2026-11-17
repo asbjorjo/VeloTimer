@@ -9,7 +9,7 @@ using VeloTime.Module.Statistics.Storage;
 
 namespace VeloTime.Module.Statistics.Api.Test;
 
-public sealed class StatisticsManualInvalidationTests
+public sealed partial class StatisticsManualInvalidationTests
 {
     private const string Root = "/api/statistics/admin/entries";
     private static readonly Guid Actor = Guid.Parse("30000000-0000-0000-0000-000000000001");
@@ -297,7 +297,7 @@ public sealed class StatisticsManualInvalidationTests
     }
 
     private static StatisticsEntry Entry(SimpleStatisticsItemConfig config, int index,
-        StatisticsEntryInvalidReason? reason = null, bool checkpoints = true, DateTime? completed = null) => new()
+        StatisticsEntryInvalidReason? reason = null, bool checkpoints = true, DateTime? completed = null, TimeSpan? duration = null, double? speed = null) => new()
     {
         Id = Guid.Parse($"80000000-0000-0000-0000-{index:D12}"), StatisticsItem = config.StatisticsItem,
         StatisticsItemId = config.StatisticsItemId, StatisticsItemConfig = config, StatisticsItemConfigId = config.Id,
@@ -305,8 +305,8 @@ public sealed class StatisticsManualInvalidationTests
         StatsProfile = new() { UserId = Guid.NewGuid(), ProfileName = "Rider", IsPublic = true },
         TimeEnd = completed ?? Completed, TimeStart = reason == StatisticsEntryInvalidReason.NonPositiveDuration
             ? completed ?? Completed : (completed ?? Completed).AddSeconds(-10),
-        Duration = reason == StatisticsEntryInvalidReason.NonPositiveDuration ? TimeSpan.Zero : TimeSpan.FromSeconds(10),
-        Speed = reason == StatisticsEntryInvalidReason.NonPositiveDuration ? double.PositiveInfinity : 25,
+        Duration = duration ?? (reason == StatisticsEntryInvalidReason.NonPositiveDuration ? TimeSpan.Zero : TimeSpan.FromSeconds(10)),
+        Speed = speed ?? (reason == StatisticsEntryInvalidReason.NonPositiveDuration ? double.PositiveInfinity : 25),
         IsValid = reason is null, InvalidReason = reason, RequiredCoursePointsSatisfied = checkpoints
     };
 

@@ -624,7 +624,7 @@
   <data name="StatisticsStructureLocked" xml:space="preserve"><value>The change conflicts with the current definition. Structural changes, including required points, are locked once this configuration or a dependent Multi has results. Keep the structure unchanged or create a new configuration. Your draft is retained.</value></data>
   <data name="StatisticsEndpointsOutsideLayout" xml:space="preserve"><value>Select start and finish points belonging to the selected facility and layout. Existing endpoint selections have not been cleared.</value></data>
   <data name="StatisticsEntries" xml:space="preserve"><value>Statistics entries</value></data>
-  <data name="StatisticsEntriesHelp" xml:space="preserve"><value>Review recorded entries, including invalid results. Marking overrides automatic validation until restored. Pages contain up to 50 entries, newest completion first.</value></data>
+  <data name="StatisticsEntriesHelp" xml:space="preserve"><value>Review recorded entries, including invalid results. Marking overrides automatic validation until restored. Pages contain up to 50 entries; default ordering is newest completion first.</value></data>
   <data name="StatisticsAllItems" xml:space="preserve"><value>All items</value></data>
   <data name="StatisticsAllConfigurations" xml:space="preserve"><value>All configurations</value></data>
   <data name="StatisticsValidity" xml:space="preserve"><value>Validity</value></data>
@@ -633,6 +633,19 @@
   <data name="StatisticsInvalid" xml:space="preserve"><value>Invalid</value></data>
   <data name="StatisticsEntry" xml:space="preserve"><value>Entry</value></data>
   <data name="StatisticsEntryTime" xml:space="preserve"><value>Time</value></data>
+  <data name="StatisticsMinimumDuration" xml:space="preserve"><value>Minimum duration</value></data>
+  <data name="StatisticsMaximumDuration" xml:space="preserve"><value>Maximum duration</value></data>
+  <data name="StatisticsDurationFilterHelp" xml:space="preserve"><value>Use invariant [days.]hh:mm:ss[.fraction] format (c); signed and zero durations are allowed. Bounds are inclusive and apply automatically.</value></data>
+  <data name="StatisticsDurationFilterInvalid" xml:space="preserve"><value>Enter a duration in invariant c format, for example -00:00:01.5.</value></data>
+  <data name="StatisticsDurationRangeInvalid" xml:space="preserve"><value>Minimum duration must not exceed maximum duration.</value></data>
+  <data name="StatisticsMinimumSpeed" xml:space="preserve"><value>Minimum speed ({0})</value></data>
+  <data name="StatisticsMaximumSpeed" xml:space="preserve"><value>Maximum speed ({0})</value></data>
+  <data name="StatisticsSpeedFilterHelp" xml:space="preserve"><value>Enter a finite nonnegative speed in {0} using your browser locale. Bounds are inclusive and apply automatically.</value></data>
+  <data name="StatisticsSpeedFilterInvalid" xml:space="preserve"><value>Enter a finite nonnegative number in {0} using your browser locale.</value></data>
+  <data name="StatisticsSpeedRangeInvalid" xml:space="preserve"><value>Minimum speed must not exceed maximum speed.</value></data>
+  <data name="StatisticsSortByCompletionTime" xml:space="preserve"><value>Sort by completion time</value></data>
+  <data name="StatisticsSortByDuration" xml:space="preserve"><value>Sort by duration</value></data>
+  <data name="StatisticsSortBySpeed" xml:space="preserve"><value>Sort by speed</value></data>
   <data name="StatisticsEntryStart" xml:space="preserve"><value>Start</value></data>
   <data name="StatisticsEntryEnd" xml:space="preserve"><value>End</value></data>
   <data name="StatisticsManualAudit" xml:space="preserve"><value>Manual validation history</value></data>
