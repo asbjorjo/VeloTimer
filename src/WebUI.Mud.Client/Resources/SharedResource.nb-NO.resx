@@ -624,7 +624,7 @@
   <data name="StatisticsStructureLocked" xml:space="preserve"><value>Endringen er i konflikt med gjeldende definisjon. Strukturendringer, inkludert påkrevde punkter, er låst når denne konfigurasjonen eller en avhengig Multi har resultater. Behold strukturen eller opprett en ny konfigurasjon. Utkastet ditt beholdes.</value></data>
   <data name="StatisticsEndpointsOutsideLayout" xml:space="preserve"><value>Velg start- og målpunkter som tilhører valgt anlegg og løypeoppsett. Eksisterende endepunkter er ikke fjernet.</value></data>
   <data name="StatisticsEntries" xml:space="preserve"><value>Statistikkoppføringer</value></data>
-  <data name="StatisticsEntriesHelp" xml:space="preserve"><value>Se registrerte oppføringer, også ugyldige resultater. Manuell ugyldiggjøring overstyrer automatisk validering frem til gjenoppretting. Sidene inneholder opptil 50 oppføringer, med nyeste sluttid først.</value></data>
+  <data name="StatisticsEntriesHelp" xml:space="preserve"><value>Se registrerte oppføringer, også ugyldige resultater. Manuell ugyldiggjøring overstyrer automatisk validering frem til gjenoppretting. Sidene inneholder opptil 50 oppføringer; standardrekkefølgen er nyeste sluttid først.</value></data>
   <data name="StatisticsAllItems" xml:space="preserve"><value>Alle øvelser</value></data>
   <data name="StatisticsAllConfigurations" xml:space="preserve"><value>Alle konfigurasjoner</value></data>
   <data name="StatisticsValidity" xml:space="preserve"><value>Gyldighet</value></data>
@@ -633,6 +633,19 @@
   <data name="StatisticsInvalid" xml:space="preserve"><value>Ugyldig</value></data>
   <data name="StatisticsEntry" xml:space="preserve"><value>Oppføring</value></data>
   <data name="StatisticsEntryTime" xml:space="preserve"><value>Tid</value></data>
+  <data name="StatisticsMinimumDuration" xml:space="preserve"><value>Minste varighet</value></data>
+  <data name="StatisticsMaximumDuration" xml:space="preserve"><value>Største varighet</value></data>
+  <data name="StatisticsDurationFilterHelp" xml:space="preserve"><value>Bruk invariant format [dager.]tt:mm:ss[.brøk] (c); negative og null varigheter er tillatt. Grensene er inklusive og brukes automatisk.</value></data>
+  <data name="StatisticsDurationFilterInvalid" xml:space="preserve"><value>Skriv inn en varighet i invariant c-format, for eksempel -00:00:01.5.</value></data>
+  <data name="StatisticsDurationRangeInvalid" xml:space="preserve"><value>Minste varighet kan ikke være større enn største varighet.</value></data>
+  <data name="StatisticsMinimumSpeed" xml:space="preserve"><value>Minste hastighet ({0})</value></data>
+  <data name="StatisticsMaximumSpeed" xml:space="preserve"><value>Største hastighet ({0})</value></data>
+  <data name="StatisticsSpeedFilterHelp" xml:space="preserve"><value>Skriv inn en endelig, ikke-negativ hastighet i {0} med nettleserens lokalinnstillinger. Grensene er inklusive og brukes automatisk.</value></data>
+  <data name="StatisticsSpeedFilterInvalid" xml:space="preserve"><value>Skriv inn et endelig, ikke-negativt tall i {0} med nettleserens lokalinnstillinger.</value></data>
+  <data name="StatisticsSpeedRangeInvalid" xml:space="preserve"><value>Minste hastighet kan ikke være større enn største hastighet.</value></data>
+  <data name="StatisticsSortByCompletionTime" xml:space="preserve"><value>Sorter etter sluttid</value></data>
+  <data name="StatisticsSortByDuration" xml:space="preserve"><value>Sorter etter varighet</value></data>
+  <data name="StatisticsSortBySpeed" xml:space="preserve"><value>Sorter etter hastighet</value></data>
   <data name="StatisticsEntryStart" xml:space="preserve"><value>Start</value></data>
   <data name="StatisticsEntryEnd" xml:space="preserve"><value>Slutt</value></data>
   <data name="StatisticsManualAudit" xml:space="preserve"><value>Historikk for manuell validering</value></data>

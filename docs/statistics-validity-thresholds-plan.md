@@ -17,7 +17,7 @@ Save threshold updates promptly and trigger durable, asynchronous historical rev
 - Unset configuration bounds inherit global bounds. Global bounds are hard limits: configurations may narrow but never broaden the effective approved range.
 - Allow saving broader requested local values, but warn that global limits take precedence and show the actual effective bounds.
 - Every contributing lap must be valid for a Multi result to be valid, and its total must satisfy the Multi item's own effective bounds. Never skip invalid laps to assemble a valid result.
-- No rejected-only inspection screen; administrators manage manual validity within the general Statistics Entries page at `/admin/statistics/entries`. A manual mark stays authoritative through historical revalidation; its latest state-change actor, UTC time, and optional note are retained.
+- No rejected-only inspection screen; administrators manage manual validity within the general Statistics Entries page at `/admin/statistics/entries`. A manual mark stays authoritative through historical revalidation; its latest state-change actor, UTC time, and optional note are retained. The page supports server-paged duration and speed sorting and inclusive header bounds, plus an immediate validity filter; duration inputs use invariant signed `c` values and speed bounds are entered in the preferred display unit then sent in m/s.
 - Thresholds are optional; unset global bounds are unbounded. Boundaries are inclusive. No arbitrary default speeds.
 - During background revalidation, old classifications and temporarily stale Multi results may remain visible. This is explicitly accepted eventual consistency, not an error or a reason to hide all affected results.
 
