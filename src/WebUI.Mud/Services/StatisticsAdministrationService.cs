@@ -75,7 +75,9 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
             throw;
         }
         catch (Exception exception) when (exception is VeloTime.Module.Timing.Client.ApiException or HttpRequestException
-            or TimeoutException or InvalidDataException or Newtonsoft.Json.JsonException)
+            or TimeoutException or InvalidDataException or Newtonsoft.Json.JsonException
+            or Polly.Timeout.TimeoutRejectedException or Polly.CircuitBreaker.BrokenCircuitException
+            || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
         {
             logger.LogError(exception, "Timing contributions are unavailable; Statistics samples remain available.");
             return Result(StatisticsEntryPassingsStatus.Unavailable);
