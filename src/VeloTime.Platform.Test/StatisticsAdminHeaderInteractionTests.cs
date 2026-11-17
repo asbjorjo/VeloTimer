@@ -9,6 +9,7 @@ using Microsoft.JSInterop;
 using MudBlazor;
 using MudBlazor.Services;
 using VeloTime.Module.Statistics.Interface.Data;
+using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.WebUI.Mud.Client.Services;
 using VeloTime.WebUI.Mud.Client.ViewModel;
 
@@ -16,7 +17,7 @@ namespace VeloTime.Platform.Test;
 
 // A real Blazor renderer dispatches the rendered DOM event handlers. No page-private
 // methods/fields or bUnit dependency: Mud's own input/debounce and button code runs.
-public sealed class StatisticsAdminHeaderInteractionTests
+public sealed partial class StatisticsAdminHeaderInteractionTests
 {
     [Fact]
     public async Task HeaderClicksResetCursorToggleServerSortAndKeepCriteriaAcrossReloadActions()
@@ -243,6 +244,14 @@ public sealed class StatisticsAdminHeaderInteractionTests
         public GetAdminStatisticsEntriesRequest Last => Queries[^1];
         public Func<GetAdminStatisticsEntriesRequest, CancellationToken, Task<AdminStatisticsEntriesPageDTO>>? Respond;
         public int Writes;
+        public readonly List<Guid> ContributionRequests = [];
+        public readonly List<CancellationToken> ContributionTokens = [];
+        public readonly List<Guid[]> NameRequests = [];
+        public Func<Guid, CancellationToken, Task<StatisticsEntryContributionsDTO>>? ContributionsRespond;
+        public Func<IReadOnlyList<Guid>, CancellationToken, Task<IReadOnlyDictionary<Guid, string>>>? NamesRespond;
+        public readonly Guid StartPointId = Guid.NewGuid();
+        public readonly Guid EndPointId = Guid.NewGuid();
+        public AdminStatisticsEntryDTO Entry => entry;
         private EffectiveDisplaySettings settings;
         private readonly AdminStatisticsEntryDTO entry = StatisticsManualInvalidationTransportTests.Entry();
         public Harness(string locale = "en-US", string unit = "m/s")
@@ -253,7 +262,7 @@ public sealed class StatisticsAdminHeaderInteractionTests
             services.AddMudServices(options => options.PopoverOptions.CheckForPopoverProvider = false);
             services.AddSingleton<IJSRuntime, NoBrowser>();
             services.AddSingleton<NavigationManager, TestNavigation>();
-            services.AddSingleton(PlatformServiceTests.TestProxy.Create<IFacilityService>((_, _) => Array.Empty<FacilityView>()));
+            services.AddSingleton(PlatformServiceTests.TestProxy.Create<IFacilityService>((_, _) => new[] { new FacilityView { Id = entry.FacilityId, Name = "Admin facility" } }));
             services.AddSingleton(AsyncProxy.Create<IStatisticsAdministrationService>((method, args) =>
             {
                 switch (method.Name)
@@ -265,6 +274,17 @@ public sealed class StatisticsAdminHeaderInteractionTests
                         var token = (CancellationToken)args[1]!;
                         Queries.Add(request); Tokens.Add(token);
                         return Respond is null ? Task.FromResult(Page(request)) : Respond(request, token);
+                    case nameof(IStatisticsAdministrationService.GetEntryContributionsAsync):
+                        var entryId = (Guid)args[0]!;
+                        var contributionsToken = (CancellationToken)args[1]!;
+                        ContributionRequests.Add(entryId); ContributionTokens.Add(contributionsToken);
+                        return ContributionsRespond is null ? Task.FromResult(Contributions(entryId)) : ContributionsRespond(entryId, contributionsToken);
+                    case nameof(IStatisticsAdministrationService.GetCoursePointNamesAsync):
+                        var ids = (IReadOnlyList<Guid>)args[0]!;
+                        var namesToken = (CancellationToken)args[1]!;
+                        NameRequests.Add(ids.ToArray());
+                        return NamesRespond is null ? Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>
+                            { [StartPointId] = "Sample start", [EndPointId] = "Sample finish" }) : NamesRespond(ids, namesToken);
                     case nameof(IStatisticsAdministrationService.SetManualInvalidationAsync): Writes++; return entry;
                     default: throw new NotSupportedException(method.Name);
                 }
@@ -284,6 +304,16 @@ public sealed class StatisticsAdminHeaderInteractionTests
                 _ => new(entry.TimeEnd, entry.Id, request.Sort, request.Order)
             };
             return new([entry], cursor, cursor);
+        }
+        public StatisticsEntryContributionsDTO Contributions(Guid? entryId = null, StatisticsEntryPassingsStatus status = StatisticsEntryPassingsStatus.Available, bool samplesTruncated = false, bool passingsTruncated = false, IReadOnlyList<PassingDTO>? passings = null)
+        {
+            var from = new DateTimeOffset(2026, 11, 17, 8, 0, 0, TimeSpan.Zero);
+            var to = from.AddMinutes(2);
+            var sample = new AdminStatisticsSampleDTO(Guid.NewGuid(), from, to, StartPointId, EndPointId, 1500, TimeSpan.FromSeconds(30), 10, entry.FacilityId);
+            passings ??= status == StatisticsEntryPassingsStatus.Available
+                ? [new PassingDTO(Guid.NewGuid(), from.AddSeconds(5), Guid.NewGuid(), "Finish point", Guid.NewGuid(), "Finish stand", entry.FacilityId, true, false, true)]
+                : null;
+            return new(entryId ?? entry.Id, entry.TransponderId, from, to, [sample], samplesTruncated, passings, passingsTruncated, status);
         }
         public Task Start() => Renderer.Dispatcher.InvokeAsync(() => Renderer.Start(SettingsParameters()));
         private ParameterView SettingsParameters() => ParameterView.FromDictionary(new Dictionary<string, object?>
@@ -329,6 +359,9 @@ public sealed class StatisticsAdminHeaderInteractionTests
         });
         public Task ClickText(string text) => Renderer.Dispatcher.InvokeAsync(() => Renderer.Click(Renderer.Components<MudButton>().Single(button =>
             Renderer.Text(button).Trim().Equals(text, StringComparison.OrdinalIgnoreCase))));
+        public Task ClickToggle() => Renderer.Dispatcher.InvokeAsync(() => Renderer.Click(Renderer.Components<MudIconButton>().Single()));
+        public Task ClickRow() => Renderer.Dispatcher.InvokeAsync(Renderer.ClickDataRow);
+        public string AllText() => string.Concat(Renderer.Frames().Where(frame => frame.FrameType == RenderTreeFrameType.Text).Select(frame => frame.TextContent));
         public Task Edit(int field, string value) => Renderer.Dispatcher.InvokeAsync(() => Renderer.Input(Renderer.Components<MudTextField<string>>().ElementAt(field), value));
         // HtmlRenderer cannot open Mud's JS-positioned popover; invoke the rendered public
         // ValueChanged contract, not the page handler. The select options are asserted too.
@@ -339,6 +372,15 @@ public sealed class StatisticsAdminHeaderInteractionTests
             await select.ValueChanged.InvokeAsync(value);
         });
         public async Task Settle() { await Task.Delay(500); await Renderer.Dispatcher.InvokeAsync(Renderer.Check); }
+        public async Task WaitForContributionRequests(int count)
+        {
+            for (var i = 0; i < 100; i++)
+            {
+                if (await Renderer.Dispatcher.InvokeAsync(() => ContributionRequests.Count >= count)) return;
+                await Task.Delay(20);
+            }
+            Assert.Fail($"Expected {count} contribution requests, got {ContributionRequests.Count}.");
+        }
         public async Task WaitForQueries(int count)
         {
             for (var i = 0; i < 100; i++)
@@ -411,6 +453,18 @@ public sealed class StatisticsAdminHeaderInteractionTests
             throw new InvalidOperationException($"No {elementName} element with {attributeName}={value} was rendered.");
         }
         public Task Click(IComponent component) => Event(component, "onclick", new MouseEventArgs());
+        public Task ClickDataRow()
+        {
+            var frames = Frames().ToArray();
+            for (var i = 0; i < frames.Length; i++)
+            {
+                if (frames[i].FrameType != RenderTreeFrameType.Element || frames[i].ElementName != "tr") continue;
+                for (var j = i + 1; j < frames.Length && frames[j].FrameType == RenderTreeFrameType.Attribute; j++)
+                    if (frames[j].AttributeName == "onclick" && frames[j].AttributeEventHandlerId != 0)
+                        return DispatchEventAsync(frames[j].AttributeEventHandlerId, null, new MouseEventArgs());
+            }
+            throw new InvalidOperationException("No clickable table data row was rendered.");
+        }
         public Task Input(IComponent component, string value) => Event(component, "oninput", new ChangeEventArgs { Value = value });
         private Task Event(IComponent component, string name, EventArgs args)
         {
