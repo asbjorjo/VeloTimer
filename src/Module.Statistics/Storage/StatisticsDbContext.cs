@@ -98,6 +98,11 @@ public class StatisticsDbContext : BaseDbContext
             }
             e.HasIndex(s => new { s.StatisticsItemId, s.Id })
                 .IsCreatedConcurrently();
+            // Unfiltered administrative pages need time-first ordering without equality prefixes.
+            // One B-tree supports newest-first backward and previous-page forward scans.
+            e.HasIndex(s => new { s.TimeEnd, s.Id })
+                .IsCreatedConcurrently()
+                .HasDatabaseName("ix_statistics_entry_time_end_id");
             e.HasOne(e => e.StatisticsItem)
                 .WithMany()
                 .IsRequired()

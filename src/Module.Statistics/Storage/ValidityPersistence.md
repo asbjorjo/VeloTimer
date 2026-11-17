@@ -84,6 +84,29 @@ scheduling protocol. Multi validity has no persisted contributor links or proof 
   that persists manual state; older readers may not understand reason 5, so coordinate the
   API/consumer rollout. Down fails closed if any manual reason or retained audit data exists.
 
+* `20261117092751_statistics_entry_admin_paging_index` adds the unfiltered B-tree
+  `ix_statistics_entry_time_end_id` on `(time_end, id)` **CONCURRENTLY**. It supports
+  newest-first administrative pages via a backward scan and previous pages via a forward
+  scan, including tuple cursor boundaries, without requiring facility/item/config filters.
+  It is not partial: valid and invalid entries are both administered. Existing filtered
+  indexes remain unchanged; selective optional filters may still need residual filtering.
+  This additive index-only migration changes no row data, checks, audit fields or EF history
+  convention. Old and new binaries remain schema-compatible. Allow table-owner DDL
+  privileges, concurrent-build IO/disk and waits for existing transactions; do not wrap
+  this migration in an external transaction. On failure inspect `pg_index.indisvalid`:
+  an INVALID index or a completed index without the EF history row requires an approved
+  concurrent drop of only this owned index before retrying; no `IF NOT EXISTS` shortcut.
+  Down drops only this index **CONCURRENTLY** and leaves data unchanged.
+  Focused validation (2026-11-17): Release migration build passed (existing NU1902
+  warnings); EF pending-model check passed, and forward/reverse SQL contain concurrent
+  index operations outside transactions. On a disposable PostgreSQL 17 representative
+  table of 100,000 rows (including tied completion times), generated Up/Down SQL applied
+  successfully, the index was ready/valid, and all rows survived rollback. Unforced
+  `EXPLAIN (ANALYZE, BUFFERS)` showed baseline parallel scan/top-N sort replaced by
+  backward index scans for first/next pages and a forward scan for previous pages;
+  tuple boundaries were index conditions and no sort/seq scan remained. This was not
+  the full joined endpoint query or a fresh full-chain migration. The container was removed.
+
 Deployment requires PostgreSQL 11+ fast constant defaults, table-owner/index/DDL
 privileges, the existing `public.pg_trgm` prerequisite, and allowance for short
 exclusive DDL locks and the measured concurrent-index build. The configuration table

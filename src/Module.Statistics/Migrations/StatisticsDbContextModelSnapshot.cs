@@ -174,6 +174,10 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasDatabaseName("ix_statistics_entry_statistics_item_id_id")
                         .HasAnnotation("Npgsql:CreatedConcurrently", true);
 
+                    b.HasIndex("TimeEnd", "Id")
+                        .HasDatabaseName("ix_statistics_entry_time_end_id")
+                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+
                     b.HasIndex("StatisticsItemId", "TransponderId", "TimeStart", "TimeEnd")
                         .HasDatabaseName("ix_statistics_entry_statistics_item_id_transponder_id_time_sta");
 
