@@ -114,10 +114,9 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     {
         await using var db = Db();
         var migrator = db.GetService<IMigrator>();
-        // Discover the predecessor from the actual checked-in migration inventory.
-        var migrations = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
-        var predecessor = migrations[^2];
-        Assert.Equal("20261117081217_statistics_manual_invalidation", migrations[^1]);
+        // Pin this migration boundary so later migrations do not change the scenario.
+        const string predecessor = "20261116132807_statistics_sample_attempt_indexes";
+        const string target = "20261117081217_statistics_manual_invalidation";
         await migrator.MigrateAsync(predecessor);
         var item = Guid.NewGuid();
         var config = Guid.NewGuid();
@@ -134,7 +133,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             VALUES ({entry}, {item}, {config}, {Guid.NewGuid()}, {Guid.NewGuid()},
                 {Start}, {Start.AddSeconds(10)}, {TimeSpan.FromSeconds(10)}, {25d}, FALSE, 4, FALSE);
             """);
-        await migrator.MigrateAsync();
+        await migrator.MigrateAsync(target);
         var legacy = await db.Set<StatisticsEntry>().AsNoTracking().SingleAsync();
         Assert.Equal(StatisticsEntryInvalidReason.RequiredCoursePointsNotSatisfied, legacy.InvalidReason);
         Assert.False(legacy.RequiredCoursePointsSatisfied);
@@ -173,7 +172,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                 manual_invalidation_changed_at_utc = NULL, manual_invalidation_note = NULL WHERE id = {entry}
             """);
         await migrator.MigrateAsync(predecessor);
-        await migrator.MigrateAsync();
+        await migrator.MigrateAsync(target);
         Assert.Equal(StatisticsEntryInvalidReason.RequiredCoursePointsNotSatisfied,
             (await db.Set<StatisticsEntry>().AsNoTracking().SingleAsync()).InvalidReason);
     }
