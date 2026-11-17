@@ -139,10 +139,9 @@ internal static class AdminStatisticsEntryEndpoints
 
         if (rows.Count == 0)
         {
-            if (request.Cursor is not { } emptyAnchor) return new([], null, null);
-            var hasPrevious = await Boundary(filtered, emptyAnchor, true).AnyAsync(cancellationToken);
-            var hasNext = await Boundary(filtered, emptyAnchor, false).AnyAsync(cancellationToken);
-            return new([], hasPrevious ? emptyAnchor : null, hasNext ? emptyAnchor : null);
+            if (request.Cursor is not null)
+                return await QueryPage(storage, request with { Cursor = null, Direction = null }, cancellationToken);
+            return new([], null, null);
         }
 
         var first = Cursor(rows[0]);
