@@ -75,7 +75,11 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             SET is_valid = FALSE, invalid_reason = {invalidReason}, required_course_points_satisfied = FALSE
             WHERE id = {entryId}
             """);
-        await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(previousMigration));
+        var guard = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(previousMigration));
+        Assert.Contains("Cannot downgrade required course points", guard.MessageText);
+        // EF commits each successful Down migration separately. Restore the later schema
+        // before querying with the current model after the guarded downgrade fails.
+        await migrator.MigrateAsync();
         db.ChangeTracker.Clear();
         entry = await db.Set<StatisticsEntry>().SingleAsync(x => x.Id == entryId);
         Assert.False(entry.RequiredCoursePointsSatisfied);
@@ -90,7 +94,9 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             SET is_valid = TRUE, invalid_reason = NULL, required_course_points_satisfied = TRUE
             WHERE id = {entryId}
             """);
-        await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(previousMigration));
+        guard = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(previousMigration));
+        Assert.Contains("Cannot downgrade required course points", guard.MessageText);
+        await migrator.MigrateAsync();
 
         config.RequiredCourseLayoutId = null;
         config.RequiredCoursePointIds = [];
