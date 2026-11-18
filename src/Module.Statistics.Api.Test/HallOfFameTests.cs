@@ -158,6 +158,73 @@ public sealed class HallOfFameTests
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
+    [Fact]
+    public async Task LapDistance_RankingAndSnapshots() => await AssertVariableLaps(false);
+
+    [PublicStatisticsPostgreSqlFact]
+    public async Task PostgreSql_LapDistance_RankingAndSnapshots() => await AssertVariableLaps(true);
+
+    private static async Task AssertVariableLaps(bool postgres)
+    {
+        await using var host = await PublicStatisticsTestHost.CreateAsync(postgres);
+        var config = Config("Lap");
+        config.StatisticsItem.DistanceMode = StatisticsDistanceMode.CourseLayout;
+        config.StatisticsItem.Distance = 0;
+        var first = Profile("First");
+        var second = Profile("Second");
+        await host.SeedAsync(
+            Entry(config, first, 20, distance: 250),
+            Entry(config, first, 24, PublicStatisticsTestHost.OtherFacility, distance: 333.33),
+            Entry(config, second, 21, distance: 333.33),
+            Entry(config, second, 25, PublicStatisticsTestHost.OtherFacility, distance: 250),
+            Entry(config, Profile("Shorter but slower"), 19, distance: 250));
+        using var client = PublicStatisticsDiscoveryTests.Anonymous(host);
+
+        var global = (await Get(client, "category=lap")).Times;
+        Assert.Equal(new[] { "Second", "First", "Shorter but slower" }, global.Select(row => row.ProfileName));
+        Assert.Equal(TimeSpan.FromSeconds(21), global[0].Duration);
+        Assert.Equal(333.33 / 21, global[0].SpeedMetresPerSecond, 8);
+        Assert.Equal(TimeSpan.FromSeconds(24), global[1].Duration);
+        Assert.Equal(333.33 / 24, global[1].SpeedMetresPerSecond, 8);
+        Assert.Equal(PublicStatisticsTestHost.OtherFacility, global[1].FacilityId);
+        Assert.Equal(TimeSpan.FromSeconds(19), global[2].Duration);
+        Assert.True(global[0].SpeedMetresPerSecond > global[2].SpeedMetresPerSecond);
+
+        var filtered = (await Get(client, $"category=lap&facilityId={PublicStatisticsTestHost.Facility}")).Times;
+        Assert.Equal(new[] { "Shorter but slower", "First", "Second" }, filtered.Select(row => row.ProfileName));
+        Assert.Equal(new[] { TimeSpan.FromSeconds(19), TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(21) }, filtered.Select(row => row.Duration));
+        Assert.All(filtered, row => Assert.Equal(PublicStatisticsTestHost.Facility, row.FacilityId));
+
+        var laps = (await Get(client, "category=laps")).Laps;
+        Assert.Equal(3, laps.Count);
+        Assert.All(laps.Where(row => row.ProfileName != "Shorter but slower"), row =>
+            { Assert.Equal(2, row.LapCount); Assert.Equal(583.33, row.TotalDistanceMetres, 8); });
+        Assert.Equal(250, Assert.Single(laps, row => row.ProfileName == "Shorter but slower").TotalDistanceMetres);
+        var facilityLaps = (await Get(client, $"category=laps&facilityId={PublicStatisticsTestHost.Facility}")).Laps;
+        Assert.Equal(3, facilityLaps.Count);
+        Assert.Equal(250, Assert.Single(facilityLaps, row => row.ProfileName == "First").TotalDistanceMetres);
+        Assert.Equal(333.33, Assert.Single(facilityLaps, row => row.ProfileName == "Second").TotalDistanceMetres, 8);
+        Assert.All(facilityLaps, row => Assert.Equal(1, row.LapCount));
+        if (postgres)
+            Assert.Contains(host.Sql.Commands, command => command.Text.Contains("GROUP BY", StringComparison.OrdinalIgnoreCase)
+                && command.Text.Contains("SUM(", StringComparison.OrdinalIgnoreCase)
+                && command.Text.Contains("COUNT(", StringComparison.OrdinalIgnoreCase)
+                && command.Text.Contains("LIMIT", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task CourseLayoutLaps_MissingSnapshotIsConflict()
+    {
+        await using var host = await PublicStatisticsTestHost.CreateAsync();
+        var config = Config("Lap");
+        config.StatisticsItem.DistanceMode = StatisticsDistanceMode.CourseLayout;
+        config.StatisticsItem.Distance = 0;
+        await host.SeedAsync(Entry(config, Profile("Rider"), 20));
+        using var client = PublicStatisticsDiscoveryTests.Anonymous(host);
+        using var response = await client.GetAsync(HallOfFameQuery.Path + "?category=laps");
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
     [Theory]
     [InlineData("category=unknown")]
     [InlineData("category=")]
@@ -204,12 +271,12 @@ public sealed class HallOfFameTests
         CoursePointStart = PublicStatisticsTestHost.Start, CoursePointEnd = PublicStatisticsTestHost.End
     };
 
-    private static StatisticsEntry Entry(SimpleStatisticsItemConfig config, StatsProfile? profile, int seconds, Guid? facility = null, Guid? id = null) =>
+    private static StatisticsEntry Entry(SimpleStatisticsItemConfig config, StatsProfile? profile, int seconds, Guid? facility = null, Guid? id = null, double? distance = null) =>
         new()
         {
             Id = id ?? Guid.NewGuid(), StatisticsItem = config.StatisticsItem, StatisticsItemConfig = config,
             StatsProfile = profile, TransponderId = Guid.NewGuid(), Duration = TimeSpan.FromSeconds(seconds),
-            Speed = 250d / seconds, FacilityId = facility ?? PublicStatisticsTestHost.Facility,
+            Speed = (distance ?? 250d) / seconds, DistanceMetres = distance, FacilityId = facility ?? PublicStatisticsTestHost.Facility,
             TimeStart = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             TimeEnd = new DateTime(2026, 1, 1, 0, 0, seconds, DateTimeKind.Utc)
         };
