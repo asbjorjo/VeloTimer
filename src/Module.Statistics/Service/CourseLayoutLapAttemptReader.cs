@@ -58,7 +58,7 @@ internal sealed class CourseLayoutLapAttemptReader(StatisticsDbContext storage)
             .Select(s => new
             {
                 s.TimeStart, s.TimeEnd, s.CoursePointStartId, s.CoursePointEndId,
-                s.CourseLayoutId, s.ClosedLoopDistanceMetres
+                s.CourseLayoutId, s.ClosedLoopDistanceMetres, s.Distance
             }).ToListAsync(cancellationToken);
         var pathSamples = evidence.Where(s => !(s.TimeEnd == timeStart && s.TimeStart < timeStart
                     && s.CoursePointEndId == config.CoursePointStart)
@@ -73,10 +73,44 @@ internal sealed class CourseLayoutLapAttemptReader(StatisticsDbContext storage)
             config.CoursePointStart, config.CoursePointEnd, config.RequiredCoursePointIds, cancellationToken);
         if (!path.Continuous)
             throw new InvalidOperationException("Course-layout lap path is stale, conflicting, or not continuously ordered.");
+
+        // The shared evaluator has already removed equivalent duplicate edges and established their
+        // exact order. Require duplicate rows to agree on their measured distance, then sum each
+        // accepted edge once; otherwise a path can traverse the loop multiple times undetected.
+        var distancesByEdge = pathSamples.GroupBy(sample => new OrderedCourseAttempt.Edge(sample.TimeStart,
+                sample.TimeEnd, sample.CoursePointStartId, sample.CoursePointEndId))
+            .ToDictionary(group => group.Key, group => group.Select(sample => sample.Distance).ToArray());
+        var totalDistance = 0d;
+        var compensation = 0d;
+        foreach (var edge in path.Edges)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!distancesByEdge.TryGetValue(edge, out var duplicateDistances) || duplicateDistances.Length == 0
+                || duplicateDistances.Any(distance => !ValidDistance(distance) || distance != duplicateDistances[0]))
+                throw new InvalidOperationException("Course-layout lap path has missing or conflicting sample-distance evidence.");
+
+            // Kahan summation keeps the comparison focused on source arithmetic, not this accumulator.
+            var adjusted = duplicateDistances[0] - compensation;
+            var nextTotal = totalDistance + adjusted;
+            compensation = (nextTotal - totalDistance) - adjusted;
+            totalDistance = nextTotal;
+            if (!double.IsFinite(totalDistance))
+                throw new InvalidOperationException("Course-layout lap sample distances overflowed their finite range.");
+        }
+        if (!MatchesLoopDistance(totalDistance, distanceMetres))
+            throw new InvalidOperationException("Course-layout lap sample distances do not equal exactly one closed-loop distance.");
         return new(timeStart, facility, distanceMetres, path.RequiredCoursePointsSatisfied);
     }
 
     private static bool ValidGeometry(Guid? layoutId, double? distance) =>
         layoutId.HasValue && layoutId.Value != Guid.Empty && distance.HasValue
         && double.IsFinite(distance.Value) && distance.Value > 0;
+
+    private static bool ValidDistance(double distance) => double.IsFinite(distance) && distance > 0;
+
+    // A 1e-12 relative tolerance (~4,500 double-precision unit roundoffs) only accommodates
+    // floating-point summation differences between Facilities endpoint distances and loop geometry.
+    private static bool MatchesLoopDistance(double actual, double expected) =>
+        ValidDistance(actual) && ValidDistance(expected)
+        && Math.Abs(actual - expected) <= Math.Max(actual, expected) * 1e-12;
 }

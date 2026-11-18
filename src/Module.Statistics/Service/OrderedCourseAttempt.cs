@@ -4,7 +4,7 @@ namespace VeloTime.Module.Statistics.Service;
 internal static class OrderedCourseAttempt
 {
     internal sealed record Edge(DateTime Start, DateTime End, Guid From, Guid To);
-    internal readonly record struct Result(bool Continuous, bool RequiredCoursePointsSatisfied);
+    internal readonly record struct Result(bool Continuous, bool RequiredCoursePointsSatisfied, IReadOnlyList<Edge> Edges);
 
     internal static Result Evaluate(IEnumerable<Edge> evidence, DateTime timeStart, DateTime finish,
         Guid startPoint, Guid finishPoint, IReadOnlyList<Guid> requiredCoursePointIds,
@@ -45,6 +45,6 @@ internal static class OrderedCourseAttempt
             }
         }
         continuous &= instant == finish && point == finishPoint;
-        return new(continuous, continuous && requiredIndex == requiredCoursePointIds.Count);
+        return new(continuous, continuous && requiredIndex == requiredCoursePointIds.Count, edges);
     }
 }
