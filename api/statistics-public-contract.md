@@ -60,10 +60,11 @@ grouped lap totals, including exact ten-row cutoffs.
 
 ## Facility-specific Lap distance and Statistics definition contract
 
-Statistics API and UI now support explicit Fixed and CourseLayout item modes. The rollout remains
-staged: the current Statistics storage migration is stage one, which adds nullable entry/sample
-evidence and snapshots existing Lap rows while leaving pre-existing definitions Fixed. The separate
-activation migration is not shipped at this stage; see the [Lap distance rollout](../src/Module.Statistics/Storage/LapDistanceRollout.md).
+Statistics API and UI now support explicit Fixed and CourseLayout item modes. The rollout is staged:
+the Statistics storage migration adds nullable entry/sample evidence and snapshots existing Lap rows
+while leaving pre-existing definitions Fixed. A separate activation migration completes the final
+sweep and opts the existing Lap item into CourseLayout only during an acknowledged maintenance
+window; see the [Lap distance rollout](../src/Module.Statistics/Storage/LapDistanceRollout.md).
 
 `StatisticsItemDTO` and `SaveStatisticsItemRequest` retain their existing positional fields and add
 optional `DistanceMode` metadata (`Fixed = 0`, `CourseLayout = 1`, numeric enum JSON). A current
@@ -85,11 +86,10 @@ The Facilities timing-point distance response has optional `CourseLayoutId` and
 `ClosedLoopDistanceMetres` evidence. The two values must be paired and identify one unambiguous
 layout whose ordered segments form a continuous closed path with a finite positive full length in
 metres; the value is the whole loop, not endpoint `Distance`. Equal endpoints alone do not prove a
-loop, and no geometry revision is available. The current timing-point endpoint does not yet populate
-this evidence. Statistics persists available evidence with Samples, and the lap attempt reader
-rejects missing or conflicting evidence rather than inventing a distance; layout-based lap results
-cannot be produced until Facilities supplies it. No timing-message contract change is needed because
-persisted Sample evidence is the attempt reader source.
+loop, and no geometry revision is available. The timing-point endpoint populates this evidence for
+valid closed layouts. Statistics persists available evidence with Samples, and the lap attempt reader
+rejects missing or conflicting evidence rather than inventing a distance. No timing-message contract
+change is needed because persisted Sample evidence is the attempt reader source.
 
 Stage one, `20261118121122_statistics_lap_distance_storage`, leaves existing definitions Fixed and backfills
 existing unsnapshotted Lap entries from the actual configured Statistics Lap distance, including

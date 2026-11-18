@@ -2,6 +2,7 @@
 using VeloTime.Module.Facilities.Model;
 using VeloTime.Module.Facilities.Storage;
 using VeloTime.Module.Statistics.Model;
+using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Storage;
 using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Storage;
@@ -78,7 +79,7 @@ internal class Worker(IServiceProvider serviceProvider, IHostApplicationLifetime
         var lap = await statisticsContext.Set<StatisticsItem>().SingleOrDefaultAsync(s => s.Name == "Lap");
         if (lap is null)
         {
-            lap = new() { Name = "Lap", Description = "Lap",  Distance = 250};
+            lap = new() { Name = "Lap", Description = "Lap",  Distance = 0, DistanceMode = StatisticsDistanceMode.CourseLayout};
             SimpleStatisticsItemConfig lapsola = new() { StatisticsItem = lap, CoursePointStart = coursepoints.Single(c => c.Name == "Finish").Id , CoursePointEnd = coursepoints.Single(c => c.Name == "Finish").Id };
             statisticsContext.Add(lapsola);
             await statisticsContext.SaveChangesAsync();
