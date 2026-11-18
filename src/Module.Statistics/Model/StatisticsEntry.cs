@@ -16,6 +16,8 @@ public class StatisticsEntry
     public Guid? StatsProfileUserId { get; set; }
     public TimeSpan Duration { get; init; }
     public double Speed { get; init; }
+    /// <summary>Distance in metres captured for this entry, when known.</summary>
+    public double? DistanceMetres { get; init; }
     public Guid FacilityId { get; init; }
     /// <summary>Attempt-time checkpoint outcome, independent of InvalidReason. False is retained
     /// even when another failure has display precedence. True for legacy/unconfigured entries

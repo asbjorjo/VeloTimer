@@ -1,4 +1,6 @@
-﻿namespace VeloTime.Module.Statistics.Model;
+﻿using VeloTime.Module.Statistics.Interface.Data;
+
+namespace VeloTime.Module.Statistics.Model;
 
 public class StatisticsItem
 {
@@ -6,6 +8,7 @@ public class StatisticsItem
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public float Distance { get; set; }
+    public StatisticsDistanceMode DistanceMode { get; set; } = StatisticsDistanceMode.Fixed;
     public TimeSpan? MinDuration { get; set; }
     public TimeSpan? MaxDuration { get; set; }
 }
