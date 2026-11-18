@@ -112,7 +112,7 @@
   <data name="Configurations" xml:space="preserve"><value>Konfigurasjoner</value></data><data name="Logout" xml:space="preserve"><value>Logg ut</value></data>
   <data name="Register" xml:space="preserve"><value>Registrer</value></data><data name="Login" xml:space="preserve"><value>Logg inn</value></data>
   <data name="About" xml:space="preserve"><value>Om</value></data><data name="Privacy" xml:space="preserve"><value>Personvern</value></data>
-  <data name="Terms" xml:space="preserve"><value>Vilkår</value></data><data name="AboutVeloTime" xml:space="preserve"><value>VeloTime</value></data>
+  <data name="Terms" xml:space="preserve"><value>Vilkår</value></data><data name="AboutVeloTime" xml:space="preserve"><value>VeloTime</value></data><data name="Version" xml:space="preserve"><value>Versjon</value></data>
   <data name="ChangePassword" xml:space="preserve"><value>Bytt passord</value></data>
   <data name="AccessDenied" xml:space="preserve"><value>Ingen tilgang</value></data>
   <data name="NoPermission" xml:space="preserve"><value>Du har ikke tilgang til denne siden.</value></data>
