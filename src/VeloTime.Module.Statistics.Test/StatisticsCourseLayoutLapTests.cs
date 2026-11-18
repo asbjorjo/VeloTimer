@@ -80,6 +80,67 @@ public sealed partial class StatisticsServiceTests
         Assert.Empty(await database.Storage.Set<StatisticsEntry>().ToListAsync());
     }
 
+    [Fact]
+    public async Task CourseLayoutLap_TwoWrapsWithoutAnInteriorFinish_AreRejected()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var rider = Guid.NewGuid();
+        var finish = Guid.NewGuid();
+        var at300 = Guid.NewGuid();
+        var at200 = Guid.NewGuid();
+        var facility = Guid.NewGuid();
+        var layout = Guid.NewGuid();
+        var start = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var config = CreateSimpleConfig(Guid.NewGuid(), finish, finish, "Lap", 0);
+        config.StatisticsItem.DistanceMode = StatisticsDistanceMode.CourseLayout;
+        // On a 400 m loop these observed edges wrap twice: 0->300, 300->200, 200->0.
+        database.Storage.AddRange(config,
+            LapSample(rider, finish, at300, start, start.AddSeconds(10), facility, layout, 400, 300),
+            LapSample(rider, at300, at200, start.AddSeconds(10), start.AddSeconds(20), facility, layout, 400, 300),
+            LapSample(rider, at200, finish, start.AddSeconds(20), start.AddSeconds(30), facility, layout, 400, 200));
+        await database.Storage.SaveChangesAsync();
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await database.Service.ProcessCompletedAsync(rider, start.AddSeconds(20), start.AddSeconds(30), at200, finish));
+        Assert.Contains("exactly one closed-loop distance", error.Message);
+        Assert.Empty(await database.Storage.Set<StatisticsEntry>().ToListAsync());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CourseLayoutLap_EquivalentDuplicateEdgesAreCountedOnceAndConflictsRejected(bool conflict)
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var rider = Guid.NewGuid();
+        var finish = Guid.NewGuid();
+        var intermediate = Guid.NewGuid();
+        var facility = Guid.NewGuid();
+        var layout = Guid.NewGuid();
+        var start = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var config = CreateSimpleConfig(Guid.NewGuid(), finish, finish, "Lap", 0);
+        config.StatisticsItem.DistanceMode = StatisticsDistanceMode.CourseLayout;
+        database.Storage.AddRange(config,
+            LapSample(rider, finish, intermediate, start, start.AddSeconds(10), facility, layout, 400, 300),
+            LapSample(rider, finish, intermediate, start, start.AddSeconds(10), facility, layout, 400, conflict ? 299 : 300),
+            LapSample(rider, intermediate, finish, start.AddSeconds(10), start.AddSeconds(20), facility, layout, 400, 100));
+        await database.Storage.SaveChangesAsync();
+        if (conflict)
+        {
+            var error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await database.Service.ProcessCompletedAsync(rider, start.AddSeconds(10), start.AddSeconds(20), intermediate, finish));
+            Assert.Contains("conflicting sample-distance evidence", error.Message);
+            Assert.Empty(await database.Storage.Set<StatisticsEntry>().ToListAsync());
+        }
+        else
+        {
+            var entry = Assert.Single(await database.Service.ProcessCompletedAsync(rider, start.AddSeconds(10), start.AddSeconds(20), intermediate, finish));
+            Assert.Equal(400, entry.DistanceMetres);
+            Assert.Equal(20, entry.Speed);
+            Assert.Single(await database.Storage.Set<StatisticsEntry>().ToListAsync());
+        }
+    }
+
     private static Sample LapSample(Guid rider, Guid from, Guid to, DateTime start, DateTime end,
         Guid facility, Guid? layout, double? length, double segmentDistance) => new()
     {
