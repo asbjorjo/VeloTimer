@@ -117,7 +117,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         // Pin this migration boundary so later migrations do not change the scenario.
         const string predecessor = "20261116132807_statistics_sample_attempt_indexes";
         const string target = "20261117081217_statistics_manual_invalidation";
-        await migrator.MigrateAsync(predecessor);
+        await RecreateAtMigrationAsync(predecessor);
         var item = Guid.NewGuid();
         var config = Guid.NewGuid();
         var entry = Guid.NewGuid();
