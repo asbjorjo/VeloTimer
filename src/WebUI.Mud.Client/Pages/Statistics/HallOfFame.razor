@@ -38,7 +38,7 @@
             @foreach (var category in HallOfFameQuery.Categories)
             {
                 <MudTabPanel Text="@TabLabel(category)" ID="@category">
-                    <HallOfFameTable Loading="_loading" LapCounter="@(category == "laps")" Results="_results" />
+                    <HallOfFameTable Loading="_loading" LapCounter="@(category == "laps")" SpeedRanked="@(category == "lap" && !_request.FacilityId.HasValue)" Results="_results" />
                 </MudTabPanel>
             }
         </MudTabs>

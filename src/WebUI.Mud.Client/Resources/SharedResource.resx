@@ -700,4 +700,10 @@
   <data name="StatisticsContributionLowHits" xml:space="preserve"><value>Low hits</value></data>
   <data name="StatisticsContributionFlagOn" xml:space="preserve"><value>Yes</value></data>
   <data name="StatisticsContributionFlagOff" xml:space="preserve"><value>No</value></data>
+  <data name="StatisticsDistanceMode" xml:space="preserve"><value>Distance source</value></data>
+  <data name="StatisticsFixedDistance" xml:space="preserve"><value>Fixed distance</value></data>
+  <data name="StatisticsFromCourseLayout" xml:space="preserve"><value>From course layout</value></data>
+  <data name="StatisticsLayoutThresholdHelp" xml:space="preserve"><value>Speed-based thresholds require a known fixed distance. Edit durations instead.</value></data>
+  <data name="StatisticsLayoutMultiInvalid" xml:space="preserve"><value>Course layout distance cannot be used for a Multi configuration.</value></data>
+  <data name="HallOfFameSpeedRanking" xml:space="preserve"><value>Global laps are ranked by speed, highest first. Times are shown for each result.</value></data>
 </root>

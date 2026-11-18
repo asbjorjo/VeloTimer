@@ -47,7 +47,8 @@ public class StatisticsService(
             return new Contracts.PublicStatisticsDiscoveryDTO(
                 response.Items.Select(item => new Contracts.StatisticsItemDTO(
                     item.Id, item.Name, item.Description, item.Distance,
-                    StatisticsDurationTransport.Parse(item.MinDuration), StatisticsDurationTransport.Parse(item.MaxDuration))).ToList(),
+                    StatisticsDurationTransport.Parse(item.MinDuration), StatisticsDurationTransport.Parse(item.MaxDuration))
+                    { DistanceMode = (Contracts.StatisticsDistanceMode?)item.DistanceMode }).ToList(),
                 response.Configurations.Select(config => new Contracts.PublicStatisticsConfigurationDTO(
                     config.Id, config.StatisticsItemId, config.FacilityId, (Contracts.StatisticsConfigurationType)config.Type,
                     config.CoursePointStart, config.CoursePointStartName, config.CoursePointEnd, config.CoursePointEndName,

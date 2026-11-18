@@ -35,14 +35,30 @@ else if (_editing)
             @if (!_configurationEditor)
             {
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_name" Label="@L["Name"]" Required="true" RequiredError="@L["RequiredError"]" MaxLength="200" /></MudItem>
-                <MudItem xs="12" md="6"><MudNumericField T="double" @bind-Value="_distanceDraft.Value" Label="@L["DistanceInUnit", _distanceDraft.Settings.DistanceUnit]" Min="@_distanceDraft.Settings.DistanceFromMetres(0.001)" Culture="_distanceDraft.Settings.NumberCulture" Required="true" RequiredError="@L["RequiredError"]" /></MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="StatisticsDistanceMode" @bind-Value="_distanceMode" Label="@L["StatisticsDistanceMode"]" Disabled="_busy">
+                        <MudSelectItem Value="StatisticsDistanceMode.Fixed">@L["StatisticsFixedDistance"]</MudSelectItem>
+                        <MudSelectItem Value="StatisticsDistanceMode.CourseLayout">@L["StatisticsFromCourseLayout"]</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                @if (_distanceMode == StatisticsDistanceMode.Fixed)
+                {
+                    @if (_requireNewFixedDistance)
+                    {
+                        <MudItem xs="12" md="6"><MudNumericField T="double?" @bind-Value="_newFixedDistance" Label="@L["DistanceInUnit", _distanceDraft.Settings.DistanceUnit]" Min="@_distanceDraft.Settings.DistanceFromMetres(0.001)" Culture="_distanceDraft.Settings.NumberCulture" Required="true" RequiredError="@L["RequiredError"]" /></MudItem>
+                    }
+                    else
+                    {
+                        <MudItem xs="12" md="6"><MudNumericField T="double" @bind-Value="_distanceDraft.Value" Label="@L["DistanceInUnit", _distanceDraft.Settings.DistanceUnit]" Min="@_distanceDraft.Settings.DistanceFromMetres(0.001)" Culture="_distanceDraft.Settings.NumberCulture" Required="true" RequiredError="@L["RequiredError"]" /></MudItem>
+                    }
+                }
                 <MudItem xs="12"><MudTextField @bind-Value="_description" Label="@L["Description"]" Lines="3" /></MudItem>
             }
             else
             {
                 <MudItem xs="12" md="6">
                     <MudSelect T="Guid?" @bind-Value="_itemId" Label="@L["StatisticsItemLabel"]" Required="true" RequiredError="@L["RequiredError"]">
-                        @foreach (var item in _items) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Name (@Display.Distance(item.Distance))</MudSelectItem> }
+                        @foreach (var item in _items) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Name (@ItemDistance(item))</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="6">
@@ -133,7 +149,7 @@ else
         <MudTable T="StatisticsItemDTO" Items="@_items.Where(MatchesItem)" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
             <HeaderContent><MudTh>@L["Name"]</MudTh><MudTh>@L["Description"]</MudTh><MudTh>@L["Distance"]</MudTh><MudTh>@L["Configurations"]</MudTh><MudTh /></HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="@L["Name"]">@context.Name</MudTd><MudTd DataLabel="@L["Description"]">@context.Description</MudTd><MudTd DataLabel="@L["Distance"]">@Display.Distance(context.Distance)</MudTd>
+                <MudTd DataLabel="@L["Name"]">@context.Name</MudTd><MudTd DataLabel="@L["Description"]">@context.Description</MudTd><MudTd DataLabel="@L["Distance"]">@ItemDistance(context)</MudTd>
                 <MudTd DataLabel="@L["Configurations"]">@_configs.Count(config => config.StatisticsItemId == context.Id)</MudTd>
                 <MudTd DataLabel="@L["Actions"]">
                     <MudTooltip Text="@L["EditItem"]"><MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => EditItem(context)" aria-label="@L["EditItem"]" /></MudTooltip>
@@ -197,7 +213,19 @@ else
     private DistanceEditorValue _distanceDraft = default!;
     private StatisticsThresholdDraft _thresholds = default!;
     private StatisticsItemDTO? SelectedItem => _items.FirstOrDefault(item => item.Id == _itemId);
-    private double ThresholdDistance => _configurationEditor ? SelectedItem?.Distance ?? 0 : _distanceDraft.Metres;
+    private StatisticsDistanceMode _distanceMode;
+    private bool _requireNewFixedDistance;
+    private double? _newFixedDistance;
+    private double FixedDistance => _requireNewFixedDistance
+        ? _newFixedDistance.HasValue ? _distanceDraft.Settings.DistanceToMetres(_newFixedDistance.Value) : 0
+        : _distanceDraft.Metres;
+    private bool FixedDistanceValid => _requireNewFixedDistance
+        ? _newFixedDistance.HasValue && _distanceDraft.Settings.ValidDistance(_newFixedDistance.Value)
+        : _distanceDraft.IsValid;
+    // Layout lengths are facility-specific and cannot be inferred from the definition sentinel.
+    private double ThresholdDistance => _configurationEditor
+        ? SelectedItem is { DistanceMode: null or StatisticsDistanceMode.Fixed } item ? item.Distance : 0
+        : _distanceMode == StatisticsDistanceMode.Fixed && FixedDistanceValid && float.IsFinite((float)FixedDistance) ? FixedDistance : 0;
     private int _repetitions = 2;
     private StatisticsConfigurationType _type;
     private bool IsConfigurations => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("admin/statistics/configurations", StringComparison.OrdinalIgnoreCase);
@@ -252,6 +280,9 @@ else
         _configurationEditor = IsConfigurations;
         _type = StatisticsConfigurationType.Simple;
         _name = _description = "";
+        _distanceMode = StatisticsDistanceMode.Fixed;
+        _requireNewFixedDistance = false;
+        _newFixedDistance = null;
         _distanceDraft = new(250, Display);
         _thresholds = new(null, null, ThresholdDistance, Display);
         _repetitions = 2;
@@ -267,8 +298,10 @@ else
         _id = item.Id;
         _name = item.Name;
         _description = item.Description;
-        _distanceDraft = new(item.Distance, Display);
-        _thresholds = new(item.MinDuration, item.MaxDuration, item.Distance, Display);
+        _distanceMode = item.DistanceMode ?? StatisticsDistanceMode.Fixed;
+        _requireNewFixedDistance = _distanceMode == StatisticsDistanceMode.CourseLayout;
+        _distanceDraft = new(_requireNewFixedDistance ? 0 : item.Distance, Display);
+        _thresholds = new(item.MinDuration, item.MaxDuration, ThresholdDistance, Display);
     }
 
     private async Task EditConfiguration(StatisticsConfigurationDTO config)
@@ -391,7 +424,11 @@ else
             (_requiredPoints.Replacement(_layoutId) is not null || _startId != _originalStartId || _endId != _originalEndId) &&
             !_requiredPoints.MatchesPath(_layoutId, IntermediatePath))
         { _error = L["RequiredPointsPathChanged"]; return; }
-        if (!_configurationEditor && (!_distanceDraft.IsValid || !float.IsFinite((float)_distanceDraft.Metres))) { _error = L["InvalidDistance", _distanceDraft.Settings.Distance(0.001)]; return; }
+        if (_configurationEditor && _type == StatisticsConfigurationType.Multi && SelectedItem?.DistanceMode == StatisticsDistanceMode.CourseLayout)
+        { _error = L["StatisticsLayoutMultiInvalid"]; return; }
+        if (!_configurationEditor && _distanceMode == StatisticsDistanceMode.CourseLayout && _configs.Any(config => config.StatisticsItemId == _id && config.Type == StatisticsConfigurationType.Multi))
+        { _error = L["StatisticsLayoutMultiInvalid"]; return; }
+        if (!_configurationEditor && _distanceMode == StatisticsDistanceMode.Fixed && (!FixedDistanceValid || !float.IsFinite((float)FixedDistance))) { _error = L["InvalidDistance", _distanceDraft.Settings.Distance(0.001)]; return; }
         if (!_thresholds.IsValid) { _error = L["ThresholdInputOrRangeInvalid"]; return; }
         if (_configurationEditor)
         {
@@ -418,7 +455,7 @@ else
                     _thresholds.Minimum, _thresholds.Maximum)
                     { RequiredCoursePoints = _type == StatisticsConfigurationType.Simple ? _requiredPoints.Replacement(_layoutId) : null }, _lifetime.Token);
             else
-                await Administration.SaveItemAsync(_id, new(_name, _description, (float)_distanceDraft.Metres, _thresholds.Minimum, _thresholds.Maximum), _lifetime.Token);
+                await Administration.SaveItemAsync(_id, new(_name, _description, _distanceMode == StatisticsDistanceMode.Fixed ? (float)FixedDistance : 0, _thresholds.Minimum, _thresholds.Maximum) { DistanceMode = _distanceMode }, _lifetime.Token);
             _editing = false;
             Snackbar.Add(L["ThresholdSettingsSaved"], Severity.Success);
             await Load();
@@ -455,6 +492,8 @@ else
     private void SwitchTab(int index) { if (index != (IsConfigurations ? 1 : 0)) Navigation.NavigateTo(index == 1 ? "/admin/statistics/configurations" : "/admin/statistics/items"); }
     private bool MatchesItem(StatisticsItemDTO item) => $"{item.Name} {item.Description}".Contains(_search, StringComparison.OrdinalIgnoreCase);
     private bool MatchesConfiguration(StatisticsConfigurationDTO config) => ConfigurationLabel(config).Contains(_search, StringComparison.OrdinalIgnoreCase);
+    private string ItemDistance(StatisticsItemDTO item) => item.DistanceMode == StatisticsDistanceMode.CourseLayout
+        ? L["StatisticsFromCourseLayout"].Value : Display.Distance(item.Distance);
     private string ItemName(Guid id) => _items.FirstOrDefault(item => item.Id == id)?.Name ?? L["MissingItem", id.ToString()[..8]].Value;
     private string PointLabel(CoursePointView point) => string.IsNullOrWhiteSpace(point.Name) ? L["Point", point.Id.ToString()[..8]].Value : point.Name;
     private string LayoutLabel(CourseLayoutView layout) => L["LayoutIdLabel", layout.Id.ToString()[..8]];

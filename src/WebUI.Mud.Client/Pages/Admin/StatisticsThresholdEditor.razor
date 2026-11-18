@@ -3,8 +3,12 @@
     <MudText Typo="Typo.body2">@L[Local ? "LocalThresholdHelp" : "GlobalThresholdHelp"]</MudText>
     <MudToggleGroup T="bool" Value="Draft.SpeedMode" ValueChanged="ChangeMode" SelectionMode="SelectionMode.SingleSelection" Disabled="Disabled">
         <MudToggleItem Value="false" Text="@L["Duration"]" />
-        <MudToggleItem Value="true" Text="@L["Speed"]" />
+        <MudToggleItem Value="true" Text="@L["Speed"]" Disabled="@(!Draft.HasDistance)" />
     </MudToggleGroup>
+    @if (!Draft.HasDistance)
+    {
+        <MudText Typo="Typo.body2">@L["StatisticsLayoutThresholdHelp"]</MudText>
+    }
     <MudGrid>
         <MudItem xs="12" md="6">
             <MudTextField T="string" Value="Draft.LowerText" ValueChanged="Draft.SetLower" Immediate="true" Disabled="Disabled"
@@ -50,7 +54,9 @@
     protected override void OnParametersSet() => Draft.ChangeDistance(Distance);
     private void ChangeMode(bool speed) => Draft.ChangeMode(speed);
     private string Range(TimeSpan? min, TimeSpan? max, bool inherited = false) =>
-        $"{L["ThresholdDurationRange", Bound(min, inherited), Bound(max, inherited)]}; {L["ThresholdSpeedRange", Speed(max, inherited), Speed(min, inherited)]}";
+        Draft.HasDistance
+            ? $"{L["ThresholdDurationRange", Bound(min, inherited), Bound(max, inherited)]}; {L["ThresholdSpeedRange", Speed(max, inherited), Speed(min, inherited)]}"
+            : L["ThresholdDurationRange", Bound(min, inherited), Bound(max, inherited)].Value;
     private string Bound(TimeSpan? value, bool inherited) => value.HasValue ? Draft.DurationText(value) : L[inherited ? "ThresholdInherited" : "ThresholdUnbounded"].Value;
     private string Speed(TimeSpan? value, bool inherited) => !value.HasValue ? L[inherited ? "ThresholdInherited" : "ThresholdUnbounded"].Value :
         string.IsNullOrEmpty(Draft.SpeedText(value)) ? L["ThresholdDistanceRequired"].Value : $"{Draft.SpeedText(value)} {Draft.Settings.SpeedUnit}";

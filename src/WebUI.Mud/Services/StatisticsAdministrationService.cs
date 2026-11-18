@@ -191,7 +191,7 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
     private async Task<IReadOnlyList<Contracts.StatisticsItemDTO>> GetItemsCoreAsync(CancellationToken cancellationToken)
     {
         var snapshots = await cache.GetAdminAsync(
-            AdministrationAuthorization.StatisticsPolicy, "statistics-admin-items", "statistics-item-v1",
+            AdministrationAuthorization.StatisticsPolicy, "statistics-admin-items", "statistics-item-distance-mode-v2",
             (IStatisticsClient factoryClient, CancellationToken token) => Execute(async () =>
                 (await factoryClient.ListStatisticsItemsAsync(token)
                     ?? throw new InvalidDataException("The statistics item list is missing."))
@@ -223,6 +223,7 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
         var body = new SaveStatisticsItemRequest
         {
             Name = request.Name, Description = request.Description, Distance = request.Distance,
+            DistanceMode = (int?)request.DistanceMode,
             MinDuration = StatisticsDurationTransport.Format(request.MinDuration),
             MaxDuration = StatisticsDurationTransport.Format(request.MaxDuration)
         };
@@ -276,10 +277,13 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
     private static Contracts.StatisticsItemDTO Map(StatisticsItemDTO item, Guid? expectedId = null)
     {
         if (item is null || item.Id == Guid.Empty || (expectedId.HasValue && item.Id != expectedId.Value) ||
-            string.IsNullOrWhiteSpace(item.Name) || !double.IsFinite(item.Distance) || item.Distance <= 0)
+            string.IsNullOrWhiteSpace(item.Name) ||
+            (item.DistanceMode.HasValue && !Enum.IsDefined((Contracts.StatisticsDistanceMode)item.DistanceMode.Value)) ||
+            (item.DistanceMode is null or (int)Contracts.StatisticsDistanceMode.Fixed && (!float.IsFinite(item.Distance) || item.Distance <= 0)))
             throw new InvalidDataException("The statistics item response is invalid.");
         return new(item.Id, item.Name, item.Description, item.Distance,
-            StatisticsDurationTransport.Parse(item.MinDuration), StatisticsDurationTransport.Parse(item.MaxDuration));
+            StatisticsDurationTransport.Parse(item.MinDuration), StatisticsDurationTransport.Parse(item.MaxDuration))
+        { DistanceMode = (Contracts.StatisticsDistanceMode?)item.DistanceMode };
     }
 
     private static Contracts.StatisticsConfigurationDTO Map(StatisticsConfigurationDTO config, Guid? expectedId = null)

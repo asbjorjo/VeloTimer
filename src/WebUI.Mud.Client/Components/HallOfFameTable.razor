@@ -7,6 +7,7 @@
     <span class="mud-sr-only" role="status">@(Loading ? L["HallOfFameLoading"] : "")</span>
     <div class="table-scroll" tabindex="0" role="region" aria-label="@L["HallOfFame"]">
         <table class="@(LapCounter ? "laps" : "times")">
+            @if (SpeedRanked) { <caption>@L["HallOfFameSpeedRanking"]</caption> }
             <colgroup>
                 <col class="profile-column" />
                 <col class="value-column" />
@@ -17,7 +18,7 @@
                 <tr>
                     <th scope="col">@L["Profile"]</th>
                     <th scope="col" class="numeric">@(LapCounter ? L["HallOfFameLapCount"] : L["Time"])</th>
-                    <th scope="col" class="numeric">@(LapCounter ? L["HallOfFameTotalDistance"] : L["SpeedInUnit", Display.SpeedUnit])</th>
+                    <th scope="col" class="numeric" aria-sort="@(SpeedRanked ? "descending" : null)">@(LapCounter ? L["HallOfFameTotalDistance"] : L["SpeedInUnit", Display.SpeedUnit])</th>
                     @if (!LapCounter) { <th scope="col">@L["Facility"]</th> }
                 </tr>
             </thead>
@@ -69,5 +70,6 @@
 @code {
     [Parameter] public bool Loading { get; set; }
     [Parameter] public bool LapCounter { get; set; }
+    [Parameter] public bool SpeedRanked { get; set; }
     [Parameter] public HallOfFameView? Results { get; set; }
 }
