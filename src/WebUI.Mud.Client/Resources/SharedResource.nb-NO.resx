@@ -700,4 +700,10 @@
   <data name="StatisticsContributionLowHits" xml:space="preserve"><value>Få treff</value></data>
   <data name="StatisticsContributionFlagOn" xml:space="preserve"><value>Ja</value></data>
   <data name="StatisticsContributionFlagOff" xml:space="preserve"><value>Nei</value></data>
+  <data name="StatisticsDistanceMode" xml:space="preserve"><value>Distansekilde</value></data>
+  <data name="StatisticsFixedDistance" xml:space="preserve"><value>Fast distanse</value></data>
+  <data name="StatisticsFromCourseLayout" xml:space="preserve"><value>Fra banekonfigurasjon</value></data>
+  <data name="StatisticsLayoutThresholdHelp" xml:space="preserve"><value>Fartsbaserte grenser krever en kjent fast distanse. Rediger varighet i stedet.</value></data>
+  <data name="StatisticsLayoutMultiInvalid" xml:space="preserve"><value>Distanse fra banekonfigurasjon kan ikke brukes for en Multi-konfigurasjon.</value></data>
+  <data name="HallOfFameSpeedRanking" xml:space="preserve"><value>Globale runder rangeres etter fart, høyeste først. Tider vises for hvert resultat.</value></data>
 </root>

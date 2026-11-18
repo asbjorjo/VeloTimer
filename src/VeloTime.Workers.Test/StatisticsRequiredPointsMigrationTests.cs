@@ -13,6 +13,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     public async Task RequiredCoursePointsMigrationPreservesLegacyRowsAndGuardsLossyDowngrade()
     {
         const string previousMigration = "20261104085927_statistics_remove_contributor_lineage";
+        await RecreateAtMigrationAsync(previousMigration);
         await using var db = Db();
         var migrator = db.GetService<IMigrator>();
         await migrator.MigrateAsync(previousMigration);
@@ -35,7 +36,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                     {Start}, {Start.AddMinutes(1)}, {TimeSpan.FromMinutes(1)}, {100d / 60});
             """);
 
-        await migrator.MigrateAsync();
+        await migrator.MigrateAsync(LapDistanceStorageMigration);
         db.ChangeTracker.Clear();
         var config = await db.Set<SimpleStatisticsItemConfig>().SingleAsync(x => x.Id == configId);
         var entry = await db.Set<StatisticsEntry>().SingleAsync(x => x.Id == entryId);
@@ -75,7 +76,11 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             SET is_valid = FALSE, invalid_reason = {invalidReason}, required_course_points_satisfied = FALSE
             WHERE id = {entryId}
             """);
-        await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(previousMigration));
+        var guard = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(previousMigration));
+        Assert.Contains("Cannot downgrade required course points", guard.MessageText);
+        // EF commits each successful Down migration separately. Restore the later schema
+        // before querying with the current model after the guarded downgrade fails.
+        await migrator.MigrateAsync(LapDistanceStorageMigration);
         db.ChangeTracker.Clear();
         entry = await db.Set<StatisticsEntry>().SingleAsync(x => x.Id == entryId);
         Assert.False(entry.RequiredCoursePointsSatisfied);
@@ -90,7 +95,9 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             SET is_valid = TRUE, invalid_reason = NULL, required_course_points_satisfied = TRUE
             WHERE id = {entryId}
             """);
-        await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(previousMigration));
+        guard = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(previousMigration));
+        Assert.Contains("Cannot downgrade required course points", guard.MessageText);
+        await migrator.MigrateAsync(LapDistanceStorageMigration);
 
         config.RequiredCourseLayoutId = null;
         config.RequiredCoursePointIds = [];
@@ -104,7 +111,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                 """));
         Assert.Equal("ck_statistics_entry_validity", legacyConstraint.ConstraintName);
 
-        await migrator.MigrateAsync();
+        await migrator.MigrateAsync(LapDistanceStorageMigration);
         db.ChangeTracker.Clear();
         config = await db.Set<SimpleStatisticsItemConfig>().SingleAsync(x => x.Id == configId);
         entry = await db.Set<StatisticsEntry>().SingleAsync(x => x.Id == entryId);

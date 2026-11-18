@@ -32,7 +32,9 @@ internal static class HallOfFameEndpoints
             .Where(item => item.Name == name).Take(2).ToListAsync(cancellationToken);
         if (items.Count == 0) return TypedResults.Ok(new HallOfFameDTO(false, [], []));
         if (items.Count != 1 || request.Category == "laps" &&
-            (!float.IsFinite(items[0].Distance) || items[0].Distance <= 0))
+            (items[0].DistanceMode is not (StatisticsDistanceMode.Fixed or StatisticsDistanceMode.CourseLayout) ||
+             items[0].DistanceMode == StatisticsDistanceMode.Fixed && (!float.IsFinite(items[0].Distance) || items[0].Distance <= 0) ||
+             items[0].DistanceMode == StatisticsDistanceMode.CourseLayout && items[0].Distance != 0))
         {
             loggerFactory.CreateLogger("HallOfFame").LogWarning(
                 "Hall of Fame category {Category} has ambiguous definitions or an invalid lap distance.", request.Category);
@@ -48,12 +50,27 @@ internal static class HallOfFameEndpoints
 
         if (request.Category == "laps")
         {
+            // Old writers can still insert unsnapshotted rows between the additive migration
+            // and cutover. Only a Fixed definition has an authoritative fallback distance.
+            var fixedMode = items[0].DistanceMode == StatisticsDistanceMode.Fixed;
             var distance = (double)items[0].Distance;
-            var laps = await entries.GroupBy(entry => new { entry.StatsProfileUserId, entry.StatsProfile!.ProfileName })
-                .Select(group => new { group.Key.StatsProfileUserId, group.Key.ProfileName, Count = group.LongCount() })
+            if (await entries.AnyAsync(entry =>
+                entry.DistanceMetres == null && !fixedMode ||
+                entry.DistanceMetres != null && (entry.DistanceMetres <= 0 || entry.DistanceMetres > double.MaxValue), cancellationToken))
+            {
+                loggerFactory.CreateLogger("HallOfFame").LogWarning("Lap entries have missing or invalid distance snapshots.");
+                return TypedResults.Problem("Lap distance snapshots require correction before this leaderboard can be loaded.", statusCode: 409);
+            }
+            // Repeat eligibility in the aggregate: a concurrent bad insert must never
+            // turn the CourseLayout sentinel into a fallback distance.
+            var eligible = entries.Where(entry => entry.DistanceMetres == null && fixedMode ||
+                entry.DistanceMetres > 0 && entry.DistanceMetres <= double.MaxValue);
+            var laps = await eligible.GroupBy(entry => new { entry.StatsProfileUserId, entry.StatsProfile!.ProfileName })
+                .Select(group => new { group.Key.StatsProfileUserId, group.Key.ProfileName, Count = group.LongCount(),
+                    Distance = group.Sum(entry => entry.DistanceMetres ?? distance) })
                 .OrderByDescending(row => row.Count).ThenBy(row => row.StatsProfileUserId)
                 .Take(HallOfFameQuery.Limit)
-                .Select(row => new HallOfFameLapsDTO(row.ProfileName, row.Count, row.Count * distance))
+                .Select(row => new HallOfFameLapsDTO(row.ProfileName, row.Count, row.Distance))
                 .ToListAsync(cancellationToken);
             return TypedResults.Ok(new HallOfFameDTO(true, [], laps));
         }
@@ -66,6 +83,23 @@ internal static class HallOfFameEndpoints
         // sits in `entries`, so the partition only sees entries at that facility.
         // EF Core 10 cannot compose ordering or projection after GroupBy(...).First(),
         // which is why the per-profile correlated Take(1) is used to express the window.
+        if (request.Category == "lap" && !request.FacilityId.HasValue)
+        {
+            var speedEntries = entries.Where(entry => entry.Speed > 0 && entry.Speed <= double.MaxValue);
+            var speedWinners = storage.Set<StatsProfile>().AsNoTracking()
+                .Where(profile => profile.IsPublic)
+                .SelectMany(profile => speedEntries.Where(entry => entry.StatsProfileUserId == profile.UserId)
+                    .OrderByDescending(entry => entry.Speed).ThenBy(entry => entry.TimeEnd).ThenBy(entry => entry.Id)
+                    .Take(1),
+                    (profile, entry) => new { profile.ProfileName, entry.Id, entry.Duration, entry.TimeEnd, entry.Speed, entry.FacilityId });
+            var fastest = await speedWinners.OrderByDescending(winner => winner.Speed)
+                .ThenBy(winner => winner.TimeEnd).ThenBy(winner => winner.Id)
+                .Take(HallOfFameQuery.Limit)
+                .Select(winner => new HallOfFameTimeDTO(winner.ProfileName, winner.Duration, winner.Speed, winner.FacilityId))
+                .ToListAsync(cancellationToken);
+            return TypedResults.Ok(new HallOfFameDTO(true, fastest, []));
+        }
+
         var winners = storage.Set<StatsProfile>().AsNoTracking()
             .Where(profile => profile.IsPublic)
             .SelectMany(profile => entries.Where(entry => entry.StatsProfileUserId == profile.UserId)

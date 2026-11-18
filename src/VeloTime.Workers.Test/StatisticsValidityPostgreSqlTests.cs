@@ -782,8 +782,11 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         Assert.False(db.Database.HasPendingModelChanges());
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
         var applied = (await db.Database.GetAppliedMigrationsAsync()).ToArray();
-        Assert.Equal(13, applied.Length);
-        Assert.Equal("20261116132807_statistics_sample_attempt_indexes", applied[^1]);
+        Assert.Equal(db.Database.GetMigrations(), applied);
+        Assert.Contains("20261116132807_statistics_sample_attempt_indexes", applied);
+        Assert.Contains("20261118121122_statistics_lap_distance_storage", applied);
+        Assert.True(Array.IndexOf(applied, "20261116132807_statistics_sample_attempt_indexes")
+            < Array.IndexOf(applied, "20261118121122_statistics_lap_distance_storage"));
         Assert.False(await db.Database.SqlQueryRaw<bool>("""
             SELECT EXISTS (SELECT 1 FROM information_schema.tables
             WHERE table_schema = 'statistics' AND table_name = 'statistics_entry_contributor') AS "Value"

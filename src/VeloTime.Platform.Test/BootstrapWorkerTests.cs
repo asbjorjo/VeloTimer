@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using VeloTime.Module.Facilities.Model;
 using VeloTime.Module.Facilities.Storage;
 using VeloTime.Module.Statistics.Model;
+using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Storage;
 using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Storage;
@@ -32,6 +33,33 @@ public sealed class BootstrapWorkerTests
         var secondCounts = await database.ReadCountsAsync();
 
         Assert.Equal(firstCounts, secondCounts);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BootstrapWorker_WithExistingFacilityUsesCourseLayoutOnlyForNewLap(bool legacyLapExists)
+    {
+        await using var database = await BootstrapDatabase.CreateAsync();
+        // Bypass only the known obsolete CoursePoint.TimingPoint facility-creation path.
+        // The real worker still performs all Statistics seeding, twice.
+        await database.SeedExistingFacilityAsync(legacyLapExists);
+        await RunWorkerAsync(database.Services);
+        var firstCounts = await database.ReadCountsAsync();
+        await RunWorkerAsync(database.Services);
+        Assert.Equal(firstCounts, await database.ReadCountsAsync());
+
+        var items = await database.ReadStatisticsItemsAsync();
+        Assert.Equal(7, items.Count);
+        var lap = Assert.Single(items, item => item.Name == "Lap");
+        Assert.Equal(legacyLapExists ? StatisticsDistanceMode.Fixed : StatisticsDistanceMode.CourseLayout, lap.DistanceMode);
+        Assert.Equal(legacyLapExists ? 333 : 0, lap.Distance);
+        foreach (var metres in new[] { 200, 250, 500, 1000, 3000, 4000 })
+        {
+            var item = Assert.Single(items, item => item.Name == $"{metres}m");
+            Assert.Equal(StatisticsDistanceMode.Fixed, item.DistanceMode);
+            Assert.Equal(metres, item.Distance);
+        }
     }
 
     private static async Task RunWorkerAsync(IServiceProvider services)
@@ -84,6 +112,43 @@ public sealed class BootstrapWorkerTests
                 options.UseSqlite(statisticsConnection).UseSnakeCaseNamingConvention());
 
             return new BootstrapDatabase(timingConnection, facilityConnection, statisticsConnection, serviceCollection.BuildServiceProvider());
+        }
+
+        public async Task SeedExistingFacilityAsync(bool legacyLapExists)
+        {
+            await using var scope = services.CreateAsyncScope();
+            var facilities = scope.ServiceProvider.GetRequiredService<FacilityDbContext>();
+            var points = new[] { "Finish", "200m", "Green", "100m", "Red" }
+                .Select(name => new CoursePoint { Id = Guid.NewGuid(), Name = name }).ToArray();
+            facilities.Add(new Facility
+            {
+                Name = "Sola Arena",
+                Layouts = [new CourseLayout
+                {
+                    Segments = points.Select((point, index) => new CourseSegment
+                    {
+                        Start = point, End = points[(index + 1) % points.Length], Order = index, Length = 50
+                    }).ToList()
+                }]
+            });
+            await facilities.SaveChangesAsync();
+            if (legacyLapExists)
+            {
+                var statistics = scope.ServiceProvider.GetRequiredService<StatisticsDbContext>();
+                statistics.Add(new SimpleStatisticsItemConfig
+                {
+                    StatisticsItem = new StatisticsItem { Name = "Lap", Distance = 333 },
+                    CoursePointStart = points[0].Id, CoursePointEnd = points[0].Id
+                });
+                await statistics.SaveChangesAsync();
+            }
+        }
+
+        public async Task<List<StatisticsItem>> ReadStatisticsItemsAsync()
+        {
+            await using var scope = services.CreateAsyncScope();
+            return await scope.ServiceProvider.GetRequiredService<StatisticsDbContext>()
+                .Set<StatisticsItem>().AsNoTracking().ToListAsync();
         }
 
         public async Task<SeedCounts> ReadCountsAsync()

@@ -58,6 +58,107 @@ public class CourseDistanceTests
     public Task ClosedCourse_IgnoresPreviouslyCachedReverseLinearDistance() =>
         AssertDistanceAsync(true, 1, 0, 200, legacyDistance: 50);
 
+    [Fact]
+    public async Task ClosedCourse_InvalidLengthReturnsDistanceWithoutLoopEvidence()
+    {
+        var points = MakePoints(3);
+        var layout = MakeLayout(points, [100, 0, 300]);
+        await using var context = await CreateServiceContextAsync(layout);
+
+        var resolution = await context.Service.CoursePointDistanceBetweenCoursePoints(points[0], points[1]);
+
+        Assert.Equal(100, resolution.Distance);
+        Assert.Null(resolution.CourseLayoutId);
+        Assert.Null(resolution.ClosedLoopDistanceMetres);
+    }
+
+    [Fact]
+    public async Task DiscontinuousCourse_CannotResolveDistanceOrLoopEvidence()
+    {
+        var points = MakePoints(4);
+        var layout = new CourseLayout { Id = Guid.NewGuid(), Facility = new() { Id = Guid.NewGuid() } };
+        layout.Segments.Add(new CourseSegment
+        {
+            Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = 1,
+            Start = points[0], End = points[1], Length = 100
+        });
+        layout.Segments.Add(new CourseSegment
+        {
+            Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = 2,
+            Start = points[2], End = points[3], Length = 200
+        });
+        await using var context = await CreateServiceContextAsync(layout);
+
+        await Assert.ThrowsAsync<IncompatibleCoursePathException>(() =>
+            context.Service.CoursePointDistanceBetweenCoursePoints(points[0], points[3]));
+    }
+
+    [Fact]
+    public async Task MultipleMatchingLayouts_CannotResolveDistanceOrLoopEvidence()
+    {
+        var points = MakePoints(2);
+        var first = MakeLayout(points, [100]);
+        var second = MakeLayout(points, [250]);
+        await using var context = await CreateServiceContextAsync(first, second);
+
+        await Assert.ThrowsAsync<IncompatibleCoursePathException>(() =>
+            context.Service.CoursePointDistanceBetweenCoursePoints(points[0], points[1]));
+    }
+
+    private static CoursePoint[] MakePoints(int count) => Enumerable.Range(0, count)
+        .Select(index => new CoursePoint { Id = Guid.NewGuid(), Name = $"Point {index}" }).ToArray();
+
+    private static CourseLayout MakeLayout(IReadOnlyList<CoursePoint> points, IReadOnlyList<double> lengths)
+    {
+        var layout = new CourseLayout { Id = Guid.NewGuid(), Facility = new() { Id = Guid.NewGuid() } };
+        for (var index = 0; index < lengths.Count; index++)
+            layout.Segments.Add(new CourseSegment
+            {
+                Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = index + 1,
+                Start = points[index], End = points[(index + 1) % points.Count], Length = lengths[index]
+            });
+        return layout;
+    }
+
+    private static async Task<DistanceServiceContext> CreateServiceContextAsync(params CourseLayout[] layouts)
+    {
+        var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var storage = new FacilityDbContext(new DbContextOptionsBuilder<FacilityDbContext>()
+            .UseSqlite(connection).Options);
+        try
+        {
+            await storage.Database.EnsureCreatedAsync();
+            storage.AddRange(layouts);
+            await storage.SaveChangesAsync();
+            storage.ChangeTracker.Clear();
+            var services = new ServiceCollection();
+            services.AddFusionCache().AsHybridCache();
+            var provider = services.BuildServiceProvider();
+            var service = new FacilitiesService(storage, provider.GetRequiredService<HybridCache>());
+            return new DistanceServiceContext(connection, storage, provider, service);
+        }
+        catch
+        {
+            await storage.DisposeAsync();
+            await connection.DisposeAsync();
+            throw;
+        }
+    }
+
+    private sealed class DistanceServiceContext(SqliteConnection connection, FacilityDbContext storage,
+        ServiceProvider provider, FacilitiesService service) : IAsyncDisposable
+    {
+        public FacilitiesService Service { get; } = service;
+
+        public async ValueTask DisposeAsync()
+        {
+            await storage.DisposeAsync();
+            await provider.DisposeAsync();
+            await connection.DisposeAsync();
+        }
+    }
+
     private static async Task AssertDistanceAsync(bool closed, int start, int end, double expected,
         double? legacyDistance = null)
     {

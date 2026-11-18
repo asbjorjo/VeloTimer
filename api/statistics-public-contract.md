@@ -14,24 +14,30 @@ contracts described below.
 - Unsupported, malformed, empty, or duplicate query parameters return 400.
 - Only `IsValid` entries with a currently linked public StatsProfile contribute.
   Profiles are grouped by identity across transponders/configurations, not by name.
-- Timed selection chooses each profile's shortest duration, then earliest
-  completion, then native UUID entry order. The same ordering ranks winning
-  entries and selects at most ten, without expanding ties.
-- Lap count groups valid `Lap` entries per profile, sorts count descending and
-  internal profile UUID ascending, and takes at most ten. No raw passing or
-  other distance-item entries contribute.
+- Other timed categories retain shortest-duration selection and ordering: per profile, then earliest
+  completion, then native UUID entry order. Facility-filtered timed Lap also retains
+  shortest-duration selection and ordering. Global timed Lap instead selects each profile's highest
+  positive finite metres-per-second speed, then earliest completion, then native UUID entry order;
+  global winners are ranked by that same descending speed order and capped at ten without expanding
+  ties.
+- Lap count groups valid `Lap` entries per profile when each has a positive finite snapshot or, only
+  while the item is Fixed, a null-snapshot fixed-distance fallback. It sorts count descending and
+  internal profile UUID ascending, and takes at most ten. No raw passing or other distance-item
+  entries contribute.
 
 The API returns `HallOfFameDTO(IsAvailable, Times, Laps)`.
 Timed rows contain `ProfileName`, `Duration` (TimeSpan), `SpeedMetresPerSecond`,
 and `FacilityId`. Count rows contain `ProfileName`, `LapCount` (64-bit), and
-`TotalDistanceMetres`. Total distance is count times the **current** Lap item's
-distance, intentionally not a historical snapshot. Only the applicable collection
-is populated. No profile-user or transponder identifiers are exposed.
+`TotalDistanceMetres`. Lap count and total distance use exactly the same eligible entries. The SQL sum
+uses each positive finite distance snapshot; while the item is Fixed, a null snapshot uses the
+configured fixed distance as a transitional fallback for stage-one or older writers. CourseLayout
+never falls back to the zero sentinel: a missing or invalid snapshot on an otherwise eligible row
+returns 409. Only the applicable collection is populated. No profile-user or transponder identifiers
+are exposed.
 
 Missing item definitions return `IsAvailable=false`; existing definitions without
-eligible rows return `IsAvailable=true` with empty collections. Ambiguous matching
-definitions or a nonpositive/nonfinite lap-count distance produce a logged 409
-ProblemDetails. API and BFF responses are no-store; public-profile results are
+eligible rows return `IsAvailable=true` with empty collections. An ambiguous or invalid Lap definition
+produces a logged 409 ProblemDetails. API and BFF responses are no-store; public-profile results are
 queried on every request.
 
 The WebUI server maps generated NSwag types to `HallOfFameView`, resolving each
@@ -48,10 +54,67 @@ rows and stable columns, with accessible loading state and reduced-motion suppor
 Presentation converts SI speed using the existing km/h-based display helper only
 at the UI boundary.
 
-No schema migration is required. PostgreSQL tests exercise bounded SQL grouped
-(windowed per-profile) personal-best selection and grouped lap totals, including
-exact ten-row cutoffs.
+No schema migration is required for the existing fixed-tab implementation. PostgreSQL
+tests exercise bounded SQL grouped (windowed per-profile) personal-best selection and
+grouped lap totals, including exact ten-row cutoffs.
 
+## Facility-specific Lap distance and Statistics definition contract
+
+Statistics API and UI now support explicit Fixed and CourseLayout item modes. The Statistics storage
+migration adds nullable entry/sample evidence and snapshots existing Lap rows while leaving
+pre-existing definitions Fixed. A separate activation migration performs the final catch-up/backfill
+and opts the existing Lap item into CourseLayout. For an existing installation, the administrator
+scales the deployed Statistics processor to zero before the normal Helm upgrade, waits for its pods
+to terminate, and uses the release's intended nonzero processor replica count so the upgraded
+processor starts after the pre-upgrade migration succeeds; see the [Lap distance rollout](../src/Module.Statistics/Storage/LapDistanceRollout.md).
+
+`StatisticsItemDTO` and `SaveStatisticsItemRequest` retain their existing positional fields and add
+optional `DistanceMode` metadata (`Fixed = 0`, `CourseLayout = 1`, numeric enum JSON). A current
+response supplies the stored mode. An omitted or null mode in a legacy response means Fixed.
+
+For `SaveStatisticsItemRequest`, omitted/null mode on POST creates a Fixed item. Omitted/null mode
+on PUT preserves the stored mode; it is not a reset to Fixed, so a legacy client cannot accidentally
+switch a CourseLayout item back to Fixed. Validation still applies to the preserved mode. Send an
+explicit mode to request a mode change; changes to mode or numeric distance conflict when recorded
+entries depend on the definition.
+
+`Distance` remains a base-metre `float` and is authoritative and finite-positive only in Fixed mode.
+For CourseLayout, saves and responses use zero only as a compatibility sentinel; clients MUST ignore
+it and MUST NOT use it as an actual or fallback distance. A CourseLayout definition uses unique
+Simple loop configurations with identical nonempty start/end coursepoints and cannot have Multi
+configurations. Duration bounds and item/configuration IDs remain unchanged.
+
+The Facilities timing-point distance response has optional `CourseLayoutId` and
+`ClosedLoopDistanceMetres` evidence. The two values must be paired and identify one unambiguous
+layout whose ordered segments form a continuous closed path with a finite positive full length in
+metres; the value is the whole loop, not endpoint `Distance`. Equal endpoints alone do not prove a
+loop, and no geometry revision is available. The timing-point endpoint populates this evidence for
+valid closed layouts. Statistics persists available evidence with Samples, and the lap attempt reader
+rejects missing or conflicting evidence rather than inventing a distance. No timing-message contract
+change is needed because persisted Sample evidence is the attempt reader source.
+
+Stage one, `20261118121122_statistics_lap_distance_storage`, leaves existing definitions Fixed and backfills
+existing unsnapshotted Lap entries from the actual configured Statistics Lap distance, including
+entries across validity, visibility, facility, and linkage states. Positive-duration legacy speeds
+are recomputed from that baseline. Old writers can still add null-snapshot rows during rollout;
+while the item remains Fixed, Hall of Fame uses the configured fixed distance only for such null
+snapshots. It uses persisted snapshots when present. The fallback is never valid for CourseLayout
+mode.
+
+The normal Helm pre-upgrade activation transaction performs the final backfill and switches the
+same intended Lap definition to CourseLayout with Distance = 0 after the deployed Statistics
+processor has been scaled to zero and its pods have terminated. It must ensure no Lap snapshots
+remain null. After activation, every counted CourseLayout result requires a positive finite stored
+distance snapshot; missing or invalid evidence is an error, never a fixed-distance fallback. Preserve
+entry identities and moderation/profile decisions. Pre-upgrade in-flight Samples without persisted
+layout and closed-loop evidence cannot be reconstructed by the migration and must not be assigned an
+invented fallback. Do not treat the stage-one migration as activation or enable the sentinel early.
+
+Global timed Lap selects and ranks by descending positive finite speed, with earliest completion and
+entry ID tie-breaks. Facility-filtered timed Lap and other timed categories retain duration ranking.
+Fixed-distance pursuit and Multi semantics do not change. Generated OpenAPI/client updates are
+produced by the existing build; consumers must understand DistanceMode before CourseLayout is
+enabled.
 ## Chronological public results
 
 This is the frozen implementation handoff for the approved public filtered results plan.
@@ -283,9 +346,10 @@ indexing and UI work with non-overlapping ownership from the plan. API owns shar
 contracts and transports; Data owns DbContext indexing/migrations; UI consumes these
 types without redefining them. New NSwag operations are generated by the API/client build.
 
-OpenAPI documents and NSwag clients are generated artifacts ignored by this repository
-(`api/VeloTime.Module.Statistics.Api.json` and client `obj/...ApiClient.cs`). The
-existing build pipeline refreshes them; do not hand-edit or force-add ignored outputs.
+The Statistics OpenAPI document (`api/VeloTime.Module.Statistics.Api.json`) is tracked and refreshed
+by the API/client build. Generated NSwag client source under each client project
+`obj/...ApiClient.cs` and the Facilities API document are ignored. Do not hand-edit generated files;
+include tracked OpenAPI changes and do not force-add ignored outputs.
 
 Tester owns regressions: shared query/DTO JSON round trips; day durations and exact
 milliseconds; malformed/negative/reversed/nonfinite bounds; duplicate/unknown keys;

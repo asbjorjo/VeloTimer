@@ -54,46 +54,12 @@ internal sealed class RequiredCoursePointAttemptReader(StatisticsDbContext stora
         // Adjacent edges outside its endpoints do not belong to this attempt.
         var evidence = await samples.Where(s => (s.TimeStart <= finish && s.TimeEnd >= timeStart)
                 || (s.TimeEnd <= finish && s.TimeStart >= timeStart && s.TimeStart <= finish))
-            .Select(s => new Edge(s.TimeStart, s.TimeEnd, s.CoursePointStartId, s.CoursePointEndId))
+            .Select(s => new OrderedCourseAttempt.Edge(s.TimeStart, s.TimeEnd, s.CoursePointStartId, s.CoursePointEndId))
             .ToListAsync(cancellationToken);
-        var edges = evidence.Distinct()
-            .Where(s => !(s.End == timeStart && s.Start < timeStart && s.To == config.CoursePointStart)
-                && !(s.Start == finish && s.End > finish && s.From == config.CoursePointEnd))
-            .OrderBy(s => s.Start).ThenBy(s => s.End).ToList();
-        var satisfied = timeStart < finish && edges.Count > 0;
-        var instant = timeStart;
-        var point = config.CoursePointStart;
-        var requiredIndex = 0;
-        foreach (var edge in edges)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (edge.Start != instant || edge.From != point || edge.End <= edge.Start || edge.End > finish)
-            {
-                satisfied = false;
-                break;
-            }
-            instant = edge.End;
-            point = edge.To;
-            if (instant == finish) continue; // Only strict intermediate observations count.
-            if (point == config.CoursePointStart || point == config.CoursePointEnd)
-            {
-                satisfied = false; // Another start/finish separates attempts.
-                break;
-            }
-            if (config.RequiredCoursePointIds.Contains(point))
-            {
-                if (requiredIndex >= config.RequiredCoursePointIds.Length
-                    || point != config.RequiredCoursePointIds[requiredIndex++])
-                {
-                    satisfied = false;
-                    break;
-                }
-            }
-        }
-        satisfied &= instant == finish && point == config.CoursePointEnd
-            && requiredIndex == config.RequiredCoursePointIds.Length;
-        return new(timeStart, facility, satisfied);
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = OrderedCourseAttempt.Evaluate(evidence, timeStart, finish, config.CoursePointStart,
+            config.CoursePointEnd, config.RequiredCoursePointIds, cancellationToken);
+        return new(timeStart, facility, result.RequiredCoursePointsSatisfied);
     }
 
-    private sealed record Edge(DateTime Start, DateTime End, Guid From, Guid To);
 }

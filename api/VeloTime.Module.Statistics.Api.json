@@ -2216,6 +2216,16 @@
               "null",
               "string"
             ]
+          },
+          "distanceMode": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StatisticsDistanceMode"
+              }
+            ]
           }
         }
       },
@@ -2299,6 +2309,9 @@
       "StatisticsConfigurationType": {
         "type": "integer"
       },
+      "StatisticsDistanceMode": {
+        "type": "integer"
+      },
       "StatisticsEntryInvalidReason": {
         "type": "integer"
       },
@@ -2354,6 +2367,16 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "distanceMode": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StatisticsDistanceMode"
+              }
             ]
           }
         }

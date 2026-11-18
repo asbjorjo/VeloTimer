@@ -31,6 +31,14 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<double?>("ClosedLoopDistanceMetres")
+                        .HasColumnType("double precision")
+                        .HasColumnName("closed_loop_distance_metres");
+
+                    b.Property<Guid?>("CourseLayoutId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_layout_id");
+
                     b.Property<Guid>("CoursePointEndId")
                         .HasColumnType("uuid")
                         .HasColumnName("course_point_end_id");
@@ -95,6 +103,10 @@ namespace VeloTime.Module.Statistics.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<double?>("DistanceMetres")
+                        .HasColumnType("double precision")
+                        .HasColumnName("distance_metres");
 
                     b.Property<TimeSpan>("Duration")
                         .HasColumnType("interval")
@@ -215,6 +227,12 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.Property<float>("Distance")
                         .HasColumnType("real")
                         .HasColumnName("distance");
+
+                    b.Property<int>("DistanceMode")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("distance_mode");
 
                     b.Property<TimeSpan?>("MaxDuration")
                         .HasColumnType("interval")

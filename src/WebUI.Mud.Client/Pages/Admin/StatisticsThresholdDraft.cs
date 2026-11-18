@@ -21,6 +21,7 @@ public sealed class StatisticsThresholdDraft
     public TimeSpan? Maximum { get; private set; }
     public double Distance { get; private set; }
     public bool SpeedMode { get; private set; }
+    public bool HasDistance => double.IsFinite(Distance) && Distance > 0;
     public string LowerText { get; private set; } = "";
     public string UpperText { get; private set; } = "";
     public bool LowerValid { get; private set; } = true;
@@ -43,7 +44,7 @@ public sealed class StatisticsThresholdDraft
 
     public bool ChangeMode(bool speed)
     {
-        if (!LowerValid || !UpperValid) return false;
+        if (!LowerValid || !UpperValid || (speed && !HasDistance)) return false;
         SpeedMode = speed;
         RefreshText();
         return true;
@@ -53,6 +54,18 @@ public sealed class StatisticsThresholdDraft
     {
         if (Distance == distance) return;
         Distance = distance;
+        // Preserve invalid drafts visibly (and invalid) if the selected distance becomes unavailable.
+        if (SpeedMode && !HasDistance)
+        {
+            var lowerText = LowerText;
+            var lowerValid = LowerValid;
+            LowerText = UpperValid ? DurationText(Minimum) : UpperText;
+            LowerValid = UpperValid;
+            UpperText = lowerValid ? DurationText(Maximum) : lowerText;
+            UpperValid = lowerValid;
+            SpeedMode = false;
+            return;
+        }
         // Valid canonical values remain durations when the selected item/distance changes.
         if (SpeedMode)
         {

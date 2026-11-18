@@ -96,10 +96,14 @@ internal static class CoursePointEndpoints
             var (startpoint, endpoint) = await associations.ResolveDistanceEndpointsAsync(
                 start, end, startInstant, endInstant, cancellationToken);
             if (startpoint is null || endpoint is null) return TypedResults.NotFound();
-            var distance = await facilities.DistanceBetweenCoursePoints(startpoint, endpoint, cancellationToken);
+            var resolution = await facilities.CoursePointDistanceBetweenCoursePoints(startpoint, endpoint, cancellationToken);
             var facility = await facilities.FacilityByCoursePoint(startpoint.Id, cancellationToken);
             return TypedResults.Ok(new CoursePointDistance(
-                startpoint.Id, endpoint.Id, distance, facility?.Id ?? Guid.Empty));
+                startpoint.Id, endpoint.Id, resolution.Distance, facility?.Id ?? Guid.Empty)
+            {
+                CourseLayoutId = resolution.CourseLayoutId,
+                ClosedLoopDistanceMetres = resolution.ClosedLoopDistanceMetres
+            });
         }
         catch (IncompatibleCoursePathException exception)
         {

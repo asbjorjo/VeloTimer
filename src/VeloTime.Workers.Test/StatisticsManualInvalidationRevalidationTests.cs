@@ -117,7 +117,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         // Pin this migration boundary so later migrations do not change the scenario.
         const string predecessor = "20261116132807_statistics_sample_attempt_indexes";
         const string target = "20261117081217_statistics_manual_invalidation";
-        await migrator.MigrateAsync(predecessor);
+        await RecreateAtMigrationAsync(predecessor);
         var item = Guid.NewGuid();
         var config = Guid.NewGuid();
         var entry = Guid.NewGuid();
@@ -134,7 +134,13 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                 {Start}, {Start.AddSeconds(10)}, {TimeSpan.FromSeconds(10)}, {25d}, FALSE, 4, FALSE);
             """);
         await migrator.MigrateAsync(target);
-        var legacy = await db.Set<StatisticsEntry>().AsNoTracking().SingleAsync();
+        // The current entity contains columns introduced after this deliberately pinned
+        // historical target. Project only columns present at that migration boundary.
+        var legacy = await db.Set<StatisticsEntry>().AsNoTracking().Select(e => new
+        {
+            e.InvalidReason, e.RequiredCoursePointsSatisfied, e.ManualInvalidationChangedByUserId,
+            e.ManualInvalidationChangedAtUtc, e.ManualInvalidationNote, e.TimeEnd, e.Speed
+        }).SingleAsync();
         Assert.Equal(StatisticsEntryInvalidReason.RequiredCoursePointsNotSatisfied, legacy.InvalidReason);
         Assert.False(legacy.RequiredCoursePointsSatisfied);
         Assert.Null(legacy.ManualInvalidationChangedByUserId);
@@ -157,13 +163,15 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             UPDATE statistics.statistics_entry SET manual_invalidation_note = {new string('n', 501)} WHERE id = {entry}
             """));
         Assert.Equal(PostgresErrorCodes.StringDataRightTruncation, oversized.SqlState);
-        await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(predecessor));
+        var guard = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(predecessor));
+        Assert.Contains("Manual invalidation states or audit data prevent downgrade", guard.MessageText);
         await db.Database.ExecuteSqlAsync($"""
             UPDATE statistics.statistics_entry SET invalid_reason = 4 WHERE id = {entry}
             """);
         // Clearing active state does not permit silently discarding the retained latest audit.
-        await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(predecessor));
-        var restored = await db.Set<StatisticsEntry>().AsNoTracking().SingleAsync();
+        guard = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(predecessor));
+        Assert.Contains("Manual invalidation states or audit data prevent downgrade", guard.MessageText);
+        var restored = await db.Set<StatisticsEntry>().AsNoTracking().Select(e => new { e.ManualInvalidationChangedByUserId, e.ManualInvalidationChangedAtUtc, e.ManualInvalidationNote }).SingleAsync();
         Assert.Equal(actor, restored.ManualInvalidationChangedByUserId);
         Assert.Equal(time, restored.ManualInvalidationChangedAtUtc);
         Assert.Equal(500, restored.ManualInvalidationNote!.Length);
@@ -174,6 +182,6 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         await migrator.MigrateAsync(predecessor);
         await migrator.MigrateAsync(target);
         Assert.Equal(StatisticsEntryInvalidReason.RequiredCoursePointsNotSatisfied,
-            (await db.Set<StatisticsEntry>().AsNoTracking().SingleAsync()).InvalidReason);
+            await db.Set<StatisticsEntry>().AsNoTracking().Select(e => e.InvalidReason).SingleAsync());
     }
 }

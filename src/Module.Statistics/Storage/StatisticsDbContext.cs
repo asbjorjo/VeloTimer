@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Metadata;
 using VeloTime.Module.Common;
+using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Model;
 
 namespace VeloTime.Module.Statistics.Storage;
@@ -41,6 +42,7 @@ public class StatisticsDbContext : BaseDbContext
         });
         modelBuilder.Entity<StatisticsItem>(e =>
         {
+            e.Property(item => item.DistanceMode).HasDefaultValue(StatisticsDistanceMode.Fixed);
             if (Database.IsNpgsql())
             {
                 e.ToTable(t => t.HasCheckConstraint("ck_statistics_item_duration_bounds",

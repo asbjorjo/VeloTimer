@@ -248,6 +248,79 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/facilities/timingpoint/{missingId}/distance/{missingId}")).StatusCode);
     }
 
+    [TimingAssociationPostgresFact]
+    public async Task TimingDistance_ClosedLoopReturnsLayoutAndFullLoopEvidenceTogether()
+    {
+        var graph = await SeedClosedFacilityAsync();
+        using var client = factory.CreateClient();
+
+        var distance = await client.GetFromJsonAsync<CoursePointDistance>(
+            $"/api/facilities/timingpoint/{graph.StartTiming}/distance/{graph.MiddleTiming}");
+
+        Assert.NotNull(distance);
+        Assert.Equal(graph.Start.Id, distance.CoursePointStartId);
+        Assert.Equal(graph.Middle.Id, distance.CoursePointEndId);
+        Assert.Equal(125, distance.Distance);
+        Assert.Equal(graph.Facility.Id, distance.FacilityId);
+        Assert.Equal(graph.Layout.Id, distance.CourseLayoutId);
+        Assert.Equal(600, distance.ClosedLoopDistanceMetres);
+    }
+
+    [TimingAssociationPostgresFact]
+    public async Task TimingDistance_OpenEqualEndpointRetainsWholeLayoutDistanceWithoutLoopEvidence()
+    {
+        var graph = await SeedFacilityAsync();
+        using var client = factory.CreateClient();
+        var startTiming = graph.Start.TimingAssociations.Single().TimingPointId;
+
+        var distance = await client.GetFromJsonAsync<CoursePointDistance>(
+            $"/api/facilities/timingpoint/{startTiming}/distance/{startTiming}");
+
+        Assert.NotNull(distance);
+        Assert.Equal(graph.Start.Id, distance.CoursePointStartId);
+        Assert.Equal(graph.Start.Id, distance.CoursePointEndId);
+        Assert.Equal(120, distance.Distance);
+        Assert.Null(distance.CourseLayoutId);
+        Assert.Null(distance.ClosedLoopDistanceMetres);
+    }
+
+    private async Task<ClosedFacilityGraph> SeedClosedFacilityAsync()
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var storage = scope.ServiceProvider.GetRequiredService<FacilityDbContext>();
+        var facility = new Facility { Id = Guid.NewGuid(), Name = "Closed test course" };
+        var start = Point("Start");
+        var middle = Point("Middle");
+        var finish = Point("Finish");
+        var layout = new CourseLayout { Id = Guid.NewGuid(), FacilityId = facility.Id, Facility = facility };
+        layout.Segments.Add(new CourseSegment
+        {
+            Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = 1,
+            Start = start, End = middle, Length = 125
+        });
+        layout.Segments.Add(new CourseSegment
+        {
+            Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = 2,
+            Start = middle, End = finish, Length = 200
+        });
+        layout.Segments.Add(new CourseSegment
+        {
+            Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = 3,
+            Start = finish, End = start, Length = 275
+        });
+        facility.Layouts.Add(layout);
+        storage.Add(facility);
+        await storage.SaveChangesAsync();
+        return new ClosedFacilityGraph(facility, layout, start, middle,
+            start.TimingAssociations.Single().TimingPointId, middle.TimingAssociations.Single().TimingPointId);
+
+        static CoursePoint Point(string name) => new()
+        {
+            Id = Guid.NewGuid(), Name = name,
+            TimingAssociations = [new() { Id = Guid.NewGuid(), TimingPointId = Guid.NewGuid() }]
+        };
+    }
+
     private async Task<FacilityGraph> SeedFacilityAsync()
     {
         await using var scope = factory.Services.CreateAsyncScope();
@@ -294,4 +367,6 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
     }
 
     private sealed record FacilityGraph(Facility Facility, CourseLayout Layout, CoursePoint Start, CoursePoint End);
+    private sealed record ClosedFacilityGraph(Facility Facility, CourseLayout Layout, CoursePoint Start,
+        CoursePoint Middle, Guid StartTiming, Guid MiddleTiming);
 }

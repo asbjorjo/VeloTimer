@@ -70,6 +70,34 @@ public sealed class StatisticsRequiredPointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task CourseLayoutDefinition_ModeAndConfigurationRules()
+    {
+        var root = "/api/statistics/admin/items";
+        using var anonymous = factory.CreateClient();
+        anonymous.DefaultRequestHeaders.Add("X-Test-Anonymous", "true");
+        using var nonAdmin = factory.CreateClient();
+        var create = new SaveStatisticsItemRequest("Loop", "", 0) { DistanceMode = StatisticsDistanceMode.CourseLayout };
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsJsonAsync(root, create)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await nonAdmin.PostAsJsonAsync(root, create)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(root, create with { Distance = 250 })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(root, new SaveStatisticsItemRequest("Fixed", "", 0))).StatusCode);
+        using var response = await client.PostAsJsonAsync(root, create);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var item = (await response.Content.ReadFromJsonAsync<StatisticsItemDTO>())!;
+        Assert.Equal(StatisticsDistanceMode.CourseLayout, item.DistanceMode);
+        Assert.Equal(0, item.Distance);
+        using var update = await client.PutAsJsonAsync($"{root}/{item.Id}", new SaveStatisticsItemRequest("Loop updated", "", 0));
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        Assert.Equal(StatisticsDistanceMode.CourseLayout, (await update.Content.ReadFromJsonAsync<StatisticsItemDTO>())!.DistanceMode);
+        var simple = new SaveStatisticsConfigurationRequest(item.Id, StatisticsConfigurationType.Simple, points[0], points[0], null, null);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(Root, simple with { CoursePointEnd = points[1] })).StatusCode);
+        var loop = await Create(simple);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(Root, simple)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(Root,
+            new SaveStatisticsConfigurationRequest(itemId, StatisticsConfigurationType.Multi, null, null, loop.Id, 2))).StatusCode);
+    }
+
+    [Fact]
     public async Task RoundTrip_PreserveNullOmitted_AndExplicitClear_InvalidateLoadedDefinitions()
     {
         var request = Request(points[1], points[3]);

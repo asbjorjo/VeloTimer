@@ -16,6 +16,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     public async Task SampleIndexesPreserveRowsRoundTripConcurrentlyAndServeAttemptQueries()
     {
         const string previous = "20261116120249_statistics_required_course_points";
+        await RecreateAtMigrationAsync(previous);
         await using var db = Db();
         db.Database.SetCommandTimeout(180);
         var migrator = db.GetService<IMigrator>();
@@ -48,7 +49,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
 
         // Builds on existing data, not just an empty initial-install schema.
         var build = System.Diagnostics.Stopwatch.StartNew();
-        await migrator.MigrateAsync();
+        await migrator.MigrateAsync(LapDistanceStorageMigration);
         output.WriteLine($"Concurrent Up: {build.Elapsed.TotalSeconds:F3} seconds");
         await using (var sizes = new NpgsqlCommand("""
             SELECT indexrelname, pg_size_pretty(pg_relation_size(indexrelid))
@@ -94,7 +95,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             Assert.Equal(1L, await indexes.ExecuteScalarAsync()); // PK only; Down retains all rows.
         await using (var count = new NpgsqlCommand("SELECT count(*) FROM statistics.sample", sql))
             Assert.Equal(1_000_000L, await count.ExecuteScalarAsync());
-        await migrator.MigrateAsync();
+        await migrator.MigrateAsync(LapDistanceStorageMigration);
         Assert.False(db.Database.HasPendingModelChanges());
     }
 

@@ -77,6 +77,10 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
     }
 
     public async Task<double> CalculateDistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
+        => (await CalculateCoursePointDistance(Start, End, cancellationToken)).Distance;
+
+    private async Task<CoursePointDistanceResolution> CalculateCoursePointDistance(
+        CoursePoint Start, CoursePoint End, CancellationToken cancellationToken)
     {
         using var activity = Instrumentation.Source.StartActivity("CalculateDistanceBetweenCoursePoints");
         var layouts = await storage.Set<CourseLayout>()
@@ -99,37 +103,67 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
         var endIndex = points.FindIndex(point => point.Id == End.Id);
         if (startIndex < 0 || endIndex < 0)
             throw new IncompatibleCoursePathException("The coursepoints do not identify a continuous path.");
-        if (startIndex == endIndex) return segments.Sum(segment => segment.Length);
-        if (segments[^1].End.Id == segments[0].Start.Id)
+        var closed = segments[^1].End.Id == segments[0].Start.Id;
+        double distance;
+        if (startIndex == endIndex)
+            distance = segments.Sum(segment => segment.Length);
+        else if (closed)
         {
             // Closed courses are directed: continue forward through the last segment and
             // wrap to the first, rather than taking the reverse linear distance.
             var count = (endIndex - startIndex + segments.Count) % segments.Count;
-            return segments.Skip(startIndex).Concat(segments.Take(startIndex))
+            distance = segments.Skip(startIndex).Concat(segments.Take(startIndex))
                 .Take(count).Sum(segment => segment.Length);
         }
-        // Open courses retain their existing symmetric linear-path behavior.
-        return segments.Skip(Math.Min(startIndex, endIndex))
-            .Take(Math.Abs(endIndex - startIndex))
-            .Sum(segment => segment.Length);
+        else
+        {
+            // Open courses retain their existing symmetric linear-path behavior.
+            distance = segments.Skip(Math.Min(startIndex, endIndex))
+                .Take(Math.Abs(endIndex - startIndex))
+                .Sum(segment => segment.Length);
+        }
+
+        var loopDistance = GetValidClosedLoopDistance(segments, points, closed);
+        if (layouts[0].Id == Guid.Empty) loopDistance = null;
+        Guid? layoutId = loopDistance.HasValue ? layouts[0].Id : null;
+        return new CoursePointDistanceResolution(distance, layoutId, loopDistance);
     }
 
     public async Task<double> DistanceBetweenCoursePoints(CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
+        => (await CoursePointDistanceBetweenCoursePoints(Start, End, cancellationToken)).Distance;
+
+    /// <summary>
+    /// Resolves endpoint distance and optional full-loop evidence from the same course geometry read.
+    /// </summary>
+    public async Task<CoursePointDistanceResolution> CoursePointDistanceBetweenCoursePoints(
+        CoursePoint Start, CoursePoint End, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("DistanceBetweenCoursePoints");
 
         activity?.SetTag("StartCoursePointId", Start.Id);
         activity?.SetTag("EndCoursePointId", End.Id);
 
-        var distance = await cache.GetOrCreateAsync(
+        var resolution = await cache.GetOrCreateAsync(
             FacilitiesCache.DistanceBetweenCoursePoints(Start.Id, End.Id),
-            async cancel => await CalculateDistanceBetweenCoursePoints(Start, End, cancel),
+            async cancel => await CalculateCoursePointDistance(Start, End, cancel),
             options: FacilitiesCache.NewEntryOptions(),
             tags: [FacilitiesCache.RelationshipsTag], cancellationToken: cancellationToken);
 
-        activity?.SetTag("Distance", distance);
+        activity?.SetTag("Distance", resolution.Distance);
 
-        return distance;
+        return resolution;
+    }
+
+    private static double? GetValidClosedLoopDistance(
+        IReadOnlyList<CourseSegment> segments, IReadOnlyList<CoursePoint> points, bool closed)
+    {
+        if (!closed || segments.Any(segment => !double.IsFinite(segment.Length) || segment.Length <= 0) ||
+            segments.Select(segment => segment.Order).Distinct().Count() != segments.Count ||
+            points.Take(points.Count - 1).Select(point => point.Id).Distinct().Count() != segments.Count)
+            return null;
+
+        var distance = segments.Sum(segment => segment.Length);
+        return double.IsFinite(distance) && distance > 0 ? distance : null;
     }
     public async Task<double> DistanceBetweenTimingPoints(Guid Start, Guid End, DateTimeOffset startAt,
         DateTimeOffset endAt, TimingAssociationService associations, CancellationToken cancellationToken = default)
@@ -181,5 +215,10 @@ public class FacilitiesService(FacilityDbContext storage, HybridCache cache, ILo
             .Select(association => association.CoursePoint)
             .SingleAsync(cancellationToken);
 }
+
+public sealed record CoursePointDistanceResolution(
+    double Distance,
+    Guid? CourseLayoutId,
+    double? ClosedLoopDistanceMetres);
 
 public sealed class IncompatibleCoursePathException(string message) : Exception(message);
