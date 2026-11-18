@@ -1,6 +1,6 @@
 # Change Log
 
-All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines.
+All notable changes to this project will be documented in this file. See [versionize](https://github.com/versionize/versionize) for commit guidelines
 
 ## Unreleased
 
@@ -22,6 +22,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
 <a name="2.1.0-alpha.43"></a>
+
 ## [2.1.0-alpha.43](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.43) (2026-11-17)
 
 ### Bug Fixes
@@ -29,6 +30,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** undo hof query changes ([67318e7](https://www.github.com/asbjorjo/VeloTimer/commit/67318e76591a877782bfd699b9e872591a6a52d7))
 
 <a name="2.1.0-alpha.42"></a>
+
 ## [2.1.0-alpha.42](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.42) (2026-11-17)
 
 ### Bug Fixes
@@ -36,6 +38,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** sorting direction for hof query ([1598daa](https://www.github.com/asbjorjo/VeloTimer/commit/1598daab858ebefb836682382233f420cb59c8c6))
 
 <a name="2.1.0-alpha.41"></a>
+
 ## [2.1.0-alpha.41](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.41) (2026-11-17)
 
 ### Bug Fixes
@@ -43,6 +46,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** Simplify HOF query ([0ec2ffe](https://www.github.com/asbjorjo/VeloTimer/commit/0ec2ffecc4efd95f52a47f6d847563adc8e1792e))
 
 <a name="2.1.0-alpha.40"></a>
+
 ## [2.1.0-alpha.40](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.40) (2026-11-17)
 
 ### Bug Fixes
@@ -50,6 +54,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** get hall of fame using group by ([694c2fc](https://www.github.com/asbjorjo/VeloTimer/commit/694c2fceea0f49cb1cc4687933b874c361d6aec6))
 
 <a name="2.1.0-alpha.39"></a>
+
 ## [2.1.0-alpha.39](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.39) (2026-11-17)
 
 ### Features
@@ -57,6 +62,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** show entry contributions inline ([#128](https://www.github.com/asbjorjo/VeloTimer/issues/128)) ([cf75969](https://www.github.com/asbjorjo/VeloTimer/commit/cf75969b0ffd786e34a902d838af2bc57e4660d6))
 
 <a name="2.1.0-alpha.38"></a>
+
 ## [2.1.0-alpha.38](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.38) (2026-11-17)
 
 ### Features
@@ -64,6 +70,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** filter and sort admin entries from table headers ([#127](https://www.github.com/asbjorjo/VeloTimer/issues/127)) ([91e5417](https://www.github.com/asbjorjo/VeloTimer/commit/91e5417d270911db50b3b163bf069c4cce4f473f))
 
 <a name="2.1.0-alpha.37"></a>
+
 ## [2.1.0-alpha.37](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.37) (2026-11-17)
 
 ### Features
@@ -71,6 +78,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** add admin controls for invalid statistics entries ([#126](https://www.github.com/asbjorjo/VeloTimer/issues/126)) ([7914aac](https://www.github.com/asbjorjo/VeloTimer/commit/7914aac5ee2175d758d03571dfa17e27619dce09))
 
 <a name="2.1.0-alpha.36"></a>
+
 ## [2.1.0-alpha.36](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.36) (2026-11-17)
 
 ### Bug Fixes
@@ -78,6 +86,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** add required intermediate statistics points ([#125](https://www.github.com/asbjorjo/VeloTimer/issues/125)) ([c0f20a3](https://www.github.com/asbjorjo/VeloTimer/commit/c0f20a3a982cdd53c0f413b1377b2ab2ff8949c6))
 
 <a name="2.1.0-alpha.35"></a>
+
 ## [2.1.0-alpha.35](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.35) (2026-11-06)
 
 ### Bug Fixes
@@ -85,6 +94,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **notifications:** import the published browser module from app root ([46e8dc0](https://www.github.com/asbjorjo/VeloTimer/commit/46e8dc07c84f3b359f77c6758b9775fe15f45374))
 
 <a name="2.1.0-alpha.34"></a>
+
 ## [2.1.0-alpha.34](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.34) (2026-11-06)
 
 ### Features
@@ -96,6 +106,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Do not publish test projects ([3590a95](https://www.github.com/asbjorjo/VeloTimer/commit/3590a95f9c9ae3c5caf52b7432cecf16bb75d350))
 
 <a name="2.1.0-alpha.33"></a>
+
 ## [2.1.0-alpha.33](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.33) (2026-11-05)
 
 ### Bug Fixes
@@ -103,6 +114,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** statistics start lookup for multi-segment items ([#123](https://www.github.com/asbjorjo/VeloTimer/issues/123)) ([4eb71c2](https://www.github.com/asbjorjo/VeloTimer/commit/4eb71c21f102080006c3ce2294cd74d1d281890d))
 
 <a name="2.1.0-alpha.32"></a>
+
 ## [2.1.0-alpha.32](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.32) (2026-11-05)
 
 ### Bug Fixes
@@ -111,6 +123,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **webui:** omit null facility from hall of fame URLs ([06b29af](https://www.github.com/asbjorjo/VeloTimer/commit/06b29af4001b9d3359b0ae2e1a3a779a4595d567))
 
 <a name="2.1.0-alpha.31"></a>
+
 ## [2.1.0-alpha.31](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.31) (2026-11-05)
 
 ### Features
@@ -118,6 +131,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** add basic tabbed hall of fame ([#122](https://www.github.com/asbjorjo/VeloTimer/issues/122)) ([77dfa70](https://www.github.com/asbjorjo/VeloTimer/commit/77dfa700161cf2d908c7a25bcffad14c1478aec0))
 
 <a name="2.1.0-alpha.30"></a>
+
 ## [2.1.0-alpha.30](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.30) (2026-11-05)
 
 ### Features
@@ -125,6 +139,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **messagebus:** deploy Service Bus topology via Helm pre-install/upgrade hook ([#121](https://www.github.com/asbjorjo/VeloTimer/issues/121)) ([f8538e1](https://www.github.com/asbjorjo/VeloTimer/commit/f8538e1609390c3f1a4880a50113a039c10a9337))
 
 <a name="2.1.0-alpha.29"></a>
+
 ## [2.1.0-alpha.29](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.29) (2026-11-04)
 
 ### Bug Fixes
@@ -132,6 +147,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Add subscription filters ([717d554](https://www.github.com/asbjorjo/VeloTimer/commit/717d554ba623fdbfb1477d38c20d9892e1cce214))
 
 <a name="2.1.0-alpha.28"></a>
+
 ## [2.1.0-alpha.28](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.28) (2026-11-04)
 
 ### Bug Fixes
@@ -141,6 +157,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Remove -test suffix from messaging topics ([f07379e](https://www.github.com/asbjorjo/VeloTimer/commit/f07379e0d41cb63a6afc2098d87db9a2f880f4fb))
 
 <a name="2.1.0-alpha.27"></a>
+
 ## [2.1.0-alpha.27](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.27) (2026-11-04)
 
 ### Features
@@ -148,6 +165,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** add statistics approval thresholds and historical revalidation ([#118](https://www.github.com/asbjorjo/VeloTimer/issues/118)) ([8b55110](https://www.github.com/asbjorjo/VeloTimer/commit/8b551103f5957a239c4194763f01ec93fc602eeb))
 
 <a name="2.1.0-alpha.26"></a>
+
 ## [2.1.0-alpha.26](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.26) (2026-11-02)
 
 ### Features
@@ -155,6 +173,7 @@ All notable changes to this project will be documented in this file. See [versio
 * add time-bound timing associations and event-time resolution ([#117](https://www.github.com/asbjorjo/VeloTimer/issues/117)) ([77a0425](https://www.github.com/asbjorjo/VeloTimer/commit/77a042506fe7f40efef4c1f8bb37f5fd86e2fc7f))
 
 <a name="2.1.0-alpha.25"></a>
+
 ## [2.1.0-alpha.25](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.25) (2026-11-02)
 
 ### Bug Fixes
@@ -163,6 +182,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **agent:** make agent messaging resilient to Service Bus outages ([#116](https://www.github.com/asbjorjo/VeloTimer/issues/116)) ([5cc9b00](https://www.github.com/asbjorjo/VeloTimer/commit/5cc9b000c844b7383a6fcbfadc92ae19d8cc56eb))
 
 <a name="2.1.0-alpha.24"></a>
+
 ## [2.1.0-alpha.24](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.24) (2026-11-02)
 
 ### Bug Fixes
@@ -170,6 +190,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **webui:** follow selected language for date and time formatting ([#115](https://www.github.com/asbjorjo/VeloTimer/issues/115)) ([d48eafe](https://www.github.com/asbjorjo/VeloTimer/commit/d48eafe2907c77650f3fdd01e342158312738533))
 
 <a name="2.1.0-alpha.23"></a>
+
 ## [2.1.0-alpha.23](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.23) (2026-11-01)
 
 ### Features
@@ -177,6 +198,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **passing-migration:** add the plan ([f8c4b77](https://www.github.com/asbjorjo/VeloTimer/commit/f8c4b77925053b2844a97cfafa29dee778c38354))
 
 <a name="2.1.0-alpha.22"></a>
+
 ## [2.1.0-alpha.22](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.22) (2026-10-31)
 
 ### Features
@@ -184,6 +206,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **cache:** add phase-three versioned module caching ([#113](https://www.github.com/asbjorjo/VeloTimer/issues/113)) ([829b5cd](https://www.github.com/asbjorjo/VeloTimer/commit/829b5cd2abd52619789723713734680691b31c71))
 
 <a name="2.1.0-alpha.21"></a>
+
 ## [2.1.0-alpha.21](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.21) (2026-10-31)
 
 ### Bug Fixes
@@ -192,6 +215,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **webui:** preserve validated issuer in login tickets ([936b0cb](https://www.github.com/asbjorjo/VeloTimer/commit/936b0cbbdf7724294e661d8cb4e7a78d0578f91f))
 
 <a name="2.1.0-alpha.20"></a>
+
 ## [2.1.0-alpha.20](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.20) (2026-10-31)
 
 ### Bug Fixes
@@ -200,6 +224,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **webui:** merge isolated UI caching into v2 ([b796c42](https://www.github.com/asbjorjo/VeloTimer/commit/b796c423ff8b1d0d14ee3d39551791766695ad50))
 
 <a name="2.1.0-alpha.19"></a>
+
 ## [2.1.0-alpha.19](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.19) (2026-10-31)
 
 ### Bug Fixes
@@ -208,6 +233,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **cache:** unify backend invalidation and correct cache behavior ([1e83754](https://www.github.com/asbjorjo/VeloTimer/commit/1e83754f2188c62a2507c06c27725156b0d4bb89))
 
 <a name="2.1.0-alpha.18"></a>
+
 ## [2.1.0-alpha.18](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.18) (2026-10-31)
 
 ### Bug Fixes
@@ -215,6 +241,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **webui:** derive public statistics selection from the URI ([8aaee9a](https://www.github.com/asbjorjo/VeloTimer/commit/8aaee9ad851b40b7e845d65cc2dee6a8f5cf05e3))
 
 <a name="2.1.0-alpha.17"></a>
+
 ## [2.1.0-alpha.17](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.17) (2026-10-31)
 
 ### Features
@@ -222,6 +249,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **preferences:** add user units and time display settings ([#112](https://www.github.com/asbjorjo/VeloTimer/issues/112)) ([a08ed9e](https://www.github.com/asbjorjo/VeloTimer/commit/a08ed9e8dee1cc1335b4fc04f083131e541184a6))
 
 <a name="2.1.0-alpha.16"></a>
+
 ## [2.1.0-alpha.16](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.16) (2026-10-31)
 
 ### Bug Fixes
@@ -229,6 +257,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **chart:** add facilities API service mapping to stats ([2c43b90](https://www.github.com/asbjorjo/VeloTimer/commit/2c43b90e204b7f27877214aaebd43f4890f7014f))
 
 <a name="2.1.0-alpha.15"></a>
+
 ## [2.1.0-alpha.15](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.15) (2026-10-31)
 
 ### Features
@@ -236,6 +265,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** add public filtered statistics views ([#111](https://www.github.com/asbjorjo/VeloTimer/issues/111)) ([60add28](https://www.github.com/asbjorjo/VeloTimer/commit/60add2823e1a7b1246e6ba9ba14d4f142cb4f7b8))
 
 <a name="2.1.0-alpha.14"></a>
+
 ## [2.1.0-alpha.14](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.14) (2026-10-31)
 
 ### Bug Fixes
@@ -243,6 +273,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **ui:** remove login item from side menu ([0446357](https://www.github.com/asbjorjo/VeloTimer/commit/0446357777845b41a2a8aa4602149733085ca2de))
 
 <a name="2.1.0-alpha.13"></a>
+
 ## [2.1.0-alpha.13](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.13) (2026-10-31)
 
 ### Bug Fixes
@@ -250,6 +281,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **users-migration:** normalize rider names before creating Keycloak users ([824130d](https://www.github.com/asbjorjo/VeloTimer/commit/824130d368b13e0f7fbfb6f783b92a17dcd13bd0))
 
 <a name="2.1.0-alpha.12"></a>
+
 ## [2.1.0-alpha.12](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.12) (2026-10-30)
 
 ### Bug Fixes
@@ -257,6 +289,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **users-migration:** log and skip riders whose identity lookup fails ([2779a45](https://www.github.com/asbjorjo/VeloTimer/commit/2779a458ee4e5f1cf77532319efb33d23116d281))
 
 <a name="2.1.0-alpha.11"></a>
+
 ## [2.1.0-alpha.11](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.11) (2026-10-30)
 
 ### Bug Fixes
@@ -264,6 +297,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **users-migration:** make ownership and profile migration retry-safe ([2081b32](https://www.github.com/asbjorjo/VeloTimer/commit/2081b3207e9566bef03bb0287f7109ffdf922cbb))
 
 <a name="2.1.0-alpha.10"></a>
+
 ## [2.1.0-alpha.10](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.10) (2026-10-30)
 
 ### Features
@@ -271,6 +305,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **charts:** run schema migrations as release hooks ([b7c027c](https://www.github.com/asbjorjo/VeloTimer/commit/b7c027c801dfe1fb3d6c6a5a3523651571343d56))
 
 <a name="2.1.0-alpha.9"></a>
+
 ## [2.1.0-alpha.9](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.9) (2026-10-30)
 
 ### Features
@@ -278,6 +313,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **webui:** localize data grid pager ([6f832a5](https://www.github.com/asbjorjo/VeloTimer/commit/6f832a51b37b610f3e89c3e4d7827d8f6d7f9903))
 
 <a name="2.1.0-alpha.8"></a>
+
 ## [2.1.0-alpha.8](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.8) (2026-10-30)
 
 ### Features
@@ -286,6 +322,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **webui:** move auth actions to top bar ([832bd1f](https://www.github.com/asbjorjo/VeloTimer/commit/832bd1f4ec757f44decee3266cd6a1e55bf4c54f))
 
 <a name="2.1.0-alpha.7"></a>
+
 ## [2.1.0-alpha.7](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.7) (2026-10-30)
 
 ### Features
@@ -293,6 +330,7 @@ All notable changes to this project will be documented in this file. See [versio
 * frontend localization and Profiles preferences ([#110](https://www.github.com/asbjorjo/VeloTimer/issues/110)) ([a5a80f1](https://www.github.com/asbjorjo/VeloTimer/commit/a5a80f14b04af4077b8bce7444b4254ff6e217bb))
 
 <a name="2.1.0-alpha.6"></a>
+
 ## [2.1.0-alpha.6](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.6) (2026-10-30)
 
 ### Features
@@ -300,6 +338,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **transponders:** use server-side MudDataGrid ([1ea4a81](https://www.github.com/asbjorjo/VeloTimer/commit/1ea4a813cab24872ed4b3c7380f429d66da00321))
 
 <a name="2.1.0-alpha.5"></a>
+
 ## [2.1.0-alpha.5](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.5) (2026-10-30)
 
 ### Features
@@ -307,6 +346,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **transponders:** add column filtering and sorting ([03eb8df](https://www.github.com/asbjorjo/VeloTimer/commit/03eb8dfe5ac858df014e3897a2759e772a169308))
 
 <a name="2.1.0-alpha.4"></a>
+
 ## [2.1.0-alpha.4](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.4) (2026-10-30)
 
 ### Features
@@ -314,6 +354,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **transponders:** add ownership-scoped status pages ([74b2cb8](https://www.github.com/asbjorjo/VeloTimer/commit/74b2cb80e1be135fa68a6db8ddd19674a51e60cc))
 
 <a name="2.1.0-alpha.3"></a>
+
 ## [2.1.0-alpha.3](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.3) (2026-10-29)
 
 ### Bug Fixes
@@ -321,6 +362,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Use correct method to get facility ([a83e22d](https://www.github.com/asbjorjo/VeloTimer/commit/a83e22d4bc719a0a2e733581fa69d8e5c3ce6452))
 
 <a name="2.1.0-alpha.2"></a>
+
 ## [2.1.0-alpha.2](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.2) (2026-10-29)
 
 ### Features
@@ -329,6 +371,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **timing:** emit ownership changes through transactional outbox ([bbd48c8](https://www.github.com/asbjorjo/VeloTimer/commit/bbd48c8736f70073848e838faba3a9708f694d7f))
 
 <a name="2.1.0-alpha.1"></a>
+
 ## [2.1.0-alpha.1](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.1) (2026-10-29)
 
 ### Features
@@ -338,6 +381,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **web:** show transponder last seen in administration ([303e73f](https://www.github.com/asbjorjo/VeloTimer/commit/303e73fa52bb7bfe6df9efadc883538f9aaba3ae))
 
 <a name="2.1.0-alpha.0"></a>
+
 ## [2.1.0-alpha.0](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.0) (2026-10-29)
 
 ### Features
@@ -415,6 +459,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Wrong case in filename ([06cccf3](https://www.github.com/asbjorjo/VeloTimer/commit/06cccf33539b110350b3ab6697c3ca9315936ed6))
 
 <a name="3.0.0-alpha.75"></a>
+
 ## [3.0.0-alpha.75](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.75) (2026-10-29)
 
 ### Bug Fixes
@@ -422,6 +467,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **statistics:** authorize profile writes with admin permissions ([cb6caa3](https://www.github.com/asbjorjo/VeloTimer/commit/cb6caa3ec7b320d4ac609b6bda779f99b652a56f))
 
 <a name="3.0.0-alpha.74"></a>
+
 ## [3.0.0-alpha.74](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.74) (2026-10-29)
 
 ### Features
@@ -435,6 +481,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **helm:** configure migration API service discovery ([faecd5a](https://www.github.com/asbjorjo/VeloTimer/commit/faecd5ac321d6eb32e25b81ec06bf22209425db3))
 
 <a name="3.0.0-alpha.73"></a>
+
 ## [3.0.0-alpha.73](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.73) (2026-10-29)
 
 ### Bug Fixes
@@ -443,6 +490,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **web:** accept all 2xx statuses for no-body upstream mutations ([8636b11](https://www.github.com/asbjorjo/VeloTimer/commit/8636b1124cb9ec43bb436c6aba1b70be1d38daf9))
 
 <a name="3.0.0-alpha.72"></a>
+
 ## [3.0.0-alpha.72](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.72) (2026-10-29)
 
 ### Features
@@ -460,6 +508,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Update role mapping and default role ([0a295f4](https://www.github.com/asbjorjo/VeloTimer/commit/0a295f49b5f34d14700e392b89ac342ffec3fce2))
 
 <a name="3.0.0-alpha.71"></a>
+
 ## [3.0.0-alpha.71](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.71) (2026-10-27)
 
 ### Features
@@ -467,6 +516,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Stop requesting velotime scope ([49bb46b](https://www.github.com/asbjorjo/VeloTimer/commit/49bb46b629b4ffa897bf755e3d54ec413be67b2b))
 
 <a name="3.0.0-alpha.70"></a>
+
 ## [3.0.0-alpha.70](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.70) (2026-10-27)
 
 ### Bug Fixes
@@ -474,6 +524,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **telemetry:** avoid OTLP exporter conflicts with auto instrumentation ([80b68cb](https://www.github.com/asbjorjo/VeloTimer/commit/80b68cb0c3d8316b7160ab91214e78aa9d598e1a))
 
 <a name="3.0.0-alpha.69"></a>
+
 ## [3.0.0-alpha.69](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.69) (2026-10-26)
 
 ### Bug Fixes
@@ -482,6 +533,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Remove unused link call ([54066ea](https://www.github.com/asbjorjo/VeloTimer/commit/54066ea0d387213c2eb64629065997fc3bd937b1))
 
 <a name="3.0.0-alpha.68"></a>
+
 ## [3.0.0-alpha.68](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.68) (2026-10-26)
 
 ### Features
@@ -493,6 +545,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **chart:** Fix line breaks ([4542380](https://www.github.com/asbjorjo/VeloTimer/commit/4542380c66c3589627b9b8205ae874a9e15ffdb0))
 
 <a name="3.0.0-alpha.67"></a>
+
 ## [3.0.0-alpha.67](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.67) (2026-10-26)
 
 ### Features
@@ -501,6 +554,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **auth:** configure OIDC audience using application base URL ([963c459](https://www.github.com/asbjorjo/VeloTimer/commit/963c459e3b776b4d6fc8b25d4b978db182f001e1))
 
 <a name="3.0.0-alpha.66"></a>
+
 ## [3.0.0-alpha.66](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.66) (2026-10-26)
 
 ### Features
@@ -508,6 +562,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **webui:** add development-only auth debug page ([d6b03be](https://www.github.com/asbjorjo/VeloTimer/commit/d6b03be488bc8b9c18dc536ef087589157788554))
 
 <a name="3.0.0-alpha.65"></a>
+
 ## [3.0.0-alpha.65](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.65) (2026-10-25)
 
 ### Features
@@ -523,6 +578,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **auth:** map Keycloak realm roles from UserInfo ([09c86cc](https://www.github.com/asbjorjo/VeloTimer/commit/09c86cce80d030c1fc9804c5f0393e30d36479fb))
 
 <a name="3.0.0-alpha.64"></a>
+
 ## [3.0.0-alpha.64](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.64) (2026-10-23)
 
 ### Features
@@ -530,6 +586,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **webui:** share data protection keys and auth state across replicas ([7f12cd5](https://www.github.com/asbjorjo/VeloTimer/commit/7f12cd591fcde12f17ac8f8112dace6de0c346f2))
 
 <a name="3.0.0-alpha.63"></a>
+
 ## [3.0.0-alpha.63](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.63) (2026-10-23)
 
 ### Features
@@ -541,6 +598,7 @@ All notable changes to this project will be documented in this file. See [versio
 * webui client should not be published by itself ([b17f6b3](https://www.github.com/asbjorjo/VeloTimer/commit/b17f6b352348589ffc1f913c0a62c79b6a42136e))
 
 <a name="3.0.0-alpha.62"></a>
+
 ## [3.0.0-alpha.62](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.62) (2026-10-19)
 
 ### Features
@@ -553,6 +611,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Move user migration to non-alpine ([bf2f1ba](https://www.github.com/asbjorjo/VeloTimer/commit/bf2f1ba5cb2627ca2e26304265a47c36cdfe6a38))
 
 <a name="3.0.0-alpha.61"></a>
+
 ## [3.0.0-alpha.61](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.61) (2026-10-19)
 
 ### Features
@@ -657,6 +716,7 @@ All notable changes to this project will be documented in this file. See [versio
 * **timing:** handle duplicate passings and transponder updates ([6e5a9c5](https://www.github.com/asbjorjo/VeloTimer/commit/6e5a9c501877b51546c95191f57812283a686e45))
 
 <a name="3.0.0-alpha.59"></a>
+
 ## [3.0.0-alpha.59](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.59) (2026-06-03)
 
 ### Features
@@ -664,6 +724,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Force version ([024d3ab](https://www.github.com/asbjorjo/VeloTimer/commit/024d3ab46bc4346059e8c86a9c5e712c3e9bfe96))
 
 <a name="3.0.0-alpha.58"></a>
+
 ## [3.0.0-alpha.58](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.58) (2026-06-03)
 
 ### Features
@@ -672,6 +733,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Force rebuild ([2dc05bd](https://www.github.com/asbjorjo/VeloTimer/commit/2dc05bdbf7eadf131596eecf17dc0920a3259819))
 
 <a name="3.0.0-alpha.57"></a>
+
 ## [3.0.0-alpha.57](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.57) (2026-06-03)
 
 ### Features
@@ -679,6 +741,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Add trace for loop status ([3552b9e](https://www.github.com/asbjorjo/VeloTimer/commit/3552b9e3aa6b6d28ba69823e7cca29d09dae3340))
 
 <a name="3.0.0-alpha.56"></a>
+
 ## [3.0.0-alpha.56](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.56) (2026-06-03)
 
 ### Features
@@ -687,6 +750,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Update installation last seen on loop status ([fc24a8d](https://www.github.com/asbjorjo/VeloTimer/commit/fc24a8d0264da29e5bd09ca6dd429764f589d469))
 
 <a name="3.0.0-alpha.55"></a>
+
 ## [3.0.0-alpha.55](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.55) (2026-06-03)
 
 ### Bug Fixes
@@ -695,6 +759,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Use ([986cfea](https://www.github.com/asbjorjo/VeloTimer/commit/986cfea9d41583db70452bdcfddba12840322fe2))
 
 <a name="3.0.0-alpha.54"></a>
+
 ## [3.0.0-alpha.54](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.54) (2026-06-01)
 
 ### Bug Fixes
@@ -703,6 +768,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Move conversions to Label field ([b76ea8b](https://www.github.com/asbjorjo/VeloTimer/commit/b76ea8b9c73a8a14d8ddefa6182e002cbe8d4704))
 
 <a name="3.0.0-alpha.53"></a>
+
 ## [3.0.0-alpha.53](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.53) (2026-06-01)
 
 ### Bug Fixes
@@ -710,6 +776,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Check if empty ([6034753](https://www.github.com/asbjorjo/VeloTimer/commit/603475376eec007c375d856fbf678b557485561c))
 
 <a name="3.0.0-alpha.52"></a>
+
 ## [3.0.0-alpha.52](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.52) (2026-06-01)
 
 ### Bug Fixes
@@ -717,6 +784,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Use parameterless constructor ([4986256](https://www.github.com/asbjorjo/VeloTimer/commit/498625638d7186c0f3ad855cb1c2e8916f08e8a8))
 
 <a name="3.0.0-alpha.51"></a>
+
 ## [3.0.0-alpha.51](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.51) (2026-05-31)
 
 ### Features
@@ -799,6 +867,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Wrong case in filename ([06cccf3](https://www.github.com/asbjorjo/VeloTimer/commit/06cccf33539b110350b3ab6697c3ca9315936ed6))
 
 <a name="3.0.0-alpha.51"></a>
+
 ## [3.0.0-alpha.51](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.51) (2026-06-01)
 
 ### Features
@@ -806,6 +875,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Add installation admin ([ae50882](https://www.github.com/asbjorjo/VeloTimer/commit/ae50882ca56540a5de09bbc24bd035ad155c6aec))
 
 <a name="3.0.0-alpha.50"></a>
+
 ## [3.0.0-alpha.50](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.50) (2026-06-01)
 
 ### Features
@@ -817,6 +887,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Force build ([2724ff7](https://www.github.com/asbjorjo/VeloTimer/commit/2724ff711d251cfd475dde4d0f3419ea787e918c))
 
 <a name="3.0.0-alpha.49"></a>
+
 ## [3.0.0-alpha.49](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.49) (2026-03-25)
 
 ### Bug Fixes
@@ -824,6 +895,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Just use OpenAPI project reference.... ([b6e6189](https://www.github.com/asbjorjo/VeloTimer/commit/b6e6189bb82f7fb951fc716afcd8591c93cc31cf))
 
 <a name="3.0.0-alpha.48"></a>
+
 ## [3.0.0-alpha.48](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.48) (2026-03-25)
 
 ### Bug Fixes
@@ -831,6 +903,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Do not include API assets in client ([9239a0f](https://www.github.com/asbjorjo/VeloTimer/commit/9239a0f27f2e67717af72c50beea09099222e142))
 
 <a name="3.0.0-alpha.47"></a>
+
 ## [3.0.0-alpha.47](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.47) (2026-03-25)
 
 ### Bug Fixes
@@ -838,6 +911,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Required for something ([7c0812d](https://www.github.com/asbjorjo/VeloTimer/commit/7c0812dc43da5a6bbaceb63c8d9f145409fca37c))
 
 <a name="3.0.0-alpha.46"></a>
+
 ## [3.0.0-alpha.46](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.46) (2026-03-25)
 
 ### Features
@@ -850,6 +924,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Wrong case in filename ([06cccf3](https://www.github.com/asbjorjo/VeloTimer/commit/06cccf33539b110350b3ab6697c3ca9315936ed6))
 
 <a name="3.0.0-alpha.45"></a>
+
 ## [3.0.0-alpha.45](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.45) (2026-03-23)
 
 ### Features
@@ -863,6 +938,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Align versions ([bec037f](https://www.github.com/asbjorjo/VeloTimer/commit/bec037f08f61d36179f77aa3f343d2ea7a5f8271))
 
 <a name="3.0.0-alpha.44"></a>
+
 ## [3.0.0-alpha.44](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.44) (2026-03-16)
 
 ### Features
@@ -870,6 +946,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Extend token expiration duration to 7 days ([22b47e4](https://www.github.com/asbjorjo/VeloTimer/commit/22b47e4c8617e0a344caac1e25a58c8abf558257))
 
 <a name="3.0.0-alpha.43"></a>
+
 ## [3.0.0-alpha.43](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.43) (2026-03-15)
 
 ### Features
@@ -882,6 +959,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Correct URL for login/out ([e6ca92e](https://www.github.com/asbjorjo/VeloTimer/commit/e6ca92efb197962bb0456fdeb3beae8b74822b8e))
 
 <a name="3.0.0-alpha.42"></a>
+
 ## [3.0.0-alpha.42](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.42) (2026-03-15)
 
 ### Features
@@ -889,6 +967,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Try to add link for social providers on account ([8adda6a](https://www.github.com/asbjorjo/VeloTimer/commit/8adda6a79da004b5c3f239fecde049d411f8f80a))
 
 <a name="3.0.0-alpha.41"></a>
+
 ## [3.0.0-alpha.41](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.41) (2026-03-15)
 
 ### Bug Fixes
@@ -896,6 +975,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Token endpoint ([510aa67](https://www.github.com/asbjorjo/VeloTimer/commit/510aa67bae7158e0b013e0037df88aa8e4460b7b))
 
 <a name="3.0.0-alpha.40"></a>
+
 ## [3.0.0-alpha.40](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.40) (2026-03-15)
 
 ### Bug Fixes
@@ -903,6 +983,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Use duende things, not keycloak ([6e4aef7](https://www.github.com/asbjorjo/VeloTimer/commit/6e4aef781533e0eba7c3fc4103671dcc12fc3075))
 
 <a name="3.0.0-alpha.39"></a>
+
 ## [3.0.0-alpha.39](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.39) (2026-03-15)
 
 ### Bug Fixes
@@ -910,6 +991,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Add keycloak reference to services in apphost ([b5290e9](https://www.github.com/asbjorjo/VeloTimer/commit/b5290e94ad76153d6d77ce53820eca1557d92b96))
 
 <a name="3.0.0-alpha.38"></a>
+
 ## [3.0.0-alpha.38](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.38) (2026-03-15)
 
 ### Bug Fixes
@@ -919,6 +1001,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Send token with API requests ([a832b05](https://www.github.com/asbjorjo/VeloTimer/commit/a832b0557c339cd8416c731d33932656b758d383))
 
 <a name="3.0.0-alpha.37"></a>
+
 ## [3.0.0-alpha.37](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.37) (2026-03-14)
 
 ### Bug Fixes
@@ -926,6 +1009,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Set authority explicitly outside development ([7e2acfc](https://www.github.com/asbjorjo/VeloTimer/commit/7e2acfc01a3714c2fd63f4867977a5aaa833f328))
 
 <a name="3.0.0-alpha.36"></a>
+
 ## [3.0.0-alpha.36](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.36) (2026-03-14)
 
 ### Features
@@ -933,6 +1017,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Add authentication to modules ([89b9df6](https://www.github.com/asbjorjo/VeloTimer/commit/89b9df66b7d9f1bb5ab2a012e03a728ebea1cc7d))
 
 <a name="3.0.0-alpha.35"></a>
+
 ## [3.0.0-alpha.35](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.35) (2026-03-12)
 
 ### Features
@@ -940,6 +1025,7 @@ All notable changes to this project will be documented in this file. See [versio
 * User Duende library for token handling ([c1f070e](https://www.github.com/asbjorjo/VeloTimer/commit/c1f070e5e42ed2e221eca49698980ed77450ce34))
 
 <a name="3.0.0-alpha.34"></a>
+
 ## [3.0.0-alpha.34](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.34) (2026-03-11)
 
 ### Features
@@ -952,6 +1038,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Mockup some UI things ([c21346c](https://www.github.com/asbjorjo/VeloTimer/commit/c21346ca14981c9ae2e11a81f7fc4892469e9857))
 
 <a name="3.0.0-alpha.33"></a>
+
 ## [3.0.0-alpha.33](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.33) (2026-03-09)
 
 ### Bug Fixes
@@ -959,6 +1046,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Force build ([017efe6](https://www.github.com/asbjorjo/VeloTimer/commit/017efe6f6b72485b98ce47b1d2917f24c76623be))
 
 <a name="3.0.0-alpha.32"></a>
+
 ## [3.0.0-alpha.32](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.32) (2026-03-03)
 
 ### Bug Fixes
@@ -966,6 +1054,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Apply https to development ([4c01816](https://www.github.com/asbjorjo/VeloTimer/commit/4c01816a3d06fd966bb2d089130c08f3ff12f542))
 
 <a name="3.0.0-alpha.31"></a>
+
 ## [3.0.0-alpha.31](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.31) (2026-03-03)
 
 ### Bug Fixes
@@ -973,6 +1062,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Just force scheme to https ([d2b044b](https://www.github.com/asbjorjo/VeloTimer/commit/d2b044b2f1571d37b8bff0ae67588f09f5f6ab67))
 
 <a name="3.0.0-alpha.30"></a>
+
 ## [3.0.0-alpha.30](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.30) (2026-03-03)
 
 ### Bug Fixes
@@ -980,6 +1070,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Add forwarded headers from gateway ([bca0b8c](https://www.github.com/asbjorjo/VeloTimer/commit/bca0b8c6e6a3a5efe0578eda76cc11312e139485))
 
 <a name="3.0.0-alpha.29"></a>
+
 ## [3.0.0-alpha.29](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.29) (2026-03-03)
 
 ### Bug Fixes
@@ -987,6 +1078,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Interceptor can go when instrumenting servicebus ([23e86d5](https://www.github.com/asbjorjo/VeloTimer/commit/23e86d5343cc234ce939d05aecbd0179c8d6e87f))
 
 <a name="3.0.0-alpha.28"></a>
+
 ## [3.0.0-alpha.28](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.28) (2026-03-02)
 
 ### Bug Fixes
@@ -996,6 +1088,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Remove DNS SRV service discovery ([a5788ff](https://www.github.com/asbjorjo/VeloTimer/commit/a5788ff47003cd18324c48942e34eb40553192e9))
 
 <a name="3.0.0-alpha.27"></a>
+
 ## [3.0.0-alpha.27](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.27) (2026-02-28)
 
 ### Bug Fixes
@@ -1003,6 +1096,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Remove explicit filter for otel logs ([26955df](https://www.github.com/asbjorjo/VeloTimer/commit/26955dfe23d5bb87b6d412faed31ae55018486f5))
 
 <a name="3.0.0-alpha.26"></a>
+
 ## [3.0.0-alpha.26](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.26) (2026-02-28)
 
 ### Bug Fixes
@@ -1010,6 +1104,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Add explicit filter for otel loggin ([81ab2c4](https://www.github.com/asbjorjo/VeloTimer/commit/81ab2c482732de1a2f6b398742da8eef68499b33))
 
 <a name="3.0.0-alpha.25"></a>
+
 ## [3.0.0-alpha.25](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.25) (2026-02-28)
 
 ### Bug Fixes
@@ -1018,6 +1113,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Just go back to defaults ([8d61cb7](https://www.github.com/asbjorjo/VeloTimer/commit/8d61cb7c1a6ad9aca8d87e923c95f48fda7c5006))
 
 <a name="3.0.0-alpha.24"></a>
+
 ## [3.0.0-alpha.24](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.24) (2026-02-28)
 
 ### Bug Fixes
@@ -1025,6 +1121,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Desperate times ([786b688](https://www.github.com/asbjorjo/VeloTimer/commit/786b6882ef8a2ccffe8365ad0b4e8c0972d4ba3e))
 
 <a name="3.0.0-alpha.23"></a>
+
 ## [3.0.0-alpha.23](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.23) (2026-02-28)
 
 ### Bug Fixes
@@ -1032,6 +1129,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Try explicit config of log export ([369bd1d](https://www.github.com/asbjorjo/VeloTimer/commit/369bd1d99de22dd8725b19bc125c5335db5d7993))
 
 <a name="3.0.0-alpha.22"></a>
+
 ## [3.0.0-alpha.22](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.22) (2026-02-28)
 
 ### Bug Fixes
@@ -1039,6 +1137,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Remove adding otel exporter to logging ([3536d3b](https://www.github.com/asbjorjo/VeloTimer/commit/3536d3b23cd30d3e78c843fa45ce131f304664da))
 
 <a name="3.0.0-alpha.21"></a>
+
 ## [3.0.0-alpha.21](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.21) (2026-02-28)
 
 ### Bug Fixes
@@ -1046,6 +1145,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Try to change order of otel registrations ([0ca8c25](https://www.github.com/asbjorjo/VeloTimer/commit/0ca8c253367af2941f4e6bec07bb827660f708b8))
 
 <a name="3.0.0-alpha.20"></a>
+
 ## [3.0.0-alpha.20](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.20) (2026-02-28)
 
 ### Bug Fixes
@@ -1053,6 +1153,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Add logging to otlp ([c5dd92d](https://www.github.com/asbjorjo/VeloTimer/commit/c5dd92da5a67773cec861034ecc5452a78c7118d))
 
 <a name="3.0.0-alpha.19"></a>
+
 ## [3.0.0-alpha.19](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.19) (2026-02-28)
 
 ### Bug Fixes
@@ -1060,6 +1161,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Add suffic for dns srv service discovery ([ff15a1b](https://www.github.com/asbjorjo/VeloTimer/commit/ff15a1b147f1b4f6620b318def28259653068679))
 
 <a name="3.0.0-alpha.18"></a>
+
 ## [3.0.0-alpha.18](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.18) (2026-02-22)
 
 ### Bug Fixes
@@ -1067,6 +1169,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Use http for internal services ([fe1854c](https://www.github.com/asbjorjo/VeloTimer/commit/fe1854cd62acc338daf69faefb5d3a4721ed60ef))
 
 <a name="3.0.0-alpha.17"></a>
+
 ## [3.0.0-alpha.17](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.17) (2026-02-22)
 
 ### Bug Fixes
@@ -1074,6 +1177,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Prefix service name with velotime ([82f87b9](https://www.github.com/asbjorjo/VeloTimer/commit/82f87b918ee44f8b82f96318c164affd7ceddbbd))
 
 <a name="3.0.0-alpha.16"></a>
+
 ## [3.0.0-alpha.16](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.16) (2026-02-22)
 
 ### Bug Fixes
@@ -1081,6 +1185,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Enable all sorts of endpoint resulotion ([cbd4e72](https://www.github.com/asbjorjo/VeloTimer/commit/cbd4e72dc422836afcb19346703822efd173994d))
 
 <a name="3.0.0-alpha.15"></a>
+
 ## [3.0.0-alpha.15](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.15) (2026-02-22)
 
 ### Bug Fixes
@@ -1088,6 +1193,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Add DNS SRV service discovery ([1f86abe](https://www.github.com/asbjorjo/VeloTimer/commit/1f86abef685f5c8e68a4d7040d70ee0e7c56a822))
 
 <a name="3.0.0-alpha.14"></a>
+
 ## [3.0.0-alpha.14](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.14) (2026-02-22)
 
 ### Bug Fixes
@@ -1095,6 +1201,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Use snake case at runtime ([a15c2d1](https://www.github.com/asbjorjo/VeloTimer/commit/a15c2d1413b1f2a2ff063de53d1b64622c7ef7c8))
 
 <a name="3.0.0-alpha.13"></a>
+
 ## [3.0.0-alpha.13](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.13) (2026-02-22)
 
 ### Bug Fixes
@@ -1102,6 +1209,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Re-run migrations ([9ec6bf7](https://www.github.com/asbjorjo/VeloTimer/commit/9ec6bf74298e1c042bf62555b00ed15e64233f28))
 
 <a name="3.0.0-alpha.12"></a>
+
 ## [3.0.0-alpha.12](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.12) (2026-02-22)
 
 ### Bug Fixes
@@ -1111,6 +1219,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Update project file for container settings and globalization ([ba2c5a4](https://www.github.com/asbjorjo/VeloTimer/commit/ba2c5a4569913873467a324062e2acef706a7b9a))
 
 <a name="3.0.0-alpha.11"></a>
+
 ## [3.0.0-alpha.11](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.11) (2026-02-16)
 
 ### Bug Fixes
@@ -1119,6 +1228,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Update container base image to use alpine variant ([e37d678](https://www.github.com/asbjorjo/VeloTimer/commit/e37d6784c709d55d8e31194eb72157ab42e1378b))
 
 <a name="3.0.0-alpha.10"></a>
+
 ## [3.0.0-alpha.10](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.10) (2026-02-16)
 
 ### Bug Fixes
@@ -1126,6 +1236,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Update project file for container configuration ([9589900](https://www.github.com/asbjorjo/VeloTimer/commit/9589900a276a9929d7736d6e6de2527cb9f270c6))
 
 <a name="3.0.0-alpha.9"></a>
+
 ## [3.0.0-alpha.9](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.9) (2026-02-15)
 
 ### Bug Fixes
@@ -1133,6 +1244,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Switch all to aspnet base image ([cf9b6da](https://www.github.com/asbjorjo/VeloTimer/commit/cf9b6da3b7f573965c113327ea4babc9ed198f83))
 
 <a name="3.0.0-alpha.8"></a>
+
 ## [3.0.0-alpha.8](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.8) (2026-02-15)
 
 ### Features
@@ -1153,6 +1265,7 @@ All notable changes to this project will be documented in this file. See [versio
 * Where to push images ([2701ebe](https://www.github.com/asbjorjo/VeloTimer/commit/2701ebe24c94b297451e9bbd5e478d30b44bcb65))
 
 <a name="3.0.0-alpha.4"></a>
+
 ## [3.0.0-alpha.4](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.4) (2026-02-15)
 
 ### Features
@@ -1170,5 +1283,5 @@ All notable changes to this project will be documented in this file. See [versio
 * Where to push images ([2701ebe](https://www.github.com/asbjorjo/VeloTimer/commit/2701ebe24c94b297451e9bbd5e478d30b44bcb65))
 
 <a name="3.0.0-alpha.0"></a>
-## [3.0.0-alpha.0](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.0) (2026-02-15)
 
+## [3.0.0-alpha.0](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v3.0.0-alpha.0) (2026-02-15)
