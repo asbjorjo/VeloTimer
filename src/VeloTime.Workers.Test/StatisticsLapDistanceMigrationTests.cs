@@ -22,9 +22,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     }
 
     [PostgreSqlStatisticsFact]
-    public async Task LapDistanceActivationOnEmptyInstallNeedsNoMaintenanceAcknowledgement()
+    public async Task LapDistanceActivationOnEmptyInstallLeavesItemsEmpty()
     {
-        // InitializeAsync migrates an empty database all the way to latest without a GUC.
         await using var db = Db();
         Assert.Contains(LapDistanceActivationMigration, await db.Database.GetAppliedMigrationsAsync());
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
@@ -32,7 +31,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     }
 
     [PostgreSqlStatisticsFact]
-    public async Task LapDistanceActivationGuardsStageGapBackfillAtomicallyAndRefusesLossyRollback()
+    public async Task LapDistanceActivationBackfillsAtomicallyAndRefusesLossyRollback()
     {
         await RecreateAtMigrationAsync(LapDistanceStorageMigration);
         var lap = Simple();
@@ -44,7 +43,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         other.StatisticsItem.Distance = 500;
         var rider = Guid.NewGuid();
         var facility = Guid.NewGuid();
-        // Wrong legacy speed and invalid existing snapshot exercise both rollback paths.
+        // Wrong legacy speed and invalid existing snapshot verify atomic backfill.
         var gap = MigrationEntry(lap, 1, null, 91);
         var snapshotted = MigrationEntry(lap, 2, -1, 17);
         var untouched = MigrationEntry(other, 3, null, 43);
@@ -55,41 +54,25 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         var migrator = db.GetService<IMigrator>();
 
         var refusal = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync());
-        Assert.Contains("requires maintenance acknowledgement", refusal.MessageText);
-        await AssertUnactivatedAsync();
+        Assert.Contains("entry without a positive finite distance snapshot", refusal.MessageText);
+        await AssertUnactivatedAsync(); // In particular, the null gap row was NOT partially backfilled.
 
-        // Keep this connection open: the maintenance GUC belongs to this migration
-        // session, not a pooled connection or a shared database/server setting.
-        await db.Database.OpenConnectionAsync();
-        try
-        {
-            await db.Database.ExecuteSqlRawAsync("SET velotime.lap_distance_activation=on");
-            refusal = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync());
-            Assert.Contains("entry without a positive finite distance snapshot", refusal.MessageText);
-            await AssertUnactivatedAsync(); // In particular, the null gap row was NOT partially backfilled.
+        await db.Database.ExecuteSqlAsync($"UPDATE statistics.statistics_entry SET distance_metres = {400d} WHERE id = {snapshotted.Id}");
+        await migrator.MigrateAsync();
+        await migrator.MigrateAsync(); // Reapplication must not rewrite preserved snapshots.
+        var persistedLap = await db.Set<StatisticsItem>().AsNoTracking().SingleAsync(i => i.Id == lap.StatisticsItemId);
+        Assert.Equal(StatisticsDistanceMode.CourseLayout, persistedLap.DistanceMode);
+        Assert.Equal(0, persistedLap.Distance);
+        await AssertRowsAsync(333, 333 / gap.Duration.TotalSeconds, 400);
+        Assert.Contains(LapDistanceActivationMigration, await db.Database.GetAppliedMigrationsAsync());
 
-            await db.Database.ExecuteSqlAsync($"UPDATE statistics.statistics_entry SET distance_metres = {400d} WHERE id = {snapshotted.Id}");
-            await migrator.MigrateAsync();
-            await migrator.MigrateAsync(); // Reapplication must not rewrite preserved snapshots.
-            var persistedLap = await db.Set<StatisticsItem>().AsNoTracking().SingleAsync(i => i.Id == lap.StatisticsItemId);
-            Assert.Equal(StatisticsDistanceMode.CourseLayout, persistedLap.DistanceMode);
-            Assert.Equal(0, persistedLap.Distance);
-            await AssertRowsAsync(333, 333 / gap.Duration.TotalSeconds, 400);
-            Assert.Contains(LapDistanceActivationMigration, await db.Database.GetAppliedMigrationsAsync());
-
-            refusal = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(LapDistanceStorageMigration));
-            Assert.Contains("cannot be safely rolled back", refusal.MessageText);
-            Assert.Contains(LapDistanceActivationMigration, await db.Database.GetAppliedMigrationsAsync());
-            persistedLap = await db.Set<StatisticsItem>().AsNoTracking().SingleAsync(i => i.Id == lap.StatisticsItemId);
-            Assert.Equal(StatisticsDistanceMode.CourseLayout, persistedLap.DistanceMode);
-            Assert.Equal(0, persistedLap.Distance);
-            await AssertRowsAsync(333, 333 / gap.Duration.TotalSeconds, 400);
-        }
-        finally
-        {
-            await db.Database.ExecuteSqlRawAsync("RESET velotime.lap_distance_activation");
-            await db.Database.CloseConnectionAsync();
-        }
+        refusal = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(LapDistanceStorageMigration));
+        Assert.Contains("cannot be safely rolled back", refusal.MessageText);
+        Assert.Contains(LapDistanceActivationMigration, await db.Database.GetAppliedMigrationsAsync());
+        persistedLap = await db.Set<StatisticsItem>().AsNoTracking().SingleAsync(i => i.Id == lap.StatisticsItemId);
+        Assert.Equal(StatisticsDistanceMode.CourseLayout, persistedLap.DistanceMode);
+        Assert.Equal(0, persistedLap.Distance);
+        await AssertRowsAsync(333, 333 / gap.Duration.TotalSeconds, 400);
 
         StatisticsEntry MigrationEntry(SimpleStatisticsItemConfig config, int index, double? distance, double speed) => new()
         {

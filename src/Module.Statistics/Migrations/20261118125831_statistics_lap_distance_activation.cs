@@ -15,19 +15,6 @@ namespace VeloTime.Module.Statistics.Migrations
             migrationBuilder.Sql("LOCK TABLE statistics.statistics_item IN SHARE ROW EXCLUSIVE MODE;");
             migrationBuilder.Sql("LOCK TABLE statistics.statistics_entry IN SHARE ROW EXCLUSIVE MODE;");
 
-            // Existing installations need an explicit, per-migration-session maintenance
-            // acknowledgement. An empty install has no Lap definition and needs no override.
-            migrationBuilder.Sql("""
-                DO $acknowledgement$
-                BEGIN
-                    IF EXISTS (SELECT 1 FROM statistics.statistics_item WHERE name = 'Lap')
-                       AND current_setting('velotime.lap_distance_activation', true) IS DISTINCT FROM 'on' THEN
-                        RAISE EXCEPTION 'Lap distance activation requires maintenance acknowledgement: set velotime.lap_distance_activation=on for the Statistics migration session.';
-                    END IF;
-                END;
-                $acknowledgement$;
-                """);
-
             // Reuse stage one's frozen baseline logic to catch Lap rows written between stages.
             migrationBuilder.Sql(statistics_lap_distance_storage.BackfillLegacyLapDistancesSql);
 

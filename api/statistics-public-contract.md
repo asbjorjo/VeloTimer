@@ -60,11 +60,13 @@ grouped lap totals, including exact ten-row cutoffs.
 
 ## Facility-specific Lap distance and Statistics definition contract
 
-Statistics API and UI now support explicit Fixed and CourseLayout item modes. The rollout is staged:
-the Statistics storage migration adds nullable entry/sample evidence and snapshots existing Lap rows
-while leaving pre-existing definitions Fixed. A separate activation migration completes the final
-sweep and opts the existing Lap item into CourseLayout only during an acknowledged maintenance
-window; see the [Lap distance rollout](../src/Module.Statistics/Storage/LapDistanceRollout.md).
+Statistics API and UI now support explicit Fixed and CourseLayout item modes. The Statistics storage
+migration adds nullable entry/sample evidence and snapshots existing Lap rows while leaving
+pre-existing definitions Fixed. A separate activation migration performs the final catch-up/backfill
+and opts the existing Lap item into CourseLayout. For an existing installation, the administrator
+scales the deployed Statistics processor to zero before the normal Helm upgrade, waits for its pods
+to terminate, and uses the release's intended nonzero processor replica count so the upgraded
+processor starts after the pre-upgrade migration succeeds; see the [Lap distance rollout](../src/Module.Statistics/Storage/LapDistanceRollout.md).
 
 `StatisticsItemDTO` and `SaveStatisticsItemRequest` retain their existing positional fields and add
 optional `DistanceMode` metadata (`Fixed = 0`, `CourseLayout = 1`, numeric enum JSON). A current
@@ -99,12 +101,14 @@ while the item remains Fixed, Hall of Fame uses the configured fixed distance on
 snapshots. It uses persisted snapshots when present. The fallback is never valid for CourseLayout
 mode.
 
-Only after all writers/readers are upgraded and quiesced may a separate activation migration perform
-a final backfill and switch the same intended Lap definition to CourseLayout with `Distance = 0`.
-The activation transaction must ensure no Lap snapshots remain null. After activation, every counted
-CourseLayout result requires a positive finite stored distance snapshot; missing or invalid evidence
-is an error, never a fixed-distance fallback. Preserve entry identities and moderation/profile
-decisions. Do not treat the stage-one migration as activation or enable the sentinel early.
+The normal Helm pre-upgrade activation transaction performs the final backfill and switches the
+same intended Lap definition to CourseLayout with Distance = 0 after the deployed Statistics
+processor has been scaled to zero and its pods have terminated. It must ensure no Lap snapshots
+remain null. After activation, every counted CourseLayout result requires a positive finite stored
+distance snapshot; missing or invalid evidence is an error, never a fixed-distance fallback. Preserve
+entry identities and moderation/profile decisions. Pre-upgrade in-flight Samples without persisted
+layout and closed-loop evidence cannot be reconstructed by the migration and must not be assigned an
+invented fallback. Do not treat the stage-one migration as activation or enable the sentinel early.
 
 Global timed Lap selects and ranks by descending positive finite speed, with earliest completion and
 entry ID tie-breaks. Facility-filtered timed Lap and other timed categories retain duration ranking.
