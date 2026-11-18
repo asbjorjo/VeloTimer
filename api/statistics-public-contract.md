@@ -48,8 +48,9 @@ rows and stable columns, with accessible loading state and reduced-motion suppor
 Presentation converts SI speed using the existing km/h-based display helper only
 at the UI boundary.
 
-No schema migration is required. PostgreSQL tests exercise bounded SQL anti-join
-personal-best selection and grouped lap totals, including exact ten-row cutoffs.
+No schema migration is required. PostgreSQL tests exercise bounded SQL grouped
+(windowed per-profile) personal-best selection and grouped lap totals, including
+exact ten-row cutoffs.
 
 ## Chronological public results
 

@@ -58,18 +58,28 @@ internal static class HallOfFameEndpoints
             return TypedResults.Ok(new HallOfFameDTO(true, [], laps));
         }
 
-        // A correlated anti-join keeps the winning entry's facility/speed together
-        // and applies the top-ten limit in SQL, before materializing any results.
-        var winners = entries.Where(entry => !entries.Any(other =>
-            other.StatsProfileUserId == entry.StatsProfileUserId &&
-            (other.Duration < entry.Duration ||
-             other.Duration == entry.Duration && other.TimeEnd < entry.TimeEnd ||
-             other.Duration == entry.Duration && other.TimeEnd == entry.TimeEnd && other.Id.CompareTo(entry.Id) < 0)));
-        var times = await winners.OrderBy(entry => entry.Duration)
-            .ThenBy(entry => entry.TimeEnd).ThenBy(entry => entry.Id)
+        // Selecting each public profile's first entry (ordered by duration, completion,
+        // then entry id) lets EF Core emit a single windowed query, ROW_NUMBER() OVER
+        // (PARTITION BY profile ORDER BY ...) filtered to row 1 and joined to the profile,
+        // so each winning entry keeps its own facility/speed and the top-ten limit is
+        // applied in SQL before materializing any results. The facility filter already
+        // sits in `entries`, so the partition only sees entries at that facility.
+        // EF Core 10 cannot compose ordering or projection after GroupBy(...).First(),
+        // which is why the per-profile correlated Take(1) is used to express the window.
+        var winners = storage.Set<StatsProfile>().AsNoTracking()
+            .Where(profile => profile.IsPublic)
+            .SelectMany(profile => entries.Where(entry => entry.StatsProfileUserId == profile.UserId)
+                    .OrderBy(entry => entry.Duration).ThenBy(entry => entry.TimeEnd).ThenBy(entry => entry.Id)
+                    .Take(1),
+                (profile, entry) => new
+                {
+                    profile.ProfileName, entry.Id, entry.Duration, entry.TimeEnd, entry.Speed, entry.FacilityId,
+                });
+        var times = await winners.OrderBy(winner => winner.Duration)
+            .ThenBy(winner => winner.TimeEnd).ThenBy(winner => winner.Id)
             .Take(HallOfFameQuery.Limit)
-            .Select(entry => new HallOfFameTimeDTO(entry.StatsProfile!.ProfileName,
-                entry.Duration, entry.Speed, entry.FacilityId))
+            .Select(winner => new HallOfFameTimeDTO(winner.ProfileName,
+                winner.Duration, winner.Speed, winner.FacilityId))
             .ToListAsync(cancellationToken);
         return TypedResults.Ok(new HallOfFameDTO(true, times, []));
     }
