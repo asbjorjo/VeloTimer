@@ -37,6 +37,8 @@ public class TimingSampleHandler(
             CoursePointEndId = distance.CoursePointEndId,
             TimeEnd = message.TimeEnd,
             Distance = distance.Distance,
+            CourseLayoutId = distance.CourseLayoutId,
+            ClosedLoopDistanceMetres = distance.ClosedLoopDistanceMetres,
             Duration = message.TimeEnd - message.TimeStart,
             Speed = distance.Distance / (message.TimeEnd - message.TimeStart).TotalSeconds,
             FacilityId = distance.FacilityId,

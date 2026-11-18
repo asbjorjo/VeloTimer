@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
+using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Storage;
 
@@ -33,10 +34,14 @@ public class StatisticsService(
             var bounds = await ReadCurrentBoundsAsync(statsItems.Select(c => c.Id), cancellationToken);
             foreach (var statsItem in statsItems)
             {
+                if (statsItem.StatisticsItem.DistanceMode is not StatisticsDistanceMode.Fixed
+                    and not StatisticsDistanceMode.CourseLayout)
+                    throw new InvalidOperationException($"Statistics item {statsItem.StatisticsItemId} has an unsupported distance mode.");
                 // Each item has its own start, independent of the completing segment's start.
                 // Include adjacent earlier segments and prefer the persisted current segment when
                 // it covers the entire item, rather than reaching back to a previous lap.
-                if (statsItem.RequiredCoursePointIds.Length > 0)
+                if (statsItem.RequiredCoursePointIds.Length > 0
+                    && statsItem.StatisticsItem.DistanceMode != StatisticsDistanceMode.CourseLayout)
                 {
                     var attempt = await new RequiredCoursePointAttemptReader(storage).ReadAsync(statsItem,
                         transponderId, Persisted(startTime), Persisted(endTime), startPoint, cancellationToken);
@@ -49,6 +54,28 @@ public class StatisticsService(
                     var requiredEntry = CreateSimpleEntry(statsItem, transponderId, Persisted(attempt.TimeStart),
                         Persisted(endTime), attempt.FacilityId, attempt.Satisfied, Bounds(bounds, statsItem.Id));
                     entries = entries.Append(requiredEntry);
+                    continue;
+                }
+                if (statsItem.StatisticsItem.DistanceMode == StatisticsDistanceMode.CourseLayout)
+                {
+                    if (await storage.Set<MultiStatisticsItemConfig>().AsNoTracking()
+                            .AnyAsync(item => item.ParentConfigId == statsItem.Id, cancellationToken))
+                        throw new InvalidOperationException("Multi statistics are not supported for course-layout distance items.");
+                    if (statsItem.CoursePointStart != statsItem.CoursePointEnd)
+                        throw new InvalidOperationException($"Course-layout item {statsItem.StatisticsItemId} must use a simple finish-to-finish configuration.");
+                    var attempt = await new CourseLayoutLapAttemptReader(storage).ReadAsync(statsItem,
+                        transponderId, Persisted(startTime), Persisted(endTime), startPoint, cancellationToken);
+                    if (attempt.ExistingEntry is not null)
+                    {
+                        entries = entries.Append(attempt.ExistingEntry);
+                        continue;
+                    }
+                    if (Persisted(endTime) <= Persisted(attempt.TimeStart))
+                        throw new InvalidOperationException("Course-layout lap duration must be positive to calculate a persisted speed.");
+                    var lapEntry = CreateSimpleEntry(statsItem, transponderId, Persisted(attempt.TimeStart),
+                        Persisted(endTime), attempt.FacilityId, attempt.RequiredCoursePointsSatisfied,
+                        Bounds(bounds, statsItem.Id), attempt.DistanceMetres);
+                    entries = entries.Append(lapEntry);
                     continue;
                 }
                 var start = await storage.Set<Sample>()
@@ -127,15 +154,16 @@ public class StatisticsService(
     }
 
     private static StatisticsEntry CreateSimpleEntry(SimpleStatisticsItemConfig config, Guid transponderId,
-        DateTime start, DateTime end, Guid facilityId, bool checkpointsSatisfied, StatisticsDurationBounds bounds)
+        DateTime start, DateTime end, Guid facilityId, bool checkpointsSatisfied, StatisticsDurationBounds bounds,
+        double? distanceMetres = null)
     {
         var duration = end - start;
         var entry = new StatisticsEntry
         {
             TransponderId = transponderId, TimeStart = start, TimeEnd = end,
             StatisticsItemId = config.StatisticsItem.Id, StatisticsItemConfigId = config.Id,
-            Duration = duration, Speed = config.StatisticsItem.Distance / duration.TotalSeconds,
-            FacilityId = facilityId, RequiredCoursePointsSatisfied = checkpointsSatisfied
+            Duration = duration, Speed = (distanceMetres ?? config.StatisticsItem.Distance) / duration.TotalSeconds,
+            DistanceMetres = distanceMetres, FacilityId = facilityId, RequiredCoursePointsSatisfied = checkpointsSatisfied
         };
         StatisticsValidityEvaluator.Apply(entry, StatisticsValidityEvaluator.Evaluate(duration,
             contributorsValid: true, bounds, checkpointsSatisfied));
@@ -162,6 +190,12 @@ public class StatisticsService(
 
         if (multiItems.Any())
         {
+            var parentDistanceMode = await storage.Set<SimpleStatisticsItemConfig>().AsNoTracking()
+                .Where(c => c.Id == configId).Select(c => (StatisticsDistanceMode?)c.StatisticsItem.DistanceMode)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (parentDistanceMode == StatisticsDistanceMode.CourseLayout
+                || multiItems.Any(item => item.StatisticsItem.DistanceMode == StatisticsDistanceMode.CourseLayout))
+                throw new InvalidOperationException("Multi statistics are not supported for course-layout distance items.");
             await scheduler.LockItemsAsync(multiItems.Select(m => m.StatisticsItemId), StatisticsItemLockMode.Shared, cancellationToken);
             var bounds = await ReadCurrentBoundsAsync(multiItems.Select(m => m.Id), cancellationToken);
             // Required-point completions replay their original creation payload after a failed publish.
