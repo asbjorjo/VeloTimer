@@ -32,6 +32,10 @@ public sealed class HallOfFameTests
         invalid.IsValid = false;
         invalid.InvalidReason = StatisticsEntryInvalidReason.BelowMinimumDuration;
         rows.AddRange([invalid, Entry(config, Profile("Private", false), 1), Entry(config, null, 1)]);
+        // Public profiles must only be ranked by entries for the requested item at the requested facility.
+        // The other item must not share a hall-of-fame name, since the theory also runs for category "200m".
+        rows.Add(Entry(Config("Other item"), Profile("Other item only"), 1));
+        rows.Add(Entry(config, Profile("Other facility only"), 7, PublicStatisticsTestHost.OtherFacility));
         await host.SeedAsync(rows.Cast<object>().ToArray());
         using var client = PublicStatisticsDiscoveryTests.Anonymous(host);
         var global = await Get(client, $"category={category}");
@@ -43,17 +47,22 @@ public sealed class HallOfFameTests
         Assert.Equal(50, global.Times[0].SpeedMetresPerSecond);
         Assert.Equal(PublicStatisticsTestHost.OtherFacility, global.Times[0].FacilityId);
         Assert.Equal(10, global.Times.Select(row => row.ProfileName).Distinct().Count());
+        Assert.DoesNotContain(global.Times, row => row.ProfileName == "Other item only");
+        Assert.Equal("Other facility only", global.Times[1].ProfileName);
+        Assert.Equal(PublicStatisticsTestHost.OtherFacility, global.Times[1].FacilityId);
         var filtered = await Get(client, $"category={category}&facilityId={PublicStatisticsTestHost.Facility}");
         Assert.Equal(TimeSpan.FromSeconds(10), filtered.Times[0].Duration);
         Assert.All(filtered.Times, row => Assert.Equal(PublicStatisticsTestHost.Facility, row.FacilityId));
         Assert.Equal(10, filtered.Times.Count);
+        Assert.DoesNotContain(filtered.Times, row => row.ProfileName is "Other item only" or "Other facility only");
         await host.MutateAsync(async storage =>
             (await storage.Set<StatsProfile>().SingleAsync(profile => profile.UserId == profiles[0].UserId)).IsPublic = false);
         Assert.DoesNotContain((await Get(client, $"category={category}")).Times, row => row.ProfileName == "Rider 1");
         if (postgres)
         {
             var sql = string.Join("\n", host.Sql.Commands.Select(command => command.Text));
-            Assert.Contains("NOT EXISTS", sql, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("ROW_NUMBER() OVER(PARTITION BY", sql, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("NOT EXISTS", sql, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("LIMIT", sql, StringComparison.OrdinalIgnoreCase);
         }
     }
