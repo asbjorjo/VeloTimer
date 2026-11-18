@@ -54,10 +54,14 @@ internal sealed class PublicStatisticsDiscovery(
         var selectedItemIds = parent is null
             ? new[] { config.StatisticsItemId }
             : new[] { config.StatisticsItemId, parent.StatisticsItemId };
-        var itemIds = (await storage.Set<StatisticsItem>().AsNoTracking()
-            .Where(item => selectedItemIds.Contains(item.Id)).Select(item => item.Id)
-            .ToListAsync(cancellationToken)).ToHashSet();
-        var reason = ValidateDefinition(config, parent, itemIds, out var endpoints);
+        var itemModes = await storage.Set<StatisticsItem>().AsNoTracking()
+            .Where(item => selectedItemIds.Contains(item.Id)).ToDictionaryAsync(item => item.Id, item => item.DistanceMode, cancellationToken);
+        var duplicateLoop = config is SimpleStatisticsItemConfig selectedSimple &&
+            itemModes.GetValueOrDefault(config.StatisticsItemId) == StatisticsDistanceMode.CourseLayout &&
+            await storage.Set<SimpleStatisticsItemConfig>().AsNoTracking().AnyAsync(other =>
+                other.Id != config.Id && other.StatisticsItemId == config.StatisticsItemId &&
+                other.CoursePointStart == selectedSimple.CoursePointStart && other.CoursePointEnd == selectedSimple.CoursePointEnd, cancellationToken);
+        var reason = ValidateDefinition(config, parent, itemModes, duplicateLoop, out var endpoints);
         if (reason is not null)
         {
             LogUnavailable(config, reason.Value);
@@ -86,11 +90,14 @@ internal sealed class PublicStatisticsDiscovery(
     public async Task<PublicStatisticsDiscoveryDTO> GetAsync(CancellationToken cancellationToken)
     {
         var items = await storage.Set<StatisticsItem>().AsNoTracking()
-            .Select(item => new StatisticsItemDTO(item.Id, item.Name, item.Description, item.Distance, item.MinDuration, item.MaxDuration))
+            .Select(item => new StatisticsItemDTO(item.Id, item.Name, item.Description, item.Distance, item.MinDuration, item.MaxDuration) { DistanceMode = item.DistanceMode })
             .ToListAsync(cancellationToken);
         var definitions = await storage.Set<StatisticsItemConfig>().AsNoTracking().OrderBy(config => config.Id)
             .ToListAsync(cancellationToken);
-        var itemIds = items.Select(item => item.Id).ToHashSet();
+        var itemModes = items.ToDictionary(item => item.Id, item => item.DistanceMode ?? StatisticsDistanceMode.Fixed);
+        var duplicateLoops = definitions.OfType<SimpleStatisticsItemConfig>()
+            .GroupBy(config => (config.StatisticsItemId, config.CoursePointStart, config.CoursePointEnd))
+            .Where(group => group.Count() > 1).Select(group => group.Key).ToHashSet();
         var simpleParents = definitions.OfType<SimpleStatisticsItemConfig>().ToDictionary(config => config.Id);
         var resolvedFacilities = new Dictionary<Guid, Guid?>();
         var resolvedPoints = new Dictionary<Guid, (Guid? Facility, string? Name)>();
@@ -117,7 +124,9 @@ internal sealed class PublicStatisticsDiscovery(
         {
             var parent = config is MultiStatisticsItemConfig multi
                 ? simpleParents.GetValueOrDefault(multi.ParentConfigId) : null;
-            var reason = ValidateDefinition(config, parent, itemIds, out var simple);
+            var duplicateLoop = config is SimpleStatisticsItemConfig candidate &&
+                duplicateLoops.Contains((candidate.StatisticsItemId, candidate.CoursePointStart, candidate.CoursePointEnd));
+            var reason = ValidateDefinition(config, parent, itemModes, duplicateLoop, out var simple);
             if (reason is not null)
             {
                 Unavailable(config, reason.Value);
@@ -150,25 +159,34 @@ internal sealed class PublicStatisticsDiscovery(
     }
 
     private static PublicStatisticsConfigurationUnavailableReason? ValidateDefinition(
-        StatisticsItemConfig config, SimpleStatisticsItemConfig? parent, IReadOnlySet<Guid> itemIds,
-        out SimpleStatisticsItemConfig? endpoints)
+        StatisticsItemConfig config, SimpleStatisticsItemConfig? parent, IReadOnlyDictionary<Guid, StatisticsDistanceMode> itemModes,
+        bool duplicateLoop, out SimpleStatisticsItemConfig? endpoints)
     {
         endpoints = null;
         if (config.Id == Guid.Empty || config.StatisticsItemId == Guid.Empty)
             return PublicStatisticsConfigurationUnavailableReason.InvalidDefinition;
-        if (!itemIds.Contains(config.StatisticsItemId))
+        if (!itemModes.TryGetValue(config.StatisticsItemId, out var mode))
             return PublicStatisticsConfigurationUnavailableReason.MissingItem;
-        if (config is SimpleStatisticsItemConfig simple) endpoints = simple;
+        if (mode is not (StatisticsDistanceMode.Fixed or StatisticsDistanceMode.CourseLayout))
+            return PublicStatisticsConfigurationUnavailableReason.InvalidDefinition;
+        if (config is SimpleStatisticsItemConfig simple)
+        {
+            if (mode == StatisticsDistanceMode.CourseLayout && (simple.CoursePointStart != simple.CoursePointEnd || duplicateLoop))
+                return PublicStatisticsConfigurationUnavailableReason.InvalidDefinition;
+            endpoints = simple;
+        }
         else if (config is MultiStatisticsItemConfig multi)
         {
-            if (multi.ParentConfigId == Guid.Empty || multi.Repetitions <= 0)
+            if (mode == StatisticsDistanceMode.CourseLayout || multi.ParentConfigId == Guid.Empty || multi.Repetitions <= 0)
                 return PublicStatisticsConfigurationUnavailableReason.InvalidDefinition;
             if (parent is null)
                 return PublicStatisticsConfigurationUnavailableReason.MissingSimpleParent;
             if (parent.StatisticsItemId == Guid.Empty)
                 return PublicStatisticsConfigurationUnavailableReason.InvalidDefinition;
-            if (!itemIds.Contains(parent.StatisticsItemId))
+            if (!itemModes.TryGetValue(parent.StatisticsItemId, out var parentMode))
                 return PublicStatisticsConfigurationUnavailableReason.MissingItem;
+            if (parentMode != StatisticsDistanceMode.Fixed)
+                return PublicStatisticsConfigurationUnavailableReason.InvalidDefinition;
             endpoints = parent;
         }
         else return PublicStatisticsConfigurationUnavailableReason.InvalidDefinition;

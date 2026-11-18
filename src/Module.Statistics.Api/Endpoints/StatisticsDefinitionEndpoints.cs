@@ -27,11 +27,13 @@ internal static class StatisticsDefinitionEndpoints
 
     private static async Task<Ok<List<StatisticsItemDTO>>> ListItems(StatisticsDbContext storage, CancellationToken cancellationToken) =>
         TypedResults.Ok(await storage.Set<StatisticsItem>().AsNoTracking().OrderBy(item => item.Name)
-            .Select(item => new StatisticsItemDTO(item.Id, item.Name, item.Description, item.Distance, item.MinDuration, item.MaxDuration)).ToListAsync(cancellationToken));
+            .Select(item => new StatisticsItemDTO(item.Id, item.Name, item.Description, item.Distance, item.MinDuration, item.MaxDuration) { DistanceMode = item.DistanceMode }).ToListAsync(cancellationToken));
 
-    private static string? ValidateItem(SaveStatisticsItemRequest request) =>
+    private static string? ValidateItem(SaveStatisticsItemRequest request, StatisticsDistanceMode mode) =>
         string.IsNullOrWhiteSpace(request.Name) ? "Name is required." :
-        !float.IsFinite(request.Distance) || request.Distance <= 0 ? "Distance must be a finite positive number of metres." :
+        mode is not (StatisticsDistanceMode.Fixed or StatisticsDistanceMode.CourseLayout) ? "Unknown distance mode." :
+        mode == StatisticsDistanceMode.Fixed && (!float.IsFinite(request.Distance) || request.Distance <= 0) ? "Distance must be a finite positive number of metres." :
+        mode == StatisticsDistanceMode.CourseLayout && request.Distance != 0 ? "CourseLayout distance must be zero." :
         ValidateBounds(request.MinDuration, request.MaxDuration);
 
     private static string? ValidateBounds(TimeSpan? minimum, TimeSpan? maximum)
@@ -51,7 +53,7 @@ internal static class StatisticsDefinitionEndpoints
         SaveStatisticsItemRequest request, StatisticsDbContext storage, StatisticsValidityScheduler scheduler, CancellationToken cancellationToken)
         => await StatisticsDefinitionTransaction.RunAsync<Results<Created<StatisticsItemDTO>, ProblemHttpResult>>(storage, async () =>
     {
-        if (ValidateItem(request) is { } error)
+        if (ValidateItem(request, request.DistanceMode ?? StatisticsDistanceMode.Fixed) is { } error)
         {
             return Invalid(error);
         }
@@ -62,6 +64,7 @@ internal static class StatisticsDefinitionEndpoints
             Name = request.Name.Trim(),
             Description = request.Description ?? "",
             Distance = request.Distance,
+            DistanceMode = request.DistanceMode ?? StatisticsDistanceMode.Fixed,
             MinDuration = request.MinDuration,
             MaxDuration = request.MaxDuration
         };
@@ -82,14 +85,25 @@ internal static class StatisticsDefinitionEndpoints
             await scheduler.LockThresholdScopeAsync(id, true, cancellationToken);
             var item = await storage.Set<StatisticsItem>().FindAsync([id], cancellationToken);
             if (item is null) return TypedResults.NotFound();
-            if (ValidateItem(request) is { } error) return Invalid(error);
+            var mode = request.DistanceMode ?? item.DistanceMode;
+            if (ValidateItem(request, mode) is { } error) return Invalid(error);
             var configs = await storage.Set<StatisticsItemConfig>()
                 .Where(config => config.StatisticsItemId == id).ToListAsync(cancellationToken);
             if (configs.Any(config => StatisticsDurationBounds.Effective(request.MinDuration, request.MaxDuration,
                 config.MinDuration, config.MaxDuration).IsDisjoint))
                 return Invalid("Global bounds are disjoint from an existing configuration's effective range.");
+            if (mode == StatisticsDistanceMode.CourseLayout)
+            {
+                if (configs.Any(config => config is not SimpleStatisticsItemConfig) ||
+                    configs.OfType<SimpleStatisticsItemConfig>().Any(config => config.CoursePointStart == Guid.Empty || config.CoursePointStart != config.CoursePointEnd) ||
+                    configs.OfType<SimpleStatisticsItemConfig>().GroupBy(config => config.CoursePointStart).Any(group => group.Count() > 1))
+                    return Invalid("CourseLayout requires unique Simple loop configurations.");
+                var simpleIds = configs.OfType<SimpleStatisticsItemConfig>().Select(config => config.Id).ToArray();
+                if (await storage.Set<MultiStatisticsItemConfig>().AnyAsync(config => simpleIds.Contains(config.ParentConfigId), cancellationToken))
+                    return Conflict("CourseLayout configurations cannot have Multi dependents.");
+            }
             var configIds = configs.Select(config => config.Id).ToArray();
-            if (item.Distance != request.Distance && await storage.Set<StatisticsEntry>()
+            if ((item.Distance != request.Distance || item.DistanceMode != mode) && await storage.Set<StatisticsEntry>()
                 .AnyAsync(entry => entry.StatisticsItemId == id || configIds.Contains(entry.StatisticsItemConfigId), cancellationToken))
             {
                 return Conflict("Recorded results depend on this distance. Create a new definition instead.");
@@ -101,6 +115,7 @@ internal static class StatisticsDefinitionEndpoints
             item.Name = request.Name.Trim();
             item.Description = request.Description ?? "";
             item.Distance = request.Distance;
+            item.DistanceMode = mode;
             cacheKeys = configs.SelectMany(CacheKeysFor).ToArray();
             await storage.SaveChangesAsync(cancellationToken);
             if (thresholdsChanged)
@@ -139,7 +154,7 @@ internal static class StatisticsDefinitionEndpoints
     }
 
     private static async Task<string?> ValidateConfiguration(SaveStatisticsConfigurationRequest request,
-        StatisticsDbContext storage, ICoursePointReferences points, ICourseLayoutReferences layouts, CancellationToken cancellationToken)
+        StatisticsDbContext storage, ICoursePointReferences points, ICourseLayoutReferences layouts, CancellationToken cancellationToken, Guid? configId = null)
     {
         if (ValidateBounds(request.MinDuration, request.MaxDuration) is { } error) return error;
         var item = await storage.Set<StatisticsItem>().FindAsync([request.StatisticsItemId], cancellationToken);
@@ -151,6 +166,14 @@ internal static class StatisticsDefinitionEndpoints
             if (request.CoursePointStart.GetValueOrDefault() == Guid.Empty ||
                 request.CoursePointEnd.GetValueOrDefault() == Guid.Empty) return "Start and end coursepoints are required.";
             if (request.ParentConfigId is not null || request.Repetitions is not null) return "Simple configurations cannot have a parent or repetitions.";
+            if (item.DistanceMode == StatisticsDistanceMode.CourseLayout)
+            {
+                if (request.CoursePointStart != request.CoursePointEnd) return "CourseLayout requires a Simple loop with identical start and end.";
+                if (await storage.Set<SimpleStatisticsItemConfig>().AnyAsync(config => config.StatisticsItemId == item.Id && config.Id != configId && config.CoursePointStart == request.CoursePointStart && config.CoursePointEnd == request.CoursePointEnd, cancellationToken))
+                    return "A CourseLayout loop configuration already exists for this item and coursepoint.";
+                if (configId is { } id && await storage.Set<MultiStatisticsItemConfig>().AnyAsync(config => config.ParentConfigId == id, cancellationToken))
+                    return "CourseLayout configurations cannot have Multi dependents.";
+            }
             var startFacility = await points.GetFacilityAsync(request.CoursePointStart!.Value, cancellationToken);
             var endFacility = request.CoursePointStart == request.CoursePointEnd ? startFacility : await points.GetFacilityAsync(request.CoursePointEnd!.Value, cancellationToken);
             if (startFacility is null || endFacility is null || startFacility != endFacility) return "Both coursepoints must exist in the same facility.";
@@ -185,10 +208,13 @@ internal static class StatisticsDefinitionEndpoints
         }
         else if (request.Type == StatisticsConfigurationType.Multi)
         {
+            if (item.DistanceMode == StatisticsDistanceMode.CourseLayout) return "CourseLayout items cannot have Multi configurations.";
             if (request.RequiredCoursePoints is not null) return "Multi configurations inherit requirements from their Simple parent.";
             if (request.CoursePointStart is not null || request.CoursePointEnd is not null) return "Multi configurations inherit their coursepoints from their parent.";
             if (request.Repetitions is null or <= 0) return "Repetitions must be a positive integer.";
-            if (!await storage.Set<SimpleStatisticsItemConfig>().AnyAsync(config => config.Id == request.ParentConfigId, cancellationToken)) return "Select an existing Simple configuration as the parent.";
+            var parent = await storage.Set<SimpleStatisticsItemConfig>().Include(config => config.StatisticsItem).SingleOrDefaultAsync(config => config.Id == request.ParentConfigId, cancellationToken);
+            if (parent is null) return "Select an existing Simple configuration as the parent.";
+            if (parent.StatisticsItem.DistanceMode == StatisticsDistanceMode.CourseLayout) return "Multi configurations cannot depend on CourseLayout items.";
         }
         else return "Unknown configuration type.";
         return null;
@@ -252,7 +278,7 @@ internal static class StatisticsDefinitionEndpoints
             var proposedRequest = config is SimpleStatisticsItemConfig existingSimple && request.RequiredCoursePoints is null
                 ? request with { RequiredCoursePoints = new(existingSimple.RequiredCourseLayoutId, existingSimple.RequiredCoursePointIds.ToArray()) }
                 : request;
-            if (await ValidateConfiguration(proposedRequest, storage, points, layouts, cancellationToken) is { } error) return Invalid(error);
+            if (await ValidateConfiguration(proposedRequest, storage, points, layouts, cancellationToken, id) is { } error) return Invalid(error);
             var proposed = new StatisticsConfigurationDTO(id, request.StatisticsItemId, request.Type, request.CoursePointStart, request.CoursePointEnd, request.ParentConfigId, request.Repetitions)
             { RequiredCoursePoints = proposedRequest.RequiredCoursePoints };
             var childIds = storage.Set<MultiStatisticsItemConfig>().Where(child => child.ParentConfigId == id).Select(child => child.Id);
@@ -363,7 +389,7 @@ internal static class StatisticsDefinitionEndpoints
         throw new InvalidOperationException("Unknown statistics configuration type.");
     }
 
-    private static StatisticsItemDTO ToDto(StatisticsItem item) => new(item.Id, item.Name, item.Description, item.Distance, item.MinDuration, item.MaxDuration);
+    private static StatisticsItemDTO ToDto(StatisticsItem item) => new(item.Id, item.Name, item.Description, item.Distance, item.MinDuration, item.MaxDuration) { DistanceMode = item.DistanceMode };
     private static StatisticsConfigurationDTO ToDto(StatisticsItemConfig config) => config switch
     {
         SimpleStatisticsItemConfig simple => new(simple.Id, simple.StatisticsItemId, StatisticsConfigurationType.Simple, simple.CoursePointStart, simple.CoursePointEnd, null, null, simple.MinDuration, simple.MaxDuration)
