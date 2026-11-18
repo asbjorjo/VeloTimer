@@ -10,8 +10,8 @@ public enum StatisticsDistanceMode
 }
 
 /// <summary>Statistics item definition. Distance is metres and is authoritative only in Fixed mode.
-/// A null DistanceMode is the legacy Fixed mode. In CourseLayout mode Distance is zero solely for
-/// wire compatibility and MUST NOT be used as an actual or fallback distance.
+/// An omitted or null DistanceMode in a legacy response means Fixed. In CourseLayout mode Distance
+/// is zero solely for wire compatibility and MUST NOT be used as an actual or fallback distance.
 /// </summary>
 public sealed record StatisticsItemDTO(
     Guid Id,
@@ -21,12 +21,13 @@ public sealed record StatisticsItemDTO(
     TimeSpan? MinDuration = null,
     TimeSpan? MaxDuration = null)
 {
-    /// <summary>Omitted/null means Fixed for responses produced before this discriminator existed.</summary>
+    /// <summary>Current responses set the mode; omitted/null in a legacy response means Fixed.</summary>
     public StatisticsDistanceMode? DistanceMode { get; init; }
 }
 
-/// <summary>Save a Statistics item. Omitted/null DistanceMode means Fixed for legacy callers.
-/// CourseLayout requests send Distance=0 only as a non-authoritative compatibility sentinel.
+/// <summary>Save a Statistics item. On create, omitted/null DistanceMode means Fixed. On update,
+/// omitted/null preserves the existing mode so legacy clients cannot accidentally change it.
+/// Specify a mode to change it. CourseLayout uses Distance=0 only as a non-authoritative sentinel.
 /// </summary>
 public sealed record SaveStatisticsItemRequest(
     string Name,
@@ -35,7 +36,7 @@ public sealed record SaveStatisticsItemRequest(
     TimeSpan? MinDuration = null,
     TimeSpan? MaxDuration = null)
 {
-    /// <summary>Omitted/null means Fixed; CourseLayout is explicit and never inferred from the name.</summary>
+    /// <summary>POST omission/null means Fixed; PUT omission/null preserves the stored mode. An explicit value changes it.</summary>
     public StatisticsDistanceMode? DistanceMode { get; init; }
 }
 
