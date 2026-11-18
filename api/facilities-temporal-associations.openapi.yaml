@@ -165,7 +165,9 @@ paths:
         `startAt` resolves the start timing point and `endAt` resolves the end timing point.
         Each omitted value independently defaults to the same single UTC `now` captured for
         the request. This supports a sample spanning a reassignment. Unassociated timing points
-        return 404; incompatible facilities or course paths return 422.
+        return 404; incompatible facilities or course paths return 422. Additive closed-loop
+        evidence is paired unique-layout metadata only for a finite positive full closed circuit;
+        endpoint equality alone is insufficient.
       responses:
         '200':
           description: Resolved endpoints and course distance in metres.
@@ -447,6 +449,21 @@ components:
         facilityId:
           type: string
           format: uuid
+        courseLayoutId:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            Unique layout identity for valid closed-loop evidence; otherwise null or omitted.
+        closedLoopDistanceMetres:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+          exclusiveMinimum: true
+          description: >-
+            Full closed-loop length in metres, not endpoint distance; finite, positive, and
+            paired with courseLayoutId.
     SetCoursePointTimingLinkRequest:
       type: object
       required: [timingPointId]
