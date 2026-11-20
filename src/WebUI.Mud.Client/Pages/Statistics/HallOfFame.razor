@@ -122,15 +122,21 @@
         _tabIndex = HallOfFameQuery.Categories.ToList().IndexOf(request.Category);
 
         var facilities = EnsureFacilitiesLoadedAsync();
-        var preload = PreloadAsync(request.FacilityId);
+        var preload = request.FacilityId.HasValue ? Task.CompletedTask : PreloadAsync(null);
         await facilities;
         if (!_disposed && selectionVersion == _selectionVersion)
         {
-            if (!_facilityError && request.FacilityId.HasValue &&
-                !_facilities.Any(facility => facility.Id == request.FacilityId))
+            if (!_facilityError && request.FacilityId.HasValue)
             {
-                Logger.LogInformation("Hall of Fame facility {FacilityId} is unavailable.", request.FacilityId);
-                _invalidSelection = true;
+                if (_facilities.Any(facility => facility.Id == request.FacilityId))
+                {
+                    preload = PreloadAsync(request.FacilityId);
+                }
+                else
+                {
+                    Logger.LogInformation("Hall of Fame facility {FacilityId} is unavailable.", request.FacilityId);
+                    _invalidSelection = true;
+                }
             }
             StateHasChanged();
         }
