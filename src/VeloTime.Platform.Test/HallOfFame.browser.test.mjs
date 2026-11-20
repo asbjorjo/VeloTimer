@@ -193,6 +193,11 @@ test('Hall of Fame preserves URL selections and fixed skeleton table geometry', 
     await page.getByRole('alert').filter({ hasText: 'Select an available facility' }).waitFor();
     await page.getByRole('link', { name: 'Show global lap rankings', exact: true }).click();
     await table().getByText('No eligible public results yet.', { exact: true }).waitFor();
+    const beforeUnavailableFacility = await categoryRequestCounts();
+    await page.goto(`${baseUrl}/hall-of-fame?tab=lap&facilityId=8a6b1234-5678-90ab-cdef-1234567890ab`);
+    await page.getByRole('alert').filter({ hasText: 'Select an available facility' }).waitFor();
+    await assertCategoryDelta(beforeUnavailableFacility, {},
+      'a well-formed but unavailable facility is rejected before Hall of Fame requests');
     await scenario('results-error');
     await page.reload();
     await page.getByRole('alert').filter({ hasText: 'Hall of Fame could not be loaded' }).waitFor();
