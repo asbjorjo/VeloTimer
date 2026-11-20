@@ -1,0 +1,257 @@
+@page "/hall-of-fame"
+@inherits PresentationComponentBase
+@using Microsoft.AspNetCore.WebUtilities
+@using VeloTime.Module.Statistics.Interface.Data
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@inject IStatisticsService Statistics
+@inject IFacilityService Facilities
+@inject NavigationManager Navigation
+@inject ILogger<HallOfFame> Logger
+@implements IDisposable
+
+<PageTitle>@L["HallOfFame"]</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6" Style="min-width:0;overflow:hidden;">
+    <MudText Typo="Typo.h4" HtmlTag="h1" Class="mb-2">@L["HallOfFame"]</MudText>
+    <MudText Class="mb-4">@L["HallOfFameDescription"]</MudText>
+    <MudSelect T="string" InputId="hall-of-fame-facility" Value="@(_request.FacilityId?.ToString("D") ?? "")"
+               ValueChanged="FacilityChanged" Label="@L["Facility"]" Class="mb-4"
+               Disabled="@_loadingFacilities">
+        <MudSelectItem T="string" Value="@string.Empty">@L["HallOfFameAllFacilities"]</MudSelectItem>
+        @foreach (var facility in _facilities)
+        {
+            <MudSelectItem T="string" Value="@facility.Id.ToString("D")">@facility.Name</MudSelectItem>
+        }
+    </MudSelect>
+    @if (_invalidSelection)
+    {
+        <MudAlert Severity="Severity.Warning" role="alert">@L["HallOfFameInvalidSelection"]</MudAlert>
+        <MudButton Href="/hall-of-fame">@L["HallOfFameReset"]</MudButton>
+    }
+    else if (_facilityError)
+    {
+        <MudAlert Severity="Severity.Error" role="alert">@L["HallOfFameError"]</MudAlert>
+        <MudButton OnClick="LoadAsync">@L["Retry"]</MudButton>
+    }
+    @if (!_invalidSelection && !_facilityError)
+    {
+        <MudTabs ActivePanelIndex="_tabIndex" ActivePanelIndexChanged="TabChanged" Outlined="true" Rounded="true" Style="min-width:0;max-width:100%;">
+            @foreach (var category in HallOfFameQuery.Categories)
+            {
+                var state = GetState(category);
+                <MudTabPanel Text="@TabLabel(category)" ID="@category">
+                    @if (state?.Failed == true)
+                    {
+                        <MudAlert Severity="Severity.Error" role="alert">@L["HallOfFameError"]</MudAlert>
+                        <MudButton OnClick="@(() => RetryCategoryAsync(category))">@L["Retry"]</MudButton>
+                    }
+                    else
+                    {
+                        <HallOfFameTable Loading="@(state?.Loading ?? true)" LapCounter="@(category == "laps")"
+                                         SpeedRanked="@(category == "lap" && !_request.FacilityId.HasValue)" Results="@state?.Results" />
+                    }
+                </MudTabPanel>
+            }
+        </MudTabs>
+    }
+    else
+    {
+        <MudTabs ActivePanelIndex="_tabIndex" ActivePanelIndexChanged="TabChanged" Outlined="true" Style="min-width:0;max-width:100%;">
+            @foreach (var category in HallOfFameQuery.Categories)
+            {
+                <MudTabPanel Text="@TabLabel(category)" ID="@category" />
+            }
+        </MudTabs>
+    }
+</MudContainer>
+
+@code {
+    [Parameter, SupplyParameterFromQuery(Name = "tab")] public string? Tab { get; set; }
+    [Parameter, SupplyParameterFromQuery(Name = "facilityId")] public string? FacilityId { get; set; }
+
+    private HallOfFameRequest _request = new("lap");
+    private readonly CancellationTokenSource _lifetime = new();
+    private readonly Dictionary<HallOfFameCacheKey, HallOfFameCacheEntry> _cache = [];
+    private readonly Dictionary<string, Task> _preloads = new(StringComparer.Ordinal);
+    private IReadOnlyList<FacilityView> _facilities = [];
+    private Task? _facilitiesLoad;
+    private bool _facilitiesLoaded;
+    private bool _loadingFacilities = true;
+    private bool _invalidSelection;
+    private bool _facilityError;
+    private bool _disposed;
+    private int _tabIndex;
+    private int _selectionVersion;
+    private string? _lastHandledUri;
+
+    private readonly record struct HallOfFameCacheKey(string Category, string Facility);
+
+    private sealed class HallOfFameCacheEntry
+    {
+        public bool Loading { get; set; } = true;
+        public bool Failed { get; set; }
+        public HallOfFameView? Results { get; set; }
+    }
+
+    protected override Task OnParametersSetAsync()
+    {
+        var uri = Navigation.Uri;
+        if (string.Equals(uri, _lastHandledUri, StringComparison.Ordinal)) return Task.CompletedTask;
+        _lastHandledUri = uri;
+        return LoadAsync();
+    }
+
+    private HallOfFameCacheEntry? GetState(string category) =>
+        _cache.GetValueOrDefault(CacheKey(category, _request.FacilityId));
+
+    private async Task LoadAsync()
+    {
+        var selectionVersion = ++_selectionVersion;
+        var query = QueryHelpers.ParseQuery(new Uri(Navigation.Uri).Query);
+        _invalidSelection = query.Any(pair => pair.Value.Count != 1) ||
+            query.ContainsKey("category");
+        var values = query.Where(pair => pair.Key != "category")
+            .ToDictionary(pair => pair.Key == "tab" ? "category" : pair.Key, pair => (string?)pair.Value[0]);
+        if (!HallOfFameQuery.TryParse(values, out var request, out _)) _invalidSelection = true;
+        if (_invalidSelection)
+        {
+            Logger.LogInformation("Rejected invalid Hall of Fame URL selection.");
+            if (_facilitiesLoad is null || _facilitiesLoad.IsCompleted) _loadingFacilities = false;
+            return;
+        }
+        _request = request;
+        _tabIndex = HallOfFameQuery.Categories.ToList().IndexOf(request.Category);
+
+        var facilities = EnsureFacilitiesLoadedAsync();
+        var preload = request.FacilityId.HasValue ? Task.CompletedTask : PreloadAsync(null);
+        await facilities;
+        if (!_disposed && selectionVersion == _selectionVersion)
+        {
+            if (!_facilityError && request.FacilityId.HasValue)
+            {
+                if (_facilities.Any(facility => facility.Id == request.FacilityId))
+                {
+                    preload = PreloadAsync(request.FacilityId);
+                }
+                else
+                {
+                    Logger.LogInformation("Hall of Fame facility {FacilityId} is unavailable.", request.FacilityId);
+                    _invalidSelection = true;
+                }
+            }
+            StateHasChanged();
+        }
+        await preload;
+    }
+
+    private Task EnsureFacilitiesLoadedAsync()
+    {
+        if (_facilitiesLoaded) return Task.CompletedTask;
+        if (_facilitiesLoad is not null && !_facilitiesLoad.IsCompleted) return _facilitiesLoad;
+        _facilityError = false;
+        _loadingFacilities = true;
+        return _facilitiesLoad = LoadFacilitiesAsync();
+    }
+
+    private async Task LoadFacilitiesAsync()
+    {
+        try
+        {
+            _facilities = (await Facilities.GetFacilitiesAsync(_lifetime.Token))
+                .OrderBy(facility => facility.Name, StringComparer.CurrentCulture)
+                .ThenBy(facility => facility.Id).ToArray();
+            _facilitiesLoaded = true;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception exception) when (IsExpectedLoadFailure(exception))
+        {
+            Logger.LogWarning(exception, "Hall of Fame facilities could not be loaded.");
+            _facilityError = true;
+        }
+        finally
+        {
+            _loadingFacilities = false;
+        }
+    }
+
+    private Task PreloadAsync(Guid? facilityId)
+    {
+        var facilityKey = FacilityKey(facilityId);
+        if (_preloads.TryGetValue(facilityKey, out var existing)) return existing;
+
+        var loads = HallOfFameQuery.Categories
+            .Select(category => LoadCategoryAsync(category, facilityId))
+            .ToArray();
+        var preload = Task.WhenAll(loads);
+        _preloads.Add(facilityKey, preload);
+        return preload;
+    }
+
+    private Task RetryCategoryAsync(string category) =>
+        GetState(category)?.Failed == true
+            ? LoadCategoryAsync(category, _request.FacilityId)
+            : Task.CompletedTask;
+
+    private async Task LoadCategoryAsync(string category, Guid? facilityId)
+    {
+        var key = CacheKey(category, facilityId);
+        var state = new HallOfFameCacheEntry();
+        _cache[key] = state;
+        try
+        {
+            state.Results = await Statistics.GetHallOfFameAsync(
+                new HallOfFameRequest(category, facilityId), _lifetime.Token);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception exception) when (IsExpectedLoadFailure(exception))
+        {
+            Logger.LogWarning(exception, "Hall of Fame category {Category} could not be loaded.", category);
+            state.Failed = true;
+        }
+        finally
+        {
+            state.Loading = false;
+            if (!_disposed && !_lifetime.IsCancellationRequested)
+                await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private static bool IsExpectedLoadFailure(Exception exception) =>
+        exception is HttpRequestException or OperationCanceledException or System.Text.Json.JsonException or InvalidDataException;
+
+    private static HallOfFameCacheKey CacheKey(string category, Guid? facilityId) =>
+        new(category, FacilityKey(facilityId));
+
+    private static string FacilityKey(Guid? facilityId) => facilityId?.ToString("N") ?? "all";
+
+    private void TabChanged(int index)
+    {
+        if (index >= 0 && index < HallOfFameQuery.Categories.Count && index != _tabIndex)
+        {
+            _tabIndex = index;
+            Navigate(HallOfFameQuery.Categories[index], _request.FacilityId?.ToString("D"));
+        }
+    }
+
+    private string TabLabel(string category) => category switch
+    {
+        "lap" => L["HallOfFameLap"].Value,
+        "laps" => L["HallOfFameLapCount"].Value,
+        _ => category
+    };
+
+    private void FacilityChanged(string value) => Navigate(_request.Category, string.IsNullOrEmpty(value) ? null : value);
+
+    private void Navigate(string category, string? facilityId)
+    {
+        var query = new Dictionary<string, string?> { ["tab"] = category };
+        if (!string.IsNullOrEmpty(facilityId)) query["facilityId"] = facilityId;
+        Navigation.NavigateTo(QueryHelpers.AddQueryString("/hall-of-fame", query));
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

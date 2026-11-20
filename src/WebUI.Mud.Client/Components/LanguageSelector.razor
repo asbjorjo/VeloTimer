@@ -1,0 +1,93 @@
+@using Microsoft.Extensions.Localization
+@using System.Globalization
+@inject IStringLocalizer<SharedResource> L
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject UnsavedChangesTracker UnsavedChanges
+
+<div class="@(IsAppBar ? "app-bar-language-selector" : null)">
+    <MudSelect T="string" Value="@_language" ValueChanged="ChangeLanguage" Label="@L["Language"]"
+               Dense="true"
+               Style="@(IsAppBar ? "width: 96px;" : null)"
+               Variant="Variant.Outlined" Class="language-selector" Disabled="_loading"
+               aria-label="@L["ChangeLanguage"]">
+        <MudSelectItem Value="@("en")">@L["EnglishNative"]</MudSelectItem>
+        <MudSelectItem Value="@("nb-NO")">@L["NorwegianNative"]</MudSelectItem>
+    </MudSelect>
+</div>
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Error" Dense="true" aria-live="assertive">@L[_error]</MudAlert>
+    <MudButton Size="Size.Small" OnClick="Retry">@L["Retry"]</MudButton>
+}
+
+@code {
+    [Parameter]
+    public bool IsAppBar { get; set; }
+
+    private string _language = "en";
+    private string? _error;
+    private string? _failedLanguage;
+    private bool _loading = true;
+
+    protected override void OnInitialized() =>
+        _language = CultureInfo.CurrentUICulture.Name == "nb-NO" ? "nb-NO" : "en";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+        await LoadState();
+        _loading = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadState()
+    {
+        try
+        {
+            var state = await JS.InvokeAsync<LanguageState>("velotimeLanguage.state");
+            _language = state.Language == "nb-NO" ? "nb-NO" : "en";
+            _error = state.PreferenceUnavailable ? "LanguagePreferenceUnavailable" : null;
+        }
+        catch
+        {
+            _error = "LanguagePreferenceUnavailable";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ChangeLanguage(string language)
+    {
+        if (language is not ("en" or "nb-NO") || language == _language)
+            return;
+
+        if (UnsavedChanges.HasUnsavedChanges &&
+            !await JS.InvokeAsync<bool>("confirm", L["KeepEditing"].Value))
+            return;
+
+        _failedLanguage = language;
+        try
+        {
+            var returnUrl = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+            await JS.InvokeVoidAsync("velotimeLanguage.select", language, returnUrl);
+        }
+        catch
+        {
+            _error = "LanguageSaveFailed";
+        }
+    }
+
+    private async Task Retry()
+    {
+        if (_failedLanguage is not null)
+            await ChangeLanguage(_failedLanguage);
+        else
+            await LoadState();
+    }
+
+    private sealed record LanguageState(string Language, bool PreferenceUnavailable);
+}

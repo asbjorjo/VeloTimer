@@ -1,0 +1,40 @@
+.table-scroll {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    min-width: 560px;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+table.laps { min-width: 420px; }
+.profile-column { width: 30%; }
+.value-column { width: 23%; }
+.speed-column { width: 25%; }
+.facility-column { width: 22%; }
+.laps .profile-column { width: 40%; }
+.laps .value-column { width: 25%; }
+.laps .speed-column { width: 35%; }
+
+tr { height: 48px; }
+th, td {
+    padding: 8px 12px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid var(--mud-palette-divider);
+}
+
+th { font-weight: 500; }
+.numeric { text-align: right; }
+.placeholder-row td { border-bottom-color: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+    .hall-of-fame-table ::deep .mud-skeleton,
+    .hall-of-fame-table ::deep .mud-skeleton::after {
+        animation: none !important;
+    }
+}

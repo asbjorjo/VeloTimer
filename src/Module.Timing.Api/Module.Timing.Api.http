@@ -1,0 +1,17 @@
+@Module.Timing.Api_HostAddress = http://localhost:5063
+
+GET {{Module.Timing.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+
+### Cross-domain administration read; use authoritative Statistics entry transponder and bounds
+@transponderId = 00000000-0000-0000-0000-000000000001
+@adminToken = REPLACE_WITH_ACCESS_TOKEN
+GET {{Module.Timing.Api_HostAddress}}/api/timing/passings?transponderId={{transponderId}}&from=2026-11-17T08:00:00Z&to=2026-11-17T08:10:00Z
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### Exactly seven days is supported (encode a plus offset as %2B00:00)
+GET {{Module.Timing.Api_HostAddress}}/api/timing/passings?transponderId={{transponderId}}&from=2026-11-10T08:00:00%2B00:00&to=2026-11-17T08:00:00Z
+Authorization: Bearer {{adminToken}}

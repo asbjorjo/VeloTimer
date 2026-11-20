@@ -1,0 +1,330 @@
+using System.Net;
+using System.Globalization;
+using System.Text.Json;
+using VeloTime.Module.Statistics.Client;
+using VeloTime.Module.Common;
+using VeloTime.WebUI.Mud.Client.Services;
+using Contracts = VeloTime.Module.Statistics.Interface.Data;
+using TimingContracts = VeloTime.Module.Timing.Interface.Data;
+
+namespace VeloTime.WebUI.Mud.Services;
+
+public sealed class StatisticsAdministrationService(IStatisticsClient client, WebUiCache cache,
+    VeloTime.Module.Timing.Client.ITimingClient timing, ILogger<StatisticsAdministrationService> logger) : IStatisticsAdministrationService
+{
+    public Task<StatisticsEntryContributionsDTO> GetEntryContributionsAsync(Guid entryId, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        AdminStatisticsEntrySamplesDTO response;
+        Contracts.AdminStatisticsSampleDTO[] samples;
+        try
+        {
+            response = await client.GetAdminStatisticsEntrySamplesAsync(entryId, cancellationToken);
+            if (response is null || response.EntryId != entryId || response.TransponderId == Guid.Empty ||
+                response.Samples is null || response.Samples.Count > 500)
+                throw new InvalidDataException("The statistics entry samples response is invalid.");
+            samples = response.Samples.Select(MapSample).ToArray();
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Statistics entry contributions could not be loaded.");
+            throw;
+        }
+
+        var from = response.TimeStart.ToUniversalTime();
+        var to = response.TimeEnd.ToUniversalTime();
+        StatisticsEntryContributionsDTO Result(StatisticsEntryPassingsStatus status,
+            IReadOnlyList<TimingContracts.PassingDTO>? passings = null, bool truncated = false) =>
+            new(response.EntryId, response.TransponderId, from, to, samples, response.Truncated,
+                passings, truncated, status);
+
+        // Never clip or split the authoritative window into misleading partial results.
+        if (to - from > TimeSpan.FromDays(7)) return Result(StatisticsEntryPassingsStatus.WindowTooLarge);
+        try
+        {
+            var passings = await timing.GetTransponderPassingsAsync(response.TransponderId,
+                from.ToString("O", CultureInfo.InvariantCulture), to.ToString("O", CultureInfo.InvariantCulture), cancellationToken);
+            if (passings is null || passings.TransponderId != response.TransponderId ||
+                passings.From != from || passings.To != to || passings.Passings is null || passings.Passings.Count > 500)
+                throw new InvalidDataException("The timing passings response is invalid.");
+            return Result(StatisticsEntryPassingsStatus.Available, passings.Passings.Select(p =>
+            {
+                if (p is null || p.Id == Guid.Empty || p.Time < from || p.Time > to ||
+                    p.TimingPointDescription is null || p.InstallationDescription is null)
+                    throw new InvalidDataException("A timing passing response is invalid.");
+                return new TimingContracts.PassingDTO(p.Id, p.Time.ToUniversalTime(), p.TimingPointId,
+                    p.TimingPointDescription, p.InstallationId, p.InstallationDescription, p.FacilityId,
+                    p.LowBattery, p.LowStrength, p.LowHits);
+            }).ToArray(), passings.Truncated);
+        }
+        catch (VeloTime.Module.Timing.Client.ApiException exception) when (exception.StatusCode == 403)
+        {
+            return Result(StatisticsEntryPassingsStatus.Forbidden);
+        }
+        catch (VeloTime.Module.Timing.Client.ApiException exception) when (exception.StatusCode is 401 or 404)
+        {
+            logger.LogWarning("Timing contributions request was rejected with status {Status}.", exception.StatusCode);
+            throw new HttpRequestException("Timing contributions could not be loaded.", exception, (HttpStatusCode)exception.StatusCode);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return Result(StatisticsEntryPassingsStatus.Forbidden);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.NotFound)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception is VeloTime.Module.Timing.Client.ApiException or HttpRequestException
+            or TimeoutException or InvalidDataException or Newtonsoft.Json.JsonException
+            or Polly.Timeout.TimeoutRejectedException or Polly.CircuitBreaker.BrokenCircuitException
+            || exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            logger.LogError(exception, "Timing contributions are unavailable; Statistics samples remain available.");
+            return Result(StatisticsEntryPassingsStatus.Unavailable);
+        }
+    });
+
+    public async Task<IReadOnlyDictionary<Guid, string>> GetCoursePointNamesAsync(IReadOnlyList<Guid> coursePointIds,
+        CancellationToken cancellationToken = default)
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        if (coursePointIds is null || coursePointIds.Count > 1000 || coursePointIds.Contains(Guid.Empty))
+            throw new HttpRequestException("Supply at most 1000 nonempty course-point IDs.", null, HttpStatusCode.BadRequest);
+        try
+        {
+            var names = new Dictionary<Guid, string>();
+            foreach (var id in coursePointIds.Distinct())
+                names.Add(id, await CoursePointNames.GetAsync(cache, id, cancellationToken));
+            return names;
+        }
+        catch (VeloTime.Module.Facilities.Client.ApiException exception)
+        {
+            logger.LogError(exception, "Contribution course-point names could not be resolved.");
+            throw new HttpRequestException("Contribution course-point names could not be resolved.", exception,
+                exception.StatusCode is 401 or 403 or 404 ? (HttpStatusCode)exception.StatusCode : HttpStatusCode.BadGateway);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Contribution course-point names could not be resolved.");
+            throw;
+        }
+    }
+
+    private static Contracts.AdminStatisticsSampleDTO MapSample(AdminStatisticsSampleDTO sample)
+    {
+        if (sample is null || sample.Id == Guid.Empty || !double.IsFinite(sample.DistanceMetres) ||
+            !TimeSpan.TryParseExact(sample.Duration, "c", CultureInfo.InvariantCulture, out var duration))
+            throw new InvalidDataException("A statistics sample response is invalid.");
+        return new(sample.Id, sample.TimeStart.ToUniversalTime(), sample.TimeEnd.ToUniversalTime(),
+            sample.CoursePointStartId, sample.CoursePointEndId, sample.DistanceMetres, duration,
+            sample.SpeedMetresPerSecond is { } speed && double.IsFinite(speed) ? speed : null, sample.FacilityId);
+    }
+
+    private const string DefinitionsTag = "velotime:webui:statistics-definitions";
+
+    public Task<Contracts.AdminStatisticsEntriesPageDTO> ListEntriesAsync(Contracts.GetAdminStatisticsEntriesRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        var page = await client.ListAdminStatisticsEntriesAsync(request.FacilityId, request.StatisticsItemId,
+            request.StatisticsItemConfigId, request.TransponderId, request.IsValid,
+            request.Cursor is { } cursor ? StatisticsEntriesQuery.EncodeCursor(cursor) : null,
+            request.Direction?.ToString().ToLowerInvariant(), request.PageSize,
+            request.MinDuration?.ToString("c", CultureInfo.InvariantCulture), request.MaxDuration?.ToString("c", CultureInfo.InvariantCulture),
+            request.MinSpeedMetresPerSecond?.ToString("R", CultureInfo.InvariantCulture), request.MaxSpeedMetresPerSecond?.ToString("R", CultureInfo.InvariantCulture),
+            Contracts.AdminStatisticsEntriesQuery.SortValue(request.Sort), Contracts.AdminStatisticsEntriesQuery.OrderValue(request.Order), cancellationToken);
+        if (page?.Items is null) throw new InvalidDataException("The statistics entry page is missing.");
+        return new Contracts.AdminStatisticsEntriesPageDTO(page.Items.Select(MapEntry).ToArray(), MapCursor(page.Previous, request), MapCursor(page.Next, request));
+    });
+
+    public Task<Contracts.AdminStatisticsEntryDTO> SetManualInvalidationAsync(Guid id, Contracts.StatisticsEntryManualInvalidationRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        var entry = await client.SetStatisticsEntryManualInvalidationAsync(id, new StatisticsEntryManualInvalidationRequest
+        {
+            IsManuallyInvalidated = request.IsManuallyInvalidated, Note = request.Note
+        }, cancellationToken);
+        if (entry?.Id != id) throw new InvalidDataException("The saved statistics entry has an unexpected ID.");
+        return MapEntry(entry);
+    });
+
+    private static Contracts.AdminStatisticsEntryCursorDTO? MapCursor(AdminStatisticsEntryCursorDTO? cursor,
+        Contracts.GetAdminStatisticsEntriesRequest request)
+    {
+        if (cursor is null) return null;
+        TimeSpan? duration = null;
+        if (cursor.Duration is not null)
+        {
+            if (!TimeSpan.TryParseExact(cursor.Duration, "c", CultureInfo.InvariantCulture, out var parsed))
+                throw new InvalidDataException("The statistics entry cursor duration is invalid.");
+            duration = parsed;
+        }
+        var mapped = new Contracts.AdminStatisticsEntryCursorDTO(cursor.TimeEnd, cursor.Id,
+            (Contracts.AdminStatisticsEntriesSort)cursor.Sort, (Contracts.AdminStatisticsEntriesSortOrder)cursor.Order,
+            duration, cursor.Speed);
+        if (mapped.Sort != request.Sort || mapped.Order != request.Order)
+            throw new InvalidDataException("The statistics entry cursor has an unexpected sort or order.");
+        try { _ = Contracts.AdminStatisticsEntriesQuery.EncodeCursor(mapped); }
+        catch (ArgumentException exception) { throw new InvalidDataException("The statistics entry cursor is invalid.", exception); }
+        return mapped;
+    }
+
+    private static Contracts.AdminStatisticsEntryDTO MapEntry(AdminStatisticsEntryDTO entry)
+    {
+        // Recorded durations can be zero or negative: these are important administrative results.
+        if (!TimeSpan.TryParseExact(entry.Duration, "c", CultureInfo.InvariantCulture, out var duration))
+            throw new InvalidDataException("The recorded statistics duration is invalid.");
+        return new(entry.Id, entry.TimeStart, entry.TimeEnd, entry.StatisticsItemId, entry.StatisticsItemName,
+            entry.StatisticsItemConfigId, (Contracts.StatisticsConfigurationType)entry.StatisticsItemConfigType,
+            entry.FacilityId, entry.TransponderId, entry.StatsProfileUserId, entry.ProfileName, duration,
+            entry.SpeedMetresPerSecond is { } speed && double.IsFinite(speed) ? speed : null,
+            entry.IsValid, entry.InvalidReason is { } reason ? (Contracts.StatisticsEntryInvalidReason)reason : null,
+            entry.IsManuallyInvalidated, entry.ManualInvalidationChangedByUserId, entry.ManualInvalidationChangedAtUtc,
+            entry.ManualInvalidationNote);
+    }
+
+    public Task<IReadOnlyList<Contracts.StatisticsItemDTO>> GetItemsAsync(CancellationToken cancellationToken = default) =>
+        GetItemsCoreAsync(cancellationToken);
+
+    public Task<IReadOnlyList<Contracts.StatisticsConfigurationDTO>> GetConfigurationsAsync(CancellationToken cancellationToken = default) =>
+        GetConfigurationsCoreAsync(cancellationToken);
+
+    private async Task<IReadOnlyList<Contracts.StatisticsItemDTO>> GetItemsCoreAsync(CancellationToken cancellationToken)
+    {
+        var snapshots = await cache.GetAdminAsync(
+            AdministrationAuthorization.StatisticsPolicy, "statistics-admin-items", "statistics-item-distance-mode-v2",
+            (IStatisticsClient factoryClient, CancellationToken token) => Execute(async () =>
+                (await factoryClient.ListStatisticsItemsAsync(token)
+                    ?? throw new InvalidDataException("The statistics item list is missing."))
+                .Select(item => Map(item)).ToArray()),
+            [DefinitionsTag], cancellationToken);
+        return snapshots.ToArray();
+    }
+
+    private async Task<IReadOnlyList<Contracts.StatisticsConfigurationDTO>> GetConfigurationsCoreAsync(CancellationToken cancellationToken)
+    {
+        var snapshots = await cache.GetAdminAsync(
+            AdministrationAuthorization.StatisticsPolicy, "statistics-admin-configurations", "all-configurations-required-points-v2",
+            (IStatisticsClient factoryClient, CancellationToken token) => Execute(async () =>
+                (await factoryClient.ListStatisticsConfigurationsAsync(null, token)
+                    ?? throw new InvalidDataException("The statistics configuration list is missing."))
+                .Select(config => Map(config)).ToArray()),
+            [DefinitionsTag], cancellationToken);
+        // The cache owns its nested snapshots too; do not expose mutable point arrays to callers.
+        return snapshots.Select(config => config with
+        {
+            RequiredCoursePoints = config.RequiredCoursePoints is { } requirements
+                ? new(requirements.CourseLayoutId, requirements.CoursePointIds!.ToArray()) : null
+        }).ToArray();
+    }
+
+    public Task SaveItemAsync(Guid? id, Contracts.SaveStatisticsItemRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        var body = new SaveStatisticsItemRequest
+        {
+            Name = request.Name, Description = request.Description, Distance = request.Distance,
+            DistanceMode = (int?)request.DistanceMode,
+            MinDuration = StatisticsDurationTransport.Format(request.MinDuration),
+            MaxDuration = StatisticsDurationTransport.Format(request.MaxDuration)
+        };
+        var response = await cache.WriteAndInvalidateAsync(
+            () => id.HasValue ? client.UpdateStatisticsItemAsync(id.Value, body, cancellationToken) : client.CreateStatisticsItemAsync(body, cancellationToken),
+            DefinitionsTag, "saving a statistics item");
+        _ = Map(response, id);
+        return true;
+    });
+
+    public Task DeleteItemAsync(Guid id, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        await AdministrationClientCall.ExecuteNoContent(() => client.DeleteStatisticsItemAsync(id, cancellationToken));
+        await cache.InvalidateTagAsync(DefinitionsTag, "deleting a statistics item");
+        return true;
+    });
+
+    public Task SaveConfigurationAsync(Guid? id, Contracts.SaveStatisticsConfigurationRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        var body = new SaveStatisticsConfigurationRequest
+        {
+            StatisticsItemId = request.StatisticsItemId, Type = (int)request.Type, CoursePointStart = request.CoursePointStart,
+            CoursePointEnd = request.CoursePointEnd, ParentConfigId = request.ParentConfigId, Repetitions = request.Repetitions,
+            MinDuration = StatisticsDurationTransport.Format(request.MinDuration),
+            MaxDuration = StatisticsDurationTransport.Format(request.MaxDuration),
+            RequiredCoursePoints = request.RequiredCoursePoints is { } requirements ? new StatisticsRequiredCoursePoints
+            {
+                CourseLayoutId = requirements.CourseLayoutId,
+                CoursePointIds = requirements.CoursePointIds?.ToArray()
+            } : null
+        };
+        var response = await cache.WriteAndInvalidateAsync(
+            () => id.HasValue ? client.UpdateStatisticsConfigurationAsync(id.Value, body, cancellationToken) : client.CreateStatisticsConfigurationAsync(body, cancellationToken),
+            DefinitionsTag, "saving a statistics configuration");
+        var saved = Map(response, id);
+        if (saved.StatisticsItemId != request.StatisticsItemId)
+            throw new InvalidDataException("The saved configuration has an unexpected statistics item ID.");
+        return true;
+    });
+
+    public Task DeleteConfigurationAsync(Guid id, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        await AdministrationClientCall.ExecuteNoContent(() => client.DeleteStatisticsConfigurationAsync(id, cancellationToken));
+        await cache.InvalidateTagAsync(DefinitionsTag, "deleting a statistics configuration");
+        return true;
+    });
+
+    private static Contracts.StatisticsItemDTO Map(StatisticsItemDTO item, Guid? expectedId = null)
+    {
+        if (item is null || item.Id == Guid.Empty || (expectedId.HasValue && item.Id != expectedId.Value) ||
+            string.IsNullOrWhiteSpace(item.Name) ||
+            (item.DistanceMode.HasValue && !Enum.IsDefined((Contracts.StatisticsDistanceMode)item.DistanceMode.Value)) ||
+            (item.DistanceMode is null or (int)Contracts.StatisticsDistanceMode.Fixed && (!float.IsFinite(item.Distance) || item.Distance <= 0)))
+            throw new InvalidDataException("The statistics item response is invalid.");
+        return new(item.Id, item.Name, item.Description, item.Distance,
+            StatisticsDurationTransport.Parse(item.MinDuration), StatisticsDurationTransport.Parse(item.MaxDuration))
+        { DistanceMode = (Contracts.StatisticsDistanceMode?)item.DistanceMode };
+    }
+
+    private static Contracts.StatisticsConfigurationDTO Map(StatisticsConfigurationDTO config, Guid? expectedId = null)
+    {
+        if (config is null || config.Id == Guid.Empty || (expectedId.HasValue && config.Id != expectedId.Value) ||
+            config.StatisticsItemId == Guid.Empty || config.CoursePointStart == Guid.Empty ||
+            config.CoursePointEnd == Guid.Empty || config.ParentConfigId == Guid.Empty ||
+            !Enum.IsDefined((Contracts.StatisticsConfigurationType)config.Type))
+            throw new InvalidDataException("The statistics configuration response is invalid.");
+        if (((Contracts.StatisticsConfigurationType)config.Type == Contracts.StatisticsConfigurationType.Simple &&
+             (config.CoursePointStart is null || config.CoursePointEnd is null ||
+              config.ParentConfigId is not null || config.Repetitions is not null)) ||
+            ((Contracts.StatisticsConfigurationType)config.Type == Contracts.StatisticsConfigurationType.Multi &&
+             (config.CoursePointStart is not null || config.CoursePointEnd is not null ||
+              config.ParentConfigId is null || config.Repetitions is null or <= 0)))
+            throw new InvalidDataException("The statistics configuration response has an invalid shape.");
+        return new Contracts.StatisticsConfigurationDTO(config.Id, config.StatisticsItemId, (Contracts.StatisticsConfigurationType)config.Type,
+            config.CoursePointStart, config.CoursePointEnd, config.ParentConfigId, config.Repetitions,
+            StatisticsDurationTransport.Parse(config.MinDuration), StatisticsDurationTransport.Parse(config.MaxDuration))
+        { RequiredCoursePoints = StatisticsRequiredPointsTransport.Map(config) };
+    }
+
+    private static async Task<TResult> Execute<TResult>(Func<Task<TResult>> action)
+    {
+        try
+        {
+            return await action();
+        }
+        catch (ApiException exception) when (exception.StatusCode is 400 or 401 or 403 or 404 or 409 or 422)
+        {
+            var detail = "The request could not be completed.";
+            try
+            {
+                using var document = JsonDocument.Parse(exception.Response);
+                if (document.RootElement.TryGetProperty("detail", out var property) && property.ValueKind == JsonValueKind.String)
+                    detail = property.GetString() ?? detail;
+            }
+            catch (JsonException)
+            {
+            }
+            throw new HttpRequestException(detail, exception, (HttpStatusCode)exception.StatusCode);
+        }
+    }
+}

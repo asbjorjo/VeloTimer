@@ -1,0 +1,25 @@
+﻿@page "/about/velotime"
+@using System.Reflection
+
+<PageTitle>@L["AboutVeloTime"]</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    <MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">@L["AboutVeloTime"]</MudText>
+    <MudText Typo="Typo.body1">@L["Version"]: <span data-testid="app-version">@_version</span></MudText>
+</MudContainer>
+
+@code {
+    private static readonly string _version = GetApplicationVersion();
+
+    private static string GetApplicationVersion()
+    {
+        var assembly = typeof(global::VeloTime.WebUI.Mud.Client.SharedResource).Assembly;
+        var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+
+        if (!string.IsNullOrWhiteSpace(informational))
+        {
+            return informational.Split('+')[0];
+        }
+
+        return assembly.GetName().Version?.ToString() ?? string.Empty;
+    }
+}
