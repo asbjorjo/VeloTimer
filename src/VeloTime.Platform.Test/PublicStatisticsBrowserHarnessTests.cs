@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
 using System.Security.Claims;
@@ -138,6 +139,7 @@ public sealed class PublicStatisticsBrowserHarnessTests
         builder.Services.AddScoped<UnsavedChangesTracker>();
         builder.Services.AddScoped<DisplayPreferenceState>();
         builder.Services.AddScoped<IDisplayPreferenceService, DisplaySettingsBrowserHostTests.FakeDisplayPreferenceService>();
+        builder.Services.AddSingleton<INotificationRefreshSource, RecordingNotificationRefreshSource>();
         builder.Services.AddSingleton<DisplaySettingsBrowserHostTests.HarnessStore>();
         var state = new HarnessState();
         builder.Services.AddSingleton(CreateStatistics(state));
@@ -160,13 +162,13 @@ public sealed class PublicStatisticsBrowserHarnessTests
         app.MapPost("/__test/scenario/{mode}", (string mode) =>
         {
             if (!new[] { "normal", "no-facilities", "no-lap", "no-configurations", "discovery-error",
-                "results-error", "denied", "delayed", "hof-delayed", "hof-empty", "hof-facility-api-error", "hof-facility-invalid-data" }.Contains(mode)) return Results.BadRequest();
+                "results-error", "denied", "delayed", "hof-delayed", "hof-empty", "hof-partial-error", "hof-facility-api-error", "hof-facility-invalid-data" }.Contains(mode)) return Results.BadRequest();
             state.Mode = mode;
             return Results.Ok();
         });
         app.MapGet("/__test/evidence", () => Results.Json(new
         {
-            state.Requests, state.Cancelled, state.CompletedDelayed
+            state.Requests, state.HallOfFameRequests, state.HallOfFameCategoryRequests, state.Cancelled, state.CompletedDelayed
         }));
         app.MapGet("/registrationDates.js", () => Results.File(
             Path.Combine(repository, "src", "WebUI.Mud.Client", "wwwroot", "registrationDates.js"), "text/javascript"));
@@ -221,6 +223,8 @@ public sealed class PublicStatisticsBrowserHarnessTests
     {
         public string Mode = "normal";
         public int Requests;
+        public int HallOfFameRequests;
+        public ConcurrentDictionary<string, int> HallOfFameCategoryRequests { get; } = new(StringComparer.Ordinal);
         public int Cancelled;
         public int CompletedDelayed;
     }
@@ -295,8 +299,11 @@ public sealed class PublicStatisticsBrowserHarnessTests
     private static async Task<HallOfFameView> HallOfFameAsync(HarnessState state, Contracts.HallOfFameRequest request, CancellationToken token)
     {
         Interlocked.Increment(ref state.Requests);
+        Interlocked.Increment(ref state.HallOfFameRequests);
+        state.HallOfFameCategoryRequests.AddOrUpdate(request.Category, 1, (_, count) => count + 1);
         if (state.Mode == "hof-delayed") await Task.Delay(TimeSpan.FromSeconds(1), token);
-        if (state.Mode == "results-error") throw new HttpRequestException("secret Hall of Fame failure");
+        if (state.Mode == "results-error" || state.Mode == "hof-partial-error" && request.Category == "200m")
+            throw new HttpRequestException("secret Hall of Fame failure");
         if (state.Mode == "hof-empty") return new(true, [], []);
         var profile = request.Category + (request.FacilityId.HasValue ? " selected" : " global");
         return request.Category == "laps"
