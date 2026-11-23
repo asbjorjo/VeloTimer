@@ -24,6 +24,17 @@ public class StatisticsDbContext : BaseDbContext
 
         modelBuilder.Entity<Sample>(e =>
         {
+            // Expand-only transition: keyed samples are unique, legacy unkeyed rows remain
+            // readable until the coordinated reset/reconciliation and NOT NULL activation.
+            if (Database.IsNpgsql())
+                e.ToTable(t => t.HasCheckConstraint("ck_sample_timing_points_pair",
+                    "(timing_point_start_id IS NULL AND timing_point_end_id IS NULL) OR " +
+                    "(timing_point_start_id IS NOT NULL AND timing_point_end_id IS NOT NULL)"));
+            var identity = e.HasIndex(s => new { s.TransponderId, s.TimingPointStartId, s.TimeStart, s.TimingPointEndId, s.TimeEnd })
+                .HasDatabaseName("ux_sample_timing_identity")
+                .IsUnique();
+            if (Database.IsNpgsql())
+                identity.HasFilter("timing_point_start_id IS NOT NULL AND timing_point_end_id IS NOT NULL");
             // Completion messages lack a facility ID; do not put it before the exact times.
             e.HasIndex(s => new { s.TransponderId, s.TimeStart, s.TimeEnd })
                 .HasDatabaseName("ix_sample_transponder_completion")

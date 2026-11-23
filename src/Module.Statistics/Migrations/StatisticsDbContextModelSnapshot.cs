@@ -71,6 +71,14 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("time_start");
 
+                    b.Property<Guid?>("TimingPointEndId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("timing_point_end_id");
+
+                    b.Property<Guid?>("TimingPointStartId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("timing_point_start_id");
+
                     b.Property<Guid>("TransponderId")
                         .HasColumnType("uuid")
                         .HasColumnName("transponder_id");
@@ -94,7 +102,15 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasDatabaseName("ix_sample_transponder_facility_attempt")
                         .HasAnnotation("Npgsql:CreatedConcurrently", true);
 
-                    b.ToTable("sample", "statistics");
+                    b.HasIndex("TransponderId", "TimingPointStartId", "TimeStart", "TimingPointEndId", "TimeEnd")
+                        .IsUnique()
+                        .HasDatabaseName("ux_sample_timing_identity")
+                        .HasFilter("timing_point_start_id IS NOT NULL AND timing_point_end_id IS NOT NULL");
+
+                    b.ToTable("sample", "statistics", t =>
+                        {
+                            t.HasCheckConstraint("ck_sample_timing_points_pair", "(timing_point_start_id IS NULL AND timing_point_end_id IS NULL) OR (timing_point_start_id IS NOT NULL AND timing_point_end_id IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsEntry", b =>

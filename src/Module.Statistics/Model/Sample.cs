@@ -6,6 +6,10 @@ public class Sample
     public DateTime TimeStart { get; init; }
     public DateTime TimeEnd { get; set; }
     public Guid TransponderId { get; init; }
+    /// <summary>Original Timing point, not the enriched Facilities course point. Null only for unkeyed legacy writers/data.</summary>
+    public Guid? TimingPointStartId { get; init; }
+    /// <summary>Original Timing point, not the enriched Facilities course point. Null only for unkeyed legacy writers/data.</summary>
+    public Guid? TimingPointEndId { get; init; }
     public Guid CoursePointStartId { get; init; }
     public Guid CoursePointEndId { get; init; }
     public TimeSpan Duration { get; init; }
