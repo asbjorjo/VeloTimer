@@ -53,7 +53,9 @@ public sealed partial class StatisticsServiceTests
             CreateSample(person ?? rider, from, to, time.AddSeconds(fromSeconds), time.AddSeconds(toSeconds), place ?? facility);
         switch (scenario)
         {
-            case "duplicateEdges": edges.AddRange(edges.ToList().Select(e =>
+            // Duplicate intermediate evidence can come from distinct Timing points mapping
+            // to the same course edge. A duplicate completion itself is ambiguous.
+            case "duplicateEdges": edges.AddRange(edges.Take(2).ToList().Select(e =>
                 CreateSample(rider, e.CoursePointStartId, e.CoursePointEndId, e.TimeStart, e.TimeEnd, facility))); break;
             case "extraPoint": edges.RemoveAt(1); edges.AddRange([Edge(a, other, 10, 15), Edge(other, b, 15, 20)]); break;
             case "missing": edges = [Edge(start, b, 0, 20), edges[2]]; break;

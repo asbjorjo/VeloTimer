@@ -57,15 +57,11 @@ can be sent, and Simple/Multi consumers must remain replay-safe.
    Grant its role DML/sequence rights on the new table and access to the new sample
    column. Index replacement is transactional/nonconcurrent: allow a maintenance
    window for a large retained sample outbox. API/threshold outbox needs no change.
-3. Existing SampleComplete rows deliberately get NULL creation marks: their previous
-   publication/processing state is unknown, not inferred from delivered status or
-   entry existence. For every retained delivered-but-unmarked row, replay its exact
-   stored SampleComplete through the upgraded handler after the identity gate.
-   That transaction recovers all entry receipts and marks even empty outputs.
-   Pending rows dispatch normally in source sequence. Do not set creation marks
-   manually or clear outboxes to unstick a rider. Reconcile retained rows whose
-   configs/entries were removed against backups/authoritative history; a missing
-   definition cannot reconstruct a historical event. Stop activation if unresolved.
+3. Before reset activation, every retained receipt in either isolated outbox blocks
+   migration, whether delivered or pending. Existing SampleComplete rows get NULL
+   creation marks; their processing state is unknown. Follow the individual
+   reconciliation and explicit removal prerequisites in `SampleIdentityPersistence.md`.
+   Never infer delivery or manually mark work complete. Stop if unresolved.
 4. Events previously sent directly have no historical EntryId publication receipts.
    Authoritative replay may resend them; consumers must tolerate duplicates. No
    automatic backfill guesses whether an old event was sent. Data reset does not

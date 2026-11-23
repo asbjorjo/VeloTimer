@@ -32,6 +32,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         await Sql(admin, $"CREATE DATABASE \"{database}\"");
         connection = new NpgsqlConnectionStringBuilder(admin) { Database = database }.ConnectionString;
         await using var db = Db();
+        await db.Database.OpenConnectionAsync();
+        await db.Database.ExecuteSqlRawAsync("SET velotime.statistics_sample_reset = 'approved'");
         await db.Database.MigrateAsync();
     }
     public async Task DisposeAsync()
@@ -728,7 +730,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
                 (statistics_item_id, generation, is_pending, phase, last_entry_id)
                 VALUES ({item}, 7, FALSE, 1, {entry});
                 """);
-            await db.Database.MigrateAsync();
+            await db.GetService<IMigrator>().MigrateAsync("20261123145848_statistics_entry_created_outbox");
             var persisted = await db.Set<StatisticsEntry>().SingleAsync(e => e.Id == entry);
             Assert.Equal(entry, persisted.Id);
             Assert.True(persisted.IsValid); // Migration is metadata only; worker classifies later.
@@ -765,7 +767,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
                 WHERE table_schema = 'statistics' AND table_name = 'statistics_entry_contributor') AS "Value"
                 """).SingleAsync());
             Assert.False(db.Database.HasPendingModelChanges());
-            Assert.Empty(await db.Database.GetPendingMigrationsAsync());
+            Assert.Single(await db.Database.GetPendingMigrationsAsync());
         }
         finally
         {

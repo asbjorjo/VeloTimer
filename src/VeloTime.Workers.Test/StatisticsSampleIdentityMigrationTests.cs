@@ -25,7 +25,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                     {Start}, {Start.AddSeconds(1)}, {TimeSpan.FromSeconds(1)}, {100d}, {100d});
             """);
         var migrator = db.GetService<IMigrator>();
-        await migrator.MigrateAsync();
+        await migrator.MigrateAsync("20261123145848_statistics_entry_created_outbox");
         Assert.False(db.Database.HasPendingModelChanges());
         Assert.Equal(1, await db.Database.SqlQueryRaw<int>("""
             SELECT count(*)::int AS "Value" FROM statistics.sample

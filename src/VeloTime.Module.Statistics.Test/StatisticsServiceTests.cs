@@ -235,6 +235,8 @@ public sealed partial class StatisticsServiceTests
         {
             Id = Guid.NewGuid(),
             TransponderId = transponderId,
+            TimingPointStartId = Guid.NewGuid(),
+            TimingPointEndId = Guid.NewGuid(),
             CoursePointStartId = startPoint,
             CoursePointEndId = endPoint,
             TimeStart = timeStart,

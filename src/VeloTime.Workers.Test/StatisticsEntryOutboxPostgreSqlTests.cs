@@ -123,9 +123,9 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     public async Task EntryOutboxMigrationPreservesUnknownHistoryAndGuardsRollback()
     {
         const string previous = "20261123135436_statistics_sample_complete_outbox";
+        await RecreateAtMigrationAsync(previous);
         await using (var db = Db())
         {
-            await db.GetService<IMigrator>().MigrateAsync(previous); // empty Down succeeds
             await db.Database.ExecuteSqlRawAsync("""
                 CREATE TABLE statistics.smb_outbox (sentinel integer PRIMARY KEY);
                 INSERT INTO statistics.smb_outbox VALUES (42);
@@ -136,7 +136,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         }
         await using (var db = Db())
         {
-            await db.Database.MigrateAsync();
+            await db.GetService<IMigrator>().MigrateAsync("20261123145848_statistics_entry_created_outbox");
             var old = await db.Set<SampleCompleteOutbox>().SingleAsync();
             Assert.NotNull(old.DeliveredAtUtc);
             Assert.Null(old.EntriesCreatedAtUtc); // Never guess historical processing from acknowledgement.

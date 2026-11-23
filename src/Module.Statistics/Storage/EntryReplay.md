@@ -54,23 +54,22 @@ equivalent legacy sample evidence remains supported. Supporting
 the ambiguous cases requires Coordinator-agreed additive source/entry identity
 contracts and coordinated producer/consumer changes; retries alone cannot resolve them.
 
-## Legacy activation gate — no data deleted here
+## Legacy activation gate
 
 Old random entry IDs cannot reliably be reconstructed from current measurements:
 the selected attempt/window and configuration may have changed, and there is no
 persisted source lineage. Do not guess deterministic IDs from entry endpoints or
 adopt any row with a matching finish. Existing required-point/course-layout readers
 can still return their legacy attempts, but that is NOT a general legacy migration.
-Fixed and Multi history must be reconciled authoritatively or included in the bounded,
-approved preproduction reset in `SampleIdentityPersistence.md` before general replay.
+Fixed and Multi history is included in the bounded preproduction reset implemented
+by the activation migration described in `SampleIdentityPersistence.md`.
 Do not run old random-ID writers alongside these writers. Rolling back reintroduces
 duplicate creation, even though no schema change is necessary for these keys.
 
-Data & Migrations owns reset/activation, backups and regeneration limits. Preserve
-definitions, profiles, Timing and Facilities data and unrelated events. Coordinate
-queued messages, retained completion outbox rows and revalidation cursors; do not
-clear shared schemas or outboxes. No such reset, backfill, deletion or shared-schema
-migration was executed for this change.
+Preserve definitions, profiles, Timing and Facilities data and unrelated events.
+The activation migration refuses any retained isolated outbox rows and restarts all
+checkpoints; coordinate queued messages and do not clear shared schemas or outboxes.
+No shared database has been migrated.
 
 ## Publication recovery and required worker handoff
 

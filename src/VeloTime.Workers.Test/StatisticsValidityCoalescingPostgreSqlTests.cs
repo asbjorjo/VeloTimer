@@ -318,7 +318,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                     (statistics_item_id, generation, is_pending, phase, last_entry_id)
                     VALUES ({ids[i]}, {7L + i}, {i != 2}, {(i == 0 ? 0 : 1)}, {cursor});
                     """);
-            await db.Database.MigrateAsync();
+            await db.GetService<IMigrator>().MigrateAsync("20261123145848_statistics_entry_created_outbox");
             for (var i = 0; i < ids.Length; i++)
             {
                 var job = await db.Set<StatisticsValidityRevalidation>().AsNoTracking()
@@ -331,8 +331,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                 Assert.False(job.MultiRescanPending);
             }
             Assert.Equal(0, await new StatisticsValidityScheduler(db).EnsureJobsForAllItemsAsync(CancellationToken.None));
-            await db.Database.MigrateAsync(); // idempotent, no metadata reset
-            Assert.Empty(await db.Database.GetPendingMigrationsAsync());
+            await db.GetService<IMigrator>().MigrateAsync("20261123145848_statistics_entry_created_outbox"); // idempotent
+            Assert.Single(await db.Database.GetPendingMigrationsAsync());
             Assert.False(db.Database.HasPendingModelChanges());
         }
         finally
@@ -410,6 +410,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         db.Add(new Sample
         {
             Id = Guid.NewGuid(), TransponderId = aggregate.TransponderId, FacilityId = aggregate.FacilityId,
+            TimingPointStartId = Guid.NewGuid(), TimingPointEndId = Guid.NewGuid(),
             CoursePointStartId = parent.CoursePointStart, CoursePointEndId = intermediate,
             TimeStart = start, TimeEnd = start.AddSeconds(1), Duration = TimeSpan.FromSeconds(1),
             Distance = 250, Speed = 250

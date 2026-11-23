@@ -30,9 +30,8 @@ has DML rights on the table and identity sequence. Down refuses while any retain
 rows exist. Stop workers and reconcile delivery/backup before a rollback: restoring
 the old handler loses atomicity and duplicates become possible. This migration does
 not reset or reconcile legacy samples, entries, queues, or the API outbox. The
-expand-only identity and activation/reset prerequisites in
-`SampleIdentityPersistence.md` still apply. In particular historical unkeyed rows
-are NOT made safe by this implementation.
+activation/reset prerequisites in `SampleIdentityPersistence.md` apply. Historical
+unkeyed rows are not made safe by the completion outbox migration alone.
 
 **Deployment gate:** domain fixed/multi replay identity is documented in `EntryReplay.md`.
 Durable `EntryCreated` publication is implemented in `EntryCreatedOutbox.md`, including

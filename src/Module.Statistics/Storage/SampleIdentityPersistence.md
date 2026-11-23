@@ -1,105 +1,85 @@
-# Statistics sample identity: expand phase and handoff
+# Statistics sample identity activation
 
-This migration is **storage preparation**, not activation of historical data. The
-new processor writer and its isolated transactional completion outbox are documented
-in `SampleCompleteOutbox.md`. Legacy unkeyed samples and downstream entry processing
-remain unsafe for replay until their separate activation and consumer work is complete.
-No message contract changed.
+`20261123131028_statistics_sample_timing_identity` was an expand-only migration.
+`20261123151518_statistics_sample_identity_activation` is the destructive activation:
+it deletes **all** `statistics.statistics_entry` and `statistics.sample` rows,
+including already-keyed samples, Simple and Multi entries, manual invalidation audit,
+validity and distance snapshots. Legacy samples lack Timing point IDs and old random
+entry IDs lack contributor lineage; neither can be reconstructed safely by matching
+times, course points, or current Facilities associations. The reset is deliberately
+whole-result, not a purported selective backfill. Definitions, configs, profiles,
+Timing, Facilities, and `statistics.smb_outbox` are not deleted. Every existing
+revalidation checkpoint is restarted at Simple, cursor cleared, generation advanced,
+and missing item checkpoints are inserted. Overflow or any SQL error rolls everything
+in this migration back.
 
-## Schema and writer contract
+The final Timing point columns are NOT NULL and the unique index covers the normalized
+`(transponder_id, timing_point_start_id, time_start, timing_point_end_id, time_end)`.
+There is no cross-service FK. New writers normalize UTC instants to PostgreSQL timestamp
+precision (`StatisticsStoragePrecision.Timestamp`) before lookup and insertion.
+The old pair check and partial index are removed. A missing source ID now fails at the
+database, but the database cannot recognize an old random-entry-ID writer or a stale
+message: **the maintenance and message barrier below is mandatory even on an empty
+installation**. Never run old processors after activation.
 
-`20261123131028_statistics_sample_timing_identity` adds nullable original Timing
-point IDs to `statistics.sample`. They are not Facilities course point IDs and are
-not foreign keys to another service's database. Both must be null (unkeyed) or both
-non-null; PostgreSQL enforces this with `ck_sample_timing_points_pair`. The
-transactional, partial unique index `ux_sample_timing_identity` enforces at most one
-keyed row for `(transponder_id, timing_point_start_id, time_start,
-timing_point_end_id, time_end)`, including concurrent inserts. It does not prevent
-any number of unkeyed duplicates. SQLite's test model has a non-partial unique index
-but does not implement the PostgreSQL pair check.
+## Maintenance procedure
 
-The Coordinator confirmed this tuple is unique for supported `TimingSampleComplete`
-producers **after** both times use `StatisticsStoragePrecision.Timestamp` and the
-existing UTC-instant conversion: Local -> UTC, Unspecified interpreted as UTC. New
-writers must perform that conversion and normalization before lookup, insert,
-enrichment and payload comparison; keep source points and endpoint times immutable
-after creation. This includes the PostgreSQL epoch truncation rule, not naive rounding
-or truncating ticks from year 1. SQLite writers must also normalize to this agreed
-identity, even though its store retains 100ns ticks. Compare other immutable payload
-and enrichment as agreed by the messaging owner; do not silently merge conflicts.
-Handle PostgreSQL unique violations by rolling back the failed transaction and
-reloading/validating the winning committed row. The index is not an outbox.
+1. Inventory, export and test a consistent restorable backup, including definitions,
+   profiles, all derived data, checkpoints and both isolated outboxes. Inventory
+   consumers, downstream projections, caches, broker topics/subscriptions, scheduled
+   messages, in-flight locks, retries and dead letters. Stop API definition changes,
+   all old and new Statistics processors, revalidators and dispatchers, and any other
+   writers/consumers relevant to these messages. Wait for in-flight transactions and
+   broker deliveries to finish or explicitly quarantine them; revoke/disable old
+   deployments so they cannot resume after locks are released.
+2. Coordinate TimingSampleComplete, SampleComplete and EntryCreated queues and
+   dead letters with their owners. A delivered message or outbox mark proves neither
+   downstream completion nor that redelivery is impossible. Quarantine or individually
+   reconcile all old pending, delivered, delayed, in-flight and dead-letter messages
+   and their downstream effects. A stale message delivered after reset can recreate
+   partial results with different identities; a database lock cannot prevent it.
+   Preserve and handle Statistics threshold wakeups and the API's independent
+   `statistics.smb_outbox` under their own protocol; never clear that shared outbox.
+3. Both `statistics.sample_complete_outbox` and `statistics.entry_created_outbox`
+   must be **empty**; the migration fails if either has even one delivered receipt,
+   including a SampleComplete with a missing entries-created mark. It never deletes
+   these records or infers delivery. An empty table is not proof of broker or consumer
+   state. If retained receipts exist, stop: archive and reconcile each one against
+   the broker, consumers and backup with the messaging owner. Only a separate,
+   explicitly approved receipt-removal procedure after that reconciliation can make
+   the tables empty; this migration supplies no automatic purge or delivery inference.
+4. Verify the deployed schema and external dependencies. The migration rejects inbound
+   FKs, user triggers, rules and inheritance involving the reset tables; this is not
+   an inventory of external databases, logical replication or consumers. It locks
+   items, checkpoints, samples, entries and isolated outboxes until commit. Locks
+   protect the transaction, not writers queued behind it. Plan for exclusive locks,
+   DELETE/WAL, table scans, index build, disk, vacuum and table-owner DDL privileges.
+5. Apply the migration with only the migration connection configured with Npgsql
+   `Options=-c velotime.statistics_sample_reset=approved` **after** completing the
+   barrier. This explicit opt-in is required even on an empty database, because stale
+   broker messages and mixed-version writers are not visible to the migration. It is
+   not a substitute for the barrier.
+   Do not set it globally or leave it on pooled application connections. The migration
+   worker normally auto-applies pending migrations; disable it until the procedure is
+   ready. Verify migration history (`ef.__ef_migrations_history`), empty result and
+   isolated outbox tables, NOT NULL columns, unique index and restarted checkpoints.
+   Earlier migrations have their own transaction boundaries (some use concurrent
+   indexes); failure of activation does not undo earlier successful migrations.
+   The preceding Lap activation has independent validation and may block the upgrade.
+6. Deploy only replay-safe processors and compatible consumers. Refresh caches,
+   restart the revalidator, and monitor errors, queues, dead letters, pending outboxes
+   and checkpoint completion. Explicitly reconcile downstream projections; a reset
+   cannot retract already published events. Any redrive must be separately reviewed
+   and ordered per transponder.
 
-Migration Up neither infers IDs nor deletes or updates any historical samples, entries,
-checkpoints, outbox records or other rows. It is an expand-only mixed-version
-transition; old writes remain unkeyed. EF history remains `ef.__ef_migrations_history`;
-the earlier Statistics history migration added no history tables/triggers. Index creation
-is deliberately **transactional, not concurrent**, so schema, check and index are
-atomic; it scans the sample table and can block writes. Schedule maintenance, provision
-table-owner DDL privileges and adequate lock wait/IO/disk. No shared database was
-migrated. Down refuses while any keyed sample exists, since dropping IDs loses
-provenance; stopping keyed writers and restoring a consistent backup is safer than
-discarding IDs. Do not roll back to the old handler and claim replay safety.
+Deletion is irreversible without a tested consistent backup; Down explicitly fails.
+Restoring only Statistics after new events have escaped is not a complete rollback.
+Stop and coordinate broker/downstream restoration or prefer roll-forward.
+The reset does **not** regenerate historical results. There is no established complete,
+ordered historical replay tool in this repository. Even if one is supplied, missing
+or expired events, changed Facilities layouts/associations, definitions, thresholds,
+ordering and manual audit mean regenerated history may differ or be incomplete.
+Do not promise historical fidelity; stop if the approved loss is unacceptable.
 
-## Required activation and reset decision — not implemented
-
-Legacy samples lack original Timing point IDs. Course point, times, facility and
-distance do not establish a reliable mapping: Facilities associations can change and
-more than one source point may map to a course point. There is no cross-service DB
-join or guessed backfill here. Because entries lack persisted sample/contributor
-lineage and Multi uses windows of Simple entries, selecting only entries linked to
-unkeyed samples cannot be proven complete. A bounded **whole Statistics-derived
-results** reset candidate is deleting every row from `statistics.statistics_entry`
-(both Simple and Multi, including manual invalidation audit/validity and distance
-snapshots), then every row from `statistics.sample`, in one transaction. This also
-removes any keyed samples already produced during the transition. Do not execute this
-candidate automatically: Coordinator must confirm external dependencies, exact scope,
-reconciliation and deployment plan first. No definitions, configs, profiles,
-Timing passings/samples, Facilities data or `statistics.smb_outbox` rows are in that
-candidate. Revalidation checkpoints reference definitions and contain entry cursors;
-coordinate their safe rescheduling/reset with the scheduler owner rather than delete
-or casually rewrite them. Inventory actual database FKs/triggers and dependencies before
-any reset; fail closed if the deployed schema or consumers have additional dependencies.
-
-Deletion is irreversible without a tested backup. It changes visible results, invalid
-and manually audited records, leaderboard/hall-of-fame output and previously published
-events; it cannot retract events or downstream side effects. Reset alone does **not**
-regenerate results. Timing retains source passings/samples, but this repository provides
-no established comprehensive ordered historical replay tool. Even with one, historical
-Facilities association/layout availability, present definitions and thresholds,
-ordering, missing or expired messages, and missing manual audit state mean regenerated
-results may differ or be incomplete. Restore from backup if required fidelity cannot
-be established. Results and downstream projections may need explicit reconciliation;
-their loss or modification outside Statistics needs separate scope approval.
-
-Before any activation: inventory both unkeyed and keyed rows, derived entries, manual
-audit state, checkpoint generations/cursors, caches, all broker subscriptions/dead
-letters/in-flight completions and outbox delivery states; take and test backups.
-Stop old/new Statistics sample and entry writers, API changes affecting definitions,
-revalidation workers, and relevant consumers/dispatchers under an agreed maintenance
-barrier; ensure no already-running transaction can resume after the barrier. Coordinate
-queued `TimingSampleComplete`, `SampleComplete`, `EntryCreated` and threshold events
-with their owners. In particular, do not clear shared `statistics.smb_outbox` or assume
-presence/absence proves delivery; pending or already-delivered events may refer to
-deleted state. Drain, quarantine or reconcile individually only under the messaging
-owner's approved plan, preserving unrelated threshold events.
-Also inventory and reconcile `statistics.sample_complete_outbox` before any reset:
-its pending payloads can refer to samples being deleted, and retained delivered rows
-do not establish downstream success. Do not truncate it as an automatic reset step.
-
-Deploy the expand migration first; finish and verify replay-safe sample/outbox and
-Simple/Multi consumers before enabling any replay. A later coordinated activation
-migration must, under the same writer barrier, either reliably reconcile **all**
-unkeyed rows and their derived dependencies or perform the approved reset, verify no
-null source point IDs remain, and enforce both columns NOT NULL. Writers that omit
-them must remain stopped permanently. The final index/check and snapshot must be
-reviewed with that migration; this expand migration itself is not that activation.
-Restart only compatible consumers after broker/outbox reconciliation, clear or refresh
-appropriate caches, monitor pending/retry/dead-letter queues and checkpoint completion,
-and execute only an explicitly verified replay in per-transponder order. A replay-safe
-outbox guarantees durable at-least-once delivery, not exactly-once transport.
-
-Tester: exercise migration on representative PostgreSQL data with concurrent legacy
-and keyed writers, failed/rolled-back races, both sides of the 2000 epoch, timestamp
-ties and distinct point IDs; final reset, in-flight/pending/aborted outbox and rollback
-boundaries require integrated tests with messaging and scheduler owners.
+PostgreSQL integration tests create/drop fixture-owned databases; they do not prove
+the production broker barrier or external consumers. No shared database was migrated.

@@ -126,11 +126,11 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("time_start");
 
-                    b.Property<Guid?>("TimingPointEndId")
+                    b.Property<Guid>("TimingPointEndId")
                         .HasColumnType("uuid")
                         .HasColumnName("timing_point_end_id");
 
-                    b.Property<Guid?>("TimingPointStartId")
+                    b.Property<Guid>("TimingPointStartId")
                         .HasColumnType("uuid")
                         .HasColumnName("timing_point_start_id");
 
@@ -159,13 +159,9 @@ namespace VeloTime.Module.Statistics.Migrations
 
                     b.HasIndex("TransponderId", "TimingPointStartId", "TimeStart", "TimingPointEndId", "TimeEnd")
                         .IsUnique()
-                        .HasDatabaseName("ux_sample_timing_identity")
-                        .HasFilter("timing_point_start_id IS NOT NULL AND timing_point_end_id IS NOT NULL");
+                        .HasDatabaseName("ux_sample_timing_identity");
 
-                    b.ToTable("sample", "statistics", t =>
-                        {
-                            t.HasCheckConstraint("ck_sample_timing_points_pair", "(timing_point_start_id IS NULL AND timing_point_end_id IS NULL) OR (timing_point_start_id IS NOT NULL AND timing_point_end_id IS NOT NULL)");
-                        });
+                    b.ToTable("sample", "statistics");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.SampleCompleteOutbox", b =>

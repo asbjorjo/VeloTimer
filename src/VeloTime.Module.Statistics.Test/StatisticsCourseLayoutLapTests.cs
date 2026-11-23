@@ -43,9 +43,7 @@ public sealed partial class StatisticsServiceTests
         Assert.Equal(start, stored.TimeStart);
         Assert.Equal(start.AddSeconds(25), stored.TimeEnd);
 
-        // A redelivery must retain the original result, even if later evidence conflicts.
-        database.Storage.Add(LapSample(rider, segmentPoint, finish, segmentStart, start.AddSeconds(25), facility, Guid.NewGuid(), 250, multipleSegments ? 233.33 : 333.33));
-        await database.Storage.SaveChangesAsync();
+        // A redelivery of the same keyed source must retain the original result.
         var replay = Assert.Single(await database.Service.ProcessCompletedAsync(rider, segmentStart, start.AddSeconds(25), segmentPoint, finish));
         Assert.Equal(entry.Id, replay.Id);
         Assert.Equal(333.33, replay.DistanceMetres);
@@ -145,6 +143,7 @@ public sealed partial class StatisticsServiceTests
         Guid facility, Guid? layout, double? length, double segmentDistance) => new()
     {
         Id = Guid.NewGuid(), TransponderId = rider, CoursePointStartId = from, CoursePointEndId = to,
+        TimingPointStartId = Guid.NewGuid(), TimingPointEndId = Guid.NewGuid(),
         TimeStart = start, TimeEnd = end, Duration = end - start, FacilityId = facility,
         Distance = segmentDistance, Speed = segmentDistance / (end - start).TotalSeconds,
         CourseLayoutId = layout, ClosedLoopDistanceMetres = length
