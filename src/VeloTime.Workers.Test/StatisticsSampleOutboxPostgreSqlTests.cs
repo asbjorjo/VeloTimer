@@ -25,6 +25,60 @@ namespace VeloTime.Workers.Test;
 public sealed partial class StatisticsValidityPostgreSqlTests
 {
     [PostgreSqlStatisticsFact]
+    public async Task SampleReplayKeepsPersistedFacilitiesEnrichmentAfterAssociationChanges()
+    {
+        using var services = new ServiceCollection().AddMetrics().BuildServiceProvider();
+        var metrics = new Metrics(services.GetRequiredService<IMeterFactory>());
+        var facilities = DispatchProxy.Create<IFacilitiesClient, TimingSampleEventTimeTests.FacilitiesProxy>();
+        var proxy = (TimingSampleEventTimeTests.FacilitiesProxy)(object)facilities;
+        var original = new VeloTime.Module.Facilities.Client.CoursePointDistance
+        {
+            CoursePointStartId = Guid.NewGuid(),
+            CoursePointEndId = Guid.NewGuid(),
+            Distance = 100,
+            FacilityId = Guid.NewGuid(),
+            CourseLayoutId = Guid.NewGuid(),
+            ClosedLoopDistanceMetres = 400
+        };
+        var changed = new VeloTime.Module.Facilities.Client.CoursePointDistance
+        {
+            CoursePointStartId = Guid.NewGuid(),
+            CoursePointEndId = Guid.NewGuid(),
+            Distance = 250,
+            FacilityId = Guid.NewGuid(),
+            CourseLayoutId = Guid.NewGuid(),
+            ClosedLoopDistanceMetres = 500
+        };
+        proxy.Resolve = (_, _, _, _, _) => Task.FromResult(original);
+        var message = new TimingSampleComplete(Start.AddTicks(9), Start.AddSeconds(1).AddTicks(9),
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+
+        await using (var creation = Db())
+            await new TimingSampleHandler(creation, facilities, metrics, NullLogger<TimingSampleHandler>.Instance)
+                .OnHandle(message, CancellationToken.None);
+
+        proxy.Resolve = (_, _, _, _, _) => Task.FromResult(changed);
+        var replay = message with { TimeStart = Start, TimeEnd = Start.AddSeconds(1) };
+        await using (var replayDb = Db())
+            await new TimingSampleHandler(replayDb, facilities, metrics, NullLogger<TimingSampleHandler>.Instance)
+                .OnHandle(replay, CancellationToken.None);
+
+        Assert.Equal(1, proxy.Calls);
+        await using var verify = Db();
+        var sample = await verify.Set<Sample>().SingleAsync();
+        Assert.Equal(original.FacilityId, sample.FacilityId);
+        Assert.Equal(original.CoursePointStartId, sample.CoursePointStartId);
+        Assert.Equal(original.CoursePointEndId, sample.CoursePointEndId);
+        Assert.Equal(original.CourseLayoutId, sample.CourseLayoutId);
+        Assert.Equal(original.ClosedLoopDistanceMetres, sample.ClosedLoopDistanceMetres);
+        Assert.Equal(original.Distance, sample.Distance);
+        var completion = await verify.Set<SampleCompleteOutbox>().SingleAsync();
+        Assert.Equal(original.CoursePointStartId, completion.CoursePointStart);
+        Assert.Equal(original.CoursePointEndId, completion.CoursePointEnd);
+        Assert.Equal(original.Distance, completion.Distance);
+    }
+
+    [PostgreSqlStatisticsFact]
     public async Task SampleOutboxAtomicRollbackReplayAndConcurrentDelivery()
     {
         using var services = new ServiceCollection().AddMetrics().BuildServiceProvider();
