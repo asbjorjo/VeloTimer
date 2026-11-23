@@ -1,8 +1,9 @@
 # Statistics sample identity: expand phase and handoff
 
-This is **storage preparation, not replay-safe processing**. The existing handler still
-writes unkeyed rows, sends outside its transaction, and can duplicate both samples and
-entries. Do not rely on this migration alone to meet the replay acceptance criteria.
+This migration is **storage preparation**, not activation of historical data. The
+new processor writer and its isolated transactional completion outbox are documented
+in `SampleCompleteOutbox.md`. Legacy unkeyed samples and downstream entry processing
+remain unsafe for replay until their separate activation and consumer work is complete.
 No message contract changed.
 
 ## Schema and writer contract
@@ -82,6 +83,9 @@ with their owners. In particular, do not clear shared `statistics.smb_outbox` or
 presence/absence proves delivery; pending or already-delivered events may refer to
 deleted state. Drain, quarantine or reconcile individually only under the messaging
 owner's approved plan, preserving unrelated threshold events.
+Also inventory and reconcile `statistics.sample_complete_outbox` before any reset:
+its pending payloads can refer to samples being deleted, and retained delivered rows
+do not establish downstream success. Do not truncate it as an automatic reset step.
 
 Deploy the expand migration first; finish and verify replay-safe sample/outbox and
 Simple/Multi consumers before enabling any replay. A later coordinated activation

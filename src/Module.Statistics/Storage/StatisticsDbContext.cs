@@ -51,6 +51,13 @@ public class StatisticsDbContext : BaseDbContext
                 .HasDatabaseName("ix_sample_transponder_facility_attempt")
                 .IsCreatedConcurrently();
         });
+        modelBuilder.Entity<SampleCompleteOutbox>(e =>
+        {
+            e.ToTable("sample_complete_outbox");
+            e.HasIndex(x => x.SampleId).IsUnique();
+            var pending = e.HasIndex(x => new { x.TransponderId, x.Id });
+            if (Database.IsNpgsql()) pending.HasFilter("delivered_at_utc IS NULL");
+        });
         modelBuilder.Entity<StatisticsItem>(e =>
         {
             e.Property(item => item.DistanceMode).HasDefaultValue(StatisticsDistanceMode.Fixed);

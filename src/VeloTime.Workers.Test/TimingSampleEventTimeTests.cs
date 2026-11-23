@@ -60,7 +60,7 @@ public sealed class TimingSampleEventTimeTests
         Assert.Equal(message.TimeEnd - message.TimeStart, sample.Duration);
         Assert.Equal(150 / sample.Duration.TotalSeconds, sample.Speed);
         AssertPreservedTimes(message, sample.TimeStart, sample.TimeEnd);
-        var published = Assert.IsType<SampleComplete>(Assert.Single(fixture.Bus.Published).Payload);
+        var published = await fixture.Storage.Set<SampleCompleteOutbox>().SingleAsync();
         Assert.Equal(message.TransponderId, sample.TransponderId);
         Assert.Equal(message.TransponderId, published.TransponderId);
         Assert.Equal(sample.CoursePointStartId, published.CoursePointStart);
@@ -98,7 +98,7 @@ public sealed class TimingSampleEventTimeTests
         Assert.Equal(1, fixture.Client.Calls);
         var sample = await fixture.Storage.Set<Sample>().SingleAsync();
         AssertPreservedTimes(message, sample.TimeStart, sample.TimeEnd);
-        var published = Assert.IsType<SampleComplete>(Assert.Single(fixture.Bus.Published).Payload);
+        var published = await fixture.Storage.Set<SampleCompleteOutbox>().SingleAsync();
         AssertPreservedTimes(message, published.TimeStart, published.TimeEnd);
     }
 
@@ -126,9 +126,9 @@ public sealed class TimingSampleEventTimeTests
         else
             Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.Handler.OnHandle(message, cancellation.Token)));
 
-        Assert.Equal(1, fixture.Client.Calls);
+        Assert.Equal(cancelled ? 0 : 1, fixture.Client.Calls);
         Assert.Empty(await fixture.Storage.Set<Sample>().ToListAsync());
-        Assert.Empty(fixture.Bus.Published);
+        Assert.Empty(await fixture.Storage.Set<SampleCompleteOutbox>().ToListAsync());
     }
 
     private static DateTime WithKind(DateTime utc, DateTimeKind kind) =>
@@ -143,11 +143,14 @@ public sealed class TimingSampleEventTimeTests
 
     private static void AssertPreservedTimes(TimingSampleComplete message, DateTime start, DateTime end)
     {
-        Assert.Equal(message.TimeStart.Ticks, start.Ticks);
-        Assert.Equal(message.TimeStart.Kind, start.Kind);
-        Assert.Equal(message.TimeEnd.Ticks, end.Ticks);
-        Assert.Equal(message.TimeEnd.Kind, end.Kind);
+        Assert.Equal(Normalize(message.TimeStart), start);
+        Assert.Equal(DateTimeKind.Utc, start.Kind);
+        Assert.Equal(Normalize(message.TimeEnd), end);
+        Assert.Equal(DateTimeKind.Utc, end.Kind);
     }
+
+    private static DateTime Normalize(DateTime time) => StatisticsStoragePrecision.Timestamp(
+        time.Kind == DateTimeKind.Local ? time.ToUniversalTime() : DateTime.SpecifyKind(time, DateTimeKind.Utc));
 
     public class FacilitiesProxy : DispatchProxy
     {
@@ -172,17 +175,14 @@ public sealed class TimingSampleEventTimeTests
     private sealed class Fixture(SqliteConnection connection, StatisticsDbContext storage, ServiceProvider services) : IAsyncDisposable
     {
         private readonly IFacilitiesClient facilities = DispatchProxy.Create<IFacilitiesClient, FacilitiesProxy>();
-        private readonly (SlimMessageBus.IMessageBus Bus, WorkerHandlerTests.RecordingMessageBus Recorder) bus =
-            WorkerHandlerTests.RecordingMessageBus.Create();
         public StatisticsDbContext Storage => storage;
         public FacilitiesProxy Client => (FacilitiesProxy)(object)facilities;
-        public WorkerHandlerTests.RecordingMessageBus Bus => bus.Recorder;
         public CoursePointDistance Distance { get; } = new()
         {
             CoursePointStartId = Guid.NewGuid(), CoursePointEndId = Guid.NewGuid(),
             Distance = 150, FacilityId = Guid.NewGuid()
         };
-        public TimingSampleHandler Handler => new(storage, facilities, bus.Bus,
+        public TimingSampleHandler Handler => new(storage, facilities,
             new Metrics(services.GetRequiredService<IMeterFactory>()), NullLogger<TimingSampleHandler>.Instance);
 
         public static async Task<Fixture> CreateAsync()

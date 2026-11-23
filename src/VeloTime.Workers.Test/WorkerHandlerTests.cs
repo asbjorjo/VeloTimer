@@ -294,12 +294,10 @@ public sealed class WorkerHandlerTests
         };
         var facilities = DispatchProxy.Create<IFacilitiesClient, RecordingFacilitiesClient>();
         ((RecordingFacilitiesClient)(object)facilities).Distance = distance;
-        var (messageBus, recorder) = RecordingMessageBus.Create();
         using var serviceProvider = new ServiceCollection().AddMetrics().BuildServiceProvider();
         var handler = new TimingSampleHandler(
             storage,
             facilities,
-            messageBus,
             new Metrics(serviceProvider.GetRequiredService<IMeterFactory>()),
             NullLogger<TimingSampleHandler>.Instance);
 
@@ -308,8 +306,8 @@ public sealed class WorkerHandlerTests
         var sample = await storage.Set<VeloTime.Module.Statistics.Model.Sample>().SingleAsync();
         Assert.Equal(distance.Distance, sample.Distance);
         Assert.Equal(distance.FacilityId, sample.FacilityId);
-        Assert.Equal(distance.Distance / (endTime - startTime).TotalSeconds, sample.Speed);
-        var published = Assert.IsType<SampleComplete>(Assert.Single(recorder.Published).Payload);
+        Assert.Equal(distance.Distance / (sample.TimeEnd - sample.TimeStart).TotalSeconds, sample.Speed);
+        var published = await storage.Set<SampleCompleteOutbox>().SingleAsync();
         Assert.Equal(sample.CoursePointStartId, published.CoursePointStart);
         Assert.Equal(sample.CoursePointEndId, published.CoursePointEnd);
     }

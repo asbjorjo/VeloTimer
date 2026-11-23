@@ -113,6 +113,61 @@ namespace VeloTime.Module.Statistics.Migrations
                         });
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.SampleCompleteOutbox", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("CoursePointEnd")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_point_end");
+
+                    b.Property<Guid>("CoursePointStart")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_point_start");
+
+                    b.Property<DateTime?>("DeliveredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("delivered_at_utc");
+
+                    b.Property<double>("Distance")
+                        .HasColumnType("double precision")
+                        .HasColumnName("distance");
+
+                    b.Property<Guid>("SampleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sample_id");
+
+                    b.Property<DateTime>("TimeEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("time_end");
+
+                    b.Property<DateTime>("TimeStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("time_start");
+
+                    b.Property<Guid>("TransponderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transponder_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_sample_complete_outbox");
+
+                    b.HasIndex("SampleId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_sample_complete_outbox_sample_id");
+
+                    b.HasIndex("TransponderId", "Id")
+                        .HasDatabaseName("ix_sample_complete_outbox_transponder_id_id")
+                        .HasFilter("delivered_at_utc IS NULL");
+
+                    b.ToTable("sample_complete_outbox", "statistics");
+                });
+
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsEntry", b =>
                 {
                     b.Property<Guid>("Id")

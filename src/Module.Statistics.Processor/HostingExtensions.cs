@@ -118,6 +118,8 @@ internal static class StartupExtensions
         services.AddSingleton<StatisticsRevalidationSignal>();
         services.AddScoped<StatisticsRevalidationService>();
         services.AddHostedService<StatisticsRevalidationWorker>();
+        services.AddScoped<SampleCompleteOutboxDispatcher>();
+        services.AddHostedService<SampleCompleteOutboxWorker>();
 
         services.AddFacilitiesClient()
             .AddDefaultAccessTokenResiliency()
