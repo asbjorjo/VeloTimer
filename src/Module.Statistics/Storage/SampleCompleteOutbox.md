@@ -33,9 +33,10 @@ expand-only identity and activation/reset prerequisites in
 `SampleIdentityPersistence.md` still apply. In particular historical unkeyed rows
 are NOT made safe by this implementation.
 
-**Deployment gate:** downstream `SampleComplete` processing currently does not fully
-deduplicate fixed/multi entries or durably publish `EntryCreated`. The next owner must
-fix and test those paths before activating this at-least-once dispatcher or replay.
+**Deployment gate:** domain fixed/multi replay identity and retry-safe `EntryCreated`
+payload recovery are documented in `EntryReplay.md`. Durable `EntryCreated` publication
+still requires the worker-owned transactional publication handoff described there,
+and legacy entry identity still requires reconciliation/reset before activation or replay.
 Coordinate in-flight messages and API threshold outbox independently; do not clear
 `statistics.smb_outbox`. The payload has no event ID beyond its source identity;
 dispatched rows and broker acknowledgements do not establish downstream success.

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using VeloTime.Module.Statistics.Interface.Data;
@@ -18,7 +20,7 @@ public class StatisticsService(
     /// transaction (StatisticsOwnershipService) on PostgreSQL. Owning and dependent items are locked
     /// before live bounds are read. Insertions schedule dependent Multi revalidation atomically, including
     /// windows created before a late Simple entry arrived. Invalid measurements are retained and published.
-    /// Required-point replays return the original persisted entry for at-least-once publication retry;
+    /// Replays return the original persisted entry for at-least-once publication retry;
     /// they never reassess checkpoints or insert another row. The caller must serialize by transponder.
     /// </summary>
     public async Task<IEnumerable<StatisticsEntry>> ProcessCompletedAsync(Guid transponderId, DateTime startTime, DateTime endTime, Guid startPoint, Guid endPoint, CancellationToken cancellationToken = default)
@@ -26,14 +28,29 @@ public class StatisticsService(
         using var activity = Instrumentation.Source.StartActivity("ProcessCompletedAsync");
         activity?.SetTag("TransponderId", transponderId);
         IEnumerable<StatisticsEntry> entries = new List<StatisticsEntry>();
+        startTime = Persisted(startTime);
+        endTime = Persisted(endTime);
 
         var (statsItems, dependentItems) = await LockCompletionDefinitionsAsync(endPoint, cancellationToken);
+        entries = await ReadReplayEntriesAsync<SimpleStatisticsItemConfig>(
+            config => CompletionEntryId(config, transponderId, startTime, endTime, startPoint, endPoint), cancellationToken);
 
         if (statsItems.Any())
         {
+            // SampleComplete carries resolved course points, not the source sample ID. Never silently
+            // merge distinct Timing edges that resolve to the same completion contract.
+            var sources = await storage.Set<Sample>().AsNoTracking()
+                .Where(s => s.TransponderId == transponderId && s.TimeStart == startTime && s.TimeEnd == endTime
+                    && s.CoursePointStartId == startPoint && s.CoursePointEndId == endPoint)
+                .Select(s => new { s.TimingPointStartId, s.TimingPointEndId, s.FacilityId })
+                .Distinct().Take(2).ToListAsync(cancellationToken);
+            if (sources.Count > 1)
+                throw new InvalidOperationException("SampleComplete identifies multiple persisted source edges; a source sample ID is required.");
             var bounds = await ReadCurrentBoundsAsync(statsItems.Select(c => c.Id), cancellationToken);
             foreach (var statsItem in statsItems)
             {
+                var entryId = CompletionEntryId(statsItem.Id, transponderId, startTime, endTime, startPoint, endPoint);
+                if (entries.Any(e => e.Id == entryId)) continue;
                 if (statsItem.StatisticsItem.DistanceMode is not StatisticsDistanceMode.Fixed
                     and not StatisticsDistanceMode.CourseLayout)
                     throw new InvalidOperationException($"Statistics item {statsItem.StatisticsItemId} has an unsupported distance mode.");
@@ -52,7 +69,7 @@ public class StatisticsService(
                         continue;
                     }
                     var requiredEntry = CreateSimpleEntry(statsItem, transponderId, Persisted(attempt.TimeStart),
-                        Persisted(endTime), attempt.FacilityId, attempt.Satisfied, Bounds(bounds, statsItem.Id));
+                        Persisted(endTime), attempt.FacilityId, attempt.Satisfied, Bounds(bounds, statsItem.Id), entryId);
                     entries = entries.Append(requiredEntry);
                     continue;
                 }
@@ -74,7 +91,7 @@ public class StatisticsService(
                         throw new InvalidOperationException("Course-layout lap duration must be positive to calculate a persisted speed.");
                     var lapEntry = CreateSimpleEntry(statsItem, transponderId, Persisted(attempt.TimeStart),
                         Persisted(endTime), attempt.FacilityId, attempt.RequiredCoursePointsSatisfied,
-                        Bounds(bounds, statsItem.Id), attempt.DistanceMetres);
+                        Bounds(bounds, statsItem.Id), entryId, attempt.DistanceMetres);
                     entries = entries.Append(lapEntry);
                     continue;
                 }
@@ -94,7 +111,7 @@ public class StatisticsService(
                     var timeStart = Persisted(start.TimeStart);
                     var timeEnd = Persisted(endTime);
                     var entry = CreateSimpleEntry(statsItem, transponderId, timeStart, timeEnd,
-                        start.FacilityId, true, Bounds(bounds, statsItem.Id));
+                        start.FacilityId, true, Bounds(bounds, statsItem.Id), entryId);
                     entries = entries.Append(entry);
                 }
             }
@@ -155,11 +172,12 @@ public class StatisticsService(
 
     private static StatisticsEntry CreateSimpleEntry(SimpleStatisticsItemConfig config, Guid transponderId,
         DateTime start, DateTime end, Guid facilityId, bool checkpointsSatisfied, StatisticsDurationBounds bounds,
-        double? distanceMetres = null)
+        Guid entryId, double? distanceMetres = null)
     {
         var duration = end - start;
         var entry = new StatisticsEntry
         {
+            Id = entryId,
             TransponderId = transponderId, TimeStart = start, TimeEnd = end,
             StatisticsItemId = config.StatisticsItem.Id, StatisticsItemConfigId = config.Id,
             Duration = duration, Speed = (distanceMetres ?? config.StatisticsItem.Distance) / duration.TotalSeconds,
@@ -179,30 +197,40 @@ public class StatisticsService(
     /// window. Exactly Repetitions entries must match and all must be valid. The Multi items are
     /// share-locked before reading live bounds and contributors (requires the caller's transaction on
     /// PostgreSQL). Later parent insertions/validity changes durably reschedule these items.
-    /// Required-parent replays return existing windows without changing their endpoints or contributors.
+    /// Replays return existing windows without changing their endpoints or contributors, even after
+    /// late parent arrivals or configuration edits. Identity is the full triggering EntryCreated tuple,
+    /// not just the selected window's finish/facility. The caller must serialize by transponder.
     /// </summary>
     public async Task<IEnumerable<StatisticsEntry>> ProcessEntryAsync(Guid transponderId, Guid statisticsItemId, Guid configId, DateTime startTime, DateTime endTime, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("ProcessEntryAsync");
         IEnumerable<StatisticsEntry> entries = new List<StatisticsEntry>();
+        startTime = Persisted(startTime);
+        endTime = Persisted(endTime);
 
-        var multiItems = (await GetMultiStatisticsItemConfigs(configId, cancellationToken: cancellationToken)).ToList();
+        var multiItems = await LockMultiDefinitionsAsync(configId, cancellationToken);
+        entries = await ReadReplayEntriesAsync<MultiStatisticsItemConfig>(
+            config => ParentEntryId(config, transponderId, statisticsItemId, configId, startTime, endTime), cancellationToken);
 
         if (multiItems.Any())
         {
+            // EntryCreated has no entry ID. Equal finishes are legitimate, but two persisted parents
+            // with the entire same wire identity cannot be distinguished safely by this consumer.
+            var parents = await storage.Set<StatisticsEntry>().AsNoTracking().Where(e =>
+                    e.TransponderId == transponderId && e.StatisticsItemConfigId == configId
+                    && e.TimeStart == startTime && e.TimeEnd == endTime)
+                .Select(e => e.StatisticsItemId).Take(2).ToListAsync(cancellationToken);
+            if (parents.Any(item => item != statisticsItemId))
+                throw new InvalidOperationException("EntryCreated conflicts with its persisted parent statistics item.");
+            if (parents.Count > 1)
+                throw new InvalidOperationException("EntryCreated identifies multiple persisted parent entries; an entry ID is required.");
             var parentDistanceMode = await storage.Set<SimpleStatisticsItemConfig>().AsNoTracking()
                 .Where(c => c.Id == configId).Select(c => (StatisticsDistanceMode?)c.StatisticsItem.DistanceMode)
                 .SingleOrDefaultAsync(cancellationToken);
             if (parentDistanceMode == StatisticsDistanceMode.CourseLayout
                 || multiItems.Any(item => item.StatisticsItem.DistanceMode == StatisticsDistanceMode.CourseLayout))
                 throw new InvalidOperationException("Multi statistics are not supported for course-layout distance items.");
-            await scheduler.LockItemsAsync(multiItems.Select(m => m.StatisticsItemId), StatisticsItemLockMode.Shared, cancellationToken);
             var bounds = await ReadCurrentBoundsAsync(multiItems.Select(m => m.Id), cancellationToken);
-            // Required-point completions replay their original creation payload after a failed publish.
-            // Make those dependent creations idempotent too, without changing legacy window selection.
-            var parentRequirements = await storage.Set<SimpleStatisticsItemConfig>().AsNoTracking()
-                .Where(c => c.Id == configId).Select(c => c.RequiredCoursePointIds).SingleOrDefaultAsync(cancellationToken);
-            var replaySafe = parentRequirements is { Length: > 0 };
             var newEntries = new List<StatisticsEntry>();
             var maxRepetitions = multiItems.Max(m => m.Repetitions);
             var allEntries = await storage.Set<StatisticsEntry>()
@@ -214,28 +242,20 @@ public class StatisticsService(
                 .Select(s => new { s.TimeStart, s.TimeEnd, s.FacilityId })
                 .ToListAsync(cancellationToken);
 
-            foreach (var multiItem in multiItems.Where(i => i.Repetitions <= allEntries.Count))
+            foreach (var multiItem in multiItems)
             {
+                var entryId = ParentEntryId(multiItem.Id, transponderId, statisticsItemId, configId, startTime, endTime);
+                if (entries.Any(e => e.Id == entryId)) continue;
+                if (multiItem.Repetitions > allEntries.Count) continue;
                 var relevantEntries = allEntries.Take(multiItem.Repetitions).ToList();
                 // Contributor endpoints come from storage; normalization is idempotent and keeps the Multi
                 // duration equal to the persisted endpoint difference.
                 var timeStart = Persisted(relevantEntries.Last().TimeStart);
                 var timeEnd = Persisted(relevantEntries.First().TimeEnd);
-                if (replaySafe)
-                {
-                    var facility = relevantEntries.First().FacilityId;
-                    var existing = await storage.Set<StatisticsEntry>().FirstOrDefaultAsync(e =>
-                        e.TransponderId == transponderId && e.StatisticsItemConfigId == multiItem.Id
-                        && e.TimeEnd == timeEnd && e.FacilityId == facility, cancellationToken);
-                    if (existing is not null)
-                    {
-                        entries = entries.Append(existing);
-                        continue;
-                    }
-                }
                 var duration = timeEnd - timeStart;
                 StatisticsEntry entry = new()
                 {
+                    Id = entryId,
                     TransponderId = transponderId,
                     TimeStart = timeStart,
                     TimeEnd = timeEnd,
@@ -263,6 +283,65 @@ public class StatisticsService(
 
         return entries;
     }
+
+    // Enumerate the (small) definition key set, not entry history. A configuration can have moved
+    // to another endpoint/parent/owner since commit; live routing must not hide an unpublished
+    // original result on retry. Only exact source-derived primary keys match. Deleted entries
+    // cannot be recovered here; durable publication requires a worker-owned transactional outbox.
+    private async Task<List<StatisticsEntry>> ReadReplayEntriesAsync<TConfig>(Func<Guid, Guid> sourceEntryId,
+        CancellationToken cancellationToken) where TConfig : StatisticsItemConfig
+    {
+        var configs = await storage.Set<TConfig>().AsNoTracking().Select(c => c.Id).ToListAsync(cancellationToken);
+        var ids = configs.Select(sourceEntryId).ToArray();
+        return await storage.Set<StatisticsEntry>().Where(e => ids.Contains(e.Id)).ToListAsync(cancellationToken);
+    }
+
+    // Definition caches are for reads, not creation decisions. Match the completion lock protocol:
+    // rediscover after waiting, and release a stale scope before acquiring another in UUID order.
+    private async Task<List<MultiStatisticsItemConfig>> LockMultiDefinitionsAsync(Guid parentConfigId,
+        CancellationToken cancellationToken)
+    {
+        async Task<List<MultiStatisticsItemConfig>> ReadAsync() =>
+            await storage.Set<MultiStatisticsItemConfig>().AsNoTracking()
+                .Where(c => c.ParentConfigId == parentConfigId).Include(c => c.StatisticsItem)
+                .OrderByDescending(c => c.Repetitions).ToListAsync(cancellationToken);
+
+        var configs = await ReadAsync();
+        var transaction = storage.Database.CurrentTransaction;
+        const string savepoint = "statistics_parent_scope";
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (transaction is not null) await transaction.CreateSavepointAsync(savepoint, cancellationToken);
+            var locked = await scheduler.LockItemsAsync(configs.Select(c => c.StatisticsItemId),
+                StatisticsItemLockMode.Shared, cancellationToken);
+            var current = await ReadAsync();
+            if (locked.ToHashSet().SetEquals(current.Select(c => c.StatisticsItemId)))
+            {
+                if (transaction is not null) await transaction.ReleaseSavepointAsync(savepoint, cancellationToken);
+                return current;
+            }
+            if (transaction is not null)
+            {
+                await transaction.RollbackToSavepointAsync(savepoint, cancellationToken);
+                await transaction.ReleaseSavepointAsync(savepoint, cancellationToken);
+            }
+            configs = current;
+        }
+    }
+
+    // Versioned, domain-separated source identities in the existing primary key: no schema change.
+    // Do NOT derive IDs from mutable distance, requirements, ownership, selected starts/windows or
+    // validity. UUID-sized SHA-256 digests have the same collision assumption as generated UUIDs.
+    // Normalize timestamps BEFORE hashing, exactly as PostgreSQL persists them.
+    private static Guid CompletionEntryId(Guid config, Guid rider, DateTime start, DateTime end, Guid from, Guid to) =>
+        SourceEntryId(FormattableString.Invariant($"statistics-completion-v1|{config:D}|{rider:D}|{start.Ticks}|{end.Ticks}|{from:D}|{to:D}"));
+
+    private static Guid ParentEntryId(Guid config, Guid rider, Guid parentItem, Guid parentConfig, DateTime start, DateTime end) =>
+        SourceEntryId(FormattableString.Invariant($"statistics-parent-v1|{config:D}|{rider:D}|{parentItem:D}|{parentConfig:D}|{start.Ticks}|{end.Ticks}"));
+
+    private static Guid SourceEntryId(string source) =>
+        new(SHA256.HashData(Encoding.UTF8.GetBytes(source)).AsSpan(0, 16));
 
     /// <summary>
     /// One grouped SQL query for a bounded set of persisted Multi windows (including uncommitted new
