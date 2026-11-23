@@ -85,7 +85,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             {
                 SampleId = Guid.NewGuid(), TransponderId = rider, TimeStart = Start.AddSeconds(i),
                 TimeEnd = Start.AddSeconds(i + 1), CoursePointStart = Guid.NewGuid(),
-                CoursePointEnd = Guid.NewGuid(), Distance = 100
+                CoursePointEnd = Guid.NewGuid(), Distance = 100, EntriesCreatedAtUtc = DateTime.UtcNow
             }));
             await db.SaveChangesAsync();
         }
@@ -197,6 +197,29 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                 Assert.Equal(nameof(SampleComplete), transport.ApplicationProperties["MessageName"]);
                 Assert.Equal(rider, JsonSerializer.Deserialize<SampleComplete>(transport.Body.ToString(),
                     new JsonSerializerOptions(JsonSerializerDefaults.Web))!.TransponderId);
+                foreach (var single in new[] { true, false })
+                {
+                    var entry = PendingEntry(rider);
+                    db.Add(new EntryCreatedOutbox
+                    {
+                        EntryId = entry.EntryId, TransponderId = rider, TimeStart = entry.TimeStart,
+                        TimeEnd = entry.TimeEnd, StatisticsItemId = entry.StatisticsItemId,
+                        ConfigItemId = entry.ConfigItemId, Single = single
+                    });
+                    await db.SaveChangesAsync();
+                    Assert.True(await new EntryCreatedOutboxDispatcher(db, scope.ServiceProvider.GetRequiredService<IMessageBus>())
+                        .DispatchOneAsync(CancellationToken.None));
+                    var sent = sender.Messages.Last();
+                    Assert.Equal("velotime-statistics", path);
+                    Assert.Equal(rider.ToString(), sent.SessionId);
+                    Assert.Equal(nameof(EntryCreated), sent.ApplicationProperties["MessageName"]);
+                    Assert.Equal(single, sent.ApplicationProperties.ContainsKey("Single"));
+                    if (single) Assert.Equal(true, sent.ApplicationProperties["Single"]);
+                    Assert.Equal(new EntryCreated(rider, entry.TimeStart, entry.TimeEnd,
+                        entry.StatisticsItemId, entry.ConfigItemId),
+                        JsonSerializer.Deserialize<EntryCreated>(sent.Body.ToString(),
+                            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+                }
             }
             finally { await master.Stop(); }
         }
@@ -236,7 +259,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             foreach (var id in new[] { rider, rider, other })
                 db.Add(new SampleCompleteOutbox { SampleId = Guid.NewGuid(), TransponderId = id,
                     TimeStart = Start, TimeEnd = Start.AddSeconds(1),
-                    CoursePointStart = Guid.NewGuid(), CoursePointEnd = Guid.NewGuid(), Distance = 100 });
+                    CoursePointStart = Guid.NewGuid(), CoursePointEnd = Guid.NewGuid(), Distance = 100,
+                    EntriesCreatedAtUtc = DateTime.UtcNow });
             await db.SaveChangesAsync();
         }
         var bus = DispatchProxy.Create<IMessageBus, BlockingOutboxBus>();

@@ -313,7 +313,7 @@ public sealed class WorkerHandlerTests
     }
 
     [Fact]
-    public async Task StatisticsHandlers_PublishEmptyEntryBatchesForUnconfiguredSample()
+    public async Task StatisticsHandlers_EnqueueNothingForUnconfiguredSample()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
@@ -327,17 +327,13 @@ public sealed class WorkerHandlerTests
         var statistics = new StatisticsService(storage, serviceProvider.GetRequiredService<HybridCache>());
         var ownership = new StatisticsOwnershipService(storage, new EmptyOwnershipReader());
         var metrics = new Metrics(serviceProvider.GetRequiredService<IMeterFactory>());
-        var (messageBus, recorder) = RecordingMessageBus.Create();
-        var sampleHandler = new SampleCompleteHandler(statistics, ownership, metrics, messageBus, NullLogger<SampleCompleteHandler>.Instance);
-        var entryHandler = new EntryCreatedHandler(statistics, ownership, messageBus, NullLogger<EntryCreatedHandler>.Instance);
+        var sampleHandler = new SampleCompleteHandler(statistics, ownership, metrics, NullLogger<SampleCompleteHandler>.Instance);
+        var entryHandler = new EntryCreatedHandler(statistics, ownership, NullLogger<EntryCreatedHandler>.Instance);
 
         await sampleHandler.OnHandle(new SampleComplete(Guid.NewGuid(), DateTime.UtcNow.AddSeconds(-10), DateTime.UtcNow, Guid.NewGuid(), Guid.NewGuid(), 100), CancellationToken.None);
         await entryHandler.OnHandle(new EntryCreated(Guid.NewGuid(), DateTime.UtcNow.AddSeconds(-10), DateTime.UtcNow, Guid.NewGuid(), Guid.NewGuid()), CancellationToken.None);
 
-        Assert.Equal(2, recorder.Published.Count);
-        Assert.Empty((IEnumerable<EntryCreated>)recorder.Published[0].Payload!);
-        Assert.Equal(true, recorder.Published[0].Headers!["Single"]);
-        Assert.Empty((IEnumerable<EntryCreated>)recorder.Published[1].Payload!);
+        Assert.Empty(await storage.Set<EntryCreatedOutbox>().ToListAsync());
     }
 
     private sealed class EmptyOwnershipReader : ITransponderOwnershipReader

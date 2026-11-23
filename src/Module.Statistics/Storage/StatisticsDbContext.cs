@@ -56,6 +56,13 @@ public class StatisticsDbContext : BaseDbContext
             e.ToTable("sample_complete_outbox");
             e.HasIndex(x => x.SampleId).IsUnique();
             var pending = e.HasIndex(x => new { x.TransponderId, x.Id });
+            if (Database.IsNpgsql()) pending.HasFilter("delivered_at_utc IS NULL OR entries_created_at_utc IS NULL");
+        });
+        modelBuilder.Entity<EntryCreatedOutbox>(e =>
+        {
+            e.ToTable("entry_created_outbox");
+            e.HasIndex(x => x.EntryId).IsUnique();
+            var pending = e.HasIndex(x => new { x.TransponderId, x.Id });
             if (Database.IsNpgsql()) pending.HasFilter("delivered_at_utc IS NULL");
         });
         modelBuilder.Entity<StatisticsItem>(e =>

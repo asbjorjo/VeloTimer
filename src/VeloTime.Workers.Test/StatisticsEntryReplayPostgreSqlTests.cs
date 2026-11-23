@@ -73,12 +73,14 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         SampleCompleteHandler Handler(VeloTime.Module.Statistics.Storage.StatisticsDbContext db) => new(
             new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
             new Metrics(services.GetRequiredService<System.Diagnostics.Metrics.IMeterFactory>()),
-            bus, NullLogger<SampleCompleteHandler>.Instance);
+            NullLogger<SampleCompleteHandler>.Instance);
         await using (var db = Db())
         {
             db.AddRange(config, multi, sample);
             await db.SaveChangesAsync();
-            await Assert.ThrowsAsync<InvalidOperationException>(() => Handler(db).OnHandle(message, CancellationToken.None));
+            await Handler(db).OnHandle(message, CancellationToken.None);
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None));
         }
         await using (var db = Db())
         {
@@ -88,6 +90,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             await db.SaveChangesAsync();
             recorder.Fail = false;
             await Handler(db).OnHandle(message, CancellationToken.None);
+            await new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None);
         }
         Assert.Equal(recorder.Events[0], recorder.Events[1]);
         var parentEvent = Assert.Single(recorder.Events[1]);
@@ -95,8 +98,10 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         {
             recorder.Fail = true;
             var handler = new EntryCreatedHandler(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
-                bus, NullLogger<EntryCreatedHandler>.Instance);
-            await Assert.ThrowsAsync<InvalidOperationException>(() => handler.OnHandle(parentEvent, CancellationToken.None));
+                NullLogger<EntryCreatedHandler>.Instance);
+            await handler.OnHandle(parentEvent, CancellationToken.None);
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None));
         }
         await using (var db = Db())
         {
@@ -112,8 +117,9 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             await db.SaveChangesAsync();
             recorder.Fail = false;
             var handler = new EntryCreatedHandler(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
-                bus, NullLogger<EntryCreatedHandler>.Instance);
+                NullLogger<EntryCreatedHandler>.Instance);
             await handler.OnHandle(parentEvent, CancellationToken.None);
+            await new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None);
             Assert.Equal(3, await db.Set<StatisticsEntry>().CountAsync());
             Assert.Single(await db.Set<StatisticsEntry>().Where(e => e.StatisticsItemConfigId == multi.Id).ToListAsync());
         }

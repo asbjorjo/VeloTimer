@@ -20,7 +20,8 @@ public sealed class SampleCompleteOutboxDispatcher(StatisticsDbContext storage, 
               AND NOT EXISTS (
                 SELECT 1 FROM statistics.sample_complete_outbox earlier
                 WHERE earlier.transponder_id = o.transponder_id
-                  AND earlier.delivered_at_utc IS NULL AND earlier.id < o.id)
+                  AND (earlier.delivered_at_utc IS NULL OR earlier.entries_created_at_utc IS NULL)
+                  AND earlier.id < o.id)
             ORDER BY o.id
             LIMIT 1 FOR UPDATE OF o SKIP LOCKED
             """).SingleOrDefaultAsync(cancellationToken);

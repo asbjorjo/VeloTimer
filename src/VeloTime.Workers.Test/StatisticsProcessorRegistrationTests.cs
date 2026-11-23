@@ -2,6 +2,8 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SlimMessageBus;
+using SlimMessageBus.Host;
+using Assert = Xunit.Assert;
 using MessageBusBase = SlimMessageBus.Host.MessageBusBase;
 using IMasterMessageBus = SlimMessageBus.Host.IMasterMessageBus;
 using VeloTime.Module.Statistics.Handlers;
@@ -23,6 +25,8 @@ public sealed class StatisticsProcessorRegistrationTests
         builder.Configuration["ConnectionStrings:cache"] = "localhost:6379";
         var startup = typeof(TransponderOwnershipChangedHandler).Assembly.GetType("StartupExtensions")!;
         startup.GetMethod("AddServices", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [builder]);
+        var mbb = (MessageBusBuilder)builder.Services.Single(x => x.ServiceType == typeof(MessageBusBuilder)).ImplementationInstance!;
+        mbb.AutoStartConsumersEnabled(false);
         await using var provider = builder.Services.BuildServiceProvider();
         var bus = Assert.IsAssignableFrom<MessageBusBase>(provider.GetRequiredService<IMasterMessageBus>());
         var timingConsumers = bus.Settings.Consumers.Where(consumer => consumer.Path == "velotime-timing").ToList();
@@ -34,5 +38,11 @@ public sealed class StatisticsProcessorRegistrationTests
         Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(ITransponderOwnershipReader) &&
             descriptor.ImplementationType == typeof(TransponderOwnershipReader));
         Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(StatisticsOwnershipService));
+        Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(EntryCreatedOutboxDispatcher) &&
+            descriptor.Lifetime == ServiceLifetime.Scoped);
+        Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(IHostedService) &&
+            descriptor.ImplementationType == typeof(EntryCreatedOutboxWorker));
+        Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(IHostedService) &&
+            descriptor.ImplementationType == typeof(SampleCompleteOutboxWorker));
     }
 }

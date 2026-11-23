@@ -74,6 +74,11 @@ migration was executed for this change.
 
 ## Publication recovery and required worker handoff
 
+**Implemented worker handoff:** see `EntryCreatedOutbox.md` for the transactional
+publication boundary, isolated dispatcher, ordering barrier, migration and rollout
+gate. The paragraphs below describe the prior retry-only boundary and why the
+handoff was required; they are not the current handler behavior.
+
 Both `SampleCompleteHandler` and `EntryCreatedHandler` commit via ownership before
 publishing `EntryCreated` outside the transaction. Exceptions propagate. A redelivery
 uses the persisted entries to reconstruct the same wire payload, including after a

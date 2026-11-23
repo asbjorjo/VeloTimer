@@ -48,13 +48,15 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             b, config.CoursePointEnd, 100);
         SampleCompleteHandler Handler(VeloTime.Module.Statistics.Storage.StatisticsDbContext db) => new(
             new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
-            new Metrics(services.GetRequiredService<System.Diagnostics.Metrics.IMeterFactory>()), bus,
+            new Metrics(services.GetRequiredService<System.Diagnostics.Metrics.IMeterFactory>()),
             NullLogger<SampleCompleteHandler>.Instance);
         await using (var db = Db())
         {
             db.AddRange(config, multi, Edge(config.CoursePointStart, a, 0, 10), Edge(b, config.CoursePointEnd, 20, 30));
             await db.SaveChangesAsync();
-            await Assert.ThrowsAsync<InvalidOperationException>(() => Handler(db).OnHandle(message, CancellationToken.None));
+            await Handler(db).OnHandle(message, CancellationToken.None);
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None));
         }
         // The row committed before publication failed. A newly delivered checkpoint cannot repair it.
         await using (var db = Db())
@@ -67,6 +69,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             await db.SaveChangesAsync();
             recorder.Fail = false;
             await Handler(db).OnHandle(message, CancellationToken.None);
+            await new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None);
         }
         Assert.Equal(2, recorder.Events.Count);
         Assert.Equal(recorder.Events[0], recorder.Events[1]);
@@ -74,16 +77,19 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         await using (var db = Db())
         {
             var handler = new EntryCreatedHandler(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
-                bus, NullLogger<EntryCreatedHandler>.Instance);
+                NullLogger<EntryCreatedHandler>.Instance);
             recorder.Fail = true;
-            await Assert.ThrowsAsync<InvalidOperationException>(() => handler.OnHandle(parentEvent, CancellationToken.None));
+            await handler.OnHandle(parentEvent, CancellationToken.None);
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None));
         }
         await using (var db = Db())
         {
             recorder.Fail = false;
             var handler = new EntryCreatedHandler(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
-                bus, NullLogger<EntryCreatedHandler>.Instance);
+                NullLogger<EntryCreatedHandler>.Instance);
             await handler.OnHandle(parentEvent, CancellationToken.None);
+            await new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None);
             var rows = await db.Set<StatisticsEntry>().AsNoTracking().ToListAsync();
             Assert.Equal(2, rows.Count);
             Assert.Equal(StatisticsEntryInvalidReason.RequiredCoursePointsNotSatisfied,
@@ -115,7 +121,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
             Assert.Equal("Publish", targetMethod?.Name);
-            Events.Add(Assert.IsAssignableFrom<IEnumerable<EntryCreated>>(args![0]).ToArray());
+            Events.Add([Assert.IsType<EntryCreated>(args![0])]);
             return Fail ? Task.FromException(new InvalidOperationException("Injected publish failure")) : Task.CompletedTask;
         }
     }

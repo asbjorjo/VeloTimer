@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using VeloTime.Module.Statistics.Interface.Messages;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Storage;
 using VeloTime.Module.Timing.Interface.Data;
@@ -12,13 +13,52 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
     private const int BatchSize = 500;
 
     public async Task<IReadOnlyList<StatisticsEntry>> CreateEntriesAsync(Guid transponderId,
-        Func<CancellationToken, Task<IEnumerable<StatisticsEntry>>> create, CancellationToken cancellationToken)
+        Func<CancellationToken, Task<IEnumerable<StatisticsEntry>>> create, CancellationToken cancellationToken,
+        bool? enqueueSingle = null, SampleComplete? completion = null)
     {
         await using var transaction = await LockAsync(transponderId, cancellationToken);
         var owners = await ReadOwnersAsync(transponderId, cancellationToken);
         var entries = (await create(cancellationToken)).ToList();
         await LockOwnersAsync(owners, cancellationToken);
         await AssignAsync(entries, owners, cancellationToken);
+        if (enqueueSingle.HasValue)
+        {
+            // The transponder advisory lock serializes receipt lookup and sequence allocation
+            // across both entry-producing subscriptions and all processor replicas.
+            foreach (var entry in entries.DistinctBy(e => e.Id))
+            {
+                var existing = await storage.Set<EntryCreatedOutbox>()
+                    .SingleOrDefaultAsync(o => o.EntryId == entry.Id, cancellationToken);
+                if (existing is not null)
+                {
+                    if (existing.TransponderId != entry.TransponderId || existing.TimeStart != entry.TimeStart ||
+                        existing.TimeEnd != entry.TimeEnd || existing.StatisticsItemId != entry.StatisticsItemId ||
+                        existing.ConfigItemId != entry.StatisticsItemConfigId || existing.Single != enqueueSingle.Value)
+                        throw new InvalidOperationException($"Conflicting EntryCreated payload for entry {entry.Id}.");
+                    continue;
+                }
+                storage.Add(new EntryCreatedOutbox
+                {
+                    EntryId = entry.Id, TransponderId = entry.TransponderId,
+                    TimeStart = entry.TimeStart, TimeEnd = entry.TimeEnd,
+                    StatisticsItemId = entry.StatisticsItemId, ConfigItemId = entry.StatisticsItemConfigId,
+                    Single = enqueueSingle.Value
+                });
+            }
+        }
+        if (completion is not null)
+        {
+            var start = StatisticsStoragePrecision.Timestamp(completion.TimeStart);
+            var end = StatisticsStoragePrecision.Timestamp(completion.TimeEnd);
+            var sources = await storage.Set<SampleCompleteOutbox>().Where(o =>
+                o.EntriesCreatedAtUtc == null && o.TransponderId == transponderId &&
+                o.TimeStart == start && o.TimeEnd == end &&
+                o.CoursePointStart == completion.CoursePointStart && o.CoursePointEnd == completion.CoursePointEnd)
+                .ToListAsync(cancellationToken);
+            // Empty results are still completed creation, not a durable "ignore future definitions" receipt.
+            foreach (var source in sources)
+                source.EntriesCreatedAtUtc ??= DateTime.UtcNow;
+        }
         await storage.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return entries;

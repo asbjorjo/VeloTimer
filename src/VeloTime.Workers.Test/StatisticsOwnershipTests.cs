@@ -238,16 +238,18 @@ public sealed class StatisticsOwnershipTests
         using (services)
         {
             var statistics = new StatisticsService(database.Storage, services.GetRequiredService<HybridCache>());
-            var (bus, recorder) = WorkerHandlerTests.RecordingMessageBus.Create();
             var sampleHandler = new SampleCompleteHandler(statistics, database.Service,
-                new Metrics(services.GetRequiredService<System.Diagnostics.Metrics.IMeterFactory>()), bus, NullLogger<SampleCompleteHandler>.Instance);
+                new Metrics(services.GetRequiredService<System.Diagnostics.Metrics.IMeterFactory>()), NullLogger<SampleCompleteHandler>.Instance);
             await sampleHandler.OnHandle(new SampleComplete(database.TransponderId, Start.AddSeconds(2), Start.AddSeconds(10),
                 startPoint, endPoint, 100), CancellationToken.None);
-            var emitted = Assert.Single((IEnumerable<EntryCreated>)Assert.Single(recorder.Published).Payload!);
-            var entryHandler = new EntryCreatedHandler(statistics, database.Service, bus, NullLogger<EntryCreatedHandler>.Instance);
+            var emittedRow = await database.Storage.Set<EntryCreatedOutbox>().SingleAsync();
+            Assert.True(emittedRow.Single);
+            var emitted = new EntryCreated(emittedRow.TransponderId, emittedRow.TimeStart, emittedRow.TimeEnd,
+                emittedRow.StatisticsItemId, emittedRow.ConfigItemId);
+            var entryHandler = new EntryCreatedHandler(statistics, database.Service, NullLogger<EntryCreatedHandler>.Instance);
             await entryHandler.OnHandle(emitted, CancellationToken.None);
-            Assert.Equal(2, recorder.Published.Count);
-            var aggregate = Assert.Single((IEnumerable<EntryCreated>)recorder.Published[1].Payload!);
+            Assert.Equal(2, await database.Storage.Set<EntryCreatedOutbox>().CountAsync());
+            var aggregate = await database.Storage.Set<EntryCreatedOutbox>().SingleAsync(o => !o.Single);
             Assert.Equal(multi.Id, aggregate.ConfigItemId);
         }
         database.Storage.ChangeTracker.Clear();

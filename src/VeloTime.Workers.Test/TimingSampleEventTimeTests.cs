@@ -155,7 +155,8 @@ public sealed class TimingSampleEventTimeTests
     public class FacilitiesProxy : DispatchProxy
     {
         public Func<Guid, Guid, DateTimeOffset?, DateTimeOffset?, CancellationToken, Task<CoursePointDistance>> Resolve { get; set; } = null!;
-        public int Calls { get; private set; }
+        private int calls;
+        public int Calls => Volatile.Read(ref calls);
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
@@ -165,7 +166,7 @@ public sealed class TimingSampleEventTimeTests
                 targetMethod.GetParameters().Select(parameter => parameter.Name));
             Assert.NotNull(args);
             Assert.Equal(5, args.Length);
-            Calls++;
+            Interlocked.Increment(ref calls);
             return Resolve(Assert.IsType<Guid>(args[0]), Assert.IsType<Guid>(args[1]),
                 Assert.IsType<DateTimeOffset>(args[2]), Assert.IsType<DateTimeOffset>(args[3]),
                 Assert.IsType<CancellationToken>(args[4]));

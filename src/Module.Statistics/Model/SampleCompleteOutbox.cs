@@ -12,4 +12,5 @@ public class SampleCompleteOutbox
     public Guid CoursePointEnd { get; init; }
     public double Distance { get; init; }
     public DateTime? DeliveredAtUtc { get; set; }
+    public DateTime? EntriesCreatedAtUtc { get; set; }
 }
