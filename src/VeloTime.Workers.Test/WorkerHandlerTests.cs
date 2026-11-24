@@ -365,7 +365,8 @@ public sealed class WorkerHandlerTests
         storage.AddRange(item, config, parent, new EntryCreatedOutbox
         {
             EntryId = parent.Id, TransponderId = parent.TransponderId, TimeStart = parent.TimeStart,
-            TimeEnd = parent.TimeEnd, StatisticsItemId = item.Id, ConfigItemId = config.Id, Single = true
+            TimeEnd = parent.TimeEnd, StatisticsItemId = item.Id, ConfigItemId = config.Id, Single = true,
+            MultiDecisionVersion = 1
         });
         await storage.SaveChangesAsync();
         await entryHandler.OnHandle(new EntryCreated(parent.TransponderId, parent.TimeStart, parent.TimeEnd,

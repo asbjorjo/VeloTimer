@@ -83,6 +83,16 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         var parent = new EntryCreated(rider, Start, Start.AddSeconds(10), first.StatisticsItemId, first.Id);
         EntryCreatedHandler ParentHandler(StatisticsDbContext db) => new(new(db, cache), new(db, reader),
             NullLogger<EntryCreatedHandler>.Instance);
+        // The two fixed results can be allocated in either order. If the unrelated fixed
+        // result was first, process its empty Multi set before the tested parent.
+        await using (var earlier = Db())
+        {
+            var receipt = await earlier.Set<EntryCreatedOutbox>().OrderBy(r => r.Id).FirstAsync();
+            if (receipt.ConfigItemId != first.Id)
+                await ParentHandler(earlier).OnHandle(new EntryCreated(receipt.TransponderId,
+                    receipt.TimeStart, receipt.TimeEnd, receipt.StatisticsItemId, receipt.ConfigItemId,
+                    receipt.EntryId), CancellationToken.None);
+        }
         await using (var seed = Db())
             await seed.Database.ExecuteSqlRawAsync("""
                 CREATE TRIGGER reject_entry_outbox BEFORE INSERT ON statistics.entry_created_outbox
@@ -101,6 +111,16 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             await using var db = Db();
             await ParentHandler(db).OnHandle(parent, CancellationToken.None);
         }));
+        // The unrelated fixed receipt may be later in local order and still needs
+        // its empty decision set before its successors can be dispatched.
+        await using (var remaining = Db())
+        {
+            var receipt = await remaining.Set<EntryCreatedOutbox>()
+                .SingleAsync(r => r.ConfigItemId == second.Id && r.Single);
+            await ParentHandler(remaining).OnHandle(new EntryCreated(receipt.TransponderId,
+                receipt.TimeStart, receipt.TimeEnd, receipt.StatisticsItemId, receipt.ConfigItemId,
+                receipt.EntryId), CancellationToken.None);
+        }
         await using (var verify = Db())
         {
             Assert.Equal(4, await verify.Set<StatisticsEntry>().CountAsync());
@@ -123,6 +143,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     public async Task EntryOutboxMigrationPreservesUnknownHistoryAndGuardsRollback()
     {
         const string previous = "20261123135436_statistics_sample_complete_outbox";
+        var entryId = Guid.NewGuid();
         await RecreateAtMigrationAsync(previous);
         await using (var db = Db())
         {
@@ -141,17 +162,72 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             Assert.NotNull(old.DeliveredAtUtc);
             Assert.Null(old.EntriesCreatedAtUtc); // Never guess historical processing from acknowledgement.
             Assert.Equal(42, await db.Database.SqlQueryRaw<int>("SELECT sentinel AS \"Value\" FROM statistics.smb_outbox").SingleAsync());
-            db.Add(PendingEntry(Guid.NewGuid()));
-            await db.SaveChangesAsync();
+            // The current EF entity includes columns introduced after this historical target.
+            await db.Database.ExecuteSqlAsync($"""
+                INSERT INTO statistics.entry_created_outbox
+                    (entry_id, transponder_id, time_start, time_end, statistics_item_id, config_item_id, single)
+                VALUES ({entryId}, {Guid.NewGuid()}, {Start}, {Start.AddSeconds(1)}, {Guid.NewGuid()}, {Guid.NewGuid()}, TRUE)
+                """);
         }
         foreach (var delivered in new[] { false, true })
         {
             await using var db = Db();
             if (delivered)
-                await db.Set<EntryCreatedOutbox>().ExecuteUpdateAsync(s => s.SetProperty(o => o.DeliveredAtUtc, DateTime.UtcNow));
+                await db.Database.ExecuteSqlAsync($"UPDATE statistics.entry_created_outbox SET delivered_at_utc = {DateTime.UtcNow} WHERE entry_id = {entryId}");
             var exception = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(previous));
             Assert.Contains("Cannot drop EntryCreated outbox", exception.MessageText);
+            Assert.Equal(1, await db.Database.SqlQueryRaw<int>(delivered
+                ? """SELECT count(*)::int AS "Value" FROM statistics.entry_created_outbox WHERE delivered_at_utc IS NOT NULL"""
+                : """SELECT count(*)::int AS "Value" FROM statistics.entry_created_outbox WHERE delivered_at_utc IS NULL""").SingleAsync());
         }
+    }
+
+    [PostgreSqlStatisticsFact]
+    public async Task MultiDecisionMigrationUpgradesLegacyReceiptAndGuardsRetainedDecisions()
+    {
+        await RecreateAtMigrationAsync(BeforeSampleActivation);
+        await using var db = Db();
+        await AssertMigrationsPendingAfterEntryOutboxAsync(db);
+        await db.Database.OpenConnectionAsync();
+        await db.Database.ExecuteSqlRawAsync("SET velotime.statistics_sample_reset = 'approved'");
+        var migrator = db.GetService<IMigrator>();
+        await migrator.MigrateAsync(SampleActivationMigration);
+        Assert.Equal(new[] { MultiDecisionMigration }, await db.Database.GetPendingMigrationsAsync());
+
+        var entryId = Guid.NewGuid();
+        var configId = Guid.NewGuid();
+        await db.Database.ExecuteSqlAsync($"""
+            INSERT INTO statistics.entry_created_outbox
+                (entry_id, transponder_id, time_start, time_end, statistics_item_id, config_item_id, single)
+            VALUES ({entryId}, {Guid.NewGuid()}, {Start}, {Start.AddSeconds(1)}, {Guid.NewGuid()}, {Guid.NewGuid()}, TRUE)
+            """);
+        await migrator.MigrateAsync(MultiDecisionMigration);
+        Assert.Empty(await db.Database.GetPendingMigrationsAsync());
+        Assert.Equal(1, await db.Database.SqlQueryRaw<int>("""
+            SELECT count(*)::int AS "Value" FROM statistics.entry_created_outbox
+            WHERE multi_decision_version = 0 AND multi_decisions_created_at_utc IS NULL
+            """).SingleAsync());
+        await db.Database.ExecuteSqlAsync($"""
+            INSERT INTO statistics.multi_creation_decision (parent_entry_id, multi_config_id, result_entry_id)
+            VALUES ({entryId}, {configId}, NULL)
+            """);
+        var failure = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(SampleActivationMigration));
+        Assert.Contains("Cannot remove retained Multi decisions", failure.MessageText);
+        Assert.Contains(MultiDecisionMigration, await db.Database.GetAppliedMigrationsAsync());
+        Assert.Equal(1, await db.Database.SqlQueryRaw<int>("""
+            SELECT count(*)::int AS "Value" FROM statistics.multi_creation_decision WHERE result_entry_id IS NULL
+            """).SingleAsync());
+        await db.Database.ExecuteSqlRawAsync("DELETE FROM statistics.multi_creation_decision");
+        await migrator.MigrateAsync(SampleActivationMigration);
+        Assert.Equal(1, await db.Database.SqlQueryRaw<int>("""
+            SELECT count(*)::int AS "Value" FROM statistics.entry_created_outbox
+            """).SingleAsync());
+        await migrator.MigrateAsync(MultiDecisionMigration);
+        Assert.Equal(1, await db.Database.SqlQueryRaw<int>("""
+            SELECT count(*)::int AS "Value" FROM statistics.entry_created_outbox
+            WHERE multi_decision_version = 0 AND multi_decisions_created_at_utc IS NULL
+            """).SingleAsync());
+        Assert.Empty(await db.Database.GetPendingMigrationsAsync());
     }
 
     [PostgreSqlStatisticsFact]
@@ -270,6 +346,14 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         Assert.Equal(new[] { rider, other }, proxy.Messages.Select(m => m.TransponderId));
         proxy.Release.SetResult();
         Assert.True(await first);
+        await using (var blocked = Db())
+            Assert.False(await new EntryCreatedOutboxDispatcher(blocked, bus).DispatchOneAsync(CancellationToken.None));
+        await using (var processed = Db())
+        {
+            var receipt = await processed.Set<EntryCreatedOutbox>().OrderBy(o => o.Id).FirstAsync();
+            receipt.MultiDecisionsCreatedAtUtc = DateTime.UtcNow;
+            await processed.SaveChangesAsync();
+        }
         await using var c = Db();
         Assert.True(await new EntryCreatedOutboxDispatcher(c, bus).DispatchOneAsync(CancellationToken.None));
         Assert.Equal(new[] { rider, other, rider }, proxy.Messages.Select(m => m.TransponderId));
@@ -323,7 +407,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     private static EntryCreatedOutbox PendingEntry(Guid rider) => new()
     {
         EntryId = Guid.NewGuid(), TransponderId = rider, TimeStart = Start, TimeEnd = Start.AddSeconds(10),
-        StatisticsItemId = Guid.NewGuid(), ConfigItemId = Guid.NewGuid(), Single = true
+        StatisticsItemId = Guid.NewGuid(), ConfigItemId = Guid.NewGuid(), Single = true, MultiDecisionVersion = 1
     };
 
     public class EntryOutboxBus : DispatchProxy

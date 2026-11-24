@@ -90,10 +90,14 @@ public sealed partial class StatisticsServiceTests
         var otherParent = CreateSimpleConfig(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Other", 100);
         var time = new DateTime(2026, 11, 23, 12, 0, 0, DateTimeKind.Utc);
         var facility = Guid.NewGuid();
-        database.Storage.AddRange(parent, otherParent, multi,
-            CreateEntry(rider, parent, time, time.AddSeconds(10), facility),
-            CreateEntry(rider, parent, time.AddSeconds(10), time.AddSeconds(20), facility));
+        var earlier = CreateEntry(rider, parent, time, time.AddSeconds(10), facility);
+        var trigger = CreateEntry(rider, parent, time.AddSeconds(10), time.AddSeconds(20), facility);
+        database.Storage.AddRange(parent, otherParent, multi, earlier, trigger);
         await database.Storage.SaveChangesAsync();
+        await AddParentReceipt(database.Storage, earlier);
+        await AddParentReceipt(database.Storage, trigger);
+        Assert.Empty(await database.Service.ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id,
+            earlier.TimeStart, earlier.TimeEnd, entryId: earlier.Id));
         var original = Assert.Single(await database.Service.ProcessEntryAsync(
             rider, parent.StatisticsItemId, parent.Id, time.AddSeconds(10), time.AddSeconds(20)));
         database.Storage.Add(CreateEntry(rider, parent, time.AddSeconds(11), time.AddSeconds(19), facility));
@@ -124,10 +128,12 @@ public sealed partial class StatisticsServiceTests
         var multi = CreateMultiConfig(parent, 1, "Single", 100);
         var time = new DateTime(2026, 11, 23, 12, 0, 0, DateTimeKind.Utc);
         var facility = Guid.NewGuid();
-        database.Storage.AddRange(parent, multi,
-            CreateEntry(rider, parent, time, time.AddSeconds(20), facility),
-            CreateEntry(rider, parent, time.AddSeconds(1), time.AddSeconds(20), facility));
+        var firstParent = CreateEntry(rider, parent, time, time.AddSeconds(20), facility);
+        var secondParent = CreateEntry(rider, parent, time.AddSeconds(1), time.AddSeconds(20), facility);
+        database.Storage.AddRange(parent, multi, firstParent, secondParent);
         await database.Storage.SaveChangesAsync();
+        await AddParentReceipt(database.Storage, firstParent);
+        await AddParentReceipt(database.Storage, secondParent);
 
         var first = Assert.Single(await database.Service.ProcessEntryAsync(
             rider, parent.StatisticsItemId, parent.Id, time, time.AddSeconds(20)));
@@ -270,6 +276,8 @@ public sealed partial class StatisticsServiceTests
         var secondParent = CreateEntry(rider, parent, start, end, Guid.NewGuid());
         database.Storage.AddRange(parent, multi, firstParent, secondParent);
         await database.Storage.SaveChangesAsync();
+        await AddParentReceipt(database.Storage, firstParent);
+        await AddParentReceipt(database.Storage, secondParent);
 
         var first = Assert.Single(await database.Service.ProcessEntryAsync(rider, parent.StatisticsItemId,
             parent.Id, start, end, default, firstParent.Id));
@@ -326,6 +334,7 @@ public sealed partial class StatisticsServiceTests
         var source = CreateEntry(rider, parent, start, end, Guid.NewGuid());
         database.Storage.AddRange(parent, multi, source);
         await database.Storage.SaveChangesAsync();
+        await AddParentReceipt(database.Storage, source);
         var legacyId = LegacyId($"statistics-parent-v1|{multi.Id:D}|{rider:D}|{parent.StatisticsItemId:D}|{parent.Id:D}|{start.Ticks}|{end.Ticks}");
         database.Storage.Add(new StatisticsEntry
         {
@@ -344,4 +353,17 @@ public sealed partial class StatisticsServiceTests
 
     private static Guid LegacyId(string source) =>
         new(SHA256.HashData(Encoding.UTF8.GetBytes(source)).AsSpan(0, 16));
+
+    private static async Task AddParentReceipt(
+        VeloTime.Module.Statistics.Storage.StatisticsDbContext storage, StatisticsEntry entry)
+    {
+        storage.Add(new EntryCreatedOutbox
+        {
+            EntryId = entry.Id, TransponderId = entry.TransponderId,
+            StatisticsItemId = entry.StatisticsItemId, ConfigItemId = entry.StatisticsItemConfigId,
+            TimeStart = entry.TimeStart, TimeEnd = entry.TimeEnd, Single = true,
+            MultiDecisionVersion = 1
+        });
+        await storage.SaveChangesAsync();
+    }
 }

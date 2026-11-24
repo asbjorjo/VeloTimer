@@ -332,7 +332,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             }
             Assert.Equal(0, await new StatisticsValidityScheduler(db).EnsureJobsForAllItemsAsync(CancellationToken.None));
             await db.GetService<IMigrator>().MigrateAsync("20261123145848_statistics_entry_created_outbox"); // idempotent
-            Assert.Single(await db.Database.GetPendingMigrationsAsync());
+            await AssertMigrationsPendingAfterEntryOutboxAsync(db);
             Assert.False(db.Database.HasPendingModelChanges());
         }
         finally

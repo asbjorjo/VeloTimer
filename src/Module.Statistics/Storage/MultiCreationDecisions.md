@@ -1,9 +1,8 @@
-# Durable Multi creation decisions (storage prerequisite only)
+# Durable Multi creation decisions
 
 `20261124095835_statistics_multi_creation_decisions` is additive PostgreSQL DDL.
-StatisticsService, receipt writers, consumers and workers **do not yet implement**
-this protocol. Do not activate the replay fix until the domain/worker integration
-and PostgreSQL acceptance tests pass. No public DTO/message change is required:
+Do not activate the replay fix until the domain/worker integration and PostgreSQL
+acceptance tests pass and the maintenance gates below are met. No public DTO/message change is required:
 the existing `EntryCreated.EntryId` resolves the source. An integration that cannot
 resolve it authoritatively must fail, not introduce a breaking wire fallback.
 
@@ -63,12 +62,15 @@ domain callers must also uphold it. Within that transaction:
    added config means it was not considered, not permission to create it now.
 3. For pending version-1 work, lock/reload the current eligible configs. Resolve
    every counted parent to its retained EntryCreatedOutbox receipt. Restrict
-   candidates to the same transponder and existing domain scope, with receipt
+   candidates to the same transponder, item, configuration and triggering parent
+   facility, with receipt
    `Id <= triggeringReceipt.Id`; never count a later-created parent, even when
    its event time is equal or earlier. Within the existing event-time window,
    order by `TimeEnd DESC, receipt.Id DESC` (not random EntryId). The trigger
    is included once by identity. Missing/unprovable receipt order is an error,
-   not grounds to skip evidence or synthesize sequence IDs.
+   not grounds to skip evidence or synthesize sequence IDs. Restricting facility
+   intentionally corrects the old cross-facility selection rule; committed decisions
+   and windows are not recomputed on replay.
 4. Insert exactly one ledger outcome per eligible config, including NULL when
    insufficient parents/no result. Insert any result, validity scheduling,
    ownership assignment and immutable outgoing receipt in the same transaction.
@@ -82,6 +84,54 @@ order. Sequence gaps from rollback are valid. Never renumber/reseed IDs or infer
 order from UUIDs/delivery marks. Retain delivered receipts in candidate queries.
 Consumers must not overtake an earlier same-rider source that still needs Multi
 processing (respect `Single` routing); the worker owns that processing barrier.
+
+### EntryCreated dispatch barrier and recovery
+
+The local dispatcher selects the oldest *eligible* pending receipt across riders.
+An earlier pending receipt blocks all later receipts for its rider; after delivery,
+an earlier Single continues to block them until its version-1 completion marker
+commits, even when the decision set is empty. A delivered non-Single does not
+require a marker. Row locks are held across broker acknowledgement and the delivery
+commit; an uncertain acknowledgement is retried before any successor. The
+consumer commits the marker and all decisions together. Uncommitted/rolled-back
+markers cannot release the barrier. Blocked riders do not prevent selection of
+other eligible riders; if no row is eligible the worker sleeps before polling.
+Send failures retain the existing retry/backoff behavior; a repeatedly failing
+oldest eligible send can delay unrelated riders until it succeeds or is repaired.
+
+Version-0 pending receipts, Single or non-Single, are never dispatched to the
+upgraded consumer, which rejects unknown decisions. Their pending state blocks
+later receipts for that rider. A delivered version-0 Single also blocks its
+successors indefinitely; delivery alone does not establish a decision. A delivered
+version-0 non-Single does not impose a decision barrier, but existing broker copies
+still need the legacy inventory below. Monitor retained receipts, including delivered
+ones, rather than only the pending queue. For example, inventory legacy rows and
+uncompleted delivered Singles with:
+
+```sql
+SELECT id, transponder_id, entry_id, single, delivered_at_utc,
+       multi_decision_version, multi_decisions_created_at_utc
+FROM statistics.entry_created_outbox
+WHERE multi_decision_version = 0
+   OR (single AND delivered_at_utc IS NOT NULL AND multi_decisions_created_at_utc IS NULL)
+ORDER BY id;
+```
+
+Alert on sustained entries and reconcile under the stopped-writer maintenance
+procedure below. Do not mark delivered, fabricate markers, change versions, delete
+receipts or blindly redrive a legacy event. No automatic reconciliation is supplied.
+After a genuine version-1 processing failure, repair the cause and redrive the
+original message/dead letter; only its committed processing releases the barrier.
+Broker retention, dead-letter and receiver failures therefore need monitoring.
+
+This barrier controls only publications through this dispatcher after activation.
+It cannot retract or reorder events already in a broker, external publications,
+or messages sent by old writers/dispatchers. A reversed queued successor can fail
+and exhaust delivery attempts before its predecessor is processed; the consumer
+fails closed, not successfully acknowledging it. Stop old writers and processors,
+inventory/drain or reconcile queues and dead letters under the activation barrier,
+and redrive safely in receipt order. Broker acknowledgement is not proof of
+consumer completion. Mixed deployments do not provide this ordering guarantee.
 
 Concurrent attempts serialize on the transponder lock. The composite PK is the
 last integrity defense, not a substitute for locking: a uniqueness conflict

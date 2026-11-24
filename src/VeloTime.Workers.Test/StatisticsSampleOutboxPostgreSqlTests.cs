@@ -261,7 +261,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                     {
                         EntryId = entry.EntryId, TransponderId = rider, TimeStart = entry.TimeStart,
                         TimeEnd = entry.TimeEnd, StatisticsItemId = entry.StatisticsItemId,
-                        ConfigItemId = entry.ConfigItemId, Single = single
+                        ConfigItemId = entry.ConfigItemId, Single = single, MultiDecisionVersion = 1,
+                        MultiDecisionsCreatedAtUtc = single ? DateTime.UtcNow : null
                     });
                     await db.SaveChangesAsync();
                     Assert.True(await new EntryCreatedOutboxDispatcher(db, scope.ServiceProvider.GetRequiredService<IMessageBus>())

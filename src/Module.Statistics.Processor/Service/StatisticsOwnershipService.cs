@@ -61,7 +61,7 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
                     EntryId = entry.Id, TransponderId = entry.TransponderId,
                     TimeStart = entry.TimeStart, TimeEnd = entry.TimeEnd,
                     StatisticsItemId = entry.StatisticsItemId, ConfigItemId = entry.StatisticsItemConfigId,
-                    Single = enqueueSingle.Value
+                    Single = enqueueSingle.Value, MultiDecisionVersion = 1
                 });
             }
         }

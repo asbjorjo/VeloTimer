@@ -214,10 +214,15 @@ public sealed partial class StatisticsServiceTests
         var timeStart = DateTime.UtcNow.AddMinutes(-2);
         var firstEnd = timeStart.AddSeconds(10);
         var finalEnd = firstEnd.AddSeconds(10);
-        var firstEntry = CreateEntry(transponderId, parent, timeStart, firstEnd, Guid.NewGuid());
-        var secondEntry = CreateEntry(transponderId, parent, firstEnd, finalEnd, Guid.NewGuid());
+        var facilityId = Guid.NewGuid();
+        var firstEntry = CreateEntry(transponderId, parent, timeStart, firstEnd, facilityId);
+        var secondEntry = CreateEntry(transponderId, parent, firstEnd, finalEnd, facilityId);
         database.Storage.AddRange(parent, aggregate, firstEntry, secondEntry);
         await database.Storage.SaveChangesAsync();
+        await AddParentReceipt(database.Storage, firstEntry);
+        await AddParentReceipt(database.Storage, secondEntry);
+        Assert.Empty(await database.Service.ProcessEntryAsync(transponderId, parent.StatisticsItemId, parent.Id,
+            firstEntry.TimeStart, firstEntry.TimeEnd, entryId: firstEntry.Id));
 
         var result = await database.Service.ProcessEntryAsync(transponderId, parent.StatisticsItemId, parent.Id,
             firstEnd, finalEnd, default, secondEntry.Id);

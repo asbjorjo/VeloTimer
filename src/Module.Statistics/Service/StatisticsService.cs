@@ -187,16 +187,18 @@ public class StatisticsService(
     /// <summary>
     /// Creates Multi entries for a newly created parent (Simple) entry. The window is fixed and
     /// deterministic: the exact triggering parent followed by the newest other parent entries of
-    /// this transponder/configuration ending at or before its end, ordered by TimeEnd then
-    /// Id (both descending). The triggering parent fixes the finish and facility. Invalid parents are
+    /// this transponder/configuration/facility ending at or before its end, ordered by TimeEnd then
+    /// retained receipt Id (both descending), bounded by the trigger's local creation order.
+    /// The triggering parent fixes the finish and facility. Invalid parents are
     /// never skipped. This selection only defines the new Multi's endpoints and facility; contributors
-    /// are all current parent Simple entries of the same transponder/facility fully contained in that
-    /// window. Exactly Repetitions entries must match and all must be valid. The Multi items are
-    /// share-locked before reading live bounds and contributors (requires the caller's transaction on
-    /// PostgreSQL). Later parent insertions/validity changes durably reschedule these items.
-    /// Replays return existing windows without changing their endpoints or contributors, even after
-    /// late parent arrivals or configuration edits. Source identity is the persisted triggering
-    /// StatisticsEntry ID. The caller must serialize by transponder.
+    /// are all authoritative parent Simple entries up to that receipt order, of the same
+    /// transponder/facility fully contained in that window. Exactly Repetitions entries must match
+    /// and all must be valid. The Multi items are
+    /// exclusively locked before reading live bounds and contributors (requires the caller's transaction on
+    /// PostgreSQL). Creation and later parent insertions/validity changes durably reschedule these items.
+    /// Completed replays load retained decisions/results, including no-result and empty-config-set
+    /// outcomes, without rereading definitions or parents. Source identity is the persisted triggering
+    /// StatisticsEntry ID. Legacy/unknown receipts fail explicitly. The caller must serialize by transponder.
     /// </summary>
     /// <param name="entryId">Persisted triggering StatisticsEntry ID; null is reserved for legacy messages.</param>
     public async Task<IEnumerable<StatisticsEntry>> ProcessEntryAsync(Guid transponderId, Guid statisticsItemId,
@@ -208,14 +210,44 @@ public class StatisticsService(
         startTime = Persisted(startTime);
         endTime = Persisted(endTime);
 
-        var multiItems = await LockMultiDefinitionsAsync(configId, cancellationToken);
+        // Direct callers must use the same transaction/lock as the ownership wrapper.
+        // Reacquiring an already-held transaction advisory lock is safe.
+        if (storage.Database.IsNpgsql())
+        {
+            if (storage.Database.CurrentTransaction is null)
+                throw new InvalidOperationException("Multi creation requires the caller's Statistics transaction.");
+            var key = $"statistics-transponder:{transponderId:D}";
+            await storage.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", cancellationToken);
+        }
         var parent = await ResolveParentEntryAsync(transponderId, statisticsItemId, configId,
             startTime, endTime, entryId, cancellationToken);
+        var source = await RequireParentReceiptAsync(parent, cancellationToken);
+        if (source.MultiDecisionVersion != 1)
+            throw new InvalidOperationException("EntryCreated has legacy/unknown Multi decisions; maintenance reconciliation is required.");
+        // The same subscription receives our own Multi events. Validate the persisted
+        // configuration as well as the receipt flag before acknowledging without recursion.
+        if (!source.Single)
+        {
+            if (!await storage.Set<MultiStatisticsItemConfig>().AsNoTracking()
+                    .AnyAsync(c => c.Id == parent.StatisticsItemConfigId, cancellationToken))
+                throw new InvalidOperationException("EntryCreated non-Single receipt does not reference a Multi configuration.");
+            return [];
+        }
+        if (!await storage.Set<SimpleStatisticsItemConfig>().AsNoTracking()
+                .AnyAsync(c => c.Id == parent.StatisticsItemConfigId, cancellationToken))
+            throw new InvalidOperationException("EntryCreated Single receipt does not reference a Simple configuration.");
+        if (source.MultiDecisionsCreatedAtUtc.HasValue)
+            return await ReadCommittedMultiEntriesAsync(parent, cancellationToken);
+        if (await storage.Set<MultiCreationDecision>().AnyAsync(d => d.ParentEntryId == parent.Id, cancellationToken))
+            throw new InvalidOperationException("Pending Multi source has retained decisions without a completion marker.");
+        if (await storage.Set<EntryCreatedOutbox>().AnyAsync(o => o.TransponderId == transponderId
+                && o.Id < source.Id && o.Single && o.MultiDecisionsCreatedAtUtc == null, cancellationToken))
+            throw new InvalidOperationException("EntryCreated is blocked by an earlier unprocessed local Single receipt.");
 
+        var multiItems = await LockMultiDefinitionsAsync(configId, cancellationToken);
         await RejectLegacyParentReplayAsync(transponderId, statisticsItemId, configId, startTime, endTime,
             cancellationToken);
-        entries = await ReadReplayEntriesAsync<MultiStatisticsItemConfig>(
-            config => ParentEntryId(config, parent.Id), cancellationToken);
 
         if (multiItems.Any())
         {
@@ -228,22 +260,45 @@ public class StatisticsService(
             var bounds = await ReadCurrentBoundsAsync(multiItems.Select(m => m.Id), cancellationToken);
             var newEntries = new List<StatisticsEntry>();
             var maxRepetitions = multiItems.Max(m => m.Repetitions);
-            var precedingEntries = await storage.Set<StatisticsEntry>()
-                .AsNoTracking()
+            var candidates = storage.Set<StatisticsEntry>().AsNoTracking()
                 .Where(s => s.TransponderId == transponderId && s.StatisticsItemId == statisticsItemId
-                    && s.StatisticsItemConfigId == configId
-                    && s.Id != parent.Id && s.TimeEnd <= parent.TimeEnd)
-                .OrderByDescending(s => s.TimeEnd)
-                .ThenByDescending(s => s.Id)
+                    && s.StatisticsItemConfigId == configId && s.FacilityId == parent.FacilityId
+                    && s.TimeEnd <= parent.TimeEnd);
+            // A left join exposes missing evidence instead of silently skipping an unprovable
+            // parent. Delivered receipts remain authoritative. Later receipts are not candidates.
+            var evidence = from candidate in candidates
+                join receipt in storage.Set<EntryCreatedOutbox>().AsNoTracking()
+                    on candidate.Id equals receipt.EntryId into receipts
+                from receipt in receipts.DefaultIfEmpty()
+                where receipt == null || receipt.Id <= source.Id
+                select new { Entry = candidate, Receipt = receipt };
+            if (await evidence.AnyAsync(row => row.Receipt == null || row.Receipt.Id <= 0
+                    || !row.Receipt.Single || row.Receipt.TransponderId != row.Entry.TransponderId
+                    || row.Receipt.StatisticsItemId != row.Entry.StatisticsItemId
+                    || row.Receipt.ConfigItemId != row.Entry.StatisticsItemConfigId
+                    || row.Receipt.TimeStart != row.Entry.TimeStart || row.Receipt.TimeEnd != row.Entry.TimeEnd
+                    || row.Entry.FacilityId == Guid.Empty, cancellationToken))
+                throw new InvalidOperationException("Multi candidate has missing/conflicting retained receipt evidence; maintenance reconciliation is required.");
+            var precedingEntries = await evidence.Where(row => row.Entry.Id != parent.Id)
+                .OrderByDescending(row => row.Entry.TimeEnd)
+                .ThenByDescending(row => row.Receipt!.Id)
                 .Take(Math.Max(0, maxRepetitions - 1))
-                .ToListAsync(cancellationToken);
+                .Select(row => row.Entry).ToListAsync(cancellationToken);
             var allEntries = precedingEntries.Prepend(parent).ToList();
 
             foreach (var multiItem in multiItems)
             {
                 var derivedEntryId = ParentEntryId(multiItem.Id, parent.Id);
-                if (entries.Any(e => e.Id == derivedEntryId)) continue;
-                if (multiItem.Repetitions > allEntries.Count) continue;
+                if (multiItem.Repetitions <= 0)
+                    throw new InvalidOperationException("Multi repetitions must be positive.");
+                if (multiItem.Repetitions > allEntries.Count)
+                {
+                    storage.Add(new MultiCreationDecision { ParentEntryId = parent.Id, MultiConfigId = multiItem.Id });
+                    continue;
+                }
+                if (await storage.Set<StatisticsEntry>().AnyAsync(e => e.Id == derivedEntryId, cancellationToken)
+                    || await storage.Set<EntryCreatedOutbox>().AnyAsync(o => o.EntryId == derivedEntryId, cancellationToken))
+                    throw new InvalidOperationException("Pending Multi source has an output without a retained decision.");
                 var relevantEntries = allEntries.Take(multiItem.Repetitions).ToList();
                 // Contributor endpoints come from storage; normalization is idempotent and keeps the Multi
                 // duration equal to the persisted endpoint difference.
@@ -267,21 +322,90 @@ public class StatisticsService(
                 };
                 entries = entries.Append(entry);
                 newEntries.Add(entry);
+                storage.Add(new MultiCreationDecision
+                {
+                    ParentEntryId = parent.Id, MultiConfigId = multiItem.Id, ResultEntryId = entry.Id
+                });
+                storage.Add(new EntryCreatedOutbox
+                {
+                    EntryId = entry.Id, TransponderId = entry.TransponderId,
+                    TimeStart = entry.TimeStart, TimeEnd = entry.TimeEnd,
+                    StatisticsItemId = entry.StatisticsItemId, ConfigItemId = entry.StatisticsItemConfigId,
+                    Single = false, MultiDecisionVersion = 1
+                });
             }
 
             // Insert inside the caller's transaction so one bounded, set-based query can classify all
-            // new windows by the very same rule as historical revalidation. No provisional row is
-            // committed or published before classification succeeds.
+            // new windows with receipt-order-bounded contributors. Historical revalidation still sees
+            // late arrivals. No provisional row is committed or published before classification succeeds.
             await storage.AddRangeAsync(newEntries, cancellationToken);
             await storage.SaveChangesAsync(cancellationToken);
-            var contributorsValid = await ReadMultiContributorValidityAsync(storage, newEntries.Select(e => e.Id), cancellationToken);
+            var contributorsValid = await ReadMultiContributorValidityAsync(storage, newEntries.Select(e => e.Id),
+                cancellationToken, source.Id);
             foreach (var entry in newEntries)
                 StatisticsValidityEvaluator.Apply(entry, StatisticsValidityEvaluator.Evaluate(entry.Duration,
                     contributorsValid[entry.Id], Bounds(bounds, entry.StatisticsItemConfigId)));
             await storage.SaveChangesAsync(cancellationToken);
+            if (newEntries.Count > 0)
+            {
+                // A later receipt can already have triggered and completed its sweep before
+                // this window existed. Schedule after inserting under the same exclusive item
+                // locks so a fresh pass observes every contributor, even behind a cursor.
+                await scheduler.ScheduleDependentMultiRevalidationAsync(
+                    newEntries.Select(e => e.StatisticsItemId), cancellationToken);
+            }
         }
 
+        // The empty eligible set is also final. Ownership, outgoing receipts and this mark
+        // commit together in the caller's transaction; broker delivery is independent.
+        source.MultiDecisionsCreatedAtUtc = DateTime.UtcNow;
+        await storage.SaveChangesAsync(cancellationToken);
         return entries;
+    }
+
+    private async Task<EntryCreatedOutbox> RequireParentReceiptAsync(StatisticsEntry parent,
+        CancellationToken cancellationToken)
+    {
+        var receipt = await storage.Set<EntryCreatedOutbox>()
+            .SingleOrDefaultAsync(o => o.EntryId == parent.Id, cancellationToken);
+        ValidateParentReceipt(parent, receipt);
+        return receipt!;
+    }
+
+    private static void ValidateParentReceipt(StatisticsEntry parent, EntryCreatedOutbox? receipt)
+    {
+        if (receipt is null || receipt.Id <= 0
+            || receipt.EntryId != parent.Id || receipt.TransponderId != parent.TransponderId
+            || receipt.StatisticsItemId != parent.StatisticsItemId
+            || receipt.ConfigItemId != parent.StatisticsItemConfigId
+            || receipt.TimeStart != parent.TimeStart || receipt.TimeEnd != parent.TimeEnd)
+            throw new InvalidOperationException("EntryCreated parent has no authoritative retained receipt; maintenance reconciliation is required.");
+        RequireParentFacility(parent);
+    }
+
+    private async Task<List<StatisticsEntry>> ReadCommittedMultiEntriesAsync(StatisticsEntry parent,
+        CancellationToken cancellationToken)
+    {
+        var decisions = await storage.Set<MultiCreationDecision>().AsNoTracking()
+            .Where(d => d.ParentEntryId == parent.Id).ToListAsync(cancellationToken);
+        var resultIds = decisions.Where(d => d.ResultEntryId.HasValue).Select(d => d.ResultEntryId!.Value).ToArray();
+        var results = await storage.Set<StatisticsEntry>().Where(e => resultIds.Contains(e.Id))
+            .ToListAsync(cancellationToken);
+        var receipts = await storage.Set<EntryCreatedOutbox>().AsNoTracking()
+            .Where(o => resultIds.Contains(o.EntryId)).ToListAsync(cancellationToken);
+        foreach (var decision in decisions.Where(d => d.ResultEntryId.HasValue))
+        {
+            var result = results.SingleOrDefault(e => e.Id == decision.ResultEntryId);
+            var receipt = receipts.SingleOrDefault(o => o.EntryId == decision.ResultEntryId);
+            if (decision.ResultEntryId != ParentEntryId(decision.MultiConfigId, parent.Id)
+                || result is null || receipt is null || receipt.Single || receipt.MultiDecisionVersion != 1
+                || result.TransponderId != parent.TransponderId || result.StatisticsItemConfigId != decision.MultiConfigId
+                || result.FacilityId != parent.FacilityId || receipt.TransponderId != result.TransponderId
+                || receipt.StatisticsItemId != result.StatisticsItemId || receipt.ConfigItemId != result.StatisticsItemConfigId
+                || receipt.TimeStart != result.TimeStart || receipt.TimeEnd != result.TimeEnd)
+                throw new InvalidOperationException("Completed Multi decision has missing/conflicting retained output evidence; maintenance reconciliation is required.");
+        }
+        return results;
     }
 
     private async Task<Sample> ResolveCompletionSourceAsync(Guid transponderId, DateTime start, DateTime end,
@@ -432,7 +556,7 @@ public class StatisticsService(
             cancellationToken.ThrowIfCancellationRequested();
             if (transaction is not null) await transaction.CreateSavepointAsync(savepoint, cancellationToken);
             var locked = await scheduler.LockItemsAsync(configs.Select(c => c.StatisticsItemId),
-                StatisticsItemLockMode.Shared, cancellationToken);
+                StatisticsItemLockMode.Exclusive, cancellationToken);
             var current = await ReadAsync();
             if (locked.ToHashSet().SetEquals(current.Select(c => c.StatisticsItemId)))
             {
@@ -466,8 +590,15 @@ public class StatisticsService(
     /// entries in this context's transaction). Counts every matching parent, not a guessed latest subset.
     /// Only aggregate rows are materialized; missing/empty windows are invalid.
     /// </summary>
-    public static async Task<IReadOnlyDictionary<Guid, bool>> ReadMultiContributorValidityAsync(
-        StatisticsDbContext storage, IEnumerable<Guid> entryIds, CancellationToken cancellationToken = default)
+    public static Task<IReadOnlyDictionary<Guid, bool>> ReadMultiContributorValidityAsync(
+        StatisticsDbContext storage, IEnumerable<Guid> entryIds, CancellationToken cancellationToken = default) =>
+        ReadMultiContributorValidityAsync(storage, entryIds, cancellationToken, null);
+
+    // Creation is receipt-order bounded. Historical revalidation deliberately includes late
+    // parents, preserving the existing durable invalidation/scheduling semantics.
+    private static async Task<IReadOnlyDictionary<Guid, bool>> ReadMultiContributorValidityAsync(
+        StatisticsDbContext storage, IEnumerable<Guid> entryIds, CancellationToken cancellationToken,
+        long? maximumParentReceiptId)
     {
         var ids = entryIds.Distinct().ToArray();
         var result = ids.ToDictionary(id => id, _ => false);
@@ -482,6 +613,9 @@ public class StatisticsService(
                 && parent.TransponderId == multi.TransponderId
                 && parent.FacilityId == multi.FacilityId
                 && parent.TimeStart >= multi.TimeStart && parent.TimeEnd <= multi.TimeEnd
+                && (!maximumParentReceiptId.HasValue || storage.Set<EntryCreatedOutbox>().Any(receipt =>
+                    receipt.EntryId == parent.Id && receipt.TransponderId == parent.TransponderId
+                    && receipt.Single && receipt.Id <= maximumParentReceiptId.Value))
             group parent by new { multi.Id, config.Repetitions } into contributors
             select new
             {

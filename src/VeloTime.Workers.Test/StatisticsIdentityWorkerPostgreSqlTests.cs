@@ -79,24 +79,28 @@ public sealed partial class StatisticsValidityPostgreSqlTests
 
         var entryBus = DispatchProxy.Create<IMessageBus, EntryOutboxBus>();
         var entries = (EntryOutboxBus)(object)entryBus;
-        for (var i = 0; i < 2; i++)
-        {
-            await using var db = Db();
-            Assert.True(await new EntryCreatedOutboxDispatcher(db, entryBus).DispatchOneAsync(ct));
-        }
-        var parents = entries.Messages.ToArray();
-        Assert.Equal(2, parents.Length);
-        Assert.NotEqual(parents[0].EntryId, parents[1].EntryId);
-        Assert.Equal(parents[0] with { EntryId = null }, parents[1] with { EntryId = null });
         async Task HandleParent(EntryCreated message)
         {
             await using var db = Db();
             await new EntryCreatedHandler(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
                 NullLogger<EntryCreatedHandler>.Instance).OnHandle(message, ct);
         }
-        await Assert.ThrowsAsync<InvalidOperationException>(() => HandleParent(parents[0] with { EntryId = null }));
-        foreach (var parent in parents)
-            await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => HandleParent(parent))).WaitAsync(ct);
+        await using (var db = Db())
+            Assert.True(await new EntryCreatedOutboxDispatcher(db, entryBus).DispatchOneAsync(ct));
+        await using (var db = Db())
+            Assert.False(await new EntryCreatedOutboxDispatcher(db, entryBus).DispatchOneAsync(ct));
+        var firstParent = Assert.Single(entries.Messages);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => HandleParent(firstParent with { EntryId = null }));
+        await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => HandleParent(firstParent))).WaitAsync(ct);
+        await using (var db = Db())
+        {
+            Assert.True(await new EntryCreatedOutboxDispatcher(db, entryBus).DispatchOneAsync(ct));
+        }
+        var parents = entries.Messages.ToArray();
+        Assert.Equal(2, parents.Length);
+        Assert.NotEqual(parents[0].EntryId, parents[1].EntryId);
+        Assert.Equal(parents[0] with { EntryId = null }, parents[1] with { EntryId = null });
+        await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => HandleParent(parents[1]))).WaitAsync(ct);
         await using var verify = Db();
         var simple = await verify.Set<StatisticsEntry>().Where(e => e.StatisticsItemConfigId == config.Id).ToListAsync(ct);
         var derived = await verify.Set<StatisticsEntry>().Where(e => e.StatisticsItemConfigId == multi.Id).ToListAsync(ct);

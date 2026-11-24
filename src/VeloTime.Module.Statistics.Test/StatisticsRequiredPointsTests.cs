@@ -115,6 +115,7 @@ public sealed partial class StatisticsServiceTests
         var entry = Assert.Single(await database.Service.ProcessCompletedAsync(rider,
             time.AddSeconds(20), time.AddSeconds(30), b, end));
         Assert.False(entry.RequiredCoursePointsSatisfied);
+        await AddParentReceipt(database.Storage, entry);
         var derived = Assert.Single(await database.Service.ProcessEntryAsync(rider,
             config.StatisticsItemId, config.Id, entry.TimeStart, entry.TimeEnd));
         Assert.Equal(StatisticsEntryInvalidReason.InvalidContributor, derived.InvalidReason);

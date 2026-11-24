@@ -162,6 +162,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         {
             seed.AddRange(parent, multi, first, second);
             await seed.SaveChangesAsync();
+            await DecisionReceipt(seed, first);
+            await DecisionReceipt(seed, second);
         }
         await using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
         var cache = services.GetRequiredService<HybridCache>();
@@ -216,7 +218,17 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         decoy.InvalidReason = StatisticsEntryInvalidReason.BelowMinimumDuration;
         await using (var seed = Db())
         {
-            seed.AddRange(parent, multi, trigger, tied, decoy);
+            seed.AddRange(parent, trigger, tied, decoy);
+            await seed.SaveChangesAsync();
+            // These parents were handled before the Multi definition existed.
+            await DecisionReceipt(seed, tied);
+            await DecisionReceipt(seed, decoy);
+            await DecisionReceipt(seed, trigger);
+            await using var preServices = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
+            var preCache = preServices.GetRequiredService<HybridCache>();
+            await ProcessPriorDecision(seed, preCache, tied);
+            await ProcessPriorDecision(seed, preCache, decoy);
+            seed.Add(multi);
             await seed.SaveChangesAsync();
         }
         await using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();

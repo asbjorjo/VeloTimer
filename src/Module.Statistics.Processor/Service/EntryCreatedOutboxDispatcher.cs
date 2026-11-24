@@ -18,7 +18,10 @@ public sealed class EntryCreatedOutboxDispatcher(StatisticsDbContext storage, IM
               AND NOT EXISTS (
                 SELECT 1 FROM statistics.entry_created_outbox earlier
                 WHERE earlier.transponder_id = o.transponder_id
-                  AND earlier.delivered_at_utc IS NULL AND earlier.id < o.id)
+                  AND earlier.id < o.id
+                  AND (earlier.delivered_at_utc IS NULL
+                       OR (earlier.single AND earlier.multi_decisions_created_at_utc IS NULL)))
+              AND o.multi_decision_version = 1
             ORDER BY o.id
             LIMIT 1 FOR UPDATE OF o SKIP LOCKED
             """).SingleOrDefaultAsync(cancellationToken);
@@ -28,6 +31,9 @@ public sealed class EntryCreatedOutboxDispatcher(StatisticsDbContext storage, IM
             return false;
         }
 
+        // Legacy rows are deliberately ineligible, not guessed or sent to the upgraded consumer.
+        // Earlier pending rows still block their rider; delivered legacy Singles also block it
+        // because their decisions are unknown. Other riders remain eligible.
         // Direct send via the existing producer: MessageName, topic and SessionId remain unchanged.
         // Hold the row lock until acknowledged AND committed. Uncertain outcomes must resend.
         if (row.EntryId == Guid.Empty)

@@ -154,6 +154,9 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
                 created.Add(entry);
                 await tx.CommitAsync();
             }
+            await DecisionReceipt(db, created[0]);
+            await DecisionReceipt(db, created[1]);
+            await ProcessPriorDecision(db, services.GetRequiredService<HybridCache>(), created[0]);
             await using var aggregateTx = await db.Database.BeginTransactionAsync();
             var trigger = created[1];
             var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
@@ -292,6 +295,9 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         {
             db.AddRange(parent, multi, first, second);
             await db.SaveChangesAsync();
+            await DecisionReceipt(db, first);
+            await DecisionReceipt(db, second);
+            await ProcessPriorDecision(db, services.GetRequiredService<HybridCache>(), first);
             await using var tx = await db.Database.BeginTransactionAsync();
             var service = new StatisticsService(db, services.GetRequiredService<HybridCache>());
             var aggregate = Assert.Single(await service.ProcessEntryAsync(second.TransponderId, parent.StatisticsItemId,
@@ -336,7 +342,14 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         var newest = Entry(parent, 3, rider, facility);
         await using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
         await using var db = Db();
-        db.AddRange(parent, multi, older, rejected, newest);
+        db.AddRange(parent, older, rejected, newest);
+        await db.SaveChangesAsync();
+        await DecisionReceipt(db, older);
+        await DecisionReceipt(db, rejected);
+        await DecisionReceipt(db, newest);
+        await ProcessPriorDecision(db, services.GetRequiredService<HybridCache>(), older);
+        await ProcessPriorDecision(db, services.GetRequiredService<HybridCache>(), rejected);
+        db.Add(multi);
         await db.SaveChangesAsync();
         await using var tx = await db.Database.BeginTransactionAsync();
         var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
@@ -396,6 +409,9 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         {
             db.AddRange(parent, otherConfig, multi, unrelatedItem, a, b);
             await db.SaveChangesAsync();
+            await DecisionReceipt(db, a);
+            await DecisionReceipt(db, b);
+            await ProcessPriorDecision(db, services.GetRequiredService<HybridCache>(), a);
             await using var tx = await db.Database.BeginTransactionAsync();
             var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
                 .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, b.TimeStart, b.TimeEnd,
@@ -444,6 +460,9 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         {
             db.AddRange(parent, multi, first, second);
             await db.SaveChangesAsync();
+            await DecisionReceipt(db, first);
+            await DecisionReceipt(db, second);
+            await ProcessPriorDecision(db, services.GetRequiredService<HybridCache>(), first);
             await using var tx = await db.Database.BeginTransactionAsync();
             var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
                 .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, second.TimeStart, second.TimeEnd,
@@ -815,7 +834,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
                 WHERE table_schema = 'statistics' AND table_name = 'statistics_entry_contributor') AS "Value"
                 """).SingleAsync());
             Assert.False(db.Database.HasPendingModelChanges());
-            Assert.Single(await db.Database.GetPendingMigrationsAsync());
+            await AssertMigrationsPendingAfterEntryOutboxAsync(db);
         }
         finally
         {

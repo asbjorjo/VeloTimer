@@ -165,13 +165,16 @@ effective duration bounds still apply. Keep the raw total; never choose a subset
 skip invalid laps, require endpoint equality, or reject an unrelated partial overlap.
 Contained overlapping/tied rows count individually, including extras arriving later.
 
-New Multi endpoints still come from the latest N parent entries of the transponder/
-configuration with `TimeEnd <= triggering end`, ordered by TimeEnd then Id descending,
-without filtering invalid entries. The oldest selected start and newest selected end
-define the window, and the newest selected facility is retained. This selection only
-defines the window: classification uses the same containment query as historical
-processing, so cross-facility selection or extra contained rows can invalidate it.
-Insufficient parents still produce no new Multi.
+New Multi endpoints use the exact trigger and the newest other parent entries of the
+same transponder, configuration and triggering facility, with `TimeEnd <= triggering
+end` and receipt `Id <= triggering receipt Id`, ordered by TimeEnd then receipt Id
+descending. Invalid parents are not skipped. The finish and facility come from the
+trigger; the start is the earlier of the trigger's start and the last selected
+parent's start. This intentionally corrects the former cross-facility selection rule:
+an unrelated facility cannot consume a repetition slot. Classification uses the same
+containment query as historical processing; extra contained rows can still invalidate
+the result. Insufficient parents still produce no new Multi. Existing retained decisions
+and windows are not recomputed on replay.
 
 Both creation and historical processing use one grouped SQL query over bounded Multi
 IDs, joining their configurations and parent entries. SQL returns only count/invalid
