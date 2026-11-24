@@ -407,6 +407,14 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         // Every invocation models a distinct arriving completion, not a replay of the same
         // source edge. Repeating an identical SampleComplete must no longer insert another row.
         var intermediate = Guid.NewGuid();
+        var source = new Sample
+        {
+            Id = Guid.NewGuid(), TransponderId = aggregate.TransponderId, FacilityId = aggregate.FacilityId,
+            TimingPointStartId = Guid.NewGuid(), TimingPointEndId = Guid.NewGuid(),
+            CoursePointStartId = intermediate, CoursePointEndId = parent.CoursePointEnd,
+            TimeStart = start.AddSeconds(2), TimeEnd = start.AddSeconds(10),
+            Duration = TimeSpan.FromSeconds(8), Distance = 250, Speed = 31.25
+        };
         db.Add(new Sample
         {
             Id = Guid.NewGuid(), TransponderId = aggregate.TransponderId, FacilityId = aggregate.FacilityId,
@@ -415,10 +423,12 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             TimeStart = start, TimeEnd = start.AddSeconds(1), Duration = TimeSpan.FromSeconds(1),
             Distance = 250, Speed = 250
         });
+        db.Add(source);
         await db.SaveChangesAsync();
         var entry = Assert.Single(await new StatisticsService(db, cache).ProcessCompletedAsync(
-            aggregate.TransponderId, start.AddSeconds(2), start.AddSeconds(10),
-            intermediate, parent.CoursePointEnd));
+            aggregate.TransponderId, source.TimeStart, source.TimeEnd,
+            source.CoursePointStartId, source.CoursePointEndId, sampleId: source.Id,
+            sampleDistance: source.Distance));
         Assert.True(entry.IsValid);
         Assert.Equal(start, entry.TimeStart);
         Assert.Equal(start.AddSeconds(10), entry.TimeEnd);

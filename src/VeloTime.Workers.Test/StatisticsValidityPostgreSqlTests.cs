@@ -58,18 +58,29 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
             foreach (var ticks in new long[] { 100_000_001, 100_000_009, 100_000_010, 1, 9, -1, -9 })
             {
                 var rider = Guid.NewGuid();
+                var facility = Guid.NewGuid();
+                var sourceStartPoint = Guid.NewGuid();
                 db.Add(new Sample
                 {
-                    Id = Guid.NewGuid(), TransponderId = rider, FacilityId = Guid.NewGuid(),
+                    Id = Guid.NewGuid(), TransponderId = rider, FacilityId = facility,
                     CoursePointStartId = config.CoursePointStart, CoursePointEndId = Guid.NewGuid(),
                     TimeStart = Start, TimeEnd = Start.AddSeconds(1), Duration = TimeSpan.FromSeconds(1),
                     Distance = 250, Speed = 250
                 });
+                var source = new Sample
+                {
+                    Id = Guid.NewGuid(), TransponderId = rider, FacilityId = facility,
+                    CoursePointStartId = sourceStartPoint, CoursePointEndId = config.CoursePointEnd,
+                    TimeStart = Start.AddSeconds(2), TimeEnd = Start.AddTicks(ticks),
+                    Duration = TimeSpan.FromSeconds(1), Distance = 250, Speed = 250
+                };
+                db.Add(source);
                 await db.SaveChangesAsync();
                 await using var tx = await db.Database.BeginTransactionAsync();
                 var entry = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                    .ProcessCompletedAsync(rider, Start.AddSeconds(2), Start.AddTicks(ticks),
-                        config.CoursePointStart, config.CoursePointEnd));
+                    .ProcessCompletedAsync(rider, source.TimeStart, source.TimeEnd,
+                        source.CoursePointStartId, source.CoursePointEndId, sampleId: source.Id,
+                        sampleDistance: source.Distance));
                 // Modern timestamps truncate their positive offset from the 2000 epoch.
                 // An end just before Start therefore persists one microsecond before it;
                 // this differs from truncating the negative elapsed interval toward zero.
@@ -116,6 +127,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
             for (var lap = 0; lap < 2; lap++)
             {
                 var start = Start.AddSeconds(lap * 10);
+                var sourceStartPoint = Guid.NewGuid();
                 db.Add(new Sample
                 {
                     Id = Guid.NewGuid(), TransponderId = rider, FacilityId = facility,
@@ -123,19 +135,30 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
                     TimeStart = start, TimeEnd = start.AddSeconds(1), Duration = TimeSpan.FromSeconds(1),
                     Distance = 250, Speed = 250
                 });
+                var source = new Sample
+                {
+                    Id = Guid.NewGuid(), TransponderId = rider, FacilityId = facility,
+                    CoursePointStartId = sourceStartPoint, CoursePointEndId = parent.CoursePointEnd,
+                    TimeStart = start.AddSeconds(2), TimeEnd = start.AddSeconds(10).AddTicks(9),
+                    Duration = TimeSpan.FromSeconds(1), Distance = 250, Speed = 250
+                };
+                db.Add(source);
                 await db.SaveChangesAsync();
                 await using var tx = await db.Database.BeginTransactionAsync();
                 var entry = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                    .ProcessCompletedAsync(rider, start.AddSeconds(2), start.AddSeconds(10).AddTicks(9),
-                        parent.CoursePointStart, parent.CoursePointEnd));
+                    .ProcessCompletedAsync(rider, source.TimeStart, source.TimeEnd,
+                        source.CoursePointStartId, source.CoursePointEndId, sampleId: source.Id,
+                        sampleDistance: source.Distance));
                 Assert.True(entry.IsValid);
                 Assert.Equal(TimeSpan.FromSeconds(10), entry.Duration);
                 created.Add(entry);
                 await tx.CommitAsync();
             }
             await using var aggregateTx = await db.Database.BeginTransactionAsync();
+            var trigger = created[1];
             var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, Start, Start.AddSeconds(20).AddTicks(9)));
+                .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, trigger.TimeStart, trigger.TimeEnd,
+                    entryId: trigger.Id));
             Assert.True(aggregate.IsValid);
             Assert.Null(aggregate.InvalidReason);
             Assert.Equal(Start, aggregate.TimeStart);
@@ -272,7 +295,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
             await using var tx = await db.Database.BeginTransactionAsync();
             var service = new StatisticsService(db, services.GetRequiredService<HybridCache>());
             var aggregate = Assert.Single(await service.ProcessEntryAsync(second.TransponderId, parent.StatisticsItemId,
-                parent.Id, first.TimeStart, second.TimeEnd));
+                parent.Id, second.TimeStart, second.TimeEnd, entryId: second.Id));
             Assert.True(aggregate.IsValid);
             await tx.CommitAsync();
         }
@@ -317,7 +340,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         await db.SaveChangesAsync();
         await using var tx = await db.Database.BeginTransactionAsync();
         var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-            .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, rejected.TimeStart, newest.TimeEnd));
+            .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, newest.TimeStart, newest.TimeEnd,
+                entryId: newest.Id));
         Assert.False(aggregate.IsValid);
         Assert.Equal(StatisticsEntryInvalidReason.InvalidContributor, aggregate.InvalidReason);
         Assert.False((await StatisticsService.ReadMultiContributorValidityAsync(db, [aggregate.Id]))[aggregate.Id]);
@@ -374,7 +398,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
             await db.SaveChangesAsync();
             await using var tx = await db.Database.BeginTransactionAsync();
             var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, a.TimeStart, b.TimeEnd));
+                .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, b.TimeStart, b.TimeEnd,
+                    entryId: b.Id));
             Assert.True(aggregate.IsValid);
             // Simulate a previously stored result so the historical worker must reach the same
             // answer as current creation after the unrelated matching-window rows arrive.
@@ -421,7 +446,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
             await db.SaveChangesAsync();
             await using var tx = await db.Database.BeginTransactionAsync();
             var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, first.TimeStart, second.TimeEnd));
+                .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, second.TimeStart, second.TimeEnd,
+                    entryId: second.Id));
             Assert.True(aggregate.IsValid);
             aggregateId = aggregate.Id;
             await tx.CommitAsync();
@@ -434,6 +460,14 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
 
         await using (var db = Db())
         {
+            var completionStartPoint = Guid.NewGuid();
+            var source = new Sample
+            {
+                Id = Guid.NewGuid(), TransponderId = rider, FacilityId = facility,
+                CoursePointStartId = completionStartPoint, CoursePointEndId = parent.CoursePointEnd,
+                TimeStart = Start.AddSeconds(17), TimeEnd = Start.AddSeconds(25),
+                Duration = TimeSpan.FromSeconds(8), Distance = 250, Speed = 31.25
+            };
             db.Add(new Sample
             {
                 Id = Guid.NewGuid(), TransponderId = rider, FacilityId = facility,
@@ -441,11 +475,13 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
                 TimeStart = Start.AddSeconds(15), TimeEnd = Start.AddSeconds(16),
                 Duration = TimeSpan.FromSeconds(1), Distance = 250, Speed = 250
             });
+            db.Add(source);
             await db.SaveChangesAsync();
             await using var tx = await db.Database.BeginTransactionAsync();
             var added = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                .ProcessCompletedAsync(rider, Start.AddSeconds(17), Start.AddSeconds(25),
-                    parent.CoursePointStart, parent.CoursePointEnd));
+                .ProcessCompletedAsync(rider, source.TimeStart, source.TimeEnd,
+                    source.CoursePointStartId, source.CoursePointEndId,
+                    sampleId: source.Id, sampleDistance: source.Distance));
             Assert.True(added.IsValid);
             Assert.Equal(Start.AddSeconds(15), added.TimeStart);
             Assert.Equal(Start.AddSeconds(25), added.TimeEnd);
@@ -657,6 +693,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
     {
         var config = Simple();
         var rider = Guid.NewGuid();
+        var facility = Guid.NewGuid();
+        var completionStartPoint = Guid.NewGuid();
         await using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
         await using (var db = Db())
         {
@@ -665,8 +703,16 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
             {
                 Id = Guid.NewGuid(), TimeStart = Start, TimeEnd = Start.AddSeconds(1), Duration = TimeSpan.FromSeconds(1),
                 Distance = 25, Speed = 25, CoursePointStartId = config.CoursePointStart, CoursePointEndId = Guid.NewGuid(),
-                FacilityId = Guid.NewGuid(), TransponderId = rider
+                FacilityId = facility, TransponderId = rider
             });
+            var source = new Sample
+            {
+                Id = Guid.NewGuid(), TimeStart = Start.AddSeconds(2), TimeEnd = Start.AddSeconds(10),
+                Duration = TimeSpan.FromSeconds(8), Distance = 250, Speed = 31.25,
+                CoursePointStartId = completionStartPoint, CoursePointEndId = config.CoursePointEnd,
+                FacilityId = facility, TransponderId = rider
+            };
+            db.Add(source);
             await db.SaveChangesAsync();
             await new StatisticsService(db, services.GetRequiredService<HybridCache>()).GetStatisticsItemConfigByEndCoursePoint(config.CoursePointEnd);
         }
@@ -675,8 +721,10 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         await using (var db = Db())
         {
             await using var tx = await db.Database.BeginTransactionAsync();
+            var source = await db.Set<Sample>().SingleAsync(s => s.CoursePointStartId == completionStartPoint);
             var entry = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                .ProcessCompletedAsync(rider, Start.AddSeconds(2), Start.AddSeconds(10), config.CoursePointStart, config.CoursePointEnd));
+                .ProcessCompletedAsync(rider, source.TimeStart, source.TimeEnd, source.CoursePointStartId,
+                    source.CoursePointEndId, sampleId: source.Id, sampleDistance: source.Distance));
             Assert.False(entry.IsValid);
             Assert.Equal(StatisticsEntryInvalidReason.BelowMinimumDuration, entry.InvalidReason);
             Assert.Equal(TimeSpan.FromSeconds(10), entry.Duration);
