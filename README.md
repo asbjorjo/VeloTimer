@@ -435,6 +435,31 @@ Redis, Keycloak, and domain API dependencies. Focused boundary tests run with:
 dotnet test src/VeloTime.Platform.Test/VeloTime.Platform.Test.csproj --filter FullyQualifiedName~WebUiBffTests
 ```
 
+### Statistics sample activation on local startup
+
+The Statistics migration `20261123151518` requires explicit approval even on a
+new database. Aspire retains its PostgreSQL volume and connects to an external
+MessageBus: a new or empty database does **not** prove that the broker, other
+consumers, or old writers are new or empty. The default migration therefore
+fails closed. Before first startup, verify that both the database and broker are
+genuinely new and isolated, with no old writers, consumers, or retained messages.
+For an existing installation, complete the full
+[maintenance and broker barrier](src/Module.Statistics/Storage/SampleIdentityPersistence.md)
+instead; stopping this AppHost alone is not sufficient.
+
+After that verification or barrier, approve **one local AppHost invocation**:
+
+```sh
+STATISTICS_SAMPLE_RESET_APPROVAL=approved dotnet run --project src/AppHost
+```
+
+In run mode only, AppHost appends the approval to the Statistics migration
+connection, not the API or processor connections. Do not persist the variable in
+launch settings or environment configuration. Remove it after the migration and
+start normally thereafter. Never reuse this approval for a different database or
+broker without repeating the verification or barrier. The activation deletes
+derived samples and entries; it does not recreate historical results.
+
 ## Administration
 
 The personal and administrative transponder tables use server-side pagination of

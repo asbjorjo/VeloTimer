@@ -66,6 +66,17 @@ installation**. Never run old processors after activation.
    Earlier migrations have their own transaction boundaries (some use concurrent
    indexes); failure of activation does not undo earlier successful migrations.
    The preceding Lap activation has independent validation and may block the upgrade.
+   For local Aspire, the one-invocation `STATISTICS_SAMPLE_RESET_APPROVAL=approved`
+   option and its fresh-install prerequisites are described in the
+   [root README](../../../README.md#statistics-sample-activation-on-local-startup).
+   For Helm, provision a separate migration-only Secret with the connection string
+   including that Npgsql `Options` value, and select it using
+   `migrationJobs.domains.statistics.existingSecret`. The Secret must exist before
+   the Helm hook runs. Remove the override and approval-bearing Secret after
+   successful activation. Do not add the option to the API's default Secret or
+   chart-managed runtime database values. Helm's pre-upgrade hook does not stop
+   existing workloads, enforce the maintenance barrier, or inspect broker state;
+   complete the barrier before invoking Helm.
 6. Deploy only replay-safe processors and compatible consumers. Refresh caches,
    restart the revalidator, and monitor errors, queues, dead letters, pending outboxes
    and checkpoint completion. Explicitly reconcile downstream projections; a reset

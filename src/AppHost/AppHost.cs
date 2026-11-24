@@ -206,6 +206,8 @@ if (migrate)
     statisticsmigrator = builder.AddProject<Projects.VeloTime_Module_Statistics_Migration>("module-statistics-migration")
         .WaitFor(velotimedb)
         .WithReference(velotimedb);
+    StatisticsSampleReset.Configure(statisticsmigrator, velotimedb,
+        builder.ExecutionContext.IsRunMode, builder.Configuration["STATISTICS_SAMPLE_RESET_APPROVAL"]);
     timingmigrator = builder.AddProject<Projects.VeloTime_Module_Timing_Migration>("module-timing-migration")
         .WaitFor(velotimedb)
         .WithReference(velotimedb);
