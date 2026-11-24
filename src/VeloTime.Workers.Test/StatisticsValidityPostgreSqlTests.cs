@@ -32,8 +32,6 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         await Sql(admin, $"CREATE DATABASE \"{database}\"");
         connection = new NpgsqlConnectionStringBuilder(admin) { Database = database }.ConnectionString;
         await using var db = Db();
-        await db.Database.OpenConnectionAsync();
-        await db.Database.ExecuteSqlRawAsync("SET velotime.statistics_sample_reset = 'approved'");
         await db.Database.MigrateAsync();
     }
     public async Task DisposeAsync()

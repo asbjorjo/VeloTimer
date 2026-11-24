@@ -515,7 +515,7 @@ public class StatisticsService(
         var legacyIds = configIds.Select(legacyEntryId).ToArray();
         if (await storage.Set<StatisticsEntry>().AsNoTracking().AnyAsync(e => legacyIds.Contains(e.Id), cancellationToken))
             throw new InvalidOperationException(
-                "A tuple-v1 Statistics entry exists for this source; explicit maintenance reconciliation or the approved activation reset is required before replay.");
+                "A tuple-v1 Statistics entry exists for this source; explicit maintenance reconciliation or the manually coordinated activation reset is required before replay.");
     }
 
     private static Guid LegacyCompletionEntryId(Guid config, Guid rider, DateTime start, DateTime end,

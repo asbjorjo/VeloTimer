@@ -149,14 +149,15 @@ It must fail/quarantine on integration, including delivered receipts and replay
 after config changes. No automatic promotion to 1 is safe. Inventory retained
 receipts/entries, broker queues/retries/dead letters and downstream effects under
 a stopped-writer maintenance barrier. Reconcile each legacy source using
-authoritative history, or use the separately approved preproduction procedure in
+authoritative history, or use the manually coordinated preproduction procedure in
 [SampleIdentityPersistence.md](SampleIdentityPersistence.md). If original decisions
 and considered config set cannot be proven, stop; this migration supplies no
 reconciliation/reset tool and authorizes no deletion.
 
-The earlier destructive sample-identity activation remains unchanged and requires
-its explicit approval, both outboxes empty, stopped old writers and queue barriers,
-even on fresh install. This later additive migration must not be used to bypass it.
+The earlier destructive sample-identity activation requires both outboxes empty,
+stopped old writers and queue barriers, even on fresh install. Coordinate deployment
+and reset manually; there is no approval flag. This later additive migration must not
+be used to bypass it.
 If this schema has already been used, any separately proposed reset must inventory
 and retain/reconcile this ledger too; do not rerun an applied reset migration.
 No existing history table is rewritten; this ledger is itself retained decision

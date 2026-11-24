@@ -188,8 +188,6 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         await RecreateAtMigrationAsync(BeforeSampleActivation);
         await using var db = Db();
         await AssertMigrationsPendingAfterEntryOutboxAsync(db);
-        await db.Database.OpenConnectionAsync();
-        await db.Database.ExecuteSqlRawAsync("SET velotime.statistics_sample_reset = 'approved'");
         var migrator = db.GetService<IMigrator>();
         await migrator.MigrateAsync(SampleActivationMigration);
         Assert.Equal(new[] { MultiDecisionMigration }, await db.Database.GetPendingMigrationsAsync());

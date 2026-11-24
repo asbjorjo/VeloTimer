@@ -55,7 +55,7 @@ Legitimate queued redelivery remains supported when its retained source receipt 
 predecessors can be verified. Legacy queued messages with no retained receipt must
 be quarantined and individually reconciled under the maintenance procedure in
 `SampleCompleteOutbox.md`; do not live-redrive or synthesize receipt order from event
-timestamps. If trustworthy order cannot be established, use the approved reset,
+timestamps. If trustworthy order cannot be established, use the manually coordinated reset,
 replay or loss procedure rather than accepting an unordered completion.
 
 This is not a global total order: upstream delivery order need not match event time,
@@ -70,7 +70,7 @@ sent, and Simple/Multi consumers must remain replay-safe.
 1. Stop **all** old Statistics processors; do not run old direct-publication writers
    alongside these writers. Back up and inventory samples, entries, both isolated
    outboxes, queues and dead letters. Follow the authoritative reconciliation or
-   bounded approved preproduction reset in `SampleIdentityPersistence.md` and the
+   bounded manually coordinated preproduction reset in `SampleIdentityPersistence.md` and the
    random-ID entry activation gate in `EntryReplay.md`. This migration deletes nothing.
 2. Apply `20261123145848_statistics_entry_created_outbox` before the new processor.
    Grant its role DML/sequence rights on the new table and access to the new sample

@@ -54,9 +54,6 @@ namespace VeloTime.Module.Statistics.Migrations
                     ) THEN
                         RAISE EXCEPTION 'Sample identity activation found unexpected triggers, rules or inheritance.';
                     END IF;
-                    IF current_setting('velotime.statistics_sample_reset', true) IS DISTINCT FROM 'approved' THEN
-                        RAISE EXCEPTION 'Sample identity activation deletes ALL samples and entries; explicit maintenance approval is required even for an empty database.';
-                    END IF;
                 END
                 $activation$;
 

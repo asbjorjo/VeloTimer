@@ -54,28 +54,19 @@ installation**. Never run old processors after activation.
    items, checkpoints, samples, entries and isolated outboxes until commit. Locks
    protect the transaction, not writers queued behind it. Plan for exclusive locks,
    DELETE/WAL, table scans, index build, disk, vacuum and table-owner DDL privileges.
-5. Apply the migration with only the migration connection configured with Npgsql
-   `Options=-c velotime.statistics_sample_reset=approved` **after** completing the
-   barrier. This explicit opt-in is required even on an empty database, because stale
-   broker messages and mixed-version writers are not visible to the migration. It is
-   not a substitute for the barrier.
-   Do not set it globally or leave it on pooled application connections. The migration
-   worker normally auto-applies pending migrations; disable it until the procedure is
-   ready. Verify migration history (`ef.__ef_migrations_history`), empty result and
-   isolated outbox tables, NOT NULL columns, unique index and restarted checkpoints.
+5. Coordinate deployment and reset manually and apply the migration **after**
+   completing the barrier, even on an empty database: stale broker messages and
+   mixed-version writers are not visible to the migration. There is no approval flag.
+   The migration worker normally auto-applies pending migrations; disable it until the
+   procedure is ready. Verify migration history (`ef.__ef_migrations_history`), empty
+   result and isolated outbox tables, NOT NULL columns, unique index and restarted checkpoints.
    Earlier migrations have their own transaction boundaries (some use concurrent
    indexes); failure of activation does not undo earlier successful migrations.
    The preceding Lap activation has independent validation and may block the upgrade.
-   For local Aspire, the one-invocation `STATISTICS_SAMPLE_RESET_APPROVAL=approved`
-   option and its fresh-install prerequisites are described in the
+   Local Aspire fresh-install prerequisites are described in the
    [root README](../../../README.md#statistics-sample-activation-on-local-startup).
-   For Helm, provision a separate migration-only Secret with the connection string
-   including that Npgsql `Options` value, and select it using
-   `migrationJobs.domains.statistics.existingSecret`. The Secret must exist before
-   the Helm hook runs. Remove the override and approval-bearing Secret after
-   successful activation. Do not add the option to the API's default Secret or
-   chart-managed runtime database values. Helm's pre-upgrade hook does not stop
-   existing workloads, enforce the maintenance barrier, or inspect broker state;
+   Helm's pre-upgrade hook does not stop existing workloads, enforce the maintenance
+   barrier, or inspect broker state;
    complete the barrier before invoking Helm.
 6. Deploy only replay-safe processors and compatible consumers. Refresh caches,
    restart the revalidator, and monitor errors, queues, dead letters, pending outboxes

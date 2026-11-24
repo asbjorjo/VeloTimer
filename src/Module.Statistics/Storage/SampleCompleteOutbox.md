@@ -48,7 +48,7 @@ unique retained receipt must remain quarantined until a separately approved
 maintenance reconciliation restores trustworthy source/order evidence; event time
 alone does not establish receipt order. Do not synthesize a receipt or redrive it
 through the live handler when order cannot be established. If evidence is missing,
-follow the approved reset/replay or loss procedure in `SampleIdentityPersistence.md`.
+follow the manually coordinated reset/replay or loss procedure in `SampleIdentityPersistence.md`.
 Old TimingSampleComplete events whose sample already exists but has no receipt also
 require this reconciliation: the idempotent sample replay intentionally does not
 fabricate a new receipt and now fails explicitly instead of acknowledging a missing

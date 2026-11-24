@@ -21,22 +21,18 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     }
 
     [PostgreSqlStatisticsFact]
-    public async Task SampleActivationRequiresBarrierAcknowledgementEvenWhenEmpty()
+    public async Task SampleActivationSucceedsOnFreshAndEmptyExistingDatabases()
     {
+        await using (var fresh = Db())
+        {
+            Assert.Empty(await fresh.Database.GetPendingMigrationsAsync());
+            Assert.Contains(SampleActivationMigration, await fresh.Database.GetAppliedMigrationsAsync());
+        }
         await RecreateAtMigrationAsync(BeforeSampleActivation);
         await using var db = Db();
-        var failure = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(SampleActivationMigration));
-        Assert.Contains("explicit maintenance approval", failure.MessageText);
         await AssertMigrationsPendingAfterEntryOutboxAsync(db);
-        var approvedConnection = new NpgsqlConnectionStringBuilder(connection)
-        {
-            Options = "-c velotime.statistics_sample_reset=approved"
-        }.ConnectionString;
-        await using var approved = new StatisticsDbContext(new DbContextOptionsBuilder<StatisticsDbContext>()
-            .UseNpgsql(approvedConnection, o => o.MigrationsHistoryTable("__ef_migrations_history", "ef"))
-            .UseSnakeCaseNamingConvention().Options);
-        await approved.Database.MigrateAsync();
-        Assert.Empty(await approved.Database.GetPendingMigrationsAsync());
+        await db.Database.MigrateAsync();
+        Assert.Empty(await db.Database.GetPendingMigrationsAsync());
     }
 
     [PostgreSqlStatisticsFact]
@@ -91,12 +87,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             VALUES ({Guid.NewGuid()}, {Guid.NewGuid()}, {Guid.NewGuid()}, {Guid.NewGuid()}, {Guid.NewGuid()},
                     {Start}, {Start.AddSeconds(1)}, {TimeSpan.FromSeconds(1)}, 100, 100, {Guid.NewGuid()}, {Guid.NewGuid()});
             """);
-        var noApproval = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync());
-        Assert.Contains("explicit maintenance approval", noApproval.MessageText);
         Assert.Equal(2, await db.Set<StatisticsEntry>().CountAsync());
         Assert.Equal(2, await db.Set<Sample>().CountAsync());
-        await db.Database.OpenConnectionAsync();
-        await db.Database.ExecuteSqlRawAsync("SET velotime.statistics_sample_reset = 'approved'");
         await migrator.MigrateAsync();
         Assert.Empty(await db.Set<Sample>().AsNoTracking().ToListAsync());
         Assert.Empty(await db.Set<StatisticsEntry>().AsNoTracking().ToListAsync());
@@ -145,8 +137,6 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     {
         await RecreateAtMigrationAsync(BeforeSampleActivation);
         await using var db = Db();
-        await db.Database.OpenConnectionAsync();
-        await db.Database.ExecuteSqlRawAsync("SET velotime.statistics_sample_reset = 'approved'");
         var migrator = db.GetService<IMigrator>();
         foreach (var table in new[] { "sample_complete_outbox", "entry_created_outbox" })
         foreach (var delivered in new[] { false, true })
@@ -206,8 +196,6 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                 (statistics_item_id, generation, is_pending, phase, last_entry_id, multi_rescan_pending)
             VALUES ({config.StatisticsItemId}, {long.MaxValue}, TRUE, 0, NULL, FALSE);
             """);
-        await db.Database.OpenConnectionAsync();
-        await db.Database.ExecuteSqlRawAsync("SET velotime.statistics_sample_reset = 'approved'");
         var failure = await Assert.ThrowsAsync<PostgresException>(() => db.GetService<IMigrator>().MigrateAsync(SampleActivationMigration));
         Assert.Equal(PostgresErrorCodes.NumericValueOutOfRange, failure.SqlState);
         Assert.Equal(1, await db.Set<StatisticsEntry>().CountAsync());
@@ -227,8 +215,6 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             VALUES (gen_random_uuid(), gen_random_uuid(), now(), now(), gen_random_uuid(), gen_random_uuid(), 1);
             """);
         await using var migration = Db();
-        await migration.Database.OpenConnectionAsync();
-        await migration.Database.ExecuteSqlRawAsync("SET velotime.statistics_sample_reset = 'approved'");
         var task = migration.GetService<IMigrator>().MigrateAsync(SampleActivationMigration);
         await Task.Delay(300);
         Assert.False(task.IsCompleted);
@@ -251,8 +237,6 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             VALUES (gen_random_uuid(), gen_random_uuid(), now(), now(), gen_random_uuid(), gen_random_uuid(), TRUE);
             """);
         await using var migration = Db();
-        await migration.Database.OpenConnectionAsync();
-        await migration.Database.ExecuteSqlRawAsync("SET velotime.statistics_sample_reset = 'approved'");
         var task = migration.GetService<IMigrator>().MigrateAsync();
         await Task.Delay(300);
         Assert.False(task.IsCompleted);

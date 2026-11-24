@@ -82,7 +82,7 @@ migration; none is introduced here.
 The preproduction activation migration described in `SampleIdentityPersistence.md`
 deletes all derived samples and entries before source-identity activation. Verify that
 the reset barrier was actually applied and that no tuple-v1 entries were subsequently
-retained before rollout. If any might remain, stop and use an explicitly approved
+retained before rollout. If any might remain, stop and use a manually coordinated
 reconciliation/reset procedure; the runtime guard is defense in depth, not a history
 inventory and not a substitute for the migration barrier. Preserve definitions,
 profiles, Timing and Facilities data and unrelated events. The activation migration
@@ -111,7 +111,7 @@ recursive creation. Legacy or unprovable messages require explicit reconciliatio
 - Required-point and course-layout outcomes, manual invalidation, ownership and
   revalidation unchanged; no replay-driven generation increment or extra contributors.
 - Ambiguous source/parent tuples fail explicitly; authoritative legacy reconciliation
-  or approved reset and worker durable publication need separate integrated validation.
+  or manually coordinated reset and worker durable publication need separate integrated validation.
 
 PostgreSQL tests reuse the existing fixture which creates and drops its own randomly
 named database; they do not drop the supplied connection's database or shared schema.
