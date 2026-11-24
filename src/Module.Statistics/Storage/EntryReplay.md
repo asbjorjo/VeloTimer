@@ -60,14 +60,13 @@ Live routing still determines *new* results: an initially empty result is not a 
 processed-message receipt, and newly added configs can create additional results on a
 later delivery.
 
-The approved additive identity contract is in
-`../../Module.Statistics.Interface/Messages/StatisticsIdentityContract.md`. Current
-handlers/dispatchers have not yet been wired to pass these IDs (or completion distance)
-to the domain methods. Keep them source-compatible until the worker handoff; do not
-deploy identity-bearing publishers or treat this domain change alone as end-to-end
-activation. The next worker integration must pass `SampleComplete.SampleId` and
-`Distance`, and `EntryCreated.EntryId`, preserving the existing transaction,
-receipt/order barrier, `Single` and message routing semantics.
+The additive identity contract is in
+`../../Module.Statistics.Interface/Messages/StatisticsIdentityContract.md`.
+Handlers and dispatchers propagate `SampleComplete.SampleId`, completion distance,
+and `EntryCreated.EntryId`, preserving transactions, receipt barriers, `Single`
+and routing. Multi decisions, including an empty eligible set and no-result
+outcomes, are durable and frozen on replay; see `MultiCreationDecisions.md`.
+Simple completion routing can still discover newly added definitions on redelivery.
 
 ## Legacy activation gate
 
@@ -91,31 +90,15 @@ refuses retained isolated outbox rows and restarts all checkpoints; coordinate q
 messages and do not clear shared schemas or outboxes. No shared database has been
 migrated.
 
-## Publication recovery and required worker handoff
+## Durable publication and recovery
 
-**Implemented worker handoff:** see `EntryCreatedOutbox.md` for the transactional
-publication boundary, isolated dispatcher, ordering barrier, migration and rollout
-gate. The paragraphs below describe the prior retry-only boundary and why the
-handoff was required; they are not the current handler behavior.
-
-Both `SampleCompleteHandler` and `EntryCreatedHandler` commit via ownership before
-publishing `EntryCreated` outside the transaction. Exceptions propagate. A redelivery
-uses the persisted entries to reconstruct the same wire payload, including after a
-partial batch send/uncertain acknowledgement; duplicate EntryCreated deliveries now
-reuse existing Multi rows regardless of required-point settings. Multi configs have
-Simple parents; their emitted EntryCreated messages do not recursively create Multis.
-No other EntryCreated domain consumer was found in the repository.
-
-This is **retry-safe**, not durable EntryCreated publication. Entry rows are not
-publication receipts. If broker retries expire/dead-letter, the original message is
-lost, or config/entry history is deleted before retry, there is no domain dispatcher
-to finish publication. Worker/Messaging ownership must transactionally enqueue the
-exact outgoing EntryCreated payload alongside entry persistence, including pending
-payload recovery after routing/deletion changes, and dispatch it at least once with
-existing routing/session semantics. Coordinate with Data & Migrations for its storage.
-Do not infer sent status from row existence, suppress republishing, or mark the
-end-to-end durable-publication acceptance criterion complete. Dispatcher activation
-and historical replay remain gated on that handoff and legacy reconciliation.
+Both handlers atomically enqueue exact `EntryCreated` payloads with their entry and
+ownership changes. Isolated dispatchers retry retained payloads at least once;
+uncertain acknowledgement may duplicate delivery, not domain rows or decisions.
+See `EntryCreatedOutbox.md` and `MultiCreationDecisions.md` for receipt ordering,
+zero-result decisions, validation, migration and the mandatory maintenance barrier.
+A validated non-Single event has no dependent Multi work and is acknowledged without
+recursive creation. Legacy or unprovable messages require explicit reconciliation.
 
 ## Regression acceptance for Tester
 

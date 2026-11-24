@@ -1,7 +1,7 @@
 # Statistics completion and entry identities
 
-This is a contract-first change only. Current dispatchers and consumers do **not**
-yet send or use these fields; the ambiguous-tuple bug is not fixed by this change.
+Both isolated dispatchers publish retained source IDs, and the consumers validate
+and use them for receipt resolution and source-keyed derived entries.
 
 `SampleComplete.SampleId` is the persisted **Statistics** `Sample.Id`, not a
 Timing sample/point ID, message ID, transponder ID, or outbox sequence. The
@@ -14,7 +14,7 @@ attempt, including retries. Null or omitted means legacy/unknown, never
 field names are defined. Times remain UTC, distance in metres. Existing message
 names, topic, `Single` header and transponder session routing are unchanged.
 
-## Required integration (not implemented here)
+## Integrated producer and consumer requirements
 
 * Update both isolated outbox dispatchers to send the respective retained IDs;
   never generate an ID during dispatch. Preserve immutable payload, ordering,
