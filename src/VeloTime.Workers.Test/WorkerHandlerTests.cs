@@ -330,11 +330,21 @@ public sealed class WorkerHandlerTests
         var sampleHandler = new SampleCompleteHandler(statistics, ownership, metrics, NullLogger<SampleCompleteHandler>.Instance);
         var entryHandler = new EntryCreatedHandler(statistics, ownership, NullLogger<EntryCreatedHandler>.Instance);
 
-        var completion = new SampleComplete(Guid.NewGuid(), DateTime.UtcNow.AddSeconds(-10), DateTime.UtcNow,
+        var completion = new SampleComplete(Guid.NewGuid(), StatisticsStoragePrecision.Timestamp(DateTime.UtcNow.AddSeconds(-10)),
+            StatisticsStoragePrecision.Timestamp(DateTime.UtcNow),
             Guid.NewGuid(), Guid.NewGuid(), 100);
+        var sourceId = Guid.NewGuid();
+        storage.Add(new VeloTime.Module.Statistics.Model.Sample
+        {
+            Id = sourceId, TransponderId = completion.TransponderId, FacilityId = Guid.NewGuid(),
+            TimeStart = StatisticsStoragePrecision.Timestamp(completion.TimeStart),
+            TimeEnd = StatisticsStoragePrecision.Timestamp(completion.TimeEnd),
+            CoursePointStartId = completion.CoursePointStart, CoursePointEndId = completion.CoursePointEnd,
+            Distance = completion.Distance
+        });
         storage.Add(new SampleCompleteOutbox
         {
-            SampleId = Guid.NewGuid(), TransponderId = completion.TransponderId,
+            SampleId = sourceId, TransponderId = completion.TransponderId,
             TimeStart = StatisticsStoragePrecision.Timestamp(completion.TimeStart),
             TimeEnd = StatisticsStoragePrecision.Timestamp(completion.TimeEnd),
             CoursePointStart = completion.CoursePointStart, CoursePointEnd = completion.CoursePointEnd,
@@ -342,9 +352,25 @@ public sealed class WorkerHandlerTests
         });
         await storage.SaveChangesAsync();
         await sampleHandler.OnHandle(completion, CancellationToken.None);
-        await entryHandler.OnHandle(new EntryCreated(Guid.NewGuid(), DateTime.UtcNow.AddSeconds(-10), DateTime.UtcNow, Guid.NewGuid(), Guid.NewGuid()), CancellationToken.None);
-
         Assert.Empty(await storage.Set<EntryCreatedOutbox>().ToListAsync());
+        var item = new StatisticsItem { Id = Guid.NewGuid(), Name = "Parent", Distance = 100 };
+        var config = new SimpleStatisticsItemConfig { Id = Guid.NewGuid(), StatisticsItem = item };
+        var parent = new StatisticsEntry
+        {
+            Id = Guid.NewGuid(), TransponderId = completion.TransponderId, FacilityId = Guid.NewGuid(),
+            StatisticsItem = item, StatisticsItemConfig = config, StatisticsItemId = item.Id,
+            StatisticsItemConfigId = config.Id, TimeStart = StatisticsStoragePrecision.Timestamp(completion.TimeStart),
+            TimeEnd = StatisticsStoragePrecision.Timestamp(completion.TimeEnd)
+        };
+        storage.AddRange(item, config, parent, new EntryCreatedOutbox
+        {
+            EntryId = parent.Id, TransponderId = parent.TransponderId, TimeStart = parent.TimeStart,
+            TimeEnd = parent.TimeEnd, StatisticsItemId = item.Id, ConfigItemId = config.Id, Single = true
+        });
+        await storage.SaveChangesAsync();
+        await entryHandler.OnHandle(new EntryCreated(parent.TransponderId, parent.TimeStart, parent.TimeEnd,
+            item.Id, config.Id, parent.Id), CancellationToken.None);
+        Assert.Single(await storage.Set<EntryCreatedOutbox>().ToListAsync());
     }
 
     private sealed class EmptyOwnershipReader : ITransponderOwnershipReader

@@ -238,7 +238,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             {
                 var rider = Guid.NewGuid();
                 await using var db = Db();
-                db.Add(new SampleCompleteOutbox { SampleId = Guid.NewGuid(), TransponderId = rider,
+                var sampleId = Guid.NewGuid();
+                db.Add(new SampleCompleteOutbox { SampleId = sampleId, TransponderId = rider,
                     TimeStart = Start, TimeEnd = Start.AddSeconds(1),
                     CoursePointStart = Guid.NewGuid(), CoursePointEnd = Guid.NewGuid(), Distance = 100 });
                 await db.SaveChangesAsync();
@@ -251,6 +252,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                 Assert.Equal(nameof(SampleComplete), transport.ApplicationProperties["MessageName"]);
                 Assert.Equal(rider, JsonSerializer.Deserialize<SampleComplete>(transport.Body.ToString(),
                     new JsonSerializerOptions(JsonSerializerDefaults.Web))!.TransponderId);
+                Assert.Equal(sampleId, JsonSerializer.Deserialize<SampleComplete>(transport.Body.ToString(),
+                    new JsonSerializerOptions(JsonSerializerDefaults.Web))!.SampleId);
                 foreach (var single in new[] { true, false })
                 {
                     var entry = PendingEntry(rider);
@@ -270,7 +273,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                     Assert.Equal(single, sent.ApplicationProperties.ContainsKey("Single"));
                     if (single) Assert.Equal(true, sent.ApplicationProperties["Single"]);
                     Assert.Equal(new EntryCreated(rider, entry.TimeStart, entry.TimeEnd,
-                        entry.StatisticsItemId, entry.ConfigItemId),
+                        entry.StatisticsItemId, entry.ConfigItemId, entry.EntryId),
                         JsonSerializer.Deserialize<EntryCreated>(sent.Body.ToString(),
                             new JsonSerializerOptions(JsonSerializerDefaults.Web)));
                 }

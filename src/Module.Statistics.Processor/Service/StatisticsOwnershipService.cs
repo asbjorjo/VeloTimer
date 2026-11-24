@@ -15,13 +15,29 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
     public async Task<IReadOnlyList<StatisticsEntry>> CreateEntriesAsync(Guid transponderId,
         Func<CancellationToken, Task<IEnumerable<StatisticsEntry>>> create, CancellationToken cancellationToken,
         bool? enqueueSingle = null, SampleComplete? completion = null)
+        => await CreateEntriesCoreAsync(transponderId, (_, ct) => create(ct), cancellationToken,
+            enqueueSingle, completion, null);
+
+    public async Task<IReadOnlyList<StatisticsEntry>> CreateEntriesFromSourceAsync(Guid transponderId,
+        Func<Guid, CancellationToken, Task<IEnumerable<StatisticsEntry>>> create, CancellationToken cancellationToken,
+        bool? enqueueSingle = null, SampleComplete? completion = null, EntryCreated? parent = null)
+    {
+        if ((completion is null) == (parent is null))
+            throw new ArgumentException("Exactly one source message is required.");
+        return await CreateEntriesCoreAsync(transponderId, create, cancellationToken, enqueueSingle, completion, parent);
+    }
+
+    private async Task<IReadOnlyList<StatisticsEntry>> CreateEntriesCoreAsync(Guid transponderId,
+        Func<Guid, CancellationToken, Task<IEnumerable<StatisticsEntry>>> create, CancellationToken cancellationToken,
+        bool? enqueueSingle, SampleComplete? completion, EntryCreated? parent)
     {
         await using var transaction = await LockAsync(transponderId, cancellationToken);
         var completionSource = completion is null
             ? null
             : await RequireCompletionSourceAsync(transponderId, completion, cancellationToken);
+        var parentId = parent is null ? (Guid?)null : await RequireParentSourceAsync(transponderId, parent, cancellationToken);
         var owners = await ReadOwnersAsync(transponderId, cancellationToken);
-        var entries = (await create(cancellationToken)).ToList();
+        var entries = (await create(completionSource?.SampleId ?? parentId ?? Guid.Empty, cancellationToken)).ToList();
         await LockOwnersAsync(owners, cancellationToken);
         await AssignAsync(entries, owners, cancellationToken);
         if (enqueueSingle.HasValue)
@@ -62,11 +78,17 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
     {
         var start = StatisticsStoragePrecision.Timestamp(completion.TimeStart);
         var end = StatisticsStoragePrecision.Timestamp(completion.TimeEnd);
-        var matches = await storage.Set<SampleCompleteOutbox>().Where(source =>
+        if (completion.TransponderId != transponderId || completion.SampleId == Guid.Empty || !double.IsFinite(completion.Distance))
+            throw new InvalidOperationException("Invalid SampleComplete source identity or payload.");
+        var query = storage.Set<SampleCompleteOutbox>().AsQueryable();
+        if (completion.SampleId.HasValue)
+            query = query.Where(source => source.SampleId == completion.SampleId.Value);
+        else
+            query = query.Where(source =>
                 source.TransponderId == transponderId && source.TimeStart == start && source.TimeEnd == end &&
                 source.CoursePointStart == completion.CoursePointStart &&
-                source.CoursePointEnd == completion.CoursePointEnd && source.Distance == completion.Distance)
-            .OrderBy(source => source.Id).Take(2).ToListAsync(cancellationToken);
+                source.CoursePointEnd == completion.CoursePointEnd && source.Distance == completion.Distance);
+        var matches = await query.OrderBy(source => source.Id).Take(2).ToListAsync(cancellationToken);
 
         if (matches.Count == 0)
             throw new InvalidOperationException(
@@ -77,6 +99,22 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
                 $"SampleComplete for transponder {transponderId:D} matches multiple local outbox receipts.");
 
         var source = matches[0];
+        if (source.SampleId == Guid.Empty || source.TransponderId != transponderId ||
+            StatisticsStoragePrecision.Timestamp(source.TimeStart) != start || StatisticsStoragePrecision.Timestamp(source.TimeEnd) != end ||
+            source.CoursePointStart != completion.CoursePointStart || source.CoursePointEnd != completion.CoursePointEnd ||
+            source.Distance != completion.Distance)
+            throw new InvalidOperationException("SampleComplete conflicts with its local outbox receipt.");
+        if (!completion.SampleId.HasValue)
+        {
+            // A unique receipt is not enough: another matching sample may have lost its receipt.
+            var sampleIds = await storage.Set<Sample>().AsNoTracking().Where(sample =>
+                    sample.TransponderId == transponderId && sample.TimeStart == start && sample.TimeEnd == end &&
+                    sample.CoursePointStartId == completion.CoursePointStart &&
+                    sample.CoursePointEndId == completion.CoursePointEnd && sample.Distance == completion.Distance)
+                .Select(sample => sample.Id).Take(2).ToListAsync(cancellationToken);
+            if (sampleIds.Count != 1 || sampleIds[0] != source.SampleId)
+                throw new InvalidOperationException("SampleComplete has no unique persisted source sample matching its receipt.");
+        }
         if (await storage.Set<SampleCompleteOutbox>().AnyAsync(earlier =>
                 earlier.TransponderId == transponderId && earlier.Id < source.Id &&
                 earlier.EntriesCreatedAtUtc == null, cancellationToken))
@@ -84,6 +122,33 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
                 $"SampleComplete for transponder {transponderId:D} is blocked by an earlier unprocessed local sample.");
 
         return source;
+    }
+
+    private async Task<Guid> RequireParentSourceAsync(Guid transponderId, EntryCreated message, CancellationToken cancellationToken)
+    {
+        var start = StatisticsStoragePrecision.Timestamp(message.TimeStart);
+        var end = StatisticsStoragePrecision.Timestamp(message.TimeEnd);
+        if (message.TransponderId != transponderId || message.EntryId == Guid.Empty)
+            throw new InvalidOperationException("Invalid EntryCreated source identity or payload.");
+        var query = storage.Set<StatisticsEntry>().AsNoTracking().AsQueryable();
+        if (message.EntryId.HasValue)
+            query = query.Where(entry => entry.Id == message.EntryId.Value);
+        else
+            query = query.Where(entry => entry.TransponderId == transponderId &&
+                entry.StatisticsItemConfigId == message.ConfigItemId && entry.TimeStart == start && entry.TimeEnd == end);
+        var matches = await query.Take(2).ToListAsync(cancellationToken);
+        if (matches.Count != 1)
+            throw new InvalidOperationException("EntryCreated has no unique persisted parent entry; maintenance reconciliation is required.");
+        var entry = matches[0];
+        if (entry.Id == Guid.Empty || entry.TransponderId != transponderId || entry.StatisticsItemId != message.StatisticsItemId ||
+            entry.StatisticsItemConfigId != message.ConfigItemId || entry.TimeStart != start || entry.TimeEnd != end)
+            throw new InvalidOperationException("EntryCreated conflicts with its persisted parent entry.");
+        var receipt = await storage.Set<EntryCreatedOutbox>().AsNoTracking()
+            .SingleOrDefaultAsync(row => row.EntryId == entry.Id, cancellationToken);
+        if (receipt is null || receipt.TransponderId != transponderId || receipt.TimeStart != start ||
+            receipt.TimeEnd != end || receipt.StatisticsItemId != message.StatisticsItemId || receipt.ConfigItemId != message.ConfigItemId)
+            throw new InvalidOperationException("EntryCreated has no matching retained parent receipt; maintenance reconciliation is required.");
+        return entry.Id;
     }
 
     public async Task<int> ReconcileAsync(TransponderOwnershipChanged message, CancellationToken cancellationToken)

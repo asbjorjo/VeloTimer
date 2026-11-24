@@ -35,7 +35,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         var rawStart = Start.AddTicks(7);
         Sample Edge(Guid from, Guid to, int start, int end) => new()
         {
-            TransponderId = rider, FacilityId = facility,
+            Id = Guid.NewGuid(), TransponderId = rider, FacilityId = facility,
             CoursePointStartId = from, CoursePointEndId = to,
             TimeStart = rawStart.AddSeconds(start), TimeEnd = rawStart.AddSeconds(end),
             Duration = TimeSpan.FromSeconds(end - start), Distance = 100, Speed = 10
@@ -50,12 +50,13 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
             new Metrics(services.GetRequiredService<System.Diagnostics.Metrics.IMeterFactory>()),
             NullLogger<SampleCompleteHandler>.Instance);
+        var source = Edge(b, config.CoursePointEnd, 20, 30);
         await using (var db = Db())
         {
-            db.AddRange(config, multi, Edge(config.CoursePointStart, a, 0, 10), Edge(b, config.CoursePointEnd, 20, 30),
+            db.AddRange(config, multi, Edge(config.CoursePointStart, a, 0, 10), source,
                 new SampleCompleteOutbox
                 {
-                    SampleId = Guid.NewGuid(), TransponderId = rider, TimeStart = message.TimeStart,
+                    SampleId = source.Id, TransponderId = rider, TimeStart = message.TimeStart,
                     TimeEnd = message.TimeEnd, CoursePointStart = message.CoursePointStart,
                     CoursePointEnd = message.CoursePointEnd, Distance = message.Distance
                 });

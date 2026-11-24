@@ -30,8 +30,10 @@ public sealed class EntryCreatedOutboxDispatcher(StatisticsDbContext storage, IM
 
         // Direct send via the existing producer: MessageName, topic and SessionId remain unchanged.
         // Hold the row lock until acknowledged AND committed. Uncertain outcomes must resend.
+        if (row.EntryId == Guid.Empty)
+            throw new InvalidOperationException("EntryCreated outbox receipt has an empty entry ID.");
         await bus.Publish(new EntryCreated(row.TransponderId, row.TimeStart, row.TimeEnd,
-            row.StatisticsItemId, row.ConfigItemId),
+            row.StatisticsItemId, row.ConfigItemId, row.EntryId),
             headers: row.Single ? new Dictionary<string, object> { ["Single"] = true } : null,
             cancellationToken: cancellationToken);
         row.DeliveredAtUtc = DateTime.UtcNow;

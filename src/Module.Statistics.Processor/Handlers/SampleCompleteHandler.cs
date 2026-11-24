@@ -17,9 +17,9 @@ public class SampleCompleteHandler(
         using var activity = Instrumentation.Source.StartActivity("OnHandle.SampleComplete");
         activity?.SetTag("TransponderId", message.TransponderId);
 
-        var entries = await ownership.CreateEntriesAsync(message.TransponderId,
-            cancel => statistics.ProcessCompletedAsync(message.TransponderId, message.TimeStart, message.TimeEnd,
-                message.CoursePointStart, message.CoursePointEnd, cancel), cancellationToken,
+        var entries = await ownership.CreateEntriesFromSourceAsync(message.TransponderId,
+            (sourceId, cancel) => statistics.ProcessCompletedAsync(message.TransponderId, message.TimeStart, message.TimeEnd,
+                message.CoursePointStart, message.CoursePointEnd, cancel, sourceId, message.Distance), cancellationToken,
             enqueueSingle: true, completion: message);
         activity?.SetTag("EntriesCreated", entries.Count());
         logger.LogInformation("Processed SampleComplete for TransponderId: {TransponderId}, Entries Created: {EntryCount}",

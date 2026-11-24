@@ -226,15 +226,22 @@ public sealed class StatisticsOwnershipTests
             StatisticsItem = new StatisticsItem { Id = Guid.NewGuid(), Name = "Aggregate", Distance = 100 }
         };
         var completion = new SampleComplete(database.TransponderId, Start.AddSeconds(2), Start.AddSeconds(10),
-            startPoint, endPoint, 100);
+            Guid.NewGuid(), endPoint, 100);
+        var sourceId = Guid.NewGuid();
+        var facility = Guid.NewGuid();
         database.Storage.AddRange(database.Config, multi, new Sample
         {
             Id = Guid.NewGuid(), TransponderId = database.TransponderId,
             TimeStart = Start, TimeEnd = Start.AddSeconds(1), CoursePointStartId = startPoint,
-            CoursePointEndId = Guid.NewGuid(), FacilityId = Guid.NewGuid()
+            CoursePointEndId = Guid.NewGuid(), FacilityId = facility
+        }, new Sample
+        {
+            Id = sourceId, TransponderId = database.TransponderId,
+            TimeStart = completion.TimeStart, TimeEnd = completion.TimeEnd, CoursePointStartId = completion.CoursePointStart,
+            CoursePointEndId = endPoint, FacilityId = facility, Distance = completion.Distance
         }, new SampleCompleteOutbox
         {
-            SampleId = Guid.NewGuid(), TransponderId = completion.TransponderId,
+            SampleId = sourceId, TransponderId = completion.TransponderId,
             TimeStart = completion.TimeStart, TimeEnd = completion.TimeEnd,
             CoursePointStart = completion.CoursePointStart, CoursePointEnd = completion.CoursePointEnd,
             Distance = completion.Distance
@@ -252,7 +259,7 @@ public sealed class StatisticsOwnershipTests
             var emittedRow = await database.Storage.Set<EntryCreatedOutbox>().SingleAsync();
             Assert.True(emittedRow.Single);
             var emitted = new EntryCreated(emittedRow.TransponderId, emittedRow.TimeStart, emittedRow.TimeEnd,
-                emittedRow.StatisticsItemId, emittedRow.ConfigItemId);
+                emittedRow.StatisticsItemId, emittedRow.ConfigItemId, emittedRow.EntryId);
             var entryHandler = new EntryCreatedHandler(statistics, database.Service, NullLogger<EntryCreatedHandler>.Instance);
             await entryHandler.OnHandle(emitted, CancellationToken.None);
             Assert.Equal(2, await database.Storage.Set<EntryCreatedOutbox>().CountAsync());

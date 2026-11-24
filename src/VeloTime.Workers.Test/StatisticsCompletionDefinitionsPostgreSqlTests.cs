@@ -241,7 +241,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
 
     private static Sample CompletionSample(SimpleStatisticsItemConfig config, Guid rider, Guid? endPoint = null) => new()
     {
-        TransponderId = rider, FacilityId = Guid.NewGuid(), CoursePointStartId = config.CoursePointStart,
+        Id = Guid.NewGuid(), TransponderId = rider, FacilityId = Guid.NewGuid(), CoursePointStartId = config.CoursePointStart,
         CoursePointEndId = endPoint ?? config.CoursePointEnd, TimeStart = Start, TimeEnd = Start.AddSeconds(10),
         Duration = TimeSpan.FromSeconds(10), Distance = 250, Speed = 25
     };

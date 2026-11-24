@@ -284,9 +284,17 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         {
             for (var i = 0; i < 2; i++)
             {
+                var sampleId = Guid.NewGuid();
+                seed.Add(new Sample
+                {
+                    Id = sampleId, TransponderId = rider, FacilityId = Guid.NewGuid(),
+                    TimeStart = Start.AddSeconds(i), TimeEnd = Start.AddSeconds(i + 1),
+                    CoursePointStartId = point, CoursePointEndId = point,
+                    Duration = TimeSpan.FromSeconds(1), Distance = 0, Speed = 0
+                });
                 seed.Add(new SampleCompleteOutbox
                 {
-                    SampleId = Guid.NewGuid(), TransponderId = rider, TimeStart = Start.AddSeconds(i),
+                    SampleId = sampleId, TransponderId = rider, TimeStart = Start.AddSeconds(i),
                     TimeEnd = Start.AddSeconds(i + 1), CoursePointStart = point, CoursePointEnd = point
                 });
                 await seed.SaveChangesAsync();

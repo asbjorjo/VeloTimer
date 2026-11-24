@@ -13,9 +13,9 @@ public class EntryCreatedHandler(
     public async Task OnHandle(EntryCreated message, CancellationToken cancellationToken)
     {
         using var activity = Instrumentation.Source.StartActivity("OnHandle.EntryCreated");
-        var entries = await ownership.CreateEntriesAsync(message.TransponderId,
-            cancel => statistics.ProcessEntryAsync(message.TransponderId, message.StatisticsItemId, message.ConfigItemId,
-                message.TimeStart, message.TimeEnd, cancel), cancellationToken, enqueueSingle: false);
+        var entries = await ownership.CreateEntriesFromSourceAsync(message.TransponderId,
+            (sourceId, cancel) => statistics.ProcessEntryAsync(message.TransponderId, message.StatisticsItemId, message.ConfigItemId,
+                message.TimeStart, message.TimeEnd, cancel, sourceId), cancellationToken, enqueueSingle: false, parent: message);
 
         logger.LogInformation("Processed {EntriesCount} statistics entries for transponder {TransponderId}",
             entries.Count(), message.TransponderId);

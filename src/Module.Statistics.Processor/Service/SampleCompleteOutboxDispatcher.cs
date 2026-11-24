@@ -34,8 +34,10 @@ public sealed class SampleCompleteOutboxDispatcher(StatisticsDbContext storage, 
             return false;
         }
 
+        if (row.SampleId == Guid.Empty)
+            throw new InvalidOperationException("SampleComplete outbox receipt has an empty sample ID.");
         await bus.Publish(new SampleComplete(row.TransponderId, row.TimeStart, row.TimeEnd,
-            row.CoursePointStart, row.CoursePointEnd, row.Distance), cancellationToken: cancellationToken);
+            row.CoursePointStart, row.CoursePointEnd, row.Distance, row.SampleId), cancellationToken: cancellationToken);
         row.DeliveredAtUtc = DateTime.UtcNow;
         await storage.SaveChangesAsync(cancellationToken);
         await tx.CommitAsync(cancellationToken);
