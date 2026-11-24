@@ -45,14 +45,16 @@ in definition count, not result history. Live routing still determines *new* res
 an initially empty result is not a durable processed-message receipt, and newly added
 configs can create additional results on later delivery.
 
-The unchanged messages lack SampleId/EntryId. If several persisted Timing source
+The current processors do not use SampleId/EntryId. If several persisted Timing source
 edges collapse to one SampleComplete tuple, or several persisted parent entries have
 the entire same EntryCreated tuple, creation fails explicitly rather than guessing
 an identity or silently merging genuine attempts. Equal finishes alone are not
 ambiguous. A parent statistics-item mismatch also fails explicitly. Duplicate
 equivalent legacy sample evidence remains supported. Supporting
-the ambiguous cases requires Coordinator-agreed additive source/entry identity
-contracts and coordinated producer/consumer changes; retries alone cannot resolve them.
+the ambiguous cases requires coordinated producer/consumer changes; retries alone
+cannot resolve them. The additive identity contract and required rollout/alias
+handling are specified in `../../Module.Statistics.Interface/Messages/StatisticsIdentityContract.md`;
+the contract alone does not implement that handling.
 
 ## Legacy activation gate
 
