@@ -15,6 +15,11 @@ delivery. Do not delete receipts when entries/configs are deleted. There are del
 no FKs to mutable/deletable domain data. Zero outputs create no entry receipt.
 Later definition additions can still yield new outputs on completion replay.
 
+The additive [Multi decision storage prerequisite](MultiCreationDecisions.md)
+defines retained no-result outcomes, source creation ordering and a whole-config-set
+completion marker for EntryCreated processing. It is not yet used by the workers;
+its integration gate must pass before claiming Multi replay is fully safe.
+
 Rows store every EntryCreated field plus the original `Single=true` header for
 SampleComplete-derived events (absent for EntryCreated-derived events). Individual
 messages, not a collection envelope, go through the unchanged SMB producer:

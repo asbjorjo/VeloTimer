@@ -45,6 +45,16 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("entry_id");
 
+                    b.Property<int>("MultiDecisionVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("multi_decision_version");
+
+                    b.Property<DateTime?>("MultiDecisionsCreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("multi_decisions_created_at_utc");
+
                     b.Property<bool>("Single")
                         .HasColumnType("boolean")
                         .HasColumnName("single");
@@ -76,7 +86,33 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasDatabaseName("ix_entry_created_outbox_transponder_id_id")
                         .HasFilter("delivered_at_utc IS NULL");
 
-                    b.ToTable("entry_created_outbox", "statistics");
+                    b.HasIndex(new[] { "TransponderId", "Id" }, "CreationOrder")
+                        .HasDatabaseName("ix_entry_created_outbox_transponder_creation_order");
+
+                    b.ToTable("entry_created_outbox", "statistics", t =>
+                        {
+                            t.HasCheckConstraint("ck_entry_created_outbox_multi_decision", "multi_decision_version IN (0, 1) AND (multi_decision_version = 1 OR multi_decisions_created_at_utc IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.MultiCreationDecision", b =>
+                {
+                    b.Property<Guid>("ParentEntryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_entry_id");
+
+                    b.Property<Guid>("MultiConfigId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("multi_config_id");
+
+                    b.Property<Guid?>("ResultEntryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("result_entry_id");
+
+                    b.HasKey("ParentEntryId", "MultiConfigId")
+                        .HasName("pk_multi_creation_decision");
+
+                    b.ToTable("multi_creation_decision", "statistics");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.Sample", b =>

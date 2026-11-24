@@ -12,4 +12,10 @@ public class EntryCreatedOutbox
     public Guid ConfigItemId { get; init; }
     public bool Single { get; init; }
     public DateTime? DeliveredAtUtc { get; set; }
+    /// <summary>0: legacy/unknown decisions; 1: writer participates in the durable Multi protocol.
+    /// Must be explicitly set to 1 by the upgraded creator, never inferred on replay.</summary>
+    public int MultiDecisionVersion { get; init; }
+    /// <summary>All eligible Multi configs decided atomically, including an empty config set.
+    /// Independent of broker delivery; once set, later configs cannot add outputs on replay.</summary>
+    public DateTime? MultiDecisionsCreatedAtUtc { get; set; }
 }

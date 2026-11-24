@@ -56,6 +56,25 @@ public class StatisticsDbContext : BaseDbContext
             e.HasIndex(x => x.EntryId).IsUnique();
             var pending = e.HasIndex(x => new { x.TransponderId, x.Id });
             if (Database.IsNpgsql()) pending.HasFilter("delivered_at_utc IS NULL");
+            // Delivered receipts still define creation order. Never use the pending-only index
+            // as the parent candidate set or treat delivery as a creation-decision checkpoint.
+            e.HasIndex(x => new { x.TransponderId, x.Id }, "CreationOrder")
+                .HasDatabaseName("ix_entry_created_outbox_transponder_creation_order");
+            e.Property(x => x.MultiDecisionVersion).HasDefaultValue(0)
+                .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Throw);
+            if (Database.IsNpgsql())
+            {
+                e.ToTable(t => t.HasCheckConstraint("ck_entry_created_outbox_multi_decision",
+                    "multi_decision_version IN (0, 1) AND " +
+                    "(multi_decision_version = 1 OR multi_decisions_created_at_utc IS NULL)"));
+            }
+        });
+        modelBuilder.Entity<MultiCreationDecision>(e =>
+        {
+            e.ToTable("multi_creation_decision");
+            e.HasKey(x => new { x.ParentEntryId, x.MultiConfigId });
+            e.Property(x => x.ResultEntryId).Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Throw);
+            // No domain FKs: deleting a config or result must not erase a replay decision.
         });
         modelBuilder.Entity<StatisticsItem>(e =>
         {
