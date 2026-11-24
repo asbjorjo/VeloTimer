@@ -225,11 +225,19 @@ public sealed class StatisticsOwnershipTests
             Id = Guid.NewGuid(), ParentConfigId = database.Config.Id, ParentConfig = database.Config, Repetitions = 1,
             StatisticsItem = new StatisticsItem { Id = Guid.NewGuid(), Name = "Aggregate", Distance = 100 }
         };
+        var completion = new SampleComplete(database.TransponderId, Start.AddSeconds(2), Start.AddSeconds(10),
+            startPoint, endPoint, 100);
         database.Storage.AddRange(database.Config, multi, new Sample
         {
             Id = Guid.NewGuid(), TransponderId = database.TransponderId,
             TimeStart = Start, TimeEnd = Start.AddSeconds(1), CoursePointStartId = startPoint,
             CoursePointEndId = Guid.NewGuid(), FacilityId = Guid.NewGuid()
+        }, new SampleCompleteOutbox
+        {
+            SampleId = Guid.NewGuid(), TransponderId = completion.TransponderId,
+            TimeStart = completion.TimeStart, TimeEnd = completion.TimeEnd,
+            CoursePointStart = completion.CoursePointStart, CoursePointEnd = completion.CoursePointEnd,
+            Distance = completion.Distance
         });
         await database.Storage.SaveChangesAsync();
         var serviceCollection = new ServiceCollection().AddMetrics();
@@ -240,8 +248,7 @@ public sealed class StatisticsOwnershipTests
             var statistics = new StatisticsService(database.Storage, services.GetRequiredService<HybridCache>());
             var sampleHandler = new SampleCompleteHandler(statistics, database.Service,
                 new Metrics(services.GetRequiredService<System.Diagnostics.Metrics.IMeterFactory>()), NullLogger<SampleCompleteHandler>.Instance);
-            await sampleHandler.OnHandle(new SampleComplete(database.TransponderId, Start.AddSeconds(2), Start.AddSeconds(10),
-                startPoint, endPoint, 100), CancellationToken.None);
+            await sampleHandler.OnHandle(completion, CancellationToken.None);
             var emittedRow = await database.Storage.Set<EntryCreatedOutbox>().SingleAsync();
             Assert.True(emittedRow.Single);
             var emitted = new EntryCreated(emittedRow.TransponderId, emittedRow.TimeStart, emittedRow.TimeEnd,

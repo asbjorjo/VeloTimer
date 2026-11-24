@@ -76,7 +76,11 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             NullLogger<SampleCompleteHandler>.Instance);
         await using (var db = Db())
         {
-            db.AddRange(config, multi, sample);
+            db.AddRange(config, multi, sample, new SampleCompleteOutbox
+            {
+                SampleId = sample.Id, TransponderId = rider, TimeStart = sample.TimeStart, TimeEnd = sample.TimeEnd,
+                CoursePointStart = config.CoursePointStart, CoursePointEnd = config.CoursePointEnd, Distance = 250
+            });
             await db.SaveChangesAsync();
             await Handler(db).OnHandle(message, CancellationToken.None);
             await Assert.ThrowsAsync<InvalidOperationException>(() =>

@@ -330,7 +330,18 @@ public sealed class WorkerHandlerTests
         var sampleHandler = new SampleCompleteHandler(statistics, ownership, metrics, NullLogger<SampleCompleteHandler>.Instance);
         var entryHandler = new EntryCreatedHandler(statistics, ownership, NullLogger<EntryCreatedHandler>.Instance);
 
-        await sampleHandler.OnHandle(new SampleComplete(Guid.NewGuid(), DateTime.UtcNow.AddSeconds(-10), DateTime.UtcNow, Guid.NewGuid(), Guid.NewGuid(), 100), CancellationToken.None);
+        var completion = new SampleComplete(Guid.NewGuid(), DateTime.UtcNow.AddSeconds(-10), DateTime.UtcNow,
+            Guid.NewGuid(), Guid.NewGuid(), 100);
+        storage.Add(new SampleCompleteOutbox
+        {
+            SampleId = Guid.NewGuid(), TransponderId = completion.TransponderId,
+            TimeStart = StatisticsStoragePrecision.Timestamp(completion.TimeStart),
+            TimeEnd = StatisticsStoragePrecision.Timestamp(completion.TimeEnd),
+            CoursePointStart = completion.CoursePointStart, CoursePointEnd = completion.CoursePointEnd,
+            Distance = completion.Distance
+        });
+        await storage.SaveChangesAsync();
+        await sampleHandler.OnHandle(completion, CancellationToken.None);
         await entryHandler.OnHandle(new EntryCreated(Guid.NewGuid(), DateTime.UtcNow.AddSeconds(-10), DateTime.UtcNow, Guid.NewGuid(), Guid.NewGuid()), CancellationToken.None);
 
         Assert.Empty(await storage.Set<EntryCreatedOutbox>().ToListAsync());

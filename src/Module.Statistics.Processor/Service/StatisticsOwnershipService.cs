@@ -17,6 +17,9 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
         bool? enqueueSingle = null, SampleComplete? completion = null)
     {
         await using var transaction = await LockAsync(transponderId, cancellationToken);
+        var completionSource = completion is null
+            ? null
+            : await RequireCompletionSourceAsync(transponderId, completion, cancellationToken);
         var owners = await ReadOwnersAsync(transponderId, cancellationToken);
         var entries = (await create(cancellationToken)).ToList();
         await LockOwnersAsync(owners, cancellationToken);
@@ -46,22 +49,41 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
                 });
             }
         }
-        if (completion is not null)
-        {
-            var start = StatisticsStoragePrecision.Timestamp(completion.TimeStart);
-            var end = StatisticsStoragePrecision.Timestamp(completion.TimeEnd);
-            var sources = await storage.Set<SampleCompleteOutbox>().Where(o =>
-                o.EntriesCreatedAtUtc == null && o.TransponderId == transponderId &&
-                o.TimeStart == start && o.TimeEnd == end &&
-                o.CoursePointStart == completion.CoursePointStart && o.CoursePointEnd == completion.CoursePointEnd)
-                .ToListAsync(cancellationToken);
-            // Empty results are still completed creation, not a durable "ignore future definitions" receipt.
-            foreach (var source in sources)
-                source.EntriesCreatedAtUtc ??= DateTime.UtcNow;
-        }
+        // Empty results are still completed creation, not a durable "ignore future definitions" receipt.
+        if (completionSource is not null)
+            completionSource.EntriesCreatedAtUtc ??= DateTime.UtcNow;
         await storage.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return entries;
+    }
+
+    private async Task<SampleCompleteOutbox> RequireCompletionSourceAsync(Guid transponderId,
+        SampleComplete completion, CancellationToken cancellationToken)
+    {
+        var start = StatisticsStoragePrecision.Timestamp(completion.TimeStart);
+        var end = StatisticsStoragePrecision.Timestamp(completion.TimeEnd);
+        var matches = await storage.Set<SampleCompleteOutbox>().Where(source =>
+                source.TransponderId == transponderId && source.TimeStart == start && source.TimeEnd == end &&
+                source.CoursePointStart == completion.CoursePointStart &&
+                source.CoursePointEnd == completion.CoursePointEnd && source.Distance == completion.Distance)
+            .OrderBy(source => source.Id).Take(2).ToListAsync(cancellationToken);
+
+        if (matches.Count == 0)
+            throw new InvalidOperationException(
+                $"SampleComplete for transponder {transponderId:D} has no matching local outbox receipt; " +
+                "external or legacy messages require maintenance reconciliation.");
+        if (matches.Count != 1)
+            throw new InvalidOperationException(
+                $"SampleComplete for transponder {transponderId:D} matches multiple local outbox receipts.");
+
+        var source = matches[0];
+        if (await storage.Set<SampleCompleteOutbox>().AnyAsync(earlier =>
+                earlier.TransponderId == transponderId && earlier.Id < source.Id &&
+                earlier.EntriesCreatedAtUtc == null, cancellationToken))
+            throw new InvalidOperationException(
+                $"SampleComplete for transponder {transponderId:D} is blocked by an earlier unprocessed local sample.");
+
+        return source;
     }
 
     public async Task<int> ReconcileAsync(TransponderOwnershipChanged message, CancellationToken cancellationToken)
@@ -138,8 +160,9 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
         var transaction = await storage.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            // Both subscriptions must serialize creation and reconciliation across processor replicas.
-            await AdvisoryLockAsync($"statistics-transponder:{transponderId:D}", cancellationToken);
+            // Local receipt insertion, completion processing and ownership reconciliation
+            // serialize per transponder across processor replicas.
+            await StatisticsTransponderLock.AcquireAsync(storage.Database, transponderId, cancellationToken);
             return transaction;
         }
         catch

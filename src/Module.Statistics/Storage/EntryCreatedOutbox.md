@@ -38,13 +38,27 @@ results. The sample dispatcher does not release a later visible sample for a rid
 until its predecessor is both acknowledged and entry creation is committed. A
 failed creation therefore blocks later samples rather than allowing a later sample's
 downstream entry events to overtake it. Delivery and creation marks may arrive in
-either order. Externally republished completion messages without a local outbox row
-remain supported; they cannot establish ordering against local source rows.
+either order. The completion consumer also requires exactly one matching retained
+local source receipt, under the same per-transponder advisory lock used by Timing
+sample/outbox insertion, and rejects later receipts while an earlier local receipt
+has not committed entry creation. Missing or ambiguous receipts fail explicitly;
+external messages do not bypass the barrier or create entries without source evidence.
+Concurrent uncommitted/future events and independent producers cannot be promised a
+global order.
 
-This is not a global total order: sample source sequence allocation can precede
-commit, independent producers/redrives can reorder, and parent EntryCreated
-processing is asynchronous. All derived entry payloads are persisted before they
-can be sent, and Simple/Multi consumers must remain replay-safe.
+Legitimate queued redelivery remains supported when its retained source receipt and
+predecessors can be verified. Legacy queued messages with no retained receipt must
+be quarantined and individually reconciled under the maintenance procedure in
+`SampleCompleteOutbox.md`; do not live-redrive or synthesize receipt order from event
+timestamps. If trustworthy order cannot be established, use the approved reset,
+replay or loss procedure rather than accepting an unordered completion.
+
+This is not a global total order: upstream delivery order need not match event time,
+independent producers/redrives can reorder, and parent EntryCreated processing is
+asynchronous. Local same-transponder receipt IDs are allocated under a lock held
+through commit; no guarantee is claimed for uncommitted/future work or producers
+outside that protocol. All derived entry payloads are persisted before they can be
+sent, and Simple/Multi consumers must remain replay-safe.
 
 ## Rollout, historical gate and recovery
 

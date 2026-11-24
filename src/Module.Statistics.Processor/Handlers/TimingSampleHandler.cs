@@ -4,6 +4,7 @@ using SlimMessageBus;
 using System.Diagnostics;
 using VeloTime.Module.Facilities.Client;
 using VeloTime.Module.Statistics.Model;
+using VeloTime.Module.Statistics.Service;
 using VeloTime.Module.Statistics.Storage;
 using VeloTime.Module.Timing.Interface.Messages;
 
@@ -21,7 +22,11 @@ public class TimingSampleHandler(
         var start = Normalize(message.TimeStart);
         var end = Normalize(message.TimeEnd);
         var existing = await Find(message, start, end, cancellationToken);
-        if (existing is not null) return;
+        if (existing is not null)
+        {
+            await RequireMatchingReceiptAsync(existing, cancellationToken);
+            return;
+        }
 
         var distance = await facilities.Distance2Async(message.TimingPointStart, message.TimingPointEnd,
             startAt: new DateTimeOffset(start), endAt: new DateTimeOffset(end), cancellationToken: cancellationToken);
@@ -47,6 +52,17 @@ public class TimingSampleHandler(
         await using var tx = await storage.Database.BeginTransactionAsync(cancellationToken);
         try
         {
+            // Receipt insertion and SampleComplete processing must observe each other in
+            // one per-transponder order, including when a producer insert races a consumer.
+            await StatisticsTransponderLock.AcquireAsync(storage.Database, message.TransponderId, cancellationToken);
+            var concurrent = await Find(message, start, end, cancellationToken);
+            if (concurrent is not null)
+            {
+                await RequireMatchingReceiptAsync(concurrent, cancellationToken);
+                await tx.CommitAsync(cancellationToken);
+                logger.LogInformation("Concurrent Timing sample replay for transponder {TransponderId}", message.TransponderId);
+                return;
+            }
             storage.Add(sample);
             storage.Add(outgoing);
             await storage.SaveChangesAsync(cancellationToken);
@@ -77,6 +93,19 @@ public class TimingSampleHandler(
         storage.Set<Sample>().AsNoTracking().SingleOrDefaultAsync(s =>
             s.TransponderId == m.TransponderId && s.TimingPointStartId == m.TimingPointStart &&
             s.TimingPointEndId == m.TimingPointEnd && s.TimeStart == start && s.TimeEnd == end, ct);
+
+    private async Task RequireMatchingReceiptAsync(Sample sample, CancellationToken cancellationToken)
+    {
+        var receipt = await storage.Set<SampleCompleteOutbox>().SingleOrDefaultAsync(
+            row => row.SampleId == sample.Id, cancellationToken);
+        if (receipt is null)
+            throw new InvalidOperationException(
+                $"Existing sample {sample.Id:D} has no local SampleComplete outbox receipt; maintenance reconciliation is required.");
+        if (receipt.TransponderId != sample.TransponderId || receipt.TimeStart != sample.TimeStart ||
+            receipt.TimeEnd != sample.TimeEnd || receipt.CoursePointStart != sample.CoursePointStartId ||
+            receipt.CoursePointEnd != sample.CoursePointEndId || receipt.Distance != sample.Distance)
+            throw new InvalidOperationException($"Sample {sample.Id:D} conflicts with its local SampleComplete outbox receipt.");
+    }
 
     private static DateTime Normalize(DateTime time) => StatisticsStoragePrecision.Timestamp(
         time.Kind == DateTimeKind.Local ? time.ToUniversalTime() : DateTime.SpecifyKind(time, DateTimeKind.Utc));

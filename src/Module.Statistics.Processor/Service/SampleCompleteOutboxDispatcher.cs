@@ -6,7 +6,10 @@ using VeloTime.Module.Statistics.Storage;
 
 namespace VeloTime.Module.Statistics.Service;
 
-/// <summary>Claims only the oldest pending event per transponder; never intercepts other bus publications.</summary>
+/// <summary>
+/// Claims only the oldest pending event per transponder. Consumers independently require
+/// a matching local receipt and reject redeliveries that would pass an unprocessed predecessor.
+/// </summary>
 public sealed class SampleCompleteOutboxDispatcher(StatisticsDbContext storage, IMessageBus bus)
 {
     public async Task<bool> DispatchOneAsync(CancellationToken cancellationToken)

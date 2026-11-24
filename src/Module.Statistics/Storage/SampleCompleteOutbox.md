@@ -18,12 +18,41 @@ The existing producer supplies `MessageName`, topic and transponder `SessionId`.
 Rows are retained indefinitely. The partial index and claim rule prevent dispatching
 a later *visible* row for a transponder while an earlier one is pending, locked, or
 has not committed entry creation (`entries_created_at_utc IS NULL`). Zero-output
-entry creation also sets that mark transactionally. Sequence allocation is not commit ordering: concurrent uncommitted inserts,
-upstream deliveries and retries can still reorder. A poison oldest row retries forever;
-one worker can block other riders too. More replicas can claim unrelated riders.
+entry creation also sets that mark transactionally. IDs are allocated before their
+transaction commits, but local receipt writers hold the same per-transponder lock
+through commit, preserving committed local receipt order for each rider. Upstream
+delivery order need not match event time, and independent producers/redrives do not
+participate in that lock. A poison oldest row retries forever; one worker can block
+other riders too. More replicas can claim unrelated riders.
 Monitor error logs, pending count and oldest pending age, long transactions/locks and
 table growth; do not casually delete or replay rows. A failed send is never marked
 delivered. Retention and operator redrive policies require separate approval.
+
+The consumer enforces the same boundary. TimingSampleHandler inserts the sample and
+its immutable outbox receipt in a transaction holding the shared per-transponder
+advisory lock. SampleCompleteHandler takes that lock before looking up its exact
+local receipt, validating uniqueness and checking that all lower-ID local receipts
+have committed entry creation. It marks only that receipt in the entry transaction.
+Thus a concurrent local insert is either visible to the consumer after waiting for
+the lock or the message fails without creating entries; a later local or replayed
+message cannot pass an unprocessed committed predecessor. A missing or ambiguous
+receipt fails explicitly and is not acknowledged as success. The handler does not
+accept externally fabricated completions, and no global order is claimed for
+uncommitted/future events or independent producers that do not use this lock.
+
+Legitimate queued redeliveries remain supported when they match one retained local
+receipt and its predecessors are complete. Before rollout, quarantine and reconcile
+old queue, retry, in-flight and dead-letter messages against retained receipts,
+Timing samples, broker state and downstream effects. A legacy queued message with no
+unique retained receipt must remain quarantined until a separately approved
+maintenance reconciliation restores trustworthy source/order evidence; event time
+alone does not establish receipt order. Do not synthesize a receipt or redrive it
+through the live handler when order cannot be established. If evidence is missing,
+follow the approved reset/replay or loss procedure in `SampleIdentityPersistence.md`.
+Old TimingSampleComplete events whose sample already exists but has no receipt also
+require this reconciliation: the idempotent sample replay intentionally does not
+fabricate a new receipt and now fails explicitly instead of acknowledging a missing
+receipt as a successful replay.
 
 Apply the new migration before deploying processor code, and ensure the processor role
 has DML rights on the table and identity sequence. Down refuses while any retained
