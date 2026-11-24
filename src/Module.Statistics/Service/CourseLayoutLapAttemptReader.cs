@@ -10,28 +10,23 @@ internal sealed class CourseLayoutLapAttemptReader(StatisticsDbContext storage)
     internal sealed record Attempt(DateTime TimeStart, Guid FacilityId, double DistanceMetres,
         bool RequiredCoursePointsSatisfied);
 
-    public async Task<Attempt> ReadAsync(SimpleStatisticsItemConfig config, Guid transponderId,
-        DateTime segmentStart, DateTime finish, Guid segmentStartPoint, CancellationToken cancellationToken)
+    public async Task<Attempt> ReadAsync(SimpleStatisticsItemConfig config, Sample completion,
+        CancellationToken cancellationToken)
     {
-        var rider = storage.Set<Sample>().AsNoTracking().Where(s => s.TransponderId == transponderId);
-        var completions = await rider.Where(s => s.TimeStart == segmentStart && s.TimeEnd == finish
-                && s.CoursePointStartId == segmentStartPoint && s.CoursePointEndId == config.CoursePointEnd)
-            .Select(s => new { s.Id, s.FacilityId, s.CourseLayoutId, s.ClosedLoopDistanceMetres })
-            .ToListAsync(cancellationToken);
-        var facilities = completions.Select(s => s.FacilityId).Distinct().ToList();
-        if (facilities.Count != 1 || facilities[0] == Guid.Empty)
-            throw new InvalidOperationException("Course-layout lap completion must identify exactly one persisted facility.");
-        var facility = facilities[0];
-
-        var completionGeometry = completions.Select(s => (s.CourseLayoutId, s.ClosedLoopDistanceMetres)).Distinct().ToList();
-        if (completionGeometry.Count != 1 || !ValidGeometry(completionGeometry[0].CourseLayoutId, completionGeometry[0].ClosedLoopDistanceMetres))
+        // Facility and geometry belong to the validated persisted source, not all rows sharing
+        // its completion tuple. Same-facility conflicting path evidence still fails closed below.
+        var segmentStart = completion.TimeStart;
+        var finish = completion.TimeEnd;
+        var facility = completion.FacilityId;
+        if (!ValidGeometry(completion.CourseLayoutId, completion.ClosedLoopDistanceMetres))
             throw new InvalidOperationException("Course-layout lap completion has missing or conflicting closed-loop geometry evidence.");
-        var layoutId = completionGeometry[0].CourseLayoutId!.Value;
-        var distanceMetres = completionGeometry[0].ClosedLoopDistanceMetres!.Value;
+        var layoutId = completion.CourseLayoutId!.Value;
+        var distanceMetres = completion.ClosedLoopDistanceMetres!.Value;
         if (config.RequiredCourseLayoutId.HasValue && config.RequiredCourseLayoutId.Value != layoutId)
             throw new InvalidOperationException("Course-layout lap evidence conflicts with its configured checkpoint layout.");
 
-        var samples = rider.Where(s => s.FacilityId == facility);
+        var samples = storage.Set<Sample>().AsNoTracking()
+            .Where(s => s.TransponderId == completion.TransponderId && s.FacilityId == facility);
         // Match the checkpoint reader: newest departure OR arrival is the attempt start.
         var departure = await samples.Where(s => s.CoursePointStartId == config.CoursePointStart
                 && s.TimeStart <= segmentStart)

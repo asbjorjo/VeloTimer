@@ -13,21 +13,16 @@ internal sealed class RequiredCoursePointAttemptReader(StatisticsDbContext stora
 {
     internal sealed record Attempt(DateTime TimeStart, Guid FacilityId, bool Satisfied);
 
-    public async Task<Attempt?> ReadAsync(SimpleStatisticsItemConfig config, Guid transponderId,
-        DateTime segmentStart, DateTime finish, Guid segmentStartPoint, CancellationToken cancellationToken)
+    public async Task<Attempt?> ReadAsync(SimpleStatisticsItemConfig config, Sample completion,
+        CancellationToken cancellationToken)
     {
-        var rider = storage.Set<Sample>().AsNoTracking().Where(s => s.TransponderId == transponderId);
-        // SampleComplete has no facility/sample ID. Recover it only from its exact persisted edge.
-        // TimingSampleHandler saves this edge BEFORE publishing. Missing or ambiguous evidence is
-        // an integration error, not permission to fall back to another facility or acknowledge success.
-        var facilities = await rider.Where(s => s.TimeStart == segmentStart && s.TimeEnd == finish
-                && s.CoursePointStartId == segmentStartPoint && s.CoursePointEndId == config.CoursePointEnd)
-            .Select(s => s.FacilityId).Distinct().ToListAsync(cancellationToken);
-        if (facilities.Count != 1 || facilities[0] == Guid.Empty)
-            throw new InvalidOperationException("Required-point completion must identify exactly one persisted facility.");
-        var facility = facilities[0];
-
-        var samples = rider.Where(s => s.FacilityId == facility);
+        // The service has resolved and validated one exact source, including legacy uniqueness.
+        // Never rediscover its facility by a tuple that can describe independent samples.
+        var segmentStart = completion.TimeStart;
+        var finish = completion.TimeEnd;
+        var facility = completion.FacilityId;
+        var samples = storage.Set<Sample>().AsNoTracking()
+            .Where(s => s.TransponderId == completion.TransponderId && s.FacilityId == facility);
         // Use the newest observed start (arrival OR departure), never an older start with a more
         // convenient set of checkpoints. Equal endpoints denote a lap; the final arrival is excluded.
         var departure = await samples.Where(s => s.CoursePointStartId == config.CoursePointStart

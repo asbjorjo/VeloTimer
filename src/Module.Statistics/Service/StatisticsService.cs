@@ -38,20 +38,20 @@ public class StatisticsService(
         endTime = Persisted(endTime);
 
         var (statsItems, dependentItems) = await LockCompletionDefinitionsAsync(endPoint, cancellationToken);
-        var sourceId = await ResolveCompletionSourceAsync(transponderId, startTime, endTime, startPoint, endPoint,
+        var source = await ResolveCompletionSourceAsync(transponderId, startTime, endTime, startPoint, endPoint,
             sampleId, sampleDistance, cancellationToken);
 
         await RejectLegacyCompletionReplayAsync(transponderId, startTime, endTime, startPoint, endPoint,
             cancellationToken);
         entries = await ReadReplayEntriesAsync<SimpleStatisticsItemConfig>(
-            config => CompletionEntryId(config, sourceId), cancellationToken);
+            config => CompletionEntryId(config, source.Id), cancellationToken);
 
         if (statsItems.Any())
         {
             var bounds = await ReadCurrentBoundsAsync(statsItems.Select(c => c.Id), cancellationToken);
             foreach (var statsItem in statsItems)
             {
-                var entryId = CompletionEntryId(statsItem.Id, sourceId);
+                var entryId = CompletionEntryId(statsItem.Id, source.Id);
                 if (entries.Any(e => e.Id == entryId)) continue;
                 if (statsItem.StatisticsItem.DistanceMode is not StatisticsDistanceMode.Fixed
                     and not StatisticsDistanceMode.CourseLayout)
@@ -63,7 +63,7 @@ public class StatisticsService(
                     && statsItem.StatisticsItem.DistanceMode != StatisticsDistanceMode.CourseLayout)
                 {
                     var attempt = await new RequiredCoursePointAttemptReader(storage).ReadAsync(statsItem,
-                        transponderId, Persisted(startTime), Persisted(endTime), startPoint, cancellationToken);
+                        source, cancellationToken);
                     if (attempt is null) continue;
                     var requiredEntry = CreateSimpleEntry(statsItem, transponderId, Persisted(attempt.TimeStart),
                         Persisted(endTime), attempt.FacilityId, attempt.Satisfied, Bounds(bounds, statsItem.Id), entryId);
@@ -78,7 +78,7 @@ public class StatisticsService(
                     if (statsItem.CoursePointStart != statsItem.CoursePointEnd)
                         throw new InvalidOperationException($"Course-layout item {statsItem.StatisticsItemId} must use a simple finish-to-finish configuration.");
                     var attempt = await new CourseLayoutLapAttemptReader(storage).ReadAsync(statsItem,
-                        transponderId, Persisted(startTime), Persisted(endTime), startPoint, cancellationToken);
+                        source, cancellationToken);
                     if (Persisted(endTime) <= Persisted(attempt.TimeStart))
                         throw new InvalidOperationException("Course-layout lap duration must be positive to calculate a persisted speed.");
                     var lapEntry = CreateSimpleEntry(statsItem, transponderId, Persisted(attempt.TimeStart),
@@ -87,14 +87,18 @@ public class StatisticsService(
                     entries = entries.Append(lapEntry);
                     continue;
                 }
-                var start = await storage.Set<Sample>()
+                // A covering source is authoritative even when another persisted sample has the
+                // same completion tuple. Longer items may reach back only within its facility.
+                var start = source.CoursePointStartId == statsItem.CoursePointStart ? source
+                    : await storage.Set<Sample>().AsNoTracking()
                     .Where(s =>
                         s.TransponderId == transponderId
+                        && s.FacilityId == source.FacilityId
                         && s.CoursePointStartId == statsItem.CoursePointStart
-                        && (s.TimeEnd <= startTime
-                            || (s.TimeStart == startTime && s.TimeEnd == endTime
-                                && s.CoursePointStartId == startPoint && s.CoursePointEndId == endPoint)))
+                        && s.TimeEnd <= source.TimeStart)
                     .OrderByDescending(s => s.TimeEnd)
+                    .ThenByDescending(s => s.TimeStart)
+                    .ThenByDescending(s => s.Id)
                     .FirstOrDefaultAsync(cancellationToken);
                 if (start != null)
                 {
@@ -182,8 +186,9 @@ public class StatisticsService(
 
     /// <summary>
     /// Creates Multi entries for a newly created parent (Simple) entry. The window is fixed and
-    /// deterministic: the newest parent entries of this transponder/configuration ending at or before
-    /// the triggering entry's end, ordered by TimeEnd then Id (both descending). Invalid parents are
+    /// deterministic: the exact triggering parent followed by the newest other parent entries of
+    /// this transponder/configuration ending at or before its end, ordered by TimeEnd then
+    /// Id (both descending). The triggering parent fixes the finish and facility. Invalid parents are
     /// never skipped. This selection only defines the new Multi's endpoints and facility; contributors
     /// are all current parent Simple entries of the same transponder/facility fully contained in that
     /// window. Exactly Repetitions entries must match and all must be valid. The Multi items are
@@ -204,13 +209,13 @@ public class StatisticsService(
         endTime = Persisted(endTime);
 
         var multiItems = await LockMultiDefinitionsAsync(configId, cancellationToken);
-        var parentEntryId = await ResolveParentEntryAsync(transponderId, statisticsItemId, configId,
+        var parent = await ResolveParentEntryAsync(transponderId, statisticsItemId, configId,
             startTime, endTime, entryId, cancellationToken);
 
         await RejectLegacyParentReplayAsync(transponderId, statisticsItemId, configId, startTime, endTime,
             cancellationToken);
         entries = await ReadReplayEntriesAsync<MultiStatisticsItemConfig>(
-            config => ParentEntryId(config, parentEntryId), cancellationToken);
+            config => ParentEntryId(config, parent.Id), cancellationToken);
 
         if (multiItems.Any())
         {
@@ -223,24 +228,29 @@ public class StatisticsService(
             var bounds = await ReadCurrentBoundsAsync(multiItems.Select(m => m.Id), cancellationToken);
             var newEntries = new List<StatisticsEntry>();
             var maxRepetitions = multiItems.Max(m => m.Repetitions);
-            var allEntries = await storage.Set<StatisticsEntry>()
+            var precedingEntries = await storage.Set<StatisticsEntry>()
                 .AsNoTracking()
-                .Where(s => s.TransponderId == transponderId && s.StatisticsItemConfigId == configId && s.TimeEnd <= endTime)
+                .Where(s => s.TransponderId == transponderId && s.StatisticsItemId == statisticsItemId
+                    && s.StatisticsItemConfigId == configId
+                    && s.Id != parent.Id && s.TimeEnd <= parent.TimeEnd)
                 .OrderByDescending(s => s.TimeEnd)
                 .ThenByDescending(s => s.Id)
-                .Take(maxRepetitions)
-                .Select(s => new { s.TimeStart, s.TimeEnd, s.FacilityId })
+                .Take(Math.Max(0, maxRepetitions - 1))
                 .ToListAsync(cancellationToken);
+            var allEntries = precedingEntries.Prepend(parent).ToList();
 
             foreach (var multiItem in multiItems)
             {
-                var derivedEntryId = ParentEntryId(multiItem.Id, parentEntryId);
+                var derivedEntryId = ParentEntryId(multiItem.Id, parent.Id);
                 if (entries.Any(e => e.Id == derivedEntryId)) continue;
                 if (multiItem.Repetitions > allEntries.Count) continue;
                 var relevantEntries = allEntries.Take(multiItem.Repetitions).ToList();
                 // Contributor endpoints come from storage; normalization is idempotent and keeps the Multi
                 // duration equal to the persisted endpoint difference.
-                var timeStart = Persisted(relevantEntries.Last().TimeStart);
+                // A tied/overlapping predecessor must not move the window start past the exact
+                // trigger and thereby exclude the parent whose identity defines this result.
+                var timeStart = Persisted(relevantEntries.Last().TimeStart < parent.TimeStart
+                    ? relevantEntries.Last().TimeStart : parent.TimeStart);
                 var timeEnd = Persisted(relevantEntries.First().TimeEnd);
                 var duration = timeEnd - timeStart;
                 StatisticsEntry entry = new()
@@ -274,7 +284,7 @@ public class StatisticsService(
         return entries;
     }
 
-    private async Task<Guid> ResolveCompletionSourceAsync(Guid transponderId, DateTime start, DateTime end,
+    private async Task<Sample> ResolveCompletionSourceAsync(Guid transponderId, DateTime start, DateTime end,
         Guid startPoint, Guid endPoint, Guid? sampleId, double? sampleDistance,
         CancellationToken cancellationToken)
     {
@@ -290,7 +300,7 @@ public class StatisticsService(
                 throw new InvalidOperationException($"SampleComplete source sample {sampleId.Value:D} is missing.");
             if (!MatchesCompletion(sample, transponderId, start, end, startPoint, endPoint, sampleDistance))
                 throw new InvalidOperationException($"SampleComplete conflicts with persisted source sample {sampleId.Value:D}.");
-            return sample.Id;
+            return RequireCompletionFacility(sample);
         }
 
         var query = storage.Set<Sample>().AsNoTracking().Where(s => s.TransponderId == transponderId
@@ -302,14 +312,18 @@ public class StatisticsService(
                 throw new InvalidOperationException("SampleComplete distance must be finite.");
             query = query.Where(s => s.Distance == sampleDistance.Value);
         }
-        var candidates = await query.Select(s => s.Id).Take(2).ToListAsync(cancellationToken);
+        var candidates = await query.Take(2).ToListAsync(cancellationToken);
         return candidates.Count switch
         {
-            1 => candidates[0],
+            1 => RequireCompletionFacility(candidates[0]),
             0 => throw new InvalidOperationException("SampleComplete has no authoritative persisted source sample."),
             _ => throw new InvalidOperationException("SampleComplete matches multiple persisted source samples; a source sample ID is required.")
         };
     }
+
+    private static Sample RequireCompletionFacility(Sample sample) =>
+        sample.FacilityId != Guid.Empty ? sample
+            : throw new InvalidOperationException("SampleComplete source sample has no persisted facility.");
 
     private static bool MatchesCompletion(Sample sample, Guid transponderId, DateTime start, DateTime end,
         Guid startPoint, Guid endPoint, double? distance) =>
@@ -317,7 +331,7 @@ public class StatisticsService(
         && sample.CoursePointStartId == startPoint && sample.CoursePointEndId == endPoint
         && (!distance.HasValue || sample.Distance == distance.Value);
 
-    private async Task<Guid> ResolveParentEntryAsync(Guid transponderId, Guid statisticsItemId, Guid configId,
+    private async Task<StatisticsEntry> ResolveParentEntryAsync(Guid transponderId, Guid statisticsItemId, Guid configId,
         DateTime start, DateTime end, Guid? entryId, CancellationToken cancellationToken)
     {
         if (entryId == Guid.Empty)
@@ -330,22 +344,26 @@ public class StatisticsService(
                 throw new InvalidOperationException($"EntryCreated parent entry {entryId.Value:D} is missing.");
             if (!MatchesParent(parent, transponderId, statisticsItemId, configId, start, end))
                 throw new InvalidOperationException($"EntryCreated conflicts with persisted parent entry {entryId.Value:D}.");
-            return parent.Id;
+            return RequireParentFacility(parent);
         }
 
         var candidates = await storage.Set<StatisticsEntry>().AsNoTracking().Where(e =>
                 e.TransponderId == transponderId && e.StatisticsItemConfigId == configId
                 && e.TimeStart == start && e.TimeEnd == end)
-            .Select(e => new { e.Id, e.StatisticsItemId }).Take(2).ToListAsync(cancellationToken);
+            .Take(2).ToListAsync(cancellationToken);
         if (candidates.Any(candidate => candidate.StatisticsItemId != statisticsItemId))
             throw new InvalidOperationException("EntryCreated conflicts with its persisted parent statistics item.");
         return candidates.Count switch
         {
-            1 => candidates[0].Id,
+            1 => RequireParentFacility(candidates[0]),
             0 => throw new InvalidOperationException("EntryCreated has no authoritative persisted parent entry."),
             _ => throw new InvalidOperationException("EntryCreated matches multiple persisted parent entries; an entry ID is required.")
         };
     }
+
+    private static StatisticsEntry RequireParentFacility(StatisticsEntry parent) =>
+        parent.FacilityId != Guid.Empty ? parent
+            : throw new InvalidOperationException("EntryCreated parent entry has no persisted facility.");
 
     private static bool MatchesParent(StatisticsEntry parent, Guid transponderId, Guid statisticsItemId,
         Guid configId, DateTime start, DateTime end) =>
