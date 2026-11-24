@@ -138,6 +138,7 @@ public sealed class StatisticsEntrySamplesTests
     private static Sample Sample(Guid id, Guid transponder, DateTime start, DateTime end, double speed = 9.25, double distance = 125.5) => new()
     {
         Id = id, TransponderId = transponder, TimeStart = start, TimeEnd = end,
+        TimingPointStartId = Guid.NewGuid(), TimingPointEndId = Guid.NewGuid(),
         CoursePointStartId = Guid.NewGuid(), CoursePointEndId = Guid.NewGuid(),
         Distance = distance, Duration = TimeSpan.FromTicks(1234560), Speed = speed,
         FacilityId = PublicStatisticsTestHost.Facility
