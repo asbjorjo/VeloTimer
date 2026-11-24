@@ -21,9 +21,15 @@ public class StatisticsService(
     /// before live bounds are read. Insertions schedule dependent Multi revalidation atomically, including
     /// windows created before a late Simple entry arrived. Invalid measurements are retained and published.
     /// Replays return the original persisted entry for at-least-once publication retry;
-    /// they never reassess checkpoints or insert another row. The caller must serialize by transponder.
+    /// they never reassess checkpoints or insert another row. Source identity is the persisted
+    /// Statistics Sample ID; an omitted ID must resolve to one authoritative persisted sample.
+    /// The caller must serialize by transponder.
     /// </summary>
-    public async Task<IEnumerable<StatisticsEntry>> ProcessCompletedAsync(Guid transponderId, DateTime startTime, DateTime endTime, Guid startPoint, Guid endPoint, CancellationToken cancellationToken = default)
+    /// <param name="sampleId">Persisted Statistics Sample ID; null is reserved for legacy messages.</param>
+    /// <param name="sampleDistance">Persisted completion distance, forwarded to validate the full payload.</param>
+    public async Task<IEnumerable<StatisticsEntry>> ProcessCompletedAsync(Guid transponderId, DateTime startTime,
+        DateTime endTime, Guid startPoint, Guid endPoint, CancellationToken cancellationToken = default,
+        Guid? sampleId = null, double? sampleDistance = null)
     {
         using var activity = Instrumentation.Source.StartActivity("ProcessCompletedAsync");
         activity?.SetTag("TransponderId", transponderId);
@@ -32,24 +38,20 @@ public class StatisticsService(
         endTime = Persisted(endTime);
 
         var (statsItems, dependentItems) = await LockCompletionDefinitionsAsync(endPoint, cancellationToken);
+        var sourceId = await ResolveCompletionSourceAsync(transponderId, startTime, endTime, startPoint, endPoint,
+            sampleId, sampleDistance, cancellationToken);
+
+        await RejectLegacyCompletionReplayAsync(transponderId, startTime, endTime, startPoint, endPoint,
+            cancellationToken);
         entries = await ReadReplayEntriesAsync<SimpleStatisticsItemConfig>(
-            config => CompletionEntryId(config, transponderId, startTime, endTime, startPoint, endPoint), cancellationToken);
+            config => CompletionEntryId(config, sourceId), cancellationToken);
 
         if (statsItems.Any())
         {
-            // SampleComplete carries resolved course points, not the source sample ID. Never silently
-            // merge distinct Timing edges that resolve to the same completion contract.
-            var sources = await storage.Set<Sample>().AsNoTracking()
-                .Where(s => s.TransponderId == transponderId && s.TimeStart == startTime && s.TimeEnd == endTime
-                    && s.CoursePointStartId == startPoint && s.CoursePointEndId == endPoint)
-                .Select(s => new { s.TimingPointStartId, s.TimingPointEndId, s.FacilityId })
-                .Distinct().Take(2).ToListAsync(cancellationToken);
-            if (sources.Count > 1)
-                throw new InvalidOperationException("SampleComplete identifies multiple persisted source edges; a source sample ID is required.");
             var bounds = await ReadCurrentBoundsAsync(statsItems.Select(c => c.Id), cancellationToken);
             foreach (var statsItem in statsItems)
             {
-                var entryId = CompletionEntryId(statsItem.Id, transponderId, startTime, endTime, startPoint, endPoint);
+                var entryId = CompletionEntryId(statsItem.Id, sourceId);
                 if (entries.Any(e => e.Id == entryId)) continue;
                 if (statsItem.StatisticsItem.DistanceMode is not StatisticsDistanceMode.Fixed
                     and not StatisticsDistanceMode.CourseLayout)
@@ -63,11 +65,6 @@ public class StatisticsService(
                     var attempt = await new RequiredCoursePointAttemptReader(storage).ReadAsync(statsItem,
                         transponderId, Persisted(startTime), Persisted(endTime), startPoint, cancellationToken);
                     if (attempt is null) continue;
-                    if (attempt.ExistingEntry is not null)
-                    {
-                        entries = entries.Append(attempt.ExistingEntry);
-                        continue;
-                    }
                     var requiredEntry = CreateSimpleEntry(statsItem, transponderId, Persisted(attempt.TimeStart),
                         Persisted(endTime), attempt.FacilityId, attempt.Satisfied, Bounds(bounds, statsItem.Id), entryId);
                     entries = entries.Append(requiredEntry);
@@ -82,11 +79,6 @@ public class StatisticsService(
                         throw new InvalidOperationException($"Course-layout item {statsItem.StatisticsItemId} must use a simple finish-to-finish configuration.");
                     var attempt = await new CourseLayoutLapAttemptReader(storage).ReadAsync(statsItem,
                         transponderId, Persisted(startTime), Persisted(endTime), startPoint, cancellationToken);
-                    if (attempt.ExistingEntry is not null)
-                    {
-                        entries = entries.Append(attempt.ExistingEntry);
-                        continue;
-                    }
                     if (Persisted(endTime) <= Persisted(attempt.TimeStart))
                         throw new InvalidOperationException("Course-layout lap duration must be positive to calculate a persisted speed.");
                     var lapEntry = CreateSimpleEntry(statsItem, transponderId, Persisted(attempt.TimeStart),
@@ -198,10 +190,13 @@ public class StatisticsService(
     /// share-locked before reading live bounds and contributors (requires the caller's transaction on
     /// PostgreSQL). Later parent insertions/validity changes durably reschedule these items.
     /// Replays return existing windows without changing their endpoints or contributors, even after
-    /// late parent arrivals or configuration edits. Identity is the full triggering EntryCreated tuple,
-    /// not just the selected window's finish/facility. The caller must serialize by transponder.
+    /// late parent arrivals or configuration edits. Source identity is the persisted triggering
+    /// StatisticsEntry ID. The caller must serialize by transponder.
     /// </summary>
-    public async Task<IEnumerable<StatisticsEntry>> ProcessEntryAsync(Guid transponderId, Guid statisticsItemId, Guid configId, DateTime startTime, DateTime endTime, CancellationToken cancellationToken = default)
+    /// <param name="entryId">Persisted triggering StatisticsEntry ID; null is reserved for legacy messages.</param>
+    public async Task<IEnumerable<StatisticsEntry>> ProcessEntryAsync(Guid transponderId, Guid statisticsItemId,
+        Guid configId, DateTime startTime, DateTime endTime, CancellationToken cancellationToken = default,
+        Guid? entryId = null)
     {
         using var activity = Instrumentation.Source.StartActivity("ProcessEntryAsync");
         IEnumerable<StatisticsEntry> entries = new List<StatisticsEntry>();
@@ -209,21 +204,16 @@ public class StatisticsService(
         endTime = Persisted(endTime);
 
         var multiItems = await LockMultiDefinitionsAsync(configId, cancellationToken);
+        var parentEntryId = await ResolveParentEntryAsync(transponderId, statisticsItemId, configId,
+            startTime, endTime, entryId, cancellationToken);
+
+        await RejectLegacyParentReplayAsync(transponderId, statisticsItemId, configId, startTime, endTime,
+            cancellationToken);
         entries = await ReadReplayEntriesAsync<MultiStatisticsItemConfig>(
-            config => ParentEntryId(config, transponderId, statisticsItemId, configId, startTime, endTime), cancellationToken);
+            config => ParentEntryId(config, parentEntryId), cancellationToken);
 
         if (multiItems.Any())
         {
-            // EntryCreated has no entry ID. Equal finishes are legitimate, but two persisted parents
-            // with the entire same wire identity cannot be distinguished safely by this consumer.
-            var parents = await storage.Set<StatisticsEntry>().AsNoTracking().Where(e =>
-                    e.TransponderId == transponderId && e.StatisticsItemConfigId == configId
-                    && e.TimeStart == startTime && e.TimeEnd == endTime)
-                .Select(e => e.StatisticsItemId).Take(2).ToListAsync(cancellationToken);
-            if (parents.Any(item => item != statisticsItemId))
-                throw new InvalidOperationException("EntryCreated conflicts with its persisted parent statistics item.");
-            if (parents.Count > 1)
-                throw new InvalidOperationException("EntryCreated identifies multiple persisted parent entries; an entry ID is required.");
             var parentDistanceMode = await storage.Set<SimpleStatisticsItemConfig>().AsNoTracking()
                 .Where(c => c.Id == configId).Select(c => (StatisticsDistanceMode?)c.StatisticsItem.DistanceMode)
                 .SingleOrDefaultAsync(cancellationToken);
@@ -244,8 +234,8 @@ public class StatisticsService(
 
             foreach (var multiItem in multiItems)
             {
-                var entryId = ParentEntryId(multiItem.Id, transponderId, statisticsItemId, configId, startTime, endTime);
-                if (entries.Any(e => e.Id == entryId)) continue;
+                var derivedEntryId = ParentEntryId(multiItem.Id, parentEntryId);
+                if (entries.Any(e => e.Id == derivedEntryId)) continue;
                 if (multiItem.Repetitions > allEntries.Count) continue;
                 var relevantEntries = allEntries.Take(multiItem.Repetitions).ToList();
                 // Contributor endpoints come from storage; normalization is idempotent and keeps the Multi
@@ -255,7 +245,7 @@ public class StatisticsService(
                 var duration = timeEnd - timeStart;
                 StatisticsEntry entry = new()
                 {
-                    Id = entryId,
+                    Id = derivedEntryId,
                     TransponderId = transponderId,
                     TimeStart = timeStart,
                     TimeEnd = timeEnd,
@@ -283,6 +273,116 @@ public class StatisticsService(
 
         return entries;
     }
+
+    private async Task<Guid> ResolveCompletionSourceAsync(Guid transponderId, DateTime start, DateTime end,
+        Guid startPoint, Guid endPoint, Guid? sampleId, double? sampleDistance,
+        CancellationToken cancellationToken)
+    {
+        if (sampleId == Guid.Empty)
+            throw new InvalidOperationException("SampleComplete supplied an empty Statistics sample ID.");
+        if (sampleId.HasValue)
+        {
+            if (!sampleDistance.HasValue || !double.IsFinite(sampleDistance.Value))
+                throw new InvalidOperationException("An identified SampleComplete must include its finite persisted distance.");
+            var sample = await storage.Set<Sample>().AsNoTracking()
+                .SingleOrDefaultAsync(s => s.Id == sampleId.Value, cancellationToken);
+            if (sample is null)
+                throw new InvalidOperationException($"SampleComplete source sample {sampleId.Value:D} is missing.");
+            if (!MatchesCompletion(sample, transponderId, start, end, startPoint, endPoint, sampleDistance))
+                throw new InvalidOperationException($"SampleComplete conflicts with persisted source sample {sampleId.Value:D}.");
+            return sample.Id;
+        }
+
+        var query = storage.Set<Sample>().AsNoTracking().Where(s => s.TransponderId == transponderId
+            && s.TimeStart == start && s.TimeEnd == end
+            && s.CoursePointStartId == startPoint && s.CoursePointEndId == endPoint);
+        if (sampleDistance.HasValue)
+        {
+            if (!double.IsFinite(sampleDistance.Value))
+                throw new InvalidOperationException("SampleComplete distance must be finite.");
+            query = query.Where(s => s.Distance == sampleDistance.Value);
+        }
+        var candidates = await query.Select(s => s.Id).Take(2).ToListAsync(cancellationToken);
+        return candidates.Count switch
+        {
+            1 => candidates[0],
+            0 => throw new InvalidOperationException("SampleComplete has no authoritative persisted source sample."),
+            _ => throw new InvalidOperationException("SampleComplete matches multiple persisted source samples; a source sample ID is required.")
+        };
+    }
+
+    private static bool MatchesCompletion(Sample sample, Guid transponderId, DateTime start, DateTime end,
+        Guid startPoint, Guid endPoint, double? distance) =>
+        sample.TransponderId == transponderId && sample.TimeStart == start && sample.TimeEnd == end
+        && sample.CoursePointStartId == startPoint && sample.CoursePointEndId == endPoint
+        && (!distance.HasValue || sample.Distance == distance.Value);
+
+    private async Task<Guid> ResolveParentEntryAsync(Guid transponderId, Guid statisticsItemId, Guid configId,
+        DateTime start, DateTime end, Guid? entryId, CancellationToken cancellationToken)
+    {
+        if (entryId == Guid.Empty)
+            throw new InvalidOperationException("EntryCreated supplied an empty Statistics entry ID.");
+        if (entryId.HasValue)
+        {
+            var parent = await storage.Set<StatisticsEntry>().AsNoTracking()
+                .SingleOrDefaultAsync(e => e.Id == entryId.Value, cancellationToken);
+            if (parent is null)
+                throw new InvalidOperationException($"EntryCreated parent entry {entryId.Value:D} is missing.");
+            if (!MatchesParent(parent, transponderId, statisticsItemId, configId, start, end))
+                throw new InvalidOperationException($"EntryCreated conflicts with persisted parent entry {entryId.Value:D}.");
+            return parent.Id;
+        }
+
+        var candidates = await storage.Set<StatisticsEntry>().AsNoTracking().Where(e =>
+                e.TransponderId == transponderId && e.StatisticsItemConfigId == configId
+                && e.TimeStart == start && e.TimeEnd == end)
+            .Select(e => new { e.Id, e.StatisticsItemId }).Take(2).ToListAsync(cancellationToken);
+        if (candidates.Any(candidate => candidate.StatisticsItemId != statisticsItemId))
+            throw new InvalidOperationException("EntryCreated conflicts with its persisted parent statistics item.");
+        return candidates.Count switch
+        {
+            1 => candidates[0].Id,
+            0 => throw new InvalidOperationException("EntryCreated has no authoritative persisted parent entry."),
+            _ => throw new InvalidOperationException("EntryCreated matches multiple persisted parent entries; an entry ID is required.")
+        };
+    }
+
+    private static bool MatchesParent(StatisticsEntry parent, Guid transponderId, Guid statisticsItemId,
+        Guid configId, DateTime start, DateTime end) =>
+        parent.TransponderId == transponderId && parent.StatisticsItemId == statisticsItemId
+        && parent.StatisticsItemConfigId == configId && parent.TimeStart == start && parent.TimeEnd == end;
+
+    private async Task RejectLegacyCompletionReplayAsync(Guid rider, DateTime start, DateTime end,
+        Guid from, Guid to, CancellationToken cancellationToken)
+    {
+        await RejectLegacyReplayAsync<SimpleStatisticsItemConfig>(config =>
+            LegacyCompletionEntryId(config, rider, start, end, from, to), cancellationToken);
+    }
+
+    private async Task RejectLegacyParentReplayAsync(Guid rider, Guid item, Guid parentConfig,
+        DateTime start, DateTime end, CancellationToken cancellationToken)
+    {
+        await RejectLegacyReplayAsync<MultiStatisticsItemConfig>(config =>
+            LegacyParentEntryId(config, rider, item, parentConfig, start, end), cancellationToken);
+    }
+
+    private async Task RejectLegacyReplayAsync<TConfig>(Func<Guid, Guid> legacyEntryId,
+        CancellationToken cancellationToken) where TConfig : StatisticsItemConfig
+    {
+        var configIds = await storage.Set<TConfig>().AsNoTracking().Select(c => c.Id).ToListAsync(cancellationToken);
+        var legacyIds = configIds.Select(legacyEntryId).ToArray();
+        if (await storage.Set<StatisticsEntry>().AsNoTracking().AnyAsync(e => legacyIds.Contains(e.Id), cancellationToken))
+            throw new InvalidOperationException(
+                "A tuple-v1 Statistics entry exists for this source; explicit maintenance reconciliation or the approved activation reset is required before replay.");
+    }
+
+    private static Guid LegacyCompletionEntryId(Guid config, Guid rider, DateTime start, DateTime end,
+        Guid from, Guid to) =>
+        SourceEntryId(FormattableString.Invariant($"statistics-completion-v1|{config:D}|{rider:D}|{start.Ticks}|{end.Ticks}|{from:D}|{to:D}"));
+
+    private static Guid LegacyParentEntryId(Guid config, Guid rider, Guid parentItem, Guid parentConfig,
+        DateTime start, DateTime end) =>
+        SourceEntryId(FormattableString.Invariant($"statistics-parent-v1|{config:D}|{rider:D}|{parentItem:D}|{parentConfig:D}|{start.Ticks}|{end.Ticks}"));
 
     // Enumerate the (small) definition key set, not entry history. A configuration can have moved
     // to another endpoint/parent/owner since commit; live routing must not hide an unpublished
@@ -334,11 +434,11 @@ public class StatisticsService(
     // Do NOT derive IDs from mutable distance, requirements, ownership, selected starts/windows or
     // validity. UUID-sized SHA-256 digests have the same collision assumption as generated UUIDs.
     // Normalize timestamps BEFORE hashing, exactly as PostgreSQL persists them.
-    private static Guid CompletionEntryId(Guid config, Guid rider, DateTime start, DateTime end, Guid from, Guid to) =>
-        SourceEntryId(FormattableString.Invariant($"statistics-completion-v1|{config:D}|{rider:D}|{start.Ticks}|{end.Ticks}|{from:D}|{to:D}"));
+    private static Guid CompletionEntryId(Guid config, Guid sampleId) =>
+        SourceEntryId(FormattableString.Invariant($"statistics-completion-v2|{config:D}|{sampleId:D}"));
 
-    private static Guid ParentEntryId(Guid config, Guid rider, Guid parentItem, Guid parentConfig, DateTime start, DateTime end) =>
-        SourceEntryId(FormattableString.Invariant($"statistics-parent-v1|{config:D}|{rider:D}|{parentItem:D}|{parentConfig:D}|{start.Ticks}|{end.Ticks}"));
+    private static Guid ParentEntryId(Guid config, Guid parentEntryId) =>
+        SourceEntryId(FormattableString.Invariant($"statistics-parent-v2|{config:D}|{parentEntryId:D}"));
 
     private static Guid SourceEntryId(string source) =>
         new(SHA256.HashData(Encoding.UTF8.GetBytes(source)).AsSpan(0, 16));

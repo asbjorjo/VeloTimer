@@ -8,7 +8,7 @@ namespace VeloTime.Module.Statistics.Service;
 internal sealed class CourseLayoutLapAttemptReader(StatisticsDbContext storage)
 {
     internal sealed record Attempt(DateTime TimeStart, Guid FacilityId, double DistanceMetres,
-        bool RequiredCoursePointsSatisfied, StatisticsEntry? ExistingEntry = null);
+        bool RequiredCoursePointsSatisfied);
 
     public async Task<Attempt> ReadAsync(SimpleStatisticsItemConfig config, Guid transponderId,
         DateTime segmentStart, DateTime finish, Guid segmentStartPoint, CancellationToken cancellationToken)
@@ -22,15 +22,6 @@ internal sealed class CourseLayoutLapAttemptReader(StatisticsDbContext storage)
         if (facilities.Count != 1 || facilities[0] == Guid.Empty)
             throw new InvalidOperationException("Course-layout lap completion must identify exactly one persisted facility.");
         var facility = facilities[0];
-
-        // A redelivery always reuses the first persisted result and snapshot, even if later samples
-        // or a changed Facilities layout would classify the attempt differently.
-        var existing = await storage.Set<StatisticsEntry>().FirstOrDefaultAsync(e => e.TransponderId == transponderId
-                && e.StatisticsItemConfigId == config.Id && e.FacilityId == facility && e.TimeEnd == finish,
-            cancellationToken);
-        if (existing is not null)
-            return new(existing.TimeStart, facility, existing.DistanceMetres ?? 0,
-                existing.RequiredCoursePointsSatisfied, existing);
 
         var completionGeometry = completions.Select(s => (s.CourseLayoutId, s.ClosedLoopDistanceMetres)).Distinct().ToList();
         if (completionGeometry.Count != 1 || !ValidGeometry(completionGeometry[0].CourseLayoutId, completionGeometry[0].ClosedLoopDistanceMetres))

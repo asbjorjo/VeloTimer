@@ -49,16 +49,17 @@ public sealed partial class StatisticsServiceTests
         await using var database = await TestDatabase.CreateAsync();
         var transponderId = Guid.NewGuid();
         var startPoint = Guid.NewGuid();
+        var configuredStart = Guid.NewGuid();
         var endPoint = Guid.NewGuid();
         var facilityId = Guid.NewGuid();
-        var config = CreateSimpleConfig(Guid.NewGuid(), startPoint, endPoint, "Lap", 400);
+        var config = CreateSimpleConfig(Guid.NewGuid(), configuredStart, endPoint, "Lap", 400);
         var sample = new Sample
         {
             Id = Guid.NewGuid(),
             TimeStart = DateTime.UtcNow.AddMinutes(-2),
             TimeEnd = DateTime.UtcNow.AddMinutes(-1),
             TransponderId = transponderId,
-            CoursePointStartId = startPoint,
+            CoursePointStartId = configuredStart,
             CoursePointEndId = Guid.NewGuid(),
             Duration = TimeSpan.FromSeconds(20),
             Distance = 100,
@@ -69,6 +70,8 @@ public sealed partial class StatisticsServiceTests
         await database.Storage.SaveChangesAsync();
         var startTime = sample.TimeEnd.AddSeconds(10);
         var endTime = startTime.AddSeconds(30);
+        database.Storage.Add(CreateSample(transponderId, startPoint, endPoint, startTime, endTime, facilityId));
+        await database.Storage.SaveChangesAsync();
 
         var entry = Assert.Single(await database.Service.ProcessCompletedAsync(transponderId, startTime, endTime, startPoint, endPoint));
 
@@ -216,7 +219,8 @@ public sealed partial class StatisticsServiceTests
         database.Storage.AddRange(parent, aggregate, firstEntry, secondEntry);
         await database.Storage.SaveChangesAsync();
 
-        var result = await database.Service.ProcessEntryAsync(transponderId, parent.StatisticsItemId, parent.Id, timeStart, finalEnd);
+        var result = await database.Service.ProcessEntryAsync(transponderId, parent.StatisticsItemId, parent.Id,
+            firstEnd, finalEnd, default, secondEntry.Id);
 
         var entry = Assert.Single(result);
         Assert.Equal(aggregate.Id, entry.StatisticsItemConfigId);

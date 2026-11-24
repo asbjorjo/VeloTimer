@@ -11,7 +11,7 @@ namespace VeloTime.Module.Statistics.Service;
 /// </summary>
 internal sealed class RequiredCoursePointAttemptReader(StatisticsDbContext storage)
 {
-    internal sealed record Attempt(DateTime TimeStart, Guid FacilityId, bool Satisfied, StatisticsEntry? ExistingEntry = null);
+    internal sealed record Attempt(DateTime TimeStart, Guid FacilityId, bool Satisfied);
 
     public async Task<Attempt?> ReadAsync(SimpleStatisticsItemConfig config, Guid transponderId,
         DateTime segmentStart, DateTime finish, Guid segmentStartPoint, CancellationToken cancellationToken)
@@ -26,15 +26,6 @@ internal sealed class RequiredCoursePointAttemptReader(StatisticsDbContext stora
         if (facilities.Count != 1 || facilities[0] == Guid.Empty)
             throw new InvalidOperationException("Required-point completion must identify exactly one persisted facility.");
         var facility = facilities[0];
-
-        // A replay must not reclassify the attempt using samples that arrived after its first result,
-        // even if its first event publication failed after commit. Return the original entry so the
-        // caller can retry that publication (at least once). Creation is serialized by transponder.
-        var existing = await storage.Set<StatisticsEntry>().FirstOrDefaultAsync(e => e.TransponderId == transponderId
-                && e.StatisticsItemConfigId == config.Id && e.FacilityId == facility && e.TimeEnd == finish,
-                cancellationToken);
-        if (existing is not null)
-            return new(existing.TimeStart, facility, existing.RequiredCoursePointsSatisfied, existing);
 
         var samples = rider.Where(s => s.FacilityId == facility);
         // Use the newest observed start (arrival OR departure), never an older start with a more

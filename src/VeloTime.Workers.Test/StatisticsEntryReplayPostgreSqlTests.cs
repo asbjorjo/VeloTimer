@@ -22,11 +22,13 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         var config = Simple();
         var multi = ReplayMulti(config);
         var rider = Guid.NewGuid();
+        Sample? source = null;
         await using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
         var cache = services.GetRequiredService<HybridCache>();
         await using (var seed = Db())
         {
-            seed.AddRange(config, multi, CompletionSample(config, rider));
+            source = CompletionSample(config, rider);
+            seed.AddRange(config, multi, source);
             await seed.SaveChangesAsync(token);
         }
 
@@ -37,7 +39,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             return Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
                 .CreateEntriesAsync(rider, ct => service.ProcessCompletedAsync(rider,
                     Start.AddTicks(index), Start.AddSeconds(10).AddTicks(index),
-                    config.CoursePointStart, config.CoursePointEnd, ct), token));
+                    config.CoursePointStart, config.CoursePointEnd, ct, source!.Id, source.Distance), token));
         }));
         Assert.Single(completions.Select(e => e.Id).Distinct());
         var parent = completions[0];
@@ -47,7 +49,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             var service = new StatisticsService(db, cache);
             return Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
                 .CreateEntriesAsync(rider, ct => service.ProcessEntryAsync(rider, parent.StatisticsItemId,
-                    parent.StatisticsItemConfigId, parent.TimeStart.AddTicks(index), parent.TimeEnd.AddTicks(index), ct), token));
+                    parent.StatisticsItemConfigId, parent.TimeStart.AddTicks(index), parent.TimeEnd.AddTicks(index),
+                    ct, parent.Id), token));
         }));
         Assert.Single(aggregates.Select(e => e.Id).Distinct());
         Assert.All(aggregates, e => Assert.True(e.IsValid));
@@ -55,6 +58,70 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         Assert.Equal(2, await verify.Set<StatisticsEntry>().CountAsync(token));
         Assert.Equal(2, (await verify.Set<StatisticsValidityRevalidation>()
             .SingleAsync(j => j.StatisticsItemId == multi.StatisticsItemId, token)).Generation);
+    }
+
+    [PostgreSqlStatisticsFact]
+    public async Task PostgreSqlSourceIdsKeepEqualCompletionAndParentPayloadsIndependent()
+    {
+        var rider = Guid.NewGuid();
+        var config = Simple();
+        Sample Completion(Guid timingStart, Guid timingEnd) => new()
+        {
+            Id = Guid.NewGuid(), TransponderId = rider, FacilityId = Guid.NewGuid(),
+            TimingPointStartId = timingStart, TimingPointEndId = timingEnd,
+            CoursePointStartId = config.CoursePointStart, CoursePointEndId = config.CoursePointEnd,
+            TimeStart = Start, TimeEnd = Start.AddSeconds(10), Duration = TimeSpan.FromSeconds(10),
+            Distance = 250, Speed = 25
+        };
+        var firstSample = Completion(Guid.NewGuid(), Guid.NewGuid());
+        var secondSample = Completion(Guid.NewGuid(), Guid.NewGuid());
+        var parent = Simple();
+        var multi = ReplayMulti(parent);
+        var facility = Guid.NewGuid();
+        StatisticsEntry NewParent() => new()
+        {
+            Id = Guid.NewGuid(), TransponderId = rider, StatisticsItem = parent.StatisticsItem,
+            StatisticsItemConfig = parent, StatisticsItemId = parent.StatisticsItemId,
+            StatisticsItemConfigId = parent.Id, TimeStart = Start, TimeEnd = Start.AddSeconds(10),
+            Duration = TimeSpan.FromSeconds(10), Speed = 25, FacilityId = facility
+        };
+        var firstParent = NewParent();
+        var secondParent = NewParent();
+        await using (var seed = Db())
+        {
+            seed.AddRange(config, firstSample, secondSample, parent, multi, firstParent, secondParent);
+            await seed.SaveChangesAsync();
+        }
+
+        await using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
+        var cache = services.GetRequiredService<HybridCache>();
+        async Task<StatisticsEntry> Complete(Sample source)
+        {
+            await using var db = Db();
+            var service = new StatisticsService(db, cache);
+            return Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
+                .CreateEntriesAsync(rider, ct => service.ProcessCompletedAsync(rider, Start, Start.AddSeconds(10),
+                    config.CoursePointStart, config.CoursePointEnd, ct, source.Id, source.Distance), CancellationToken.None));
+        }
+        async Task<StatisticsEntry> Aggregate(StatisticsEntry source)
+        {
+            await using var db = Db();
+            var service = new StatisticsService(db, cache);
+            return Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
+                .CreateEntriesAsync(rider, ct => service.ProcessEntryAsync(rider, parent.StatisticsItemId,
+                    parent.Id, Start, Start.AddSeconds(10), ct, source.Id), CancellationToken.None));
+        }
+
+        var firstSimple = await Complete(firstSample);
+        var secondSimple = await Complete(secondSample);
+        var firstMulti = await Aggregate(firstParent);
+        var secondMulti = await Aggregate(secondParent);
+
+        Assert.NotEqual(firstSimple.Id, secondSimple.Id);
+        Assert.NotEqual(firstMulti.Id, secondMulti.Id);
+        await using var verify = Db();
+        Assert.Equal(2, await verify.Set<StatisticsEntry>().CountAsync(e => e.StatisticsItemConfigId == config.Id));
+        Assert.Equal(2, await verify.Set<StatisticsEntry>().CountAsync(e => e.StatisticsItemConfigId == multi.Id));
     }
 
     [PostgreSqlStatisticsFact]
