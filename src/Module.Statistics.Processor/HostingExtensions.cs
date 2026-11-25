@@ -35,6 +35,7 @@ internal static class StartupExtensions
                 options.TopologyProvisioning.Enabled = false;
             });
             mbb.AddJsonSerializer();
+            mbb.AddStatisticsProcessorOutbox();
             mbb.WithHeaderModifier((headers, message) =>
             {
                 headers["MessageName"] = message.GetType().Name;
@@ -61,11 +62,6 @@ internal static class StartupExtensions
                 .SubscriptionName("statistics")
                 .SubscriptionSqlFilter($"MessageName = '{nameof(EntryCreated)}'")
                 .WithConsumer<EntryCreatedHandler>()
-                .WhenUndeclaredMessageTypeArrives(opts =>
-                {
-                    opts.Fail = false;
-                    opts.Log = true;
-                })
                 .Instances(1)
                 .EnableSession(s =>
                 {
@@ -118,10 +114,7 @@ internal static class StartupExtensions
         services.AddSingleton<StatisticsRevalidationSignal>();
         services.AddScoped<StatisticsRevalidationService>();
         services.AddHostedService<StatisticsRevalidationWorker>();
-        services.AddScoped<SampleCompleteOutboxDispatcher>();
-        services.AddHostedService<SampleCompleteOutboxWorker>();
-        services.AddScoped<EntryCreatedOutboxDispatcher>();
-        services.AddHostedService<EntryCreatedOutboxWorker>();
+        services.AddScoped<StatisticsHeadRelease>();
 
         services.AddFacilitiesClient()
             .AddDefaultAccessTokenResiliency()

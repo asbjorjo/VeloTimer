@@ -10,8 +10,9 @@ public class SampleCompleteHandler(
     StatisticsOwnershipService ownership,
     Metrics metrics,
     ILogger<SampleCompleteHandler> logger
-    ) : IConsumer<SampleComplete>
+    ) : IConsumer<SampleComplete>, IConsumerWithContext
 {
+    public IConsumerContext Context { get; set; } = null!;
     public async Task OnHandle(SampleComplete message, CancellationToken cancellationToken)
     {
         using var activity = Instrumentation.Source.StartActivity("OnHandle.SampleComplete");
@@ -20,7 +21,8 @@ public class SampleCompleteHandler(
         var entries = await ownership.CreateEntriesFromSourceAsync(message.TransponderId,
             (sourceId, cancel) => statistics.ProcessCompletedAsync(message.TransponderId, message.TimeStart, message.TimeEnd,
                 message.CoursePointStart, message.CoursePointEnd, cancel, sourceId, message.Distance), cancellationToken,
-            enqueueSingle: true, completion: message);
+            enqueueSingle: true, completion: message,
+            headers: Context?.Headers ?? throw new InvalidOperationException("SampleComplete consumer context is required."));
         activity?.SetTag("EntriesCreated", entries.Count());
         logger.LogInformation("Processed SampleComplete for TransponderId: {TransponderId}, Entries Created: {EntryCount}",
             message.TransponderId, entries.Count());

@@ -26,13 +26,14 @@ using Assert = Xunit.Assert;
 namespace VeloTime.Workers.Test;
 
 /// <summary>
-/// Prerequisite experiment, NOT proposed production registration. Real processor producers,
-/// serializer, EF context, SMB persistence/dispatcher and PostgreSQL; only Azure's sender is fake.
-/// Each test owns a new database. No host workers or Azure consumers are started.
+/// Retained prerequisite experiments plus production handler tests. Uses production
+/// processor outbox registration, producers, serializer, EF and PostgreSQL, with a
+/// controlled Azure sender. Proof-only algorithms are explicitly labeled.
+/// Each test owns a new database. No unrelated host workers/Azure consumers are started.
 /// </summary>
 public sealed partial class StatisticsSmbOutboxProofTests : IAsyncLifetime
 {
-    private const string Schema = "statistics_processor_proof";
+    private const string Schema = "statistics_processor";
     private const string ReceiptHeader = "StatisticsReceiptId";
     private static readonly DateTime Start = new(2026, 11, 24, 12, 0, 0, DateTimeKind.Utc);
     private readonly string database = $"smb_proof_{Guid.NewGuid():N}";
@@ -58,8 +59,7 @@ public sealed partial class StatisticsSmbOutboxProofTests : IAsyncLifetime
         await Sql(admin, $"CREATE DATABASE \"{database}\"");
         connection = new NpgsqlConnectionStringBuilder(admin) { Database = database }.ConnectionString;
         await using (var db = Db()) await db.Database.MigrateAsync();
-        // SMB migrates its tables, but does not create DatabaseSchemaName.
-        await Sql(connection, $"CREATE SCHEMA {Schema}");
+        // The prerequisite migration creates the isolated schema; SMB owns its objects.
         await StartProofProvider();
     }
 
@@ -87,21 +87,12 @@ public sealed partial class StatisticsSmbOutboxProofTests : IAsyncLifetime
                     return sender;
                 };
             });
-            // Deliberately isolated from AddStatisticsOutbox / statistics.smb_outbox.
-            // Concrete, individual messages only; no IEnumerable/collection envelope registration.
-            mbb.UseOutbox(true, type => type == typeof(SampleComplete) || type == typeof(EntryCreated));
-            mbb.AddOutboxUsingDbContext<StatisticsDbContext>(options =>
-            {
-                options.PostgreSqlSettings.DatabaseSchemaName = Schema;
-                options.MaintainSequence = true;
-                options.PollBatchSize = 1;
-                options.PollIdleSleep = TimeSpan.FromMilliseconds(30);
-                options.LockExpiration = TimeSpan.FromSeconds(5);
-                options.MaxDeliveryAttempts = int.MaxValue;
-                options.MessageCleanup = new OutboxMessageCleanupSettings { Enabled = false };
-            });
         });
         provider = builder.Services.BuildServiceProvider();
+        // Exercise the PRODUCTION outbox registration, with only shorter test timings.
+        var settings = provider.GetRequiredService<PostgreSqlOutboxSettings>();
+        settings.PollIdleSleep = TimeSpan.FromMilliseconds(30);
+        settings.LockExpiration = TimeSpan.FromSeconds(5);
         // AutoStartConsumersEnabled(false) prevents automatic start, not an explicit Start().
         // Remove inbound subscriptions from this producer-only experiment before starting SMB.
         Assert.IsAssignableFrom<MessageBusBase>(Bus).Settings.Consumers.Clear();
@@ -353,7 +344,7 @@ public sealed partial class StatisticsSmbOutboxProofTests : IAsyncLifetime
         await using var db = Db();
         // SingleAsync deliberately fails on missing OR ambiguous evidence.
         return await db.Database.SqlQuery<bool>($"""
-            SELECT delivery_complete AS "Value" FROM statistics_processor_proof.smb_outbox
+            SELECT delivery_complete AS "Value" FROM statistics_processor.smb_outbox
             WHERE headers ->> 'StatisticsReceiptId' = {receipt.ToString()}
               AND headers ->> 'MessageName' = {messageName}
             """).SingleAsync();
@@ -401,11 +392,16 @@ public sealed partial class StatisticsSmbOutboxProofTests : IAsyncLifetime
     private sealed class RejectCommit : DbTransactionInterceptor
     {
         public bool Enabled;
-        public override ValueTask<InterceptionResult> TransactionCommittingAsync(DbTransaction transaction,
+        public Action? BeforeCommit;
+        public Func<DbContext?, Task>? BeforeCommitAsync;
+        public override async ValueTask<InterceptionResult> TransactionCommittingAsync(DbTransaction transaction,
             TransactionEventData eventData, InterceptionResult result, CancellationToken cancellationToken = default)
         {
+            if (BeforeCommitAsync is not null) await BeforeCommitAsync(eventData.Context);
+            BeforeCommit?.Invoke();
+            cancellationToken.ThrowIfCancellationRequested();
             if (Enabled) throw new InvalidOperationException("injected commit failure");
-            return ValueTask.FromResult(result);
+            return result;
         }
     }
     private sealed class ControlledSender : ServiceBusSender

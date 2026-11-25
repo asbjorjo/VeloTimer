@@ -13,10 +13,11 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     private const string BeforeSampleActivation = "20261123145848_statistics_entry_created_outbox";
     private const string SampleActivationMigration = "20261123151518_statistics_sample_identity_activation";
     private const string MultiDecisionMigration = "20261124095835_statistics_multi_creation_decisions";
+    private const string SmbHeadMigration = "20261125075737_statistics_processor_smb_head";
 
     private static async Task AssertMigrationsPendingAfterEntryOutboxAsync(StatisticsDbContext db)
     {
-        Assert.Equal(new[] { SampleActivationMigration, MultiDecisionMigration },
+        Assert.Equal(new[] { SampleActivationMigration, MultiDecisionMigration, SmbHeadMigration },
             await db.Database.GetPendingMigrationsAsync());
     }
 

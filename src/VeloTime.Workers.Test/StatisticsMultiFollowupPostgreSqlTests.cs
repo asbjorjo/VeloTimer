@@ -27,11 +27,13 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             await DecisionReceipt(db, source);
             await DecisionHandler(db, cache).OnHandle(DecisionMessage(source), CancellationToken.None);
         }
-        var bus = DispatchProxy.Create<IMessageBus, EntryOutboxBus>();
+        EntryCreated message;
         await using (var db = Db())
-            Assert.True(await new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None));
-        var message = Assert.Single(((EntryOutboxBus)(object)bus).Messages);
-        Assert.Null(Assert.Single(((EntryOutboxBus)(object)bus).Headers));
+        {
+            var receipt = await db.Set<EntryCreatedOutbox>().SingleAsync(r => !r.Single);
+            message = new(receipt.TransponderId, receipt.TimeStart, receipt.TimeEnd,
+                receipt.StatisticsItemId, receipt.ConfigItemId, receipt.EntryId);
+        }
         var generation = (await Job(multi.StatisticsItemId)).Generation;
         await using (var db = Db())
         {
@@ -43,7 +45,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             Assert.Equal(2, await db.Set<StatisticsEntry>().CountAsync());
             Assert.Equal(2, await db.Set<EntryCreatedOutbox>().CountAsync());
             Assert.Single(await db.Set<MultiCreationDecision>().ToListAsync());
-            Assert.NotNull((await db.Set<EntryCreatedOutbox>().SingleAsync(o => !o.Single)).DeliveredAtUtc);
+            Assert.NotNull((await db.Set<EntryCreatedOutbox>().SingleAsync(o => !o.Single)).MultiDecisionsCreatedAtUtc);
         }
         Assert.Equal(generation, (await Job(multi.StatisticsItemId)).Generation);
 
@@ -55,7 +57,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         await using (var db = Db())
         {
             await db.Set<EntryCreatedOutbox>().Where(o => !o.Single)
-                .ExecuteUpdateAsync(s => s.SetProperty(o => o.MultiDecisionVersion, 0));
+                .ExecuteUpdateAsync(s => s.SetProperty(o => o.MultiDecisionVersion, 0)
+                    .SetProperty(o => o.MultiDecisionsCreatedAtUtc, (DateTime?)null));
         }
         await using (var db = Db())
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -106,7 +109,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         await using (var db = Db())
         {
             var service = new StatisticsService(db, cache);
-            var later = Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
+            var later = Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db))
                 .CreateEntriesAsync(rider, ct => service.ProcessCompletedAsync(rider, laterSample.TimeStart,
                     laterSample.TimeEnd, parent.CoursePointStart, parent.CoursePointEnd, ct,
                     laterSample.Id, laterSample.Distance), CancellationToken.None, enqueueSingle: true));
@@ -198,11 +201,20 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         {
             await using var db = Db();
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                DecisionHandler(db, cache).OnHandle(DecisionMessage(source), CancellationToken.None));
+                ReplayCommittedDecision(db, cache, source));
         }
         await using var verify = Db();
         Assert.Equal(2, await verify.Set<MultiCreationDecision>().CountAsync());
         Assert.Equal(3, await verify.Set<StatisticsEntry>().CountAsync());
         Assert.Equal(3, await verify.Set<EntryCreatedOutbox>().CountAsync());
+    }
+
+    private static async Task ReplayCommittedDecision(VeloTime.Module.Statistics.Storage.StatisticsDbContext db,
+        HybridCache cache, StatisticsEntry source)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync();
+        await new StatisticsService(db, cache).ProcessEntryAsync(source.TransponderId,
+            source.StatisticsItemId, source.StatisticsItemConfigId, source.TimeStart, source.TimeEnd,
+            entryId: source.Id);
     }
 }

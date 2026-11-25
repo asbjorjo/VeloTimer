@@ -1,12 +1,14 @@
-# Statistics processor SMB head storage prerequisite
+# Statistics processor stock SMB head gate
 
-This is **schema only**. Existing workers still use the custom direct dispatchers;
-they do not implement this protocol. Do not start them after cutover, or deploy
-this as the production conversion. The dependent worker and hosting work, its
-integration tests and a coordinated cutover remain necessary. The runnable
-experiment and its limitations are in `../../VeloTime.Workers.Test/StatisticsSmbHeadGateProof.md`.
+The processor now implements this protocol using StatisticsHeadRelease and stock
+SMB; the custom dispatchers/workers have been removed. The schema prerequisite is
+`20261125075737_statistics_processor_smb_head`, unchanged by the conversion.
+The maintenance cutover below is still mandatory, not an automatic upgrade.
+Production integration evidence and limits are in
+`../../VeloTime.Workers.Test/StatisticsSmbProduction.md`; the original runnable
+experiment is in `../../VeloTime.Workers.Test/StatisticsSmbHeadGateProof.md`.
 
-## Data contract for the next owner
+## Retained data contract
 
 The existing retained `SampleCompleteOutbox` and `EntryCreatedOutbox` rows are
 domain receipts, not SMB rows. Keep their source-unique indexes, immutable payloads,

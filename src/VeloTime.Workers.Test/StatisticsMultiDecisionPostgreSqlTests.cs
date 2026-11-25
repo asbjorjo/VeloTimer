@@ -27,7 +27,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         {
             EntryId = entry.Id, TransponderId = entry.TransponderId, StatisticsItemId = entry.StatisticsItemId,
             ConfigItemId = entry.StatisticsItemConfigId, TimeStart = entry.TimeStart, TimeEnd = entry.TimeEnd,
-            Single = true, MultiDecisionVersion = version, DeliveredAtUtc = DateTime.UtcNow
+            Single = true, MultiDecisionVersion = version
         });
         await db.SaveChangesAsync();
     }
@@ -36,8 +36,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         entry.TransponderId, entry.TimeStart, entry.TimeEnd, entry.StatisticsItemId, entry.StatisticsItemConfigId,
         entry.Id);
 
-    private static EntryCreatedHandler DecisionHandler(StatisticsDbContext db, HybridCache cache) =>
-        new(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
+    private static DomainEntryConsumer DecisionHandler(StatisticsDbContext db, HybridCache cache) =>
+        new(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db)),
             NullLogger<EntryCreatedHandler>.Instance);
 
     private static async Task ProcessPriorDecision(StatisticsDbContext db, HybridCache cache, StatisticsEntry entry)
@@ -75,7 +75,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             Assert.True(receipts[olderB.Id].Id < receipts[newerA.Id].Id);
             Assert.True(receipts[newerA.Id].Id < receipts[triggerB.Id].Id);
             Assert.True(receipts[triggerB.Id].Id < receipts[laterB.Id].Id);
-            Assert.All(receipts.Values, r => Assert.NotNull(r.DeliveredAtUtc));
+            Assert.All(receipts.Values, r => Assert.Null(r.DeliveredAtUtc));
         }
         foreach (var entry in new[] { olderB, newerA, triggerB, olderB })
         {

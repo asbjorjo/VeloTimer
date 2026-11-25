@@ -63,7 +63,7 @@ public sealed partial class StatisticsSmbOutboxProofTests
         var receipt = await db.Set<SampleCompleteOutbox>().SingleAsync(r => r.SampleId == receiptId);
         if (payload != Message(receipt)) throw new InvalidOperationException("Conflicting inbox payload");
         await db.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO statistics_processor_proof.proof_inbox (receipt_id) VALUES ({receiptId})
+            INSERT INTO statistics_processor.proof_inbox (receipt_id) VALUES ({receiptId})
             ON CONFLICT (receipt_id) DO NOTHING
             """);
         await tx.CommitAsync();
@@ -78,12 +78,12 @@ public sealed partial class StatisticsSmbOutboxProofTests
         await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))");
         await db.Entry(source).ReloadAsync();
         var staged = await db.Database.SqlQuery<int>($"""
-            SELECT count(*)::int AS "Value" FROM statistics_processor_proof.proof_inbox WHERE receipt_id = {receiptId}
+            SELECT count(*)::int AS "Value" FROM statistics_processor.proof_inbox WHERE receipt_id = {receiptId}
             """).SingleAsync();
         if (staged != 1) return false;
         if (source.EntriesCreatedAtUtc.HasValue) return true;
         var delivered = await db.Database.SqlQuery<bool>($"""
-            SELECT delivery_complete AS "Value" FROM statistics_processor_proof.smb_outbox
+            SELECT delivery_complete AS "Value" FROM statistics_processor.smb_outbox
             WHERE headers ->> 'StatisticsReceiptId' = {receiptId.ToString()}
               AND headers ->> 'MessageName' = 'SampleComplete'
             """).SingleAsync();

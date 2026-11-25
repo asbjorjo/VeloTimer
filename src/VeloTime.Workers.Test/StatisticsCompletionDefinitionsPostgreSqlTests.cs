@@ -81,7 +81,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         await using var processor = Db();
         var service = new StatisticsService(processor, services.GetRequiredService<HybridCache>());
         await processor.Database.OpenConnectionAsync(token);
-        var ownership = new StatisticsOwnershipService(processor, new RequiredPointEmptyOwnershipReader());
+        var ownership = new StatisticsOwnershipService(processor, new RequiredPointEmptyOwnershipReader(), DomainHeads(processor));
         var completion = ownership.CreateEntriesAsync(rider,
             ct => Complete(service, config, rider, config.CoursePointEnd, ct), cancelled.Token);
         await WaitForCompletionLockWait(processor, token);

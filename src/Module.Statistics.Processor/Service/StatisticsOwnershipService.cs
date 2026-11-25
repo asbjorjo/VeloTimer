@@ -8,7 +8,8 @@ using VeloTime.Module.Timing.Interface.Messages;
 
 namespace VeloTime.Module.Statistics.Service;
 
-public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITransponderOwnershipReader ownershipReader)
+public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITransponderOwnershipReader ownershipReader,
+    StatisticsHeadRelease heads)
 {
     private const int BatchSize = 500;
 
@@ -16,28 +17,54 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
         Func<CancellationToken, Task<IEnumerable<StatisticsEntry>>> create, CancellationToken cancellationToken,
         bool? enqueueSingle = null, SampleComplete? completion = null)
         => await CreateEntriesCoreAsync(transponderId, (_, ct) => create(ct), cancellationToken,
-            enqueueSingle, completion, null);
+            enqueueSingle, completion, null, null);
 
     public async Task<IReadOnlyList<StatisticsEntry>> CreateEntriesFromSourceAsync(Guid transponderId,
         Func<Guid, CancellationToken, Task<IEnumerable<StatisticsEntry>>> create, CancellationToken cancellationToken,
-        bool? enqueueSingle = null, SampleComplete? completion = null, EntryCreated? parent = null)
+        bool? enqueueSingle = null, SampleComplete? completion = null, EntryCreated? parent = null,
+        IReadOnlyDictionary<string, object>? headers = null)
     {
         if ((completion is null) == (parent is null))
             throw new ArgumentException("Exactly one source message is required.");
-        return await CreateEntriesCoreAsync(transponderId, create, cancellationToken, enqueueSingle, completion, parent);
+        return await CreateEntriesCoreAsync(transponderId, create, cancellationToken, enqueueSingle, completion, parent, headers);
     }
 
     private async Task<IReadOnlyList<StatisticsEntry>> CreateEntriesCoreAsync(Guid transponderId,
         Func<Guid, CancellationToken, Task<IEnumerable<StatisticsEntry>>> create, CancellationToken cancellationToken,
-        bool? enqueueSingle, SampleComplete? completion, EntryCreated? parent)
+        bool? enqueueSingle, SampleComplete? completion, EntryCreated? parent, IReadOnlyDictionary<string, object>? headers)
     {
         await using var transaction = await LockAsync(transponderId, cancellationToken);
         var completionSource = completion is null
             ? null
             : await RequireCompletionSourceAsync(transponderId, completion, cancellationToken);
-        var parentId = parent is null ? (Guid?)null : await RequireParentSourceAsync(transponderId, parent, cancellationToken);
+        var parentSource = parent is null ? null : await RequireParentSourceAsync(transponderId, parent, cancellationToken);
+        if (completionSource is not null)
+        {
+            if (headers is not null && completionSource.SmbEnqueuedAtUtc.HasValue && completion?.SampleId != completionSource.SampleId)
+                throw new InvalidOperationException("Enqueued SampleComplete requires its stable sample identity.");
+            ValidateHeaders(headers, nameof(SampleComplete), completionSource.SampleId,
+                completionSource.SmbEnqueuedAtUtc, completionSource.EntriesCreatedAtUtc, null);
+        }
+        if (parentSource is not null)
+        {
+            if (headers is not null && parentSource.SmbEnqueuedAtUtc.HasValue && parent?.EntryId != parentSource.EntryId)
+                throw new InvalidOperationException("Enqueued EntryCreated requires its stable entry identity.");
+            ValidateHeaders(headers, nameof(EntryCreated), parentSource.EntryId,
+                parentSource.SmbEnqueuedAtUtc, parentSource.MultiDecisionsCreatedAtUtc, parentSource.Single);
+        }
+        // Validate immutable identity/payload/headers even for late duplicates, but do
+        // not consult live definitions, owners, deleted domain objects or release again.
+        if (completionSource?.EntriesCreatedAtUtc is not null || parentSource?.MultiDecisionsCreatedAtUtc is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return [];
+        }
+        if (parentSource is not null && await storage.Set<EntryCreatedOutbox>().AnyAsync(earlier =>
+                earlier.TransponderId == transponderId && earlier.Id < parentSource.Id &&
+                earlier.MultiDecisionsCreatedAtUtc == null, cancellationToken))
+            throw new InvalidOperationException("EntryCreated is blocked by an earlier unprocessed local receipt.");
         var owners = await ReadOwnersAsync(transponderId, cancellationToken);
-        var entries = (await create(completionSource?.SampleId ?? parentId ?? Guid.Empty, cancellationToken)).ToList();
+        var entries = (await create(completionSource?.SampleId ?? parentSource?.EntryId ?? Guid.Empty, cancellationToken)).ToList();
         await LockOwnersAsync(owners, cancellationToken);
         await AssignAsync(entries, owners, cancellationToken);
         if (enqueueSingle.HasValue)
@@ -65,10 +92,15 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
                 });
             }
         }
-        // Empty results are still completed creation, not a durable "ignore future definitions" receipt.
+        // Empty results are final completion too; redelivery must not discover later definitions.
         if (completionSource is not null)
             completionSource.EntriesCreatedAtUtc ??= DateTime.UtcNow;
+        if (parentSource is not null)
+            parentSource.MultiDecisionsCreatedAtUtc ??= DateTime.UtcNow;
         await storage.SaveChangesAsync(cancellationToken);
+        // StatisticsService itself may append derived EntryCreated receipts. Select
+        // heads only after ALL its work, ownership and completion have been saved.
+        await heads.ReleaseAsync(transponderId, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return entries;
     }
@@ -115,7 +147,7 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
             if (sampleIds.Count != 1 || sampleIds[0] != source.SampleId)
                 throw new InvalidOperationException("SampleComplete has no unique persisted source sample matching its receipt.");
         }
-        if (await storage.Set<SampleCompleteOutbox>().AnyAsync(earlier =>
+        if (!source.EntriesCreatedAtUtc.HasValue && await storage.Set<SampleCompleteOutbox>().AnyAsync(earlier =>
                 earlier.TransponderId == transponderId && earlier.Id < source.Id &&
                 earlier.EntriesCreatedAtUtc == null, cancellationToken))
             throw new InvalidOperationException(
@@ -124,31 +156,61 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
         return source;
     }
 
-    private async Task<Guid> RequireParentSourceAsync(Guid transponderId, EntryCreated message, CancellationToken cancellationToken)
+    private async Task<EntryCreatedOutbox> RequireParentSourceAsync(Guid transponderId, EntryCreated message, CancellationToken cancellationToken)
     {
         var start = StatisticsStoragePrecision.Timestamp(message.TimeStart);
         var end = StatisticsStoragePrecision.Timestamp(message.TimeEnd);
         if (message.TransponderId != transponderId || message.EntryId == Guid.Empty)
             throw new InvalidOperationException("Invalid EntryCreated source identity or payload.");
-        var query = storage.Set<StatisticsEntry>().AsNoTracking().AsQueryable();
+        var query = storage.Set<EntryCreatedOutbox>().AsQueryable();
         if (message.EntryId.HasValue)
-            query = query.Where(entry => entry.Id == message.EntryId.Value);
+            query = query.Where(entry => entry.EntryId == message.EntryId.Value);
         else
             query = query.Where(entry => entry.TransponderId == transponderId &&
-                entry.StatisticsItemConfigId == message.ConfigItemId && entry.TimeStart == start && entry.TimeEnd == end);
+                entry.ConfigItemId == message.ConfigItemId && entry.TimeStart == start && entry.TimeEnd == end);
         var matches = await query.Take(2).ToListAsync(cancellationToken);
         if (matches.Count != 1)
-            throw new InvalidOperationException("EntryCreated has no unique persisted parent entry; maintenance reconciliation is required.");
-        var entry = matches[0];
-        if (entry.Id == Guid.Empty || entry.TransponderId != transponderId || entry.StatisticsItemId != message.StatisticsItemId ||
-            entry.StatisticsItemConfigId != message.ConfigItemId || entry.TimeStart != start || entry.TimeEnd != end)
-            throw new InvalidOperationException("EntryCreated conflicts with its persisted parent entry.");
-        var receipt = await storage.Set<EntryCreatedOutbox>().AsNoTracking()
-            .SingleOrDefaultAsync(row => row.EntryId == entry.Id, cancellationToken);
-        if (receipt is null || receipt.TransponderId != transponderId || receipt.TimeStart != start ||
+            throw new InvalidOperationException("EntryCreated has no unique retained parent receipt; maintenance reconciliation is required.");
+        var receipt = matches[0];
+        if (receipt.EntryId == Guid.Empty || receipt.TransponderId != transponderId || receipt.TimeStart != start ||
             receipt.TimeEnd != end || receipt.StatisticsItemId != message.StatisticsItemId || receipt.ConfigItemId != message.ConfigItemId)
             throw new InvalidOperationException("EntryCreated has no matching retained parent receipt; maintenance reconciliation is required.");
-        return entry.Id;
+        if (receipt.MultiDecisionVersion != 1)
+            throw new InvalidOperationException("EntryCreated has legacy/unknown Multi decisions; maintenance reconciliation is required.");
+        if (!message.EntryId.HasValue)
+        {
+            var ids = await storage.Set<StatisticsEntry>().AsNoTracking().Where(entry =>
+                    entry.TransponderId == transponderId && entry.StatisticsItemConfigId == message.ConfigItemId &&
+                    entry.TimeStart == start && entry.TimeEnd == end)
+                .Select(entry => entry.Id).Take(2).ToListAsync(cancellationToken);
+            if (ids.Count != 1 || ids[0] != receipt.EntryId)
+                throw new InvalidOperationException("Legacy EntryCreated has no unique persisted parent matching its retained receipt.");
+        }
+        return receipt;
+    }
+
+    private static void ValidateHeaders(IReadOnlyDictionary<string, object>? headers, string messageName, Guid id,
+        DateTime? enqueued, DateTime? completed, bool? single)
+    {
+        // Direct domain callers are not broker deliveries. Both production consumers
+        // always supply their context; missing context fails in the handler.
+        if (headers is null) return;
+        if (!enqueued.HasValue && !completed.HasValue)
+            throw new InvalidOperationException("Unenqueued/legacy pending receipt cannot be processed; reconcile before activation.");
+        if (enqueued.HasValue || headers.ContainsKey("MessageName"))
+        {
+            if (!headers.TryGetValue("MessageName", out var name) || name is not string text || text != messageName)
+                throw new InvalidOperationException("Statistics MessageName conflicts with the receipt.");
+        }
+        if (enqueued.HasValue || headers.ContainsKey(StatisticsHeadRelease.ReceiptHeader))
+        {
+            if (!headers.TryGetValue(StatisticsHeadRelease.ReceiptHeader, out var value) ||
+                value is not string key || !Guid.TryParseExact(key, "D", out var receiptId) || receiptId != id)
+                throw new InvalidOperationException("StatisticsReceiptId conflicts with the receipt.");
+        }
+        var hasSingle = headers.TryGetValue("Single", out var flag);
+        if (single == true ? !hasSingle || flag is not true : hasSingle)
+            throw new InvalidOperationException("Single header conflicts with the receipt.");
     }
 
     public async Task<int> ReconcileAsync(TransponderOwnershipChanged message, CancellationToken cancellationToken)

@@ -8,14 +8,16 @@ namespace VeloTime.Module.Statistics.Handlers;
 public class EntryCreatedHandler(
     StatisticsService statistics,
     StatisticsOwnershipService ownership,
-    ILogger<EntryCreatedHandler> logger) : IConsumer<EntryCreated>
+    ILogger<EntryCreatedHandler> logger) : IConsumer<EntryCreated>, IConsumerWithContext
 {
+    public IConsumerContext Context { get; set; } = null!;
     public async Task OnHandle(EntryCreated message, CancellationToken cancellationToken)
     {
         using var activity = Instrumentation.Source.StartActivity("OnHandle.EntryCreated");
         var entries = await ownership.CreateEntriesFromSourceAsync(message.TransponderId,
             (sourceId, cancel) => statistics.ProcessEntryAsync(message.TransponderId, message.StatisticsItemId, message.ConfigItemId,
-                message.TimeStart, message.TimeEnd, cancel, sourceId), cancellationToken, enqueueSingle: false, parent: message);
+                message.TimeStart, message.TimeEnd, cancel, sourceId), cancellationToken, enqueueSingle: false, parent: message,
+            headers: Context?.Headers ?? throw new InvalidOperationException("EntryCreated consumer context is required."));
 
         logger.LogInformation("Processed {EntriesCount} statistics entries for transponder {TransponderId}",
             entries.Count(), message.TransponderId);

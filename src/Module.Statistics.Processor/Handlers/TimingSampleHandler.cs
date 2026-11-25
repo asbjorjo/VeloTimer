@@ -14,18 +14,26 @@ public class TimingSampleHandler(
     StatisticsDbContext storage,
     IFacilitiesClient facilities,
     Metrics metrics,
-    ILogger<TimingSampleHandler> logger) : IConsumer<TimingSampleComplete>
+    ILogger<TimingSampleHandler> logger,
+    StatisticsHeadRelease heads) : IConsumer<TimingSampleComplete>
 {
     public async Task OnHandle(TimingSampleComplete message, CancellationToken cancellationToken)
     {
         using var activity = Instrumentation.Source.StartActivity("Handle TimingSampleComplete");
         var start = Normalize(message.TimeStart);
         var end = Normalize(message.TimeEnd);
-        var existing = await Find(message, start, end, cancellationToken);
-        if (existing is not null)
+        // Even replays participate in insertion/completion ordering and head release.
+        await using (var replayTx = await storage.Database.BeginTransactionAsync(cancellationToken))
         {
-            await RequireMatchingReceiptAsync(existing, cancellationToken);
-            return;
+            await StatisticsTransponderLock.AcquireAsync(storage.Database, message.TransponderId, cancellationToken);
+            var existing = await Find(message, start, end, cancellationToken);
+            if (existing is not null)
+            {
+                await RequireMatchingReceiptAsync(existing, cancellationToken);
+                await heads.ReleaseAsync(message.TransponderId, cancellationToken);
+                await replayTx.CommitAsync(cancellationToken);
+                return;
+            }
         }
 
         var distance = await facilities.Distance2Async(message.TimingPointStart, message.TimingPointEnd,
@@ -59,6 +67,7 @@ public class TimingSampleHandler(
             if (concurrent is not null)
             {
                 await RequireMatchingReceiptAsync(concurrent, cancellationToken);
+                await heads.ReleaseAsync(message.TransponderId, cancellationToken);
                 await tx.CommitAsync(cancellationToken);
                 logger.LogInformation("Concurrent Timing sample replay for transponder {TransponderId}", message.TransponderId);
                 return;
@@ -66,6 +75,7 @@ public class TimingSampleHandler(
             storage.Add(sample);
             storage.Add(outgoing);
             await storage.SaveChangesAsync(cancellationToken);
+            await heads.ReleaseAsync(message.TransponderId, cancellationToken);
             await tx.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
@@ -79,8 +89,14 @@ public class TimingSampleHandler(
         }
         if (duplicate)
         {
-            if (await Find(message, start, end, cancellationToken) is null)
+            await using var retryTx = await storage.Database.BeginTransactionAsync(cancellationToken);
+            await StatisticsTransponderLock.AcquireAsync(storage.Database, message.TransponderId, cancellationToken);
+            var winner = await Find(message, start, end, cancellationToken);
+            if (winner is null)
                 throw new InvalidOperationException("A duplicate sample was reported but the winning row could not be reloaded.");
+            await RequireMatchingReceiptAsync(winner, cancellationToken);
+            await heads.ReleaseAsync(message.TransponderId, cancellationToken);
+            await retryTx.CommitAsync(cancellationToken);
             logger.LogInformation("Concurrent Timing sample replay for transponder {TransponderId}", message.TransponderId);
             return;
         }

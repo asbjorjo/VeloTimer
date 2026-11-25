@@ -38,11 +38,9 @@ public sealed class StatisticsProcessorRegistrationTests
         Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(ITransponderOwnershipReader) &&
             descriptor.ImplementationType == typeof(TransponderOwnershipReader));
         Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(StatisticsOwnershipService));
-        Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(EntryCreatedOutboxDispatcher) &&
+        Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(StatisticsHeadRelease) &&
             descriptor.Lifetime == ServiceLifetime.Scoped);
-        Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(IHostedService) &&
-            descriptor.ImplementationType == typeof(EntryCreatedOutboxWorker));
-        Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(IHostedService) &&
-            descriptor.ImplementationType == typeof(SampleCompleteOutboxWorker));
+        Assert.DoesNotContain(builder.Services, descriptor =>
+            descriptor.ImplementationType?.Name.Contains("OutboxWorker") == true);
     }
 }

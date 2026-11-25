@@ -1,8 +1,8 @@
 # Durable Multi creation decisions
 
-For the future stock SMB head-gate schema and its stricter requirement to mark
-validated non-Single completions too, see `StatisticsProcessorSmbHead.md`.
-The existing dispatcher described here remains in place until worker conversion.
+For the production stock SMB head gate and its requirement to mark validated
+non-Single completions too, see `StatisticsProcessorSmbHead.md`.
+The legacy dispatcher has been removed.
 
 `20261124095835_statistics_multi_creation_decisions` is additive PostgreSQL DDL.
 Do not activate the replay fix until the domain/worker integration and PostgreSQL
@@ -89,7 +89,13 @@ order from UUIDs/delivery marks. Retain delivered receipts in candidate queries.
 Consumers must not overtake an earlier same-rider source that still needs Multi
 processing (respect `Single` routing); the worker owns that processing barrier.
 
-### EntryCreated dispatch barrier and recovery
+### Historical direct-dispatch barrier (superseded)
+
+The following describes the pre-conversion dispatcher, for interpreting legacy
+DeliveredAtUtc evidence only. It is **not** the current sending algorithm or a
+safe cutover procedure. Current head eligibility is based on domain completion,
+including non-Singles, before transactional SMB enqueue; SMB alone dispatches.
+Use `StatisticsProcessorSmbHead.md` for current maintenance/recovery requirements.
 
 The local dispatcher selects the oldest *eligible* pending receipt across riders.
 An earlier pending receipt blocks all later receipts for its rider; after delivery,

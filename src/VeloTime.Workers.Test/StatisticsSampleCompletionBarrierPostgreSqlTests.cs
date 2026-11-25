@@ -60,7 +60,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             });
             await db.SaveChangesAsync();
             var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new TimingSampleHandler(db, facilities, metrics, NullLogger<TimingSampleHandler>.Instance)
+                new TimingSampleHandler(db, facilities, metrics, NullLogger<TimingSampleHandler>.Instance, DomainHeads(db))
                     .OnHandle(legacyTiming, CancellationToken.None));
             Assert.Contains("has no local SampleComplete outbox receipt", error.Message);
         }
@@ -68,7 +68,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         // A queued message from a legitimate local producer remains processable once its
         // durable source receipt exists; at-least-once redelivery stays idempotent.
         await using (var db = Db())
-            await new TimingSampleHandler(db, facilities, metrics, NullLogger<TimingSampleHandler>.Instance)
+            await new TimingSampleHandler(db, facilities, metrics, NullLogger<TimingSampleHandler>.Instance, DomainHeads(db))
                 .OnHandle(timing, CancellationToken.None);
         await using (var db = Db())
         {
@@ -106,11 +106,11 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             await seed.SaveChangesAsync(token);
         }
         await using (var db = Db())
-            await new TimingSampleHandler(db, facilities, metrics, NullLogger<TimingSampleHandler>.Instance)
+            await new TimingSampleHandler(db, facilities, metrics, NullLogger<TimingSampleHandler>.Instance, DomainHeads(db))
                 .OnHandle(firstTiming, token);
 
         await using var inserting = Db(gate);
-        var insert = new TimingSampleHandler(inserting, facilities, metrics, NullLogger<TimingSampleHandler>.Instance)
+        var insert = new TimingSampleHandler(inserting, facilities, metrics, NullLogger<TimingSampleHandler>.Instance, DomainHeads(inserting))
             .OnHandle(laterTiming, token);
         try
         {
@@ -175,10 +175,10 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         }
     }
 
-    private static SampleCompleteHandler CompletionHandler(
+    private static DomainSampleConsumer CompletionHandler(
         VeloTime.Module.Statistics.Storage.StatisticsDbContext db,
         Microsoft.Extensions.Caching.Hybrid.HybridCache cache, Metrics metrics) =>
-        new(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()), metrics,
+        new(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db)), metrics,
             NullLogger<SampleCompleteHandler>.Instance);
 
     private static IFacilitiesClient Facilities(SimpleStatisticsItemConfig config)

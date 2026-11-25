@@ -253,14 +253,14 @@ public sealed class StatisticsOwnershipTests
         using (services)
         {
             var statistics = new StatisticsService(database.Storage, services.GetRequiredService<HybridCache>());
-            var sampleHandler = new SampleCompleteHandler(statistics, database.Service,
+            var sampleHandler = new DomainSampleConsumer(statistics, database.Service,
                 new Metrics(services.GetRequiredService<System.Diagnostics.Metrics.IMeterFactory>()), NullLogger<SampleCompleteHandler>.Instance);
             await sampleHandler.OnHandle(completion, CancellationToken.None);
             var emittedRow = await database.Storage.Set<EntryCreatedOutbox>().SingleAsync();
             Assert.True(emittedRow.Single);
             var emitted = new EntryCreated(emittedRow.TransponderId, emittedRow.TimeStart, emittedRow.TimeEnd,
                 emittedRow.StatisticsItemId, emittedRow.ConfigItemId, emittedRow.EntryId);
-            var entryHandler = new EntryCreatedHandler(statistics, database.Service, NullLogger<EntryCreatedHandler>.Instance);
+            var entryHandler = new DomainEntryConsumer(statistics, database.Service, NullLogger<EntryCreatedHandler>.Instance);
             await entryHandler.OnHandle(emitted, CancellationToken.None);
             Assert.Equal(2, await database.Storage.Set<EntryCreatedOutbox>().CountAsync());
             var aggregate = await database.Storage.Set<EntryCreatedOutbox>().SingleAsync(o => !o.Single);
@@ -294,7 +294,7 @@ public sealed class StatisticsOwnershipTests
         public Guid TransponderId { get; } = Guid.NewGuid();
         public Reader Reader { get; } = new();
         public StatisticsDbContext Storage { get; } = storage;
-        public StatisticsOwnershipService Service => new(Storage, Reader);
+        public StatisticsOwnershipService Service => new(Storage, Reader, DomainHeads(Storage));
         public SimpleStatisticsItemConfig Config { get; } = new()
         {
             Id = Guid.NewGuid(), StatisticsItem = new StatisticsItem { Id = Guid.NewGuid(), Name = "Lap", Distance = 100 }

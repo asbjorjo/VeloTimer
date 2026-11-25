@@ -1,5 +1,9 @@
 # Stock SMB with domain head release: follow-up to 777f8561
 
+Historical experiment report. Production conversion is now documented in
+`StatisticsSmbProduction.md`; these retained proof algorithms remain test-only,
+but their fixture now uses production registration and its isolated schema.
+
 This is **test-only**, not a production conversion. See
 `StatisticsSmbHeadGateProofTests.cs`, another partial of the existing PostgreSQL
 fixture. It uses stock SMB **3.4.0**, real PostgreSQL, actual Statistics migrations,

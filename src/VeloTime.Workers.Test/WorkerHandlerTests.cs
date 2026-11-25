@@ -299,7 +299,7 @@ public sealed class WorkerHandlerTests
             storage,
             facilities,
             new Metrics(serviceProvider.GetRequiredService<IMeterFactory>()),
-            NullLogger<TimingSampleHandler>.Instance);
+            NullLogger<TimingSampleHandler>.Instance, DomainHeads(storage));
 
         await handler.OnHandle(new TimingSampleComplete(startTime, endTime, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()), CancellationToken.None);
 
@@ -325,10 +325,10 @@ public sealed class WorkerHandlerTests
         services.AddMetrics();
         using var serviceProvider = services.BuildServiceProvider();
         var statistics = new StatisticsService(storage, serviceProvider.GetRequiredService<HybridCache>());
-        var ownership = new StatisticsOwnershipService(storage, new EmptyOwnershipReader());
+        var ownership = new StatisticsOwnershipService(storage, new EmptyOwnershipReader(), DomainHeads(storage));
         var metrics = new Metrics(serviceProvider.GetRequiredService<IMeterFactory>());
-        var sampleHandler = new SampleCompleteHandler(statistics, ownership, metrics, NullLogger<SampleCompleteHandler>.Instance);
-        var entryHandler = new EntryCreatedHandler(statistics, ownership, NullLogger<EntryCreatedHandler>.Instance);
+        var sampleHandler = new DomainSampleConsumer(statistics, ownership, metrics, NullLogger<SampleCompleteHandler>.Instance);
+        var entryHandler = new DomainEntryConsumer(statistics, ownership, NullLogger<EntryCreatedHandler>.Instance);
 
         var completion = new SampleComplete(Guid.NewGuid(), StatisticsStoragePrecision.Timestamp(DateTime.UtcNow.AddSeconds(-10)),
             StatisticsStoragePrecision.Timestamp(DateTime.UtcNow),

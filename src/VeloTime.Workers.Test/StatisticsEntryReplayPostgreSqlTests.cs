@@ -36,7 +36,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         {
             await using var db = Db();
             var service = new StatisticsService(db, cache);
-            return Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
+            return Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db))
                 .CreateEntriesAsync(rider, ct => service.ProcessCompletedAsync(rider,
                     Start.AddTicks(index), Start.AddSeconds(10).AddTicks(index),
                     config.CoursePointStart, config.CoursePointEnd, ct, source!.Id, source.Distance), token,
@@ -51,7 +51,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         {
             await using var db = Db();
             var service = new StatisticsService(db, cache);
-            return Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
+            return Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db))
                 .CreateEntriesAsync(rider, ct => service.ProcessEntryAsync(rider, parent.StatisticsItemId,
                     parent.StatisticsItemConfigId, parent.TimeStart.AddTicks(index), parent.TimeEnd.AddTicks(index),
                     ct, parent.Id), token));
@@ -67,7 +67,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         {
             await using var db = Db();
             var service = new StatisticsService(db, cache);
-            Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
+            Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db))
                 .CreateEntriesAsync(rider, ct => service.ProcessEntryAsync(rider, parent.StatisticsItemId,
                     parent.StatisticsItemConfigId, parent.TimeStart, parent.TimeEnd, ct, parent.Id), token));
         }));
@@ -117,7 +117,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         {
             await using var db = Db();
             var service = new StatisticsService(db, cache);
-            return Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
+            return Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db))
                 .CreateEntriesAsync(rider, ct => service.ProcessCompletedAsync(rider, Start, Start.AddSeconds(10),
                     config.CoursePointStart, config.CoursePointEnd, ct, source.Id, source.Distance), CancellationToken.None));
         }
@@ -125,7 +125,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         {
             await using var db = Db();
             var service = new StatisticsService(db, cache);
-            return Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
+            return Assert.Single(await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db))
                 .CreateEntriesAsync(rider, ct => service.ProcessEntryAsync(rider, parent.StatisticsItemId,
                     parent.Id, Start, Start.AddSeconds(10), ct, source.Id), CancellationToken.None));
         }
@@ -143,7 +143,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     }
 
     [PostgreSqlStatisticsFact]
-    public async Task FixedAndMultiPublishFailuresRetryOriginalPayloadAfterLateEvidenceAndConfigChanges()
+    public async Task FixedAndMultiReplayRetainsOriginalPayloadAfterLateEvidenceAndConfigChanges()
     {
         var config = Simple();
         var multi = ReplayMulti(config);
@@ -151,12 +151,10 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         var sample = CompletionSample(config, rider);
         await using var services = new ServiceCollection().AddMetrics().AddHybridCache().Services.BuildServiceProvider();
         var cache = services.GetRequiredService<HybridCache>();
-        var bus = DispatchProxy.Create<IMessageBus, RequiredPointRetryBus>();
-        var recorder = (RequiredPointRetryBus)(object)bus;
         var message = new SampleComplete(rider, Start, Start.AddSeconds(10),
             config.CoursePointStart, config.CoursePointEnd, 250);
-        SampleCompleteHandler Handler(VeloTime.Module.Statistics.Storage.StatisticsDbContext db) => new(
-            new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
+        DomainSampleConsumer Handler(VeloTime.Module.Statistics.Storage.StatisticsDbContext db) => new(
+            new(db, cache), new(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db)),
             new Metrics(services.GetRequiredService<System.Diagnostics.Metrics.IMeterFactory>()),
             NullLogger<SampleCompleteHandler>.Instance);
         await using (var db = Db())
@@ -168,29 +166,24 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             });
             await db.SaveChangesAsync();
             await Handler(db).OnHandle(message, CancellationToken.None);
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None));
         }
+        EntryCreated parentEvent;
         await using (var db = Db())
         {
             var current = await db.Set<SimpleStatisticsItemConfig>().Include(c => c.StatisticsItem).SingleAsync();
             current.StatisticsItem.Distance = 999;
             current.RequiredCoursePointIds = [Guid.NewGuid()];
             await db.SaveChangesAsync();
-            recorder.Fail = false;
             await Handler(db).OnHandle(message, CancellationToken.None);
-            await new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None);
+            var receipt = await db.Set<EntryCreatedOutbox>().SingleAsync();
+            parentEvent = new(receipt.TransponderId, receipt.TimeStart, receipt.TimeEnd,
+                receipt.StatisticsItemId, receipt.ConfigItemId, receipt.EntryId);
         }
-        Assert.Equal(recorder.Events[0], recorder.Events[1]);
-        var parentEvent = Assert.Single(recorder.Events[1]);
         await using (var db = Db())
         {
-            recorder.Fail = true;
-            var handler = new EntryCreatedHandler(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
+            var handler = new DomainEntryConsumer(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db)),
                 NullLogger<EntryCreatedHandler>.Instance);
             await handler.OnHandle(parentEvent, CancellationToken.None);
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None));
         }
         await using (var db = Db())
         {
@@ -204,15 +197,12 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             });
             (await db.Set<MultiStatisticsItemConfig>().SingleAsync()).Repetitions = 10;
             await db.SaveChangesAsync();
-            recorder.Fail = false;
-            var handler = new EntryCreatedHandler(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
+            var handler = new DomainEntryConsumer(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db)),
                 NullLogger<EntryCreatedHandler>.Instance);
             await handler.OnHandle(parentEvent, CancellationToken.None);
-            await new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None);
             Assert.Equal(3, await db.Set<StatisticsEntry>().CountAsync());
             Assert.Single(await db.Set<StatisticsEntry>().Where(e => e.StatisticsItemConfigId == multi.Id).ToListAsync());
         }
-        Assert.Equal(recorder.Events[2], recorder.Events[3]);
     }
 
     [PostgreSqlStatisticsFact]
@@ -247,7 +237,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         (await adminDb.Set<MultiStatisticsItemConfig>().SingleAsync(token)).Repetitions = 2;
         await adminDb.SaveChangesAsync(token);
         await processor.Database.OpenConnectionAsync(token);
-        var creation = new StatisticsOwnershipService(processor, new RequiredPointEmptyOwnershipReader())
+        var creation = new StatisticsOwnershipService(processor, new RequiredPointEmptyOwnershipReader(), DomainHeads(processor))
             .CreateEntriesAsync(rider, ct => service.ProcessEntryAsync(rider, parent.StatisticsItemId,
                 parent.Id, Start, Start.AddSeconds(10), ct), token);
         await WaitForCompletionLockWait(processor, token);

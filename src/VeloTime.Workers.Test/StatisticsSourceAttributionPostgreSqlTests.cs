@@ -184,7 +184,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         Assert.Equal(12.5, secondMulti.Speed);
         await using (var db = Db())
         {
-            var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
+            var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db))
                 .CreateEntriesAsync(rider, ct => new StatisticsService(db, cache).ProcessEntryAsync(rider,
                     parent.StatisticsItemId, parent.Id, Start, Start.AddSeconds(20), ct), CancellationToken.None));
             Assert.Equal("EntryCreated matches multiple persisted parent entries; an entry ID is required.", error.Message);
@@ -301,7 +301,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     private async Task<List<StatisticsEntry>> CompleteAttribution(Sample source, HybridCache cache)
     {
         await using var db = Db();
-        return (await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
+        return (await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db))
             .CreateEntriesAsync(source.TransponderId, ct => new StatisticsService(db, cache).ProcessCompletedAsync(
                 source.TransponderId, source.TimeStart, source.TimeEnd, source.CoursePointStartId,
                 source.CoursePointEndId, ct, source.Id, source.Distance), CancellationToken.None)).ToList();
@@ -310,7 +310,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     private async Task<List<StatisticsEntry>> AggregateAttribution(StatisticsEntry source, HybridCache cache)
     {
         await using var db = Db();
-        return (await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
+        return (await new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db))
             .CreateEntriesAsync(source.TransponderId, ct => new StatisticsService(db, cache).ProcessEntryAsync(
                 source.TransponderId, source.StatisticsItemId, source.StatisticsItemConfigId,
                 source.TimeStart, source.TimeEnd, ct, source.Id), CancellationToken.None)).ToList();
@@ -320,7 +320,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     {
         await using var db = Db();
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader())
+            new StatisticsOwnershipService(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db))
                 .CreateEntriesAsync(source.TransponderId, ct => new StatisticsService(db, cache).ProcessCompletedAsync(
                     source.TransponderId, source.TimeStart, source.TimeEnd, source.CoursePointStartId,
                     source.CoursePointEndId, ct, null, source.Distance), CancellationToken.None));

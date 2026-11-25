@@ -184,7 +184,7 @@ public sealed class TimingSampleEventTimeTests
             Distance = 150, FacilityId = Guid.NewGuid()
         };
         public TimingSampleHandler Handler => new(storage, facilities,
-            new Metrics(services.GetRequiredService<IMeterFactory>()), NullLogger<TimingSampleHandler>.Instance);
+            new Metrics(services.GetRequiredService<IMeterFactory>()), NullLogger<TimingSampleHandler>.Instance, DomainHeads(storage));
 
         public static async Task<Fixture> CreateAsync()
         {

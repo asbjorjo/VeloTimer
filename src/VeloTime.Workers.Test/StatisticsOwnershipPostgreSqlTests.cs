@@ -79,7 +79,7 @@ public sealed class StatisticsOwnershipPostgreSqlTests : IAsyncLifetime
         profile.IsPublic = false;
         await verify.SaveChangesAsync(timeout.Token);
         var replay = new StatisticsOwnershipService(first, new DelegateReader((id, _) =>
-            Task.FromResult<IReadOnlyList<TransponderOwnershipDTO>>([Owner(id, ownerId)])));
+            Task.FromResult<IReadOnlyList<TransponderOwnershipDTO>>([Owner(id, ownerId)])), DomainHeads(first));
         Assert.Equal(0, await replay.ReconcileAsync(Change(firstId, ownerId), timeout.Token));
         verify.ChangeTracker.Clear();
         profile = await verify.Set<StatsProfile>().SingleAsync(timeout.Token);
@@ -112,7 +112,7 @@ public sealed class StatisticsOwnershipPostgreSqlTests : IAsyncLifetime
         await using var reconciliationStorage = CreateStorage();
         var creation = CreateAsync(creationStorage, creationReader, transponderId, timeout.Token);
         await creationRead.Task.WaitAsync(timeout.Token);
-        var reconciliation = new StatisticsOwnershipService(reconciliationStorage, reconciliationReader)
+        var reconciliation = new StatisticsOwnershipService(reconciliationStorage, reconciliationReader, DomainHeads(reconciliationStorage))
             .ReconcileAsync(Change(transponderId, oldOwner), timeout.Token);
 
         // Verify the second connection is actually waiting on the PostgreSQL advisory lock.
@@ -134,7 +134,7 @@ public sealed class StatisticsOwnershipPostgreSqlTests : IAsyncLifetime
         var ownerId = Guid.NewGuid();
         var reader = new DelegateReader((id, _) => Task.FromResult<IReadOnlyList<TransponderOwnershipDTO>>([Owner(id, ownerId)]));
         await using var storage = CreateStorage();
-        var service = new StatisticsOwnershipService(storage, reader);
+        var service = new StatisticsOwnershipService(storage, reader, DomainHeads(storage));
         Assert.Equal(0, await service.ReconcileAsync(Change(transponderId, ownerId), timeout.Token));
         await CreateAsync(storage, reader, transponderId, timeout.Token);
         storage.AddRange(Enumerable.Range(0, 501).Select(_ => Entry(transponderId)));
@@ -217,7 +217,7 @@ public sealed class StatisticsOwnershipPostgreSqlTests : IAsyncLifetime
 
     private Task<IReadOnlyList<StatisticsEntry>> CreateAsync(StatisticsDbContext storage,
         ITransponderOwnershipReader reader, Guid transponderId, CancellationToken cancellationToken) =>
-        new StatisticsOwnershipService(storage, reader).CreateEntriesAsync(transponderId, _ =>
+        new StatisticsOwnershipService(storage, reader, DomainHeads(storage)).CreateEntriesAsync(transponderId, _ =>
         {
             var entry = Entry(transponderId);
             storage.Add(entry);

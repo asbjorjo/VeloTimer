@@ -355,7 +355,7 @@ public sealed partial class StatisticsSmbOutboxProofTests
             throw new InvalidOperationException("Unprocessed predecessor");
         source.Complete();
         await db.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO statistics_processor_proof.proof_effect VALUES ({source.Key}, {DateTime.UtcNow})
+            INSERT INTO statistics_processor.proof_effect VALUES ({source.Key}, {DateTime.UtcNow})
             """);
         await db.SaveChangesAsync();
         await ReleaseHead(db, scope.ServiceProvider, source.IsEntry, source.Rider);
@@ -376,7 +376,7 @@ public sealed partial class StatisticsSmbOutboxProofTests
         var head = (await HeadRows(db, entry, rider)).FirstOrDefault(r => !r.Completed.HasValue);
         if (head is null) return;
         var mappings = await db.Database.SqlQuery<int>($"""
-            SELECT count(*)::int AS "Value" FROM statistics_processor_proof.smb_outbox
+            SELECT count(*)::int AS "Value" FROM statistics_processor.smb_outbox
             WHERE headers ->> 'StatisticsReceiptId' = {head.Key.ToString()}
               AND headers ->> 'MessageName' = {head.Name}
             """).SingleAsync();

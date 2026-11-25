@@ -143,7 +143,11 @@ marks from `SampleCompleteOutbox.md`, `EntryCreatedOutbox.md` and
 `MultiCreationDecisions.md`; swapping senders cannot replace those semantics.
 Increasing broker retries or suppressing ordering failures is not a solution.
 
-## Reproduction and handoff
+## Reproduction and handoff (historical prerequisite)
+
+Production conversion and current reproduction commands are now in
+`StatisticsSmbProduction.md`. The retained fixture uses production outbox
+registration/schema; the following is the original experiment's handoff.
 
 Set `OIDC_AUDIENCE=https://build.invalid` and point
 `VELOTIME_TEST_STATISTICS_POSTGRES` at an administrative connection on a

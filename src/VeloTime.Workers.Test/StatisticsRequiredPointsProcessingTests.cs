@@ -1,9 +1,7 @@
-using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using SlimMessageBus;
 using VeloTime.Module.Statistics;
 using VeloTime.Module.Statistics.Handlers;
 using VeloTime.Module.Statistics.Interface.Data;
@@ -17,7 +15,7 @@ namespace VeloTime.Workers.Test;
 public sealed partial class StatisticsValidityPostgreSqlTests
 {
     [PostgreSqlStatisticsFact]
-    public async Task RequiredLapPublicationFailureRetriesOriginalOutcomeAndMultiWithoutDuplicateRows()
+    public async Task RequiredLapReplayRetainsOriginalOutcomeAndMultiWithoutDuplicateRows()
     {
         var config = Simple();
         config.CoursePointEnd = config.CoursePointStart;
@@ -42,12 +40,10 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         };
         await using var services = new ServiceCollection().AddMetrics().AddHybridCache().Services.BuildServiceProvider();
         var cache = services.GetRequiredService<HybridCache>();
-        var bus = DispatchProxy.Create<IMessageBus, RequiredPointRetryBus>();
-        var recorder = (RequiredPointRetryBus)(object)bus;
         var message = new SampleComplete(rider, rawStart.AddSeconds(20), rawStart.AddSeconds(30),
             b, config.CoursePointEnd, 100);
-        SampleCompleteHandler Handler(VeloTime.Module.Statistics.Storage.StatisticsDbContext db) => new(
-            new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
+        DomainSampleConsumer Handler(VeloTime.Module.Statistics.Storage.StatisticsDbContext db) => new(
+            new(db, cache), new(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db)),
             new Metrics(services.GetRequiredService<System.Diagnostics.Metrics.IMeterFactory>()),
             NullLogger<SampleCompleteHandler>.Instance);
         var source = Edge(b, config.CoursePointEnd, 20, 30);
@@ -62,10 +58,9 @@ public sealed partial class StatisticsValidityPostgreSqlTests
                 });
             await db.SaveChangesAsync();
             await Handler(db).OnHandle(message, CancellationToken.None);
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None));
         }
-        // The row committed before publication failed. A newly delivered checkpoint cannot repair it.
+        // A newly delivered checkpoint cannot repair a committed creation decision.
+        EntryCreated parentEvent;
         await using (var db = Db())
         {
             var entry = await db.Set<StatisticsEntry>().SingleAsync();
@@ -74,29 +69,22 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             Assert.Equal(Start.AddSeconds(30), entry.TimeEnd);
             db.Add(Edge(a, b, 10, 20));
             await db.SaveChangesAsync();
-            recorder.Fail = false;
             await Handler(db).OnHandle(message, CancellationToken.None);
-            await new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None);
-        }
-        Assert.Equal(2, recorder.Events.Count);
-        Assert.Equal(recorder.Events[0], recorder.Events[1]);
-        var parentEvent = Assert.Single(recorder.Events[1]);
-        await using (var db = Db())
-        {
-            var handler = new EntryCreatedHandler(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
-                NullLogger<EntryCreatedHandler>.Instance);
-            recorder.Fail = true;
-            await handler.OnHandle(parentEvent, CancellationToken.None);
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None));
+            var receipt = await db.Set<EntryCreatedOutbox>().SingleAsync();
+            parentEvent = new(receipt.TransponderId, receipt.TimeStart, receipt.TimeEnd,
+                receipt.StatisticsItemId, receipt.ConfigItemId, receipt.EntryId);
         }
         await using (var db = Db())
         {
-            recorder.Fail = false;
-            var handler = new EntryCreatedHandler(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader()),
+            var handler = new DomainEntryConsumer(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db)),
                 NullLogger<EntryCreatedHandler>.Instance);
             await handler.OnHandle(parentEvent, CancellationToken.None);
-            await new EntryCreatedOutboxDispatcher(db, bus).DispatchOneAsync(CancellationToken.None);
+        }
+        await using (var db = Db())
+        {
+            var handler = new DomainEntryConsumer(new(db, cache), new(db, new RequiredPointEmptyOwnershipReader(), DomainHeads(db)),
+                NullLogger<EntryCreatedHandler>.Instance);
+            await handler.OnHandle(parentEvent, CancellationToken.None);
             var rows = await db.Set<StatisticsEntry>().AsNoTracking().ToListAsync();
             Assert.Equal(2, rows.Count);
             Assert.Equal(StatisticsEntryInvalidReason.RequiredCoursePointsNotSatisfied,
@@ -104,7 +92,6 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             Assert.Equal(StatisticsEntryInvalidReason.InvalidContributor,
                 Assert.Single(rows, e => e.StatisticsItemConfigId != config.Id).InvalidReason);
         }
-        Assert.Equal(recorder.Events[2], recorder.Events[3]);
         await Change(config.StatisticsItemId, TimeSpan.FromSeconds(60));
         await Drain(config.StatisticsItemId, 1);
         await Drain(multiItem.Id, 1);
@@ -121,15 +108,4 @@ public sealed partial class StatisticsValidityPostgreSqlTests
             Task.FromResult<IReadOnlyList<TransponderOwnershipDTO>>([]);
     }
 
-    public class RequiredPointRetryBus : DispatchProxy
-    {
-        public bool Fail { get; set; } = true;
-        public List<EntryCreated[]> Events { get; } = [];
-        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
-        {
-            Assert.Equal("Publish", targetMethod?.Name);
-            Events.Add([Assert.IsType<EntryCreated>(args![0])]);
-            return Fail ? Task.FromException(new InvalidOperationException("Injected publish failure")) : Task.CompletedTask;
-        }
-    }
 }
