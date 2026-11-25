@@ -59,6 +59,10 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("single");
 
+                    b.Property<DateTime?>("SmbEnqueuedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("smb_enqueued_at_utc");
+
                     b.Property<Guid>("StatisticsItemId")
                         .HasColumnType("uuid")
                         .HasColumnName("statistics_item_id");
@@ -86,8 +90,17 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasDatabaseName("ix_entry_created_outbox_transponder_id_id")
                         .HasFilter("delivered_at_utc IS NULL");
 
+                    b.HasIndex(new[] { "TransponderId" }, "ActiveSmbHead")
+                        .IsUnique()
+                        .HasDatabaseName("ux_entry_created_outbox_active_smb_head")
+                        .HasFilter("smb_enqueued_at_utc IS NOT NULL AND multi_decisions_created_at_utc IS NULL");
+
                     b.HasIndex(new[] { "TransponderId", "Id" }, "CreationOrder")
                         .HasDatabaseName("ix_entry_created_outbox_transponder_creation_order");
+
+                    b.HasIndex(new[] { "TransponderId", "Id" }, "UnprocessedHead")
+                        .HasDatabaseName("ix_entry_created_outbox_unprocessed_head")
+                        .HasFilter("multi_decisions_created_at_utc IS NULL");
 
                     b.ToTable("entry_created_outbox", "statistics", t =>
                         {
@@ -233,6 +246,10 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("sample_id");
 
+                    b.Property<DateTime?>("SmbEnqueuedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("smb_enqueued_at_utc");
+
                     b.Property<DateTime>("TimeEnd")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("time_end");
@@ -255,6 +272,15 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.HasIndex("TransponderId", "Id")
                         .HasDatabaseName("ix_sample_complete_outbox_transponder_id_id")
                         .HasFilter("delivered_at_utc IS NULL OR entries_created_at_utc IS NULL");
+
+                    b.HasIndex(new[] { "TransponderId" }, "ActiveSmbHead")
+                        .IsUnique()
+                        .HasDatabaseName("ux_sample_complete_outbox_active_smb_head")
+                        .HasFilter("smb_enqueued_at_utc IS NOT NULL AND entries_created_at_utc IS NULL");
+
+                    b.HasIndex(new[] { "TransponderId", "Id" }, "UnprocessedHead")
+                        .HasDatabaseName("ix_sample_complete_outbox_unprocessed_head")
+                        .HasFilter("entries_created_at_utc IS NULL");
 
                     b.ToTable("sample_complete_outbox", "statistics");
                 });

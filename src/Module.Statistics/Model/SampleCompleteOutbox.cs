@@ -13,4 +13,7 @@ public class SampleCompleteOutbox
     public double Distance { get; init; }
     public DateTime? DeliveredAtUtc { get; set; }
     public DateTime? EntriesCreatedAtUtc { get; set; }
+    /// <summary>UTC instant this receipt was atomically published to the processor SMB outbox;
+    /// independent of transport delivery and retained after SMB cleanup.</summary>
+    public DateTime? SmbEnqueuedAtUtc { get; set; }
 }

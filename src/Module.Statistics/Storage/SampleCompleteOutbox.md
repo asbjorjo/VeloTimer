@@ -1,5 +1,10 @@
 # SampleComplete processor outbox
 
+The stock SMB head-gate **schema prerequisite only** is documented in
+`StatisticsProcessorSmbHead.md`. The dispatcher described below remains the
+current implementation; the new protocol is not active until coordinated worker
+and hosting conversion.
+
 The processor uses the EF-owned `statistics.sample_complete_outbox`, not the API's
 `statistics.smb_outbox` or SlimMessageBus's schema-wide sequence. Only the sample
 handler writes it. EntryCreated uses its own transactional processor outbox; see

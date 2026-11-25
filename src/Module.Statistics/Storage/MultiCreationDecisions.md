@@ -1,5 +1,9 @@
 # Durable Multi creation decisions
 
+For the future stock SMB head-gate schema and its stricter requirement to mark
+validated non-Single completions too, see `StatisticsProcessorSmbHead.md`.
+The existing dispatcher described here remains in place until worker conversion.
+
 `20261124095835_statistics_multi_creation_decisions` is additive PostgreSQL DDL.
 Do not activate the replay fix until the domain/worker integration and PostgreSQL
 acceptance tests pass and the maintenance gates below are met. No public DTO/message change is required:

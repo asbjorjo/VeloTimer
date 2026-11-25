@@ -49,6 +49,15 @@ public class StatisticsDbContext : BaseDbContext
             e.HasIndex(x => x.SampleId).IsUnique();
             var pending = e.HasIndex(x => new { x.TransponderId, x.Id });
             if (Database.IsNpgsql()) pending.HasFilter("delivered_at_utc IS NULL OR entries_created_at_utc IS NULL");
+            if (Database.IsNpgsql())
+            {
+                e.HasIndex(x => new { x.TransponderId, x.Id }, "UnprocessedHead")
+                    .HasDatabaseName("ix_sample_complete_outbox_unprocessed_head")
+                    .HasFilter("entries_created_at_utc IS NULL");
+                e.HasIndex(x => x.TransponderId, "ActiveSmbHead")
+                    .HasDatabaseName("ux_sample_complete_outbox_active_smb_head")
+                    .IsUnique().HasFilter("smb_enqueued_at_utc IS NOT NULL AND entries_created_at_utc IS NULL");
+            }
         });
         modelBuilder.Entity<EntryCreatedOutbox>(e =>
         {
@@ -64,6 +73,12 @@ public class StatisticsDbContext : BaseDbContext
                 .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Throw);
             if (Database.IsNpgsql())
             {
+                e.HasIndex(x => new { x.TransponderId, x.Id }, "UnprocessedHead")
+                    .HasDatabaseName("ix_entry_created_outbox_unprocessed_head")
+                    .HasFilter("multi_decisions_created_at_utc IS NULL");
+                e.HasIndex(x => x.TransponderId, "ActiveSmbHead")
+                    .HasDatabaseName("ux_entry_created_outbox_active_smb_head")
+                    .IsUnique().HasFilter("smb_enqueued_at_utc IS NOT NULL AND multi_decisions_created_at_utc IS NULL");
                 e.ToTable(t => t.HasCheckConstraint("ck_entry_created_outbox_multi_decision",
                     "multi_decision_version IN (0, 1) AND " +
                     "(multi_decision_version = 1 OR multi_decisions_created_at_utc IS NULL)"));

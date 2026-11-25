@@ -1,5 +1,10 @@
 # Durable EntryCreated publication
 
+The stock SMB head-gate **schema prerequisite only** is documented in
+`StatisticsProcessorSmbHead.md`. The dispatcher described below remains the
+current implementation; the new protocol is not active until coordinated worker
+and hosting conversion.
+
 The processor alone writes and dispatches `statistics.entry_created_outbox`.
 It does not register SMB outbox interceptors or read/write the API-owned
 `statistics.smb_outbox`; threshold publication and its dispatcher are unchanged.

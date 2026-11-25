@@ -18,4 +18,7 @@ public class EntryCreatedOutbox
     /// <summary>All eligible Multi configs decided atomically, including an empty config set.
     /// Independent of broker delivery; once set, later configs cannot add outputs on replay.</summary>
     public DateTime? MultiDecisionsCreatedAtUtc { get; set; }
+    /// <summary>UTC instant this receipt was atomically published to the processor SMB outbox;
+    /// independent of transport delivery and retained after SMB cleanup.</summary>
+    public DateTime? SmbEnqueuedAtUtc { get; set; }
 }
