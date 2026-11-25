@@ -1,5 +1,11 @@
 # Statistics SMB outbox prerequisite experiment
 
+**Follow-up:** [Stock SMB with domain head release](StatisticsSmbHeadGateProof.md)
+tests an alternative not exercised below: persist all domain receipts but publish
+only the head, then atomically release the successor during processing. The
+all-rows-published counterexample below does not rule out that design, nor does
+it establish that an inbox or custom selector is required.
+
 Scope: SMB **3.4.0**, branch `fix/statistics-sample-replay`, starting at
 `51ec21c3`. This is test-only evidence, **not approval to remove either production
 dispatcher**. No production registration, message contract, API, migration or

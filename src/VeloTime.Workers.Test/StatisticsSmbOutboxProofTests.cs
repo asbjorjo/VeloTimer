@@ -60,7 +60,11 @@ public sealed partial class StatisticsSmbOutboxProofTests : IAsyncLifetime
         await using (var db = Db()) await db.Database.MigrateAsync();
         // SMB migrates its tables, but does not create DatabaseSchemaName.
         await Sql(connection, $"CREATE SCHEMA {Schema}");
+        await StartProofProvider();
+    }
 
+    private async Task StartProofProvider()
+    {
         var builder = Host.CreateApplicationBuilder();
         builder.Configuration["ConnectionStrings:MessageBus"] = "Endpoint=sb://localhost/;SharedAccessKeyName=test;SharedAccessKey=dGVzdA==";
         builder.Configuration["ConnectionStrings:keycloak"] = "https://identity.test.invalid/realms/velotime";
@@ -92,6 +96,7 @@ public sealed partial class StatisticsSmbOutboxProofTests : IAsyncLifetime
                 options.MaintainSequence = true;
                 options.PollBatchSize = 1;
                 options.PollIdleSleep = TimeSpan.FromMilliseconds(30);
+                options.LockExpiration = TimeSpan.FromSeconds(5);
                 options.MaxDeliveryAttempts = int.MaxValue;
                 options.MessageCleanup = new OutboxMessageCleanupSettings { Enabled = false };
             });
