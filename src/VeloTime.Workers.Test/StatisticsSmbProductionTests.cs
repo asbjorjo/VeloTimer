@@ -222,8 +222,13 @@ public sealed partial class StatisticsSmbOutboxProofTests
             foreach (var change in new Action<ServiceBusMessage>[]
             {
                 w => w.ApplicationProperties["MessageName"] = "wrong",
+                w => w.ApplicationProperties.Remove("MessageName"),
+                w => w.ApplicationProperties["MessageName"] = 42,
                 w => w.ApplicationProperties[ReceiptHeader] = Guid.NewGuid().ToString(),
+                w => w.ApplicationProperties.Remove(ReceiptHeader),
+                w => w.ApplicationProperties[ReceiptHeader] = WireId(w),
                 w => w.ApplicationProperties["Single"] = false,
+                w => w.ApplicationProperties["Single"] = "true",
                 w => w.Body = BinaryData.FromString("{}")
             })
             {
@@ -231,6 +236,12 @@ public sealed partial class StatisticsSmbOutboxProofTests
                 change(invalid);
                 await Assert.ThrowsAsync<InvalidOperationException>(() => Consume(invalid,
                     new ProductionEmptyOwnershipReader(), sample: original.ApplicationProperties["MessageName"] is nameof(SampleComplete)));
+            }
+            if (original.ApplicationProperties.ContainsKey("Single"))
+            {
+                var invalid = CopyWire(original);
+                invalid.ApplicationProperties.Remove("Single");
+                await Assert.ThrowsAsync<InvalidOperationException>(() => Consume(invalid));
             }
             IEnumerable<object> invalidBodies;
             if (original.ApplicationProperties["MessageName"] is nameof(SampleComplete))
