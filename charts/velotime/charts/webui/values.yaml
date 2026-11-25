@@ -26,6 +26,11 @@ migration:
 service:
   type: ClusterIP
   port: 80
+resources:
+  requests:
+    memory: 1Gi
+  limits:
+    memory: 1.2Gi
 global:
   image:
     repository: ""  

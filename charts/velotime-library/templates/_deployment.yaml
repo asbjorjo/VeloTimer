@@ -1,4 +1,5 @@
 {{- define "velotime.deployment" -}}
+{{- $resources := .Values.resources | default dict }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -45,7 +46,7 @@ spec:
               name: {{ .Values.existingSecret | default (include "velotime.fullname" .) }}
         resources:
           requests:
-            memory: 256Mi
+            memory: {{ dig "requests" "memory" "256Mi" $resources }}
           limits:
-            memory: 1Gi
+            memory: {{ dig "limits" "memory" "1Gi" $resources }}
 {{- end -}}
