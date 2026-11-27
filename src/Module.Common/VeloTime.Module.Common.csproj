@@ -9,6 +9,7 @@
 
   <ItemGroup>
 	<PackageReference Include="Aspire.Keycloak.Authentication" />
+	<PackageReference Include="Azure.Messaging.ServiceBus" />
 	<PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
 	<PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" />
     <PackageReference Include="Duende.AccessTokenManagement" />
