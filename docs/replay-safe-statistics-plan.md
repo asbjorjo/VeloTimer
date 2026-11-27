@@ -1,6 +1,6 @@
 # Replay-safe, order-independent statistics: refactoring plan
 
-Status: decisions confirmed 2026-11-27. Phase 1 (#138) is merged; Phase 2 is implemented. Phases 3 and 4 remain.
+Status: decisions confirmed 2026-11-27. Phases 1 (#138) and 2 are merged; Phase 3 is implemented. Phase 4 remains.
 Base: `v2` at `53ba7b9a`. Builds on, and partly supersedes, [PR #132](https://github.com/asbjorjo/VeloTimer/pull/132) and [`docs/research/agent-timing-statistics-messaging-plan.md`](./research/agent-timing-statistics-messaging-plan.md).
 
 ## 1. Requirements

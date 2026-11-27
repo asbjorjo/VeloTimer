@@ -2,10 +2,10 @@
 
 ## API owner
 
-Inject the scoped `VeloTime.Module.Facilities.Api.ITimingAssociationEventPublisher`:
+Inject the scoped `VeloTime.Module.Facilities.Api.ICourseConfigEventPublisher`:
 
 ```csharp
-Task EnqueueAsync(CoursePointTimingAssociationsChangedV1 message,
+Task EnqueueAsync(CourseConfigChangedV1 message,
     CancellationToken cancellationToken = default);
 ```
 
@@ -39,10 +39,10 @@ pending with retry/error behavior, rather than becoming a success-shaped no-op.
 
 ## Delivery, topology and replay
 
-* Facilities topic: **`velotime-facilities-test`** (stable constant, no Timing topic/subscription).
+* Facilities topic: **`velotime-facilities`** (`MessagingExtensions.CourseConfigTopic`).
 * Azure transport `MessageId = EventId.ToString()`; `SessionId = FacilityId.ToString()`
   groups atomic changes that may span coursepoints. JSON header
-  `MessageName = CoursePointTimingAssociationsChangedV1`.
+  `MessageName = CourseConfigChangedV1`.
 * At-least-once delivery; an accepted send followed by a lost acknowledgement can duplicate
   the original event. Persisted payload/IDs are stable; future consumers need durable
   `EventId` deduplication. `ChangeId` correlates the complete atomic edit.
@@ -50,14 +50,9 @@ pending with retry/error behavior, rather than becoming a success-shaped no-op.
   later events overtaking a failed oldest event in the dispatch batch; it is **not**
   a global concurrent-commit/consumer ordering guarantee. A poison event can hold up later
   messages. Monitor pending count, age, attempts and dispatcher errors.
-* No chart/AppHost topic, subscription or retention provisioning was found in the
-  deployment assessment. No cloud resources were inspected or created. Before enabling
-  this API, an external owner must precreate the topic, authorize the producer, and
-  precreate a **durable future consumer subscription with a filter accepting the above
-  `MessageName`** (for example, `MessageName = 'CoursePointTimingAssociationsChangedV1'`)
-  and session-capable subscription/receiver configuration if session ordering is used.
-  That owner must decide TTL, dead-letter/recovery, duplicate detection, session ordering,
-  retention and replay policies. These are prerequisites, not resources this change provisions.
+* The topic and its Statistics subscription (`statistics`, sessions required, filter
+  `MessageName = 'CourseConfigChangedV1'`) are provisioned by `src/MessageBus.Topology/topology.json`
+  and `charts/velotime/values.yaml`.
 * Without a durable subscription **at publication time**, a successfully published topic
   event is not replayable from Azure. Topic publication does not create retained history.
   No exactly-once or guaranteed Azure replay claim is made.
