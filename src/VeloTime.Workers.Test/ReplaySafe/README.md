@@ -47,9 +47,9 @@ VELOTIME_RUN_PENDING_REQUIREMENTS=1 dotnet test src/VeloTime.Workers.Test --filt
 | `LateRedeliveryOfEveryConsumedMessage_ChangesNoRowOrId` | – (passes on Phase 2) | every sample and entry is inserted again |
 | `AgentReplayOfAFullDay_CreatesNoNewRows` | – (passes on Phase 2) | Timing dedupes, Statistics duplicates (S1) |
 | `ItemDefinedAfterTheData_CountsHistoryLikeAFreshRun` | – (passes on Phase 2) | a new item counts only new data |
-| `MissingAssociationAddedLater_...` | Phase 3 | the association change is not consumed (C4) |
-| `LoopsSwappedFromX_RecomputeOnlyResultsFromX` | Phase 3 | the association change is not consumed (C4) |
-| `SegmentLengthsRevisedFromX_...` | Phase 3 | layouts have no dated revisions (C1) |
+| `MissingAssociationAddedLater_...` | – (passes on Phase 3) | the association change is not consumed (C4) |
+| `LoopsSwappedFromX_RecomputeOnlyResultsFromX` | – (passes on Phase 3) | the association change is not consumed (C4) |
+| `SegmentLengthsRevisedFromX_...` | – (passes on Phase 3) | layouts have no dated revisions (C1) |
 | `InstallationMovedToAnotherFacilityFromX_...` | Phase 4 | installation facility is not time-bound (C2) |
 | `LapThresholdTightenedFromX_InvalidatesOnlyLaterLaps` | Phase 4 | thresholds are not versioned (C3) |
 | `ManualInvalidation_SurvivesReplayRedelivery...` | – (passes on Phase 2) | replays duplicate the invalidated lap |

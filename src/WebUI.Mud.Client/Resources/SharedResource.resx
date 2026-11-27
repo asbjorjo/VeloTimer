@@ -529,7 +529,7 @@
   <data name="NoLowerBound" xml:space="preserve"><value>No lower bound (from the beginning)</value></data>
   <data name="NoUpperBound" xml:space="preserve"><value>No upper bound (no end)</value></data>
   <data name="LegacyImmediateHelp" xml:space="preserve"><value>This uses the legacy immediate write; it does not create a fully unbounded interval.</value></data>
-  <data name="BackdatedAssociationStatisticsGuidance" xml:space="preserve"><value>Backdated changes may leave existing Statistics results and aggregates stale. A separate recalculation repair follow-up is required; this save does not repair them immediately.</value></data>
+  <data name="BackdatedAssociationStatisticsGuidance" xml:space="preserve"><value>Statistics are recalculated for the affected interval after the save. Backdated changes can take a while to show in results.</value></data>
   <data name="AssociationConflictNeedsConfirmation" xml:space="preserve"><value>This interval overlaps assignments to other coursepoints</value></data>
   <data name="ConflictConfirmationRequired" xml:space="preserve"><value>Review every exact overlap above. Confirming replaces only those overlapping destination intervals. A changed preview requires a new confirmation.</value></data>
   <data name="ConfirmExactReplacement" xml:space="preserve"><value>Confirm these exact replacements</value></data>
@@ -706,4 +706,23 @@
   <data name="StatisticsLayoutThresholdHelp" xml:space="preserve"><value>Speed-based thresholds require a known fixed distance. Edit durations instead.</value></data>
   <data name="StatisticsLayoutMultiInvalid" xml:space="preserve"><value>Course layout distance cannot be used for a Multi configuration.</value></data>
   <data name="HallOfFameSpeedRanking" xml:space="preserve"><value>Global laps are ranked by speed, highest first. Times are shown for each result.</value></data>
+  <data name="YesValue" xml:space="preserve"><value>Yes</value></data>
+  <data name="NoValue" xml:space="preserve"><value>No</value></data>
+  <data name="TotalLength" xml:space="preserve"><value>Total length</value></data>
+  <data name="LayoutRevisionInterval" xml:space="preserve"><value>When the geometry change applies</value></data>
+  <data name="LayoutRevisionIntervalHelp" xml:space="preserve"><value>Saving changes the segments, order and lengths over the half-open interval [from, to). Revisions outside the interval are kept. Select no lower bound and no upper bound to replace the whole history.</value></data>
+  <data name="BackdatedLayoutStatisticsGuidance" xml:space="preserve"><value>Statistics are recalculated for the affected interval after the save. Backdated changes can take a while to show in results.</value></data>
+  <data name="LayoutRevisionConflictNeedsConfirmation" xml:space="preserve"><value>This interval replaces existing layout revisions</value></data>
+  <data name="LayoutRevisionOverlapWindow" xml:space="preserve"><value>{0}: {1} segments, {2}</value></data>
+  <data name="LayoutHistory" xml:space="preserve"><value>Layout history</value></data>
+  <data name="LayoutRevisions" xml:space="preserve"><value>Geometry revisions</value></data>
+  <data name="NoLayoutRevisions" xml:space="preserve"><value>No geometry revisions</value></data>
+  <data name="LayoutInUseSchedule" xml:space="preserve"><value>When the facility runs this layout</value></data>
+  <data name="LayoutInUse" xml:space="preserve"><value>In use</value></data>
+  <data name="ChangeLayoutInUse" xml:space="preserve"><value>Change when the layout is in use</value></data>
+  <data name="LayoutInUseOption" xml:space="preserve"><value>In use in this interval</value></data>
+  <data name="LayoutNotInUseOption" xml:space="preserve"><value>Not in use in this interval</value></data>
+  <data name="SaveLayoutInUse" xml:space="preserve"><value>Save in-use interval</value></data>
+  <data name="LayoutInUseSaved" xml:space="preserve"><value>In-use interval saved</value></data>
+  <data name="LayoutHistoryLoadFailed" xml:space="preserve"><value>The layout history could not be loaded.</value></data>
 </root>

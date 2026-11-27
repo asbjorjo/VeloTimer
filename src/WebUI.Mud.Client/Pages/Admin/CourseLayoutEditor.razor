@@ -132,11 +132,82 @@
                 </RowTemplate>
                 <NoRecordsContent><MudText>@L["NoSegments"]</MudText></NoRecordsContent>
             </MudTable>
+            @if (_savedId.HasValue)
+            {
+                <MudPaper Outlined="true" Class="pa-4 mb-6">
+                    <MudText Typo="Typo.subtitle1">@L["LayoutRevisionInterval"]</MudText>
+                    <MudAlert Severity="Severity.Info" Class="my-2">@L["LayoutRevisionIntervalHelp"]</MudAlert>
+                    <MudCheckBox T="bool" @bind-Value="_revisionFromUnbounded" @bind-Value:after="RevisionInputChanged" Label="@L["NoLowerBound"]" Disabled="@(_busy || _revisionPreview is not null)" />
+                    @if (!_revisionFromUnbounded) { <ZonedInstantEditor Draft="_revisionFromDraft" EditorSettings="_editorSettings" Label="@L["From"]" Required="false" Disabled="@(_busy || _revisionPreview is not null)" Changed="RevisionInputChanged" /> }
+                    <MudCheckBox T="bool" @bind-Value="_revisionToUnbounded" @bind-Value:after="RevisionInputChanged" Label="@L["NoUpperBound"]" Disabled="@(_busy || _revisionPreview is not null)" />
+                    @if (!_revisionToUnbounded) { <ZonedInstantEditor Draft="_revisionToDraft" EditorSettings="_editorSettings" Label="@L["ToExclusive"]" Required="false" Disabled="@(_busy || _revisionPreview is not null)" Changed="RevisionInputChanged" /> }
+                    <MudAlert Severity="Severity.Info" Class="my-2">@L["BackdatedLayoutStatisticsGuidance"]</MudAlert>
+                    @if (_revisionPreview is { } revisionPreview)
+                    {
+                        <MudAlert Severity="Severity.Warning" role="alert" Class="my-2">
+                            <MudText Typo="Typo.subtitle2">@L["LayoutRevisionConflictNeedsConfirmation"]</MudText>
+                            @foreach (var overlap in revisionPreview.Overlaps)
+                            {
+                                <MudText>@L["LayoutRevisionOverlapWindow", FormatInterval(overlap.OverlapValidFromUtc, overlap.OverlapValidToUtc), overlap.SegmentCount, _editorSettings.Distance(overlap.TotalLength)]</MudText>
+                            }
+                            <MudText>@L["ConflictConfirmationRequired"]</MudText>
+                        </MudAlert>
+                        <MudStack Row="true" Wrap="Wrap.Wrap" Class="my-2">
+                            <MudButton Color="Color.Warning" Variant="Variant.Filled" OnClick="ConfirmRevisionConflict" Disabled="_busy">@L["ConfirmExactReplacement"]</MudButton>
+                            <MudButton OnClick="ClearRevisionConflict" Disabled="_busy">@L["Cancel"]</MudButton>
+                        </MudStack>
+                    }
+                </MudPaper>
+            }
             <MudStack Row="true" Spacing="3">
-                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="Save" Disabled="@(_busy || !_dirty)">@L["SaveLayout"]</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Save" OnClick="Save" Disabled="@(_busy || !_dirty || _revisionPreview is not null || (_savedId.HasValue && !_editorSettings.IsReady))">@L["SaveLayout"]</MudButton>
                 <MudButton Href="@($"/admin/facilities/{FacilityId}/layouts")" Disabled="_busy">@L["BackToLayouts"]</MudButton>
             </MudStack>
         </MudForm>
+        @if (_savedId.HasValue)
+        {
+            <MudPaper Outlined="true" Class="pa-4 mt-6">
+                <MudText Typo="Typo.h6" GutterBottom="true">@L["LayoutHistory"]</MudText>
+                @if (_historyLoading) { <MudProgressLinear Indeterminate="true" Class="my-2" /> }
+                else if (_historyError is not null) { <MudAlert Severity="Severity.Error" role="alert" Class="my-2">@_historyError</MudAlert> }
+                else if (_history is { } history)
+                {
+                    <MudText Typo="Typo.subtitle2" Class="mt-2">@L["LayoutRevisions"]</MudText>
+                    <MudTable T="CourseLayoutRevisionHistoryDTO" Items="history.Revisions" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent><MudTh>@L["EffectiveInterval"]</MudTh><MudTh>@L["Segments"]</MudTh><MudTh>@L["TotalLength"]</MudTh><MudTh>@L["AssociationStatus"]</MudTh></HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="@L["EffectiveInterval"]">@FormatInterval(context.ValidFromUtc, context.ValidToUtc)</MudTd>
+                            <MudTd DataLabel="@L["Segments"]">@context.Segments.Count</MudTd>
+                            <MudTd DataLabel="@L["TotalLength"]">@_editorSettings.Distance(context.Segments.Sum(segment => segment.Length))</MudTd>
+                            <MudTd DataLabel="@L["AssociationStatus"]">@ScheduleStatus(context.ValidFromUtc, context.ValidToUtc, false)</MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><MudText>@L["NoLayoutRevisions"]</MudText></NoRecordsContent>
+                    </MudTable>
+                    <MudText Typo="Typo.subtitle2" Class="mt-4">@L["LayoutInUseSchedule"]</MudText>
+                    <MudTable T="AssignmentRow" Items="BuildAssignmentRows(history.Assignments)" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent><MudTh>@L["EffectiveInterval"]</MudTh><MudTh>@L["LayoutInUse"]</MudTh><MudTh>@L["AssociationStatus"]</MudTh></HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="@L["EffectiveInterval"]">@FormatInterval(context.ValidFromUtc, context.ValidToUtc)</MudTd>
+                            <MudTd DataLabel="@L["LayoutInUse"]">@(context.InUse ? L["YesValue"] : L["NoValue"])</MudTd>
+                            <MudTd DataLabel="@L["AssociationStatus"]">@ScheduleStatus(context.ValidFromUtc, context.ValidToUtc, false)</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.subtitle1">@L["ChangeLayoutInUse"]</MudText>
+                    <MudRadioGroup T="bool" @bind-Value="_assignmentInUse" @bind-Value:after="AssignmentInputChanged" Disabled="_busy">
+                        <MudRadio T="bool" Value="true">@L["LayoutInUseOption"]</MudRadio>
+                        <MudRadio T="bool" Value="false">@L["LayoutNotInUseOption"]</MudRadio>
+                    </MudRadioGroup>
+                    <MudCheckBox T="bool" @bind-Value="_assignmentFromUnbounded" @bind-Value:after="AssignmentInputChanged" Label="@L["NoLowerBound"]" Disabled="_busy" />
+                    @if (!_assignmentFromUnbounded) { <ZonedInstantEditor Draft="_assignmentFromDraft" EditorSettings="_editorSettings" Label="@L["From"]" Required="false" Disabled="_busy" Changed="AssignmentInputChanged" /> }
+                    <MudCheckBox T="bool" @bind-Value="_assignmentToUnbounded" @bind-Value:after="AssignmentInputChanged" Label="@L["NoUpperBound"]" Disabled="_busy" />
+                    @if (!_assignmentToUnbounded) { <ZonedInstantEditor Draft="_assignmentToDraft" EditorSettings="_editorSettings" Label="@L["ToExclusive"]" Required="false" Disabled="_busy" Changed="AssignmentInputChanged" /> }
+                    <MudAlert Severity="Severity.Info" Class="my-2">@L["BackdatedLayoutStatisticsGuidance"]</MudAlert>
+                    @if (_assignmentError is not null) { <MudAlert Severity="Severity.Error" role="alert" Class="my-2">@_assignmentError</MudAlert> }
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAssignment" Disabled="@(_busy || !_editorSettings.IsReady)">@L["SaveLayoutInUse"]</MudButton>
+                }
+            </MudPaper>
+        }
     }
 </MudContainer>
 
@@ -166,6 +237,13 @@
     private string _facilityName = "";
     private Guid? _savedId, _reuseId;
     private Guid? _loadedFacility, _loadedLayout;
+    private readonly ZonedInstantDraft _revisionFromDraft = new(), _revisionToDraft = new(), _assignmentFromDraft = new(), _assignmentToDraft = new();
+    private bool _revisionFromUnbounded, _revisionToUnbounded = true, _assignmentFromUnbounded, _assignmentToUnbounded = true, _assignmentInUse = true;
+    private CourseLayoutRevisionConflictPreview? _revisionPreview;
+    private SetCourseLayoutRevisionRequest? _pendingRevisionRequest;
+    private CourseLayoutHistoryDTO? _history;
+    private bool _historyLoading;
+    private string? _historyError, _assignmentError;
     protected override void OnInitialized() => _unsavedRegistration = UnsavedChanges.Register(() => _dirty);
     private sealed class EditablePoint { public Guid Id { get; init; } = Guid.NewGuid(); public string Name { get; set; } = ""; public Guid? TimingPointId { get; set; } }
     private sealed class EditableSegment { public Guid Id { get; init; } = Guid.NewGuid(); public Guid? StartId { get; set; } public Guid? EndId { get; set; } public DistanceEditorValue Distance { get; set; } = default!; public double Length { get => Distance.Value; set => Distance.Value = value; } }
@@ -211,6 +289,9 @@
             _currentMappingUnavailable = false;
             _found = true;
             _loadedFacility = FacilityId; _loadedLayout = LayoutId;
+            _revisionPreview = null; _pendingRevisionRequest = null; _assignmentError = null;
+            if (LayoutId.HasValue) await LoadHistory();
+            else _history = null;
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch (Exception) { _error = L["LayoutLoadFailed"]; }
@@ -220,14 +301,20 @@
     private void InitializeAssociationRange()
     {
         _fromUnbounded = false; _toUnbounded = true;
-        _fromDraft.Date = null;
-        _fromDraft.Time = null;
-        _fromDraft.Offset = null;
+        _revisionFromUnbounded = false; _revisionToUnbounded = true;
+        _assignmentFromUnbounded = false; _assignmentToUnbounded = true; _assignmentInUse = true;
+        foreach (var draft in new[] { _fromDraft, _revisionFromDraft, _assignmentFromDraft }) StartNow(draft);
+    }
+    private void StartNow(ZonedInstantDraft draft)
+    {
+        draft.Date = null;
+        draft.Time = null;
+        draft.Offset = null;
         if (!_editorSettings.IsReady) return;
         var local = _editorSettings.Local(DateTimeOffset.UtcNow);
-        _fromDraft.Date = local.Date;
-        _fromDraft.Time = new TimeSpan(local.Hour, local.Minute, 0);
-        _fromDraft.Offset = local.Offset;
+        draft.Date = local.Date;
+        draft.Time = new TimeSpan(local.Hour, local.Minute, 0);
+        draft.Offset = local.Offset;
     }
     private void AddPoint() { _points.Add(new EditablePoint()); MarkDirty(); }
     private void ReusePoint()
@@ -253,11 +340,19 @@
         if (_segments.Count == 0 || _segments.Any(segment => !segment.StartId.HasValue || !segment.EndId.HasValue)) { _error = L["AddConnectedSegments"]; return; }
         var used = _segments.SelectMany(segment => new[] { segment.StartId!.Value, segment.EndId!.Value }).ToHashSet();
         if (!used.SetEquals(_points.Select(point => point.Id))) { _error = L["UseEveryCoursepoint"]; return; }
+        var points = _points.Select(point => new SaveCoursePointRequest(point.Id, point.Name)).ToList();
+        var segments = _segments.Select(segment => new SaveCourseSegmentRequest(segment.Id, segment.StartId!.Value, segment.EndId!.Value, segment.Distance.Metres)).ToList();
+        if (_savedId is { } layoutId)
+        {
+            if (!TryResolveInterval(_revisionFromUnbounded, _revisionFromDraft, _revisionToUnbounded, _revisionToDraft, out var from, out var to, out var intervalError))
+            { _error = intervalError; return; }
+            await SubmitRevision(layoutId, new() { Points = points, Segments = segments, ValidFromUtc = from, ValidToUtc = to });
+            return;
+        }
         _busy = true; _error = null;
         try
         {
-            var saved = await Service.SaveLayoutAsync(FacilityId, _savedId, new(_points.Select(point => new SaveCoursePointRequest(point.Id, point.Name)).ToList(),
-                _segments.Select(segment => new SaveCourseSegmentRequest(segment.Id, segment.StartId!.Value, segment.EndId!.Value, segment.Distance.Metres)).ToList()), _lifetime.Token);
+            var saved = await Service.CreateLayoutAsync(FacilityId, new(points, segments), _lifetime.Token);
             _savedId = saved.Id;
             _dirty = false; Snackbar.Add(L["LayoutSaved"], Severity.Success);
             Navigation.NavigateTo($"/admin/facilities/{FacilityId}/layouts/{saved.Id}");
@@ -266,6 +361,99 @@
         catch (Exception) { _error = L["LayoutSaveFailed"]; }
         finally { _busy = false; }
     }
+    private async Task SubmitRevision(Guid layoutId, SetCourseLayoutRevisionRequest request)
+    {
+        _busy = true; _error = null;
+        try
+        {
+            await Service.SetLayoutRevisionAsync(FacilityId, layoutId, request, _lifetime.Token);
+            _revisionPreview = null; _pendingRevisionRequest = null;
+            _dirty = false; Snackbar.Add(L["LayoutSaved"], Severity.Success);
+            await RefreshCurrentMappings();
+            await LoadHistory();
+        }
+        catch (CourseLayoutRevisionConflictException exception)
+        {
+            // A stale token produces a fresh preview. The user must confirm this new preview separately.
+            _pendingRevisionRequest = request with { ConfirmationToken = null };
+            _revisionPreview = exception.Preview;
+        }
+        catch (HttpRequestException exception) { _revisionPreview = null; _error = ErrorFor(exception); }
+        catch (Exception) { _revisionPreview = null; _error = L["LayoutSaveFailed"]; }
+        finally { _busy = false; }
+    }
+    private async Task ConfirmRevisionConflict()
+    {
+        if (_revisionPreview is not { } preview || _pendingRevisionRequest is not { } pending || _savedId is not { } layoutId || _busy) return;
+        await SubmitRevision(layoutId, pending with { ConfirmationToken = preview.ConfirmationToken });
+    }
+    private void ClearRevisionConflict() { _revisionPreview = null; _pendingRevisionRequest = null; _error = null; }
+    private void RevisionInputChanged() { _revisionPreview = null; _pendingRevisionRequest = null; }
+    private void AssignmentInputChanged() => _assignmentError = null;
+    private async Task SaveAssignment()
+    {
+        if (_savedId is not { } layoutId || _busy) return;
+        if (!TryResolveInterval(_assignmentFromUnbounded, _assignmentFromDraft, _assignmentToUnbounded, _assignmentToDraft, out var from, out var to, out var intervalError))
+        { _assignmentError = intervalError; return; }
+        _busy = true; _assignmentError = null;
+        try
+        {
+            await Service.SetLayoutAssignmentAsync(FacilityId, layoutId, new() { InUse = _assignmentInUse, ValidFromUtc = from, ValidToUtc = to }, _lifetime.Token);
+            Snackbar.Add(L["LayoutInUseSaved"].Value, Severity.Success);
+            await LoadHistory();
+        }
+        catch (HttpRequestException exception) { _assignmentError = ErrorFor(exception); }
+        catch (Exception) { _assignmentError = L["LayoutSaveFailed"].Value; }
+        finally { _busy = false; }
+    }
+    private bool TryResolveInterval(bool fromUnbounded, ZonedInstantDraft fromDraft, bool toUnbounded, ZonedInstantDraft toDraft,
+        out DateTimeOffset? from, out DateTimeOffset? to, out string error)
+    {
+        from = null; to = null; error = "";
+        try
+        {
+            if (!fromUnbounded) from = fromDraft.Resolve(_editorSettings);
+            if (!toUnbounded) to = toDraft.Resolve(_editorSettings);
+        }
+        catch (PresentationValidationException exception) { error = L[exception.ResourceKey].Value; return false; }
+        if (from.HasValue && to.HasValue && from.Value >= to.Value) { error = L["AssociationInvalidRange"].Value; return false; }
+        return true;
+    }
+    private async Task LoadHistory()
+    {
+        if (_savedId is not { } layoutId) return;
+        _historyLoading = true; _historyError = null;
+        try { _history = await Service.GetLayoutHistoryAsync(FacilityId, layoutId, _lifetime.Token); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (HttpRequestException exception) { _history = null; _historyError = exception.StatusCode switch
+        {
+            System.Net.HttpStatusCode.Unauthorized => L["SignInRequired"].Value,
+            System.Net.HttpStatusCode.Forbidden => L["NoPermission"].Value,
+            System.Net.HttpStatusCode.ServiceUnavailable or System.Net.HttpStatusCode.GatewayTimeout => L["ServiceUnavailable"].Value,
+            _ => L["LayoutHistoryLoadFailed"].Value
+        }; }
+        catch (Exception) { _history = null; _historyError = L["LayoutHistoryLoadFailed"].Value; }
+        finally { _historyLoading = false; }
+    }
+    private static IEnumerable<AssignmentRow> BuildAssignmentRows(IReadOnlyList<EffectiveIntervalDTO> assignments)
+    {
+        var items = assignments.OrderBy(item => item.ValidFromUtc.HasValue).ThenBy(item => item.ValidFromUtc).ToArray();
+        if (items.Length == 0) { yield return new(null, null, false); yield break; }
+        DateTimeOffset? cursor = null;
+        var first = true;
+        foreach (var item in items)
+        {
+            if (first && item.ValidFromUtc.HasValue) yield return new(null, item.ValidFromUtc, false);
+            else if (!first && cursor.HasValue && item.ValidFromUtc.HasValue && cursor.Value < item.ValidFromUtc.Value)
+                yield return new(cursor, item.ValidFromUtc, false);
+            yield return new(item.ValidFromUtc, item.ValidToUtc, true);
+            cursor = item.ValidToUtc;
+            first = false;
+            if (!cursor.HasValue) yield break;
+        }
+        yield return new(cursor, null, false);
+    }
+    private sealed record AssignmentRow(DateTimeOffset? ValidFromUtc, DateTimeOffset? ValidToUtc, bool InUse);
     private async Task ConfirmNavigation(LocationChangingContext context)
     {
         if (_dirty && await Dialogs.ShowMessageBoxAsync(L["DiscardChanges"], L["DiscardLayoutChanges"], yesText: L["Delete"], cancelText: L["KeepEditingAction"]) != true) context.PreventNavigation();

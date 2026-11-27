@@ -14,7 +14,7 @@ namespace VeloTime.Platform.Test;
 
 public sealed class BootstrapWorkerTests
 {
-    [Fact(Skip = "Bootstrap still writes the removed CoursePoint.TimingPoint property; re-enable after seeding uses TimingAssociations.")]
+    [Fact]
     public async Task BootstrapWorker_SeedsModuleDataAndIsIdempotent()
     {
         await using var database = await BootstrapDatabase.CreateAsync();
@@ -41,8 +41,7 @@ public sealed class BootstrapWorkerTests
     public async Task BootstrapWorker_WithExistingFacilityUsesCourseLayoutOnlyForNewLap(bool legacyLapExists)
     {
         await using var database = await BootstrapDatabase.CreateAsync();
-        // Bypass only the known obsolete CoursePoint.TimingPoint facility-creation path.
-        // The real worker still performs all Statistics seeding, twice.
+        // The real worker keeps the existing layout and performs all Statistics seeding, twice.
         await database.SeedExistingFacilityAsync(legacyLapExists);
         await RunWorkerAsync(database.Services);
         var firstCounts = await database.ReadCountsAsync();
@@ -120,15 +119,21 @@ public sealed class BootstrapWorkerTests
             var facilities = scope.ServiceProvider.GetRequiredService<FacilityDbContext>();
             var points = new[] { "Finish", "200m", "Green", "100m", "Red" }
                 .Select(name => new CoursePoint { Id = Guid.NewGuid(), Name = name }).ToArray();
+            var facilityId = Guid.NewGuid();
             facilities.Add(new Facility
             {
+                Id = facilityId,
                 Name = "Sola Arena",
                 Layouts = [new CourseLayout
                 {
-                    Segments = points.Select((point, index) => new CourseSegment
+                    Assignments = [new FacilityLayoutAssignment { FacilityId = facilityId }],
+                    Revisions = [new CourseLayoutRevision
                     {
-                        Start = point, End = points[(index + 1) % points.Length], Order = index, Length = 50
-                    }).ToList()
+                        Segments = points.Select((point, index) => new CourseSegment
+                        {
+                            Start = point, End = points[(index + 1) % points.Length], Order = index, Length = 50
+                        }).ToList()
+                    }]
                 }]
             });
             await facilities.SaveChangesAsync();

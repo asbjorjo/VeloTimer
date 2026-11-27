@@ -277,7 +277,7 @@ public sealed class TimingAssociationEndpointTests(FacilitiesApiFactory factory)
         Assert.Equal(replacement, history[1].TimingPointId);
         Assert.Null(history[1].ValidToUtc);
         var message = Assert.Single(factory.Events.Enqueued);
-        var delta = Assert.Single(message.Changes);
+        var delta = Assert.Single(message.AssociationChanges);
         Assert.Equal(history[1].ValidFromUtc, delta.Before!.ValidFromUtc);
         Assert.Equal(new CoursePointTimingAssociationSnapshot(graph.EndTiming, graph.End,
             history[1].ValidFromUtc, null), delta.Before);
@@ -307,7 +307,7 @@ public sealed class TimingAssociationEndpointTests(FacilitiesApiFactory factory)
         Assert.Empty((await client.GetFromJsonAsync<CoursePointTimingAssociationSnapshot[]>(
             $"/api/facilities/coursepoint/{graph.End}/timing-associations"))!);
         Assert.Equal(new CoursePointTimingAssociationChange(new(graph.EndTiming, graph.End, null, null), null),
-            Assert.Single(Assert.Single(factory.Events.Enqueued).Changes));
+            Assert.Single(Assert.Single(factory.Events.Enqueued).AssociationChanges));
     }
 
     [TimingAssociationPostgresFact]
@@ -355,7 +355,8 @@ public sealed class TimingAssociationEndpointTests(FacilitiesApiFactory factory)
         var end = new CoursePoint { Id = Guid.NewGuid(), Name = "Finish" };
         var facility = new Facility { Id = Guid.NewGuid(), Name = "Test-only track" };
         var layout = new CourseLayout { Id = Guid.NewGuid(), Facility = facility,
-            Segments = [new() { Id = Guid.NewGuid(), Start = start, End = end, Length = 125 }] };
+            Assignments = [new() { Id = Guid.NewGuid(), FacilityId = facility.Id }],
+            Revisions = [new() { Id = Guid.NewGuid(), Segments = [new() { Id = Guid.NewGuid(), Start = start, End = end, Length = 125 }] }] };
         var graph = new Graph(facility.Id, layout.Id, start.Id, end.Id,
             Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
         storage.Add(layout);

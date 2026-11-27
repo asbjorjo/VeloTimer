@@ -50,6 +50,32 @@ public sealed class AdministrationHttpClient(HttpClient client)
             throw await CreateFailureAsync(response, cancellationToken);
     }
 
+    public async Task<SetCourseLayoutRevisionResponse> SendLayoutRevisionAsync(string path, SetCourseLayoutRevisionRequest body,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, path) { Content = JsonContent.Create(body) };
+        using var response = await client.SendAsync(request, cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            CourseLayoutRevisionConflictPreview? preview = null;
+            try
+            {
+                preview = await response.Content.ReadFromJsonAsync<CourseLayoutRevisionConflictPreview>(cancellationToken: cancellationToken);
+            }
+            catch (JsonException)
+            {
+                // A 409 without a preview is a plain conflict, e.g. a dependency that blocks the edit.
+            }
+            if (preview is not null && !string.IsNullOrWhiteSpace(preview.ConfirmationToken))
+                throw new CourseLayoutRevisionConflictException(preview);
+            throw new HttpRequestException("The layout revision conflicts with other data.", null, System.Net.HttpStatusCode.Conflict);
+        }
+        if (!response.IsSuccessStatusCode)
+            throw await CreateFailureAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<SetCourseLayoutRevisionResponse>(cancellationToken)
+               ?? throw new HttpRequestException("Missing layout revision response.");
+    }
+
     private static async Task<HttpRequestException> CreateFailureAsync(HttpResponseMessage response,
         CancellationToken cancellationToken)
     {

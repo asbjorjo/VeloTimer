@@ -119,11 +119,9 @@ public sealed class FacilitiesOutputCacheReplicaTests
         var end = new CoursePoint { Id = Guid.NewGuid(), Name = "Finish",
             TimingAssociations = [new() { Id = Guid.NewGuid(), TimingPointId = Guid.NewGuid() }] };
         var layout = new CourseLayout { Id = Guid.NewGuid(), FacilityId = facility.Id, Facility = facility };
-        layout.Segments.Add(new CourseSegment
+        layout.EnsureUnboundedRevision().Segments.Add(new CourseSegment
         {
             Id = Guid.NewGuid(),
-            CourseLayout = layout,
-            CourseLayoutId = layout.Id,
             Order = 1,
             Start = start,
             End = end,

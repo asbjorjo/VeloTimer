@@ -18,7 +18,7 @@ internal static class CoursePointEndpoints
         // scheduled boundary cannot leave a stale current mapping behind.
         coursePoints.MapGet("{id}", GetCoursePointById);
         coursePoints.MapGet("{id}/facility", GetFacilityByCoursePointId).CacheOutput(FacilitiesOutputCache.PolicyName);
-        coursePoints.MapGet("{start}/distance/{end}", DistanceBetweenCoursePoints).CacheOutput(FacilitiesOutputCache.PolicyName);
+        coursePoints.MapGet("{start}/distance/{end}", DistanceBetweenCoursePoints);
 
         var timingPoints = endpoints.MapGroup("timingpoint");
         timingPoints.MapGet("{id}", GetCoursePointByTimingPoint);
@@ -64,7 +64,8 @@ internal static class CoursePointEndpoints
     }
 
     static async Task<Results<Ok<double>, NotFound, ProblemHttpResult>> DistanceBetweenCoursePoints(
-        Guid start, Guid end, FacilitiesService facilities, FacilityDbContext storage, CancellationToken cancellationToken)
+        Guid start, Guid end, [FromQuery] DateTimeOffset? at, FacilitiesService facilities, FacilityDbContext storage,
+        CancellationToken cancellationToken)
     {
         var startpoint = await storage.Set<CoursePoint>().AsNoTracking().SingleOrDefaultAsync(point => point.Id == start, cancellationToken);
         var endpoint = start == end
@@ -73,7 +74,8 @@ internal static class CoursePointEndpoints
         if (startpoint is null || endpoint is null) return TypedResults.NotFound();
         try
         {
-            return TypedResults.Ok(await facilities.DistanceBetweenCoursePoints(startpoint, endpoint, cancellationToken));
+            var instant = at.HasValue ? TimingAssociationService.Normalize(at.Value) : DateTimeOffset.UtcNow;
+            return TypedResults.Ok((await facilities.CoursePointDistanceBetweenCoursePoints(startpoint, endpoint, instant, cancellationToken)).Distance);
         }
         catch (IncompatibleCoursePathException exception)
         {
@@ -96,7 +98,8 @@ internal static class CoursePointEndpoints
             var (startpoint, endpoint) = await associations.ResolveDistanceEndpointsAsync(
                 start, end, startInstant, endInstant, cancellationToken);
             if (startpoint is null || endpoint is null) return TypedResults.NotFound();
-            var resolution = await facilities.CoursePointDistanceBetweenCoursePoints(startpoint, endpoint, cancellationToken);
+            // Layout geometry is resolved at the start instant, as Statistics resolves a sample's distance.
+            var resolution = await facilities.CoursePointDistanceBetweenCoursePoints(startpoint, endpoint, startInstant, cancellationToken);
             var facility = await facilities.FacilityByCoursePoint(startpoint.Id, cancellationToken);
             return TypedResults.Ok(new CoursePointDistance(
                 startpoint.Id, endpoint.Id, resolution.Distance, facility?.Id ?? Guid.Empty)

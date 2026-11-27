@@ -10,6 +10,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using SlimMessageBus;
 using VeloTime.Agent.Interface.Messages.Events;
+using Microsoft.AspNetCore.DataProtection;
+using VeloTime.Module.Common;
+using VeloTime.Module.Facilities.Interface.Data;
+using VeloTime.Module.Facilities.Interface.Messages;
 using VeloTime.Module.Facilities.Model;
 using VeloTime.Module.Facilities.Service;
 using VeloTime.Module.Facilities.Storage;
@@ -42,13 +46,15 @@ public static class PipelineWorlds
 }
 
 /// <summary>
-/// The pipeline as of Phase 2: Timing records each <see cref="PassingObservedV1"/> as an idempotent
+/// The pipeline as of Phase 3: Timing records each <see cref="PassingObservedV1"/> as an idempotent
 /// fact and publishes <see cref="PassingRecordedV1"/>; Statistics stores its own fact copy, marks the
 /// range dirty, and the recompute worker derives samples and entries per riding session from the facts
 /// and the configuration history (read through the shared cache from the Facilities and Timing
-/// databases). Messages go through an in-memory FIFO bus; a failing message is retried a few times and
-/// then dead-lettered, as the broker would. A recompute that fails is reported as a dead letter too.
-/// Configuration edits evict the cached history, as the Phase 3 change-event handlers will.
+/// databases). Facilities course edits (layouts, revisions, associations) go through the Facilities
+/// services, which publish <see cref="CourseConfigChangedV1"/>; Statistics' handler evicts the cached
+/// history and marks the range dirty. Messages go through an in-memory FIFO bus; a failing message is
+/// retried a few times and then dead-lettered, as the broker would. A recompute that fails is reported as
+/// a dead letter too. Installation edits still evict the cache directly until Phase 4 adds their event.
 /// </summary>
 internal sealed class CurrentPipelineWorld : IPipelineWorld
 {
@@ -64,6 +70,8 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
     private readonly Dictionary<string, Guid> coursePoints = new();
     private readonly Dictionary<Guid, string> coursePointNames = new();
     private readonly Dictionary<string, Guid> facilities = new();
+    private readonly Dictionary<string, Guid> layouts = new();
+    private readonly IDataProtectionProvider protection = new EphemeralDataProtectionProvider();
     private readonly Dictionary<Guid, string> facilityNames = new();
     private readonly Dictionary<string, SimpleStatisticsItemConfig> simpleItems = new();
     private readonly Dictionary<Guid, string> itemNames = new();
@@ -123,36 +131,34 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
     {
         await using var db = FacilityDb();
         var created = new Facility { Id = Guid.NewGuid(), Name = name };
-        var layout = new CourseLayout { Id = Guid.NewGuid(), FacilityId = created.Id, Facility = created };
-        var order = 0;
-        foreach (var segment in segments)
-        {
-            layout.Segments.Add(new CourseSegment
-            {
-                Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = order++,
-                Start = Point(segment.From), End = Point(segment.To), Length = segment.Length
-            });
-        }
         db.Add(created);
-        db.Add(layout);
         await db.SaveChangesAsync();
+        var (points, requested) = Geometry(segments, allowNewPoints: true);
+        await new CourseConfigurationService(db).CreateLayoutAsync(created.Id, points, requested, DateTimeOffset.UtcNow,
+            EnqueueAsync, CancellationToken.None);
         facilities[name] = created.Id;
         facilityNames[created.Id] = name;
-        await History().EvictAsync([], [created.Id]);
+        layouts[name] = await db.Set<CourseLayout>().Where(l => l.FacilityId == created.Id).Select(l => l.Id).SingleAsync();
+    }
 
-        CoursePoint Point(string pointName)
+    /// <summary>The request shape of a chain of named segments; new names become new course points.</summary>
+    private (List<SaveCoursePointRequest> Points, List<SaveCourseSegmentRequest> Segments) Geometry(
+        IReadOnlyList<SegmentInput> segments, bool allowNewPoints)
+    {
+        var points = new List<SaveCoursePointRequest>();
+        foreach (var pointName in segments.SelectMany(segment => new[] { segment.From, segment.To }).Distinct())
         {
-            var tracked = db.ChangeTracker.Entries<CoursePoint>().Select(e => e.Entity)
-                .FirstOrDefault(p => p.Name == pointName);
-            if (tracked is not null) return tracked;
-            if (coursePoints.ContainsKey(pointName))
-                throw new InvalidOperationException($"Course point {pointName} already belongs to another facility.");
-            var point = new CoursePoint { Id = Guid.NewGuid(), Name = pointName };
-            coursePoints[pointName] = point.Id;
-            coursePointNames[point.Id] = pointName;
-            db.Add(point);
-            return point;
+            if (!coursePoints.TryGetValue(pointName, out var id))
+            {
+                if (!allowNewPoints) throw new InvalidOperationException($"Unknown course point {pointName}.");
+                coursePoints[pointName] = id = Guid.NewGuid();
+                coursePointNames[id] = pointName;
+            }
+            points.Add(new SaveCoursePointRequest(id, pointName));
         }
+        var requested = segments.Select(segment =>
+            new SaveCourseSegmentRequest(Guid.NewGuid(), coursePoints[segment.From], coursePoints[segment.To], segment.Length)).ToList();
+        return (points, requested);
     }
 
     public async Task AssignInstallationAsync(string agent, string facilityName, DateTime? validFrom = null)
@@ -170,41 +176,36 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
     public async Task AssociateLoopAsync(string agent, string loop, string coursePoint, DateTime? from = null, DateTime? to = null)
     {
         var timingPointId = await EnsureTimingPointAsync(agent, loop);
-        await using var db = FacilityDb();
-        db.Add(new CoursePointTimingAssociation
-        {
-            Id = Guid.NewGuid(), CoursePointId = coursePoints[coursePoint], TimingPointId = timingPointId,
-            ValidFromUtc = from.HasValue ? new DateTimeOffset(from.Value) : null,
-            ValidToUtc = to.HasValue ? new DateTimeOffset(to.Value) : null
-        });
-        await db.SaveChangesAsync();
-        // Facilities publishes CoursePointTimingAssociationsChangedV1, but no service consumes it yet (C4):
-        // the cache is evicted, yet nothing marks the affected range dirty until Phase 3.
-        await History().EvictAsync([], facilities.Values);
+        await SetAssociationAsync(coursePoints[coursePoint], timingPointId,
+            from.HasValue ? new DateTimeOffset(from.Value) : null, to.HasValue ? new DateTimeOffset(to.Value) : null);
     }
 
     public async Task MoveLoopsAsync(string agent, IReadOnlyDictionary<string, string> moves, DateTime from)
     {
-        var timingPoints = new Dictionary<string, Guid>();
-        foreach (var loop in moves.Keys) timingPoints[loop] = await EnsureTimingPointAsync(agent, loop);
-        await using var db = FacilityDb();
-        await using var transaction = await db.Database.BeginTransactionAsync();
-        foreach (var (loop, timingPointId) in timingPoints)
+        // One association edit per destination course point, as an administrator would make them.
+        foreach (var (loop, coursePoint) in moves)
+            await SetAssociationAsync(coursePoints[coursePoint], await EnsureTimingPointAsync(agent, loop), new DateTimeOffset(from), null);
+    }
+
+    /// <summary>Sets an association through the Facilities service, confirming a destination conflict as an admin would.</summary>
+    private async Task SetAssociationAsync(Guid coursePointId, Guid timingPointId, DateTimeOffset? from, DateTimeOffset? to)
+    {
+        var request = new SetCoursePointTimingAssociationRequest { TimingPointId = timingPointId, ValidFromUtc = from, ValidToUtc = to };
+        var references = new TimingReferences(this);
+        await using (var db = FacilityDb())
         {
-            var open = await db.Set<CoursePointTimingAssociation>()
-                .SingleAsync(a => a.TimingPointId == timingPointId && a.ValidToUtc == null);
-            open.ValidToUtc = new DateTimeOffset(from);
+            var edit = await new TimingAssociationService(db, protection).SetIntervalAsync(coursePointId, request, DateTimeOffset.UtcNow,
+                references, EnqueueAsync, CancellationToken.None);
+            if (edit.ConflictPreview is null) return;
+            request = request with { ConfirmationToken = edit.ConflictPreview.ConfirmationToken };
         }
-        await db.SaveChangesAsync();
-        foreach (var (loop, timingPointId) in timingPoints)
-            db.Add(new CoursePointTimingAssociation
-            {
-                Id = Guid.NewGuid(), CoursePointId = coursePoints[moves[loop]], TimingPointId = timingPointId,
-                ValidFromUtc = new DateTimeOffset(from)
-            });
-        await db.SaveChangesAsync();
-        await transaction.CommitAsync();
-        await History().EvictAsync([], facilities.Values);
+        await using (var db = FacilityDb())
+        {
+            var confirmed = await new TimingAssociationService(db, protection).SetIntervalAsync(coursePointId, request, DateTimeOffset.UtcNow,
+                references, EnqueueAsync, CancellationToken.None);
+            if (confirmed.ConflictPreview is not null)
+                throw new InvalidOperationException($"Association conflict was not confirmed: {confirmed.ConflictPreview.Code}");
+        }
     }
 
     public async Task DefineSimpleItemAsync(string name, string start, string end, double distance,
@@ -242,8 +243,23 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
         itemNames[item.Id] = name;
     }
 
-    public Task ChangeSegmentLengthsAsync(string facilityName, IReadOnlyList<SegmentInput> segments, DateTime validFrom) =>
-        throw new NotSupportedException("C1: course layouts and segment lengths are still edited in place; there are no dated revisions.");
+    public async Task ChangeSegmentLengthsAsync(string facilityName, IReadOnlyList<SegmentInput> segments, DateTime validFrom)
+    {
+        var (points, requested) = Geometry(segments, allowNewPoints: false);
+        var request = new SetCourseLayoutRevisionRequest
+        {
+            Points = points, Segments = requested, ValidFromUtc = new DateTimeOffset(validFrom), ValidToUtc = null
+        };
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            await using var db = FacilityDb();
+            var edit = await new CourseConfigurationService(db, protection).SetRevisionAsync(facilities[facilityName], layouts[facilityName],
+                request, DateTimeOffset.UtcNow, EnqueueAsync, CancellationToken.None);
+            if (edit.ConflictPreview is null) return;
+            request = request with { ConfirmationToken = edit.ConflictPreview.ConfirmationToken };
+        }
+        throw new InvalidOperationException("The layout revision was not confirmed.");
+    }
 
     public Task ChangeItemAsync(string name, ItemChange change, DateTime validFrom) =>
         throw new NotSupportedException("C3: statistics definitions (thresholds, required points) are not versioned yet.");
@@ -342,6 +358,14 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
 
     private sealed record Envelope(object Message, IDictionary<string, object> Headers, int Attempt = 1);
 
+    private Task EnqueueAsync(CourseConfigChangedV1 message, CancellationToken cancellationToken)
+    {
+        // Facilities enqueues in its edit transaction; a rolled-back edit is never published here because the
+        // services only call this immediately before committing.
+        Enqueue(message);
+        return Task.CompletedTask;
+    }
+
     private void Enqueue(object message, IDictionary<string, object>? headers = null)
     {
         if (message is IEnumerable batch and not string)
@@ -381,6 +405,13 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
                     Context = WorkerHandlerTests.TestConsumerContext.Create(new Dictionary<string, object>(envelope.Headers))
                 };
                 await handler.OnHandle(passing, CancellationToken.None);
+                break;
+            }
+            case CourseConfigChangedV1 changed:
+            {
+                await using var db = StatisticsDb();
+                await new CourseConfigChangedHandler(db, History(), new StatisticsRecomputeSignal(),
+                    NullLogger<CourseConfigChangedHandler>.Instance).OnHandle(changed, CancellationToken.None);
                 break;
             }
             case PassingRecordedV1 recorded:
@@ -442,8 +473,14 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
                 Layouts = history?.Layouts.Select(l => new CourseLayoutVersion
                 {
                     LayoutId = l.LayoutId,
-                    Segments = l.Segments.Select(s => new CourseSegmentVersion
-                        { Order = s.Order, StartPointId = s.StartPointId, EndPointId = s.EndPointId, Length = s.Length }).ToList()
+                    Assignments = l.Assignments.Select(a => new EffectiveVersion
+                        { ValidFromUtc = a.ValidFromUtc?.UtcDateTime, ValidToUtc = a.ValidToUtc?.UtcDateTime }).ToList(),
+                    Revisions = l.Revisions.Select(r => new CourseLayoutRevisionVersion
+                    {
+                        RevisionId = r.RevisionId, ValidFromUtc = r.ValidFromUtc?.UtcDateTime, ValidToUtc = r.ValidToUtc?.UtcDateTime,
+                        Segments = r.Segments.Select(s => new CourseSegmentVersion
+                            { Order = s.Order, StartPointId = s.StartPointId, EndPointId = s.EndPointId, Length = s.Length }).ToList()
+                    }).ToList()
                 }).ToList() ?? [],
                 Associations = history?.Associations.Select(a => new TimingAssociationVersion
                 {
@@ -452,6 +489,22 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
                 }).ToList() ?? []
             };
         }
+    }
+
+    /// <summary>Timing point → facility, as Timing's reference endpoint answers it (through the installation).</summary>
+    private sealed class TimingReferences(CurrentPipelineWorld world) : IAdministrationReferences
+    {
+        public async Task<EntityReference?> GetAsync(string module, string kind, Guid id, CancellationToken cancellationToken)
+        {
+            if (module != "timing" || kind != "timingpoints") throw new NotSupportedException($"{module}/{kind}");
+            await using var db = world.TimingDb();
+            var facility = await db.Set<TimingPoint>().AsNoTracking().Where(t => t.Id == id)
+                .Select(t => (Guid?)t.Installation.Facility).SingleOrDefaultAsync(cancellationToken);
+            return facility is { } found ? new EntityReference(id, found) : null;
+        }
+
+        public Task<DependencySummary> GetDependenciesAsync(string module, string kind, Guid id, CancellationToken cancellationToken) =>
+            Task.FromResult(new DependencySummary(0, ""));
     }
 
     private sealed class NoOwners : ITransponderOwnershipReader

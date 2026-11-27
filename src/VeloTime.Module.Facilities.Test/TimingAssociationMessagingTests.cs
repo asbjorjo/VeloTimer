@@ -28,7 +28,7 @@ public sealed class TimingAssociationMessagingTests
         builder.Configuration.Sources.Clear();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:MessageBus"] = connectionString });
         Assert.Contains("ConnectionStrings:MessageBus is required",
-            Assert.Throws<InvalidOperationException>(() => builder.AddTimingAssociationMessaging()).Message);
+            Assert.Throws<InvalidOperationException>(() => builder.AddCourseConfigMessaging()).Message);
     }
 
     [Fact]
@@ -37,7 +37,7 @@ public sealed class TimingAssociationMessagingTests
         var builder = Host.CreateApplicationBuilder();
         builder.Configuration["ConnectionStrings:MessageBus"] = TestBusConnection;
         builder.Services.AddDbContext<FacilityDbContext>(options => options.UseNpgsql("Host=localhost;Database=unused"));
-        builder.AddTimingAssociationMessaging();
+        builder.AddCourseConfigMessaging();
         using var host = builder.Build(); // Do not start: no database or live bus.
         var settings = host.Services.GetRequiredService<PostgreSqlOutboxSettings>();
         Assert.Equal("facility", settings.PostgreSqlSettings.DatabaseSchemaName);
@@ -45,8 +45,8 @@ public sealed class TimingAssociationMessagingTests
         Assert.True(settings.MaintainSequence);
         Assert.Equal(1, settings.PollBatchSize);
         Assert.Equal(int.MaxValue, settings.MaxDeliveryAttempts);
-        Assert.Equal("velotime-facilities", MessagingExtensions.TimingAssociationsTopic);
-        Assert.Contains(builder.Services, registration => registration.ServiceType == typeof(ITimingAssociationEventPublisher)
+        Assert.Equal("velotime-facilities", MessagingExtensions.CourseConfigTopic);
+        Assert.Contains(builder.Services, registration => registration.ServiceType == typeof(ICourseConfigEventPublisher)
             && registration.Lifetime == ServiceLifetime.Scoped);
     }
 
@@ -55,42 +55,48 @@ public sealed class TimingAssociationMessagingTests
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Configuration["ConnectionStrings:MessageBus"] = TestBusConnection;
-        builder.AddTimingAssociationMessaging();
+        builder.AddCourseConfigMessaging();
         using var host = builder.Build();
         var serializer = host.Services.GetRequiredService<JsonMessageSerializer>();
         var original = Event();
-        var prepared = TimingAssociationEventPublisher.Prepare(original);
+        var prepared = CourseConfigEventPublisher.Prepare(original);
         var json = JsonSerializer.Serialize(prepared, serializer.Options);
-        var restored = JsonSerializer.Deserialize<CoursePointTimingAssociationsChangedV1>(json, serializer.Options)!;
+        var restored = JsonSerializer.Deserialize<CourseConfigChangedV1>(json, serializer.Options)!;
         Assert.Equal(original.EventId, restored.EventId);
         Assert.Equal(original.ChangeId, restored.ChangeId);
         Assert.Equal(original.FacilityId, restored.FacilityId);
         Assert.Equal(original.OccurredAtUtc, restored.OccurredAtUtc);
         Assert.Equal(TimeSpan.Zero, restored.OccurredAtUtc.Offset);
-        Assert.Equal(prepared.Changes, restored.Changes);
-        Assert.Null(restored.Changes[0].Before!.ValidFromUtc);
-        Assert.Null(restored.Changes[1].After!.ValidToUtc);
-        Assert.Null(restored.Changes[2].Before);
-        Assert.Null(restored.Changes[3].After);
-        Assert.All(restored.Changes.SelectMany(change => new[] { change.Before, change.After })
+        Assert.Equal(CourseConfigChangeKind.TimingAssociation, restored.Kind);
+        Assert.Contains("\"kind\":\"TimingAssociation\"", json);
+        Assert.Equal(prepared.AssociationChanges, restored.AssociationChanges);
+        Assert.Null(restored.AssociationChanges[0].Before!.ValidFromUtc);
+        Assert.Null(restored.AssociationChanges[1].After!.ValidToUtc);
+        Assert.Null(restored.AssociationChanges[2].Before);
+        Assert.Null(restored.AssociationChanges[3].After);
+        Assert.All(restored.AssociationChanges.SelectMany(change => new[] { change.Before, change.After })
             .OfType<CoursePointTimingAssociationSnapshot>(), snapshot =>
         {
             if (snapshot.ValidFromUtc is { } from) Assert.Equal(TimeSpan.Zero, from.Offset);
             if (snapshot.ValidToUtc is { } to) Assert.Equal(TimeSpan.Zero, to.Offset);
         });
-        Assert.Equal(json, JsonSerializer.Serialize(TimingAssociationEventPublisher.Prepare(prepared), serializer.Options));
+        Assert.Equal(json, JsonSerializer.Serialize(CourseConfigEventPublisher.Prepare(prepared), serializer.Options));
         Assert.NotEqual(TimeSpan.Zero, original.OccurredAtUtc.Offset); // Caller data wasn't mutated.
     }
 
     [Fact]
     public void MalformedEventsAreRejectedRatherThanDropped()
     {
-        Assert.Throws<ArgumentException>(() => TimingAssociationEventPublisher.Prepare(Event() with { EventId = Guid.Empty }));
-        Assert.Throws<ArgumentException>(() => TimingAssociationEventPublisher.Prepare(Event() with { ChangeId = Guid.Empty }));
-        Assert.Throws<ArgumentException>(() => TimingAssociationEventPublisher.Prepare(Event() with { FacilityId = Guid.Empty }));
-        Assert.Throws<ArgumentException>(() => TimingAssociationEventPublisher.Prepare(Event() with { Changes = null! }));
-        Assert.Throws<ArgumentException>(() => TimingAssociationEventPublisher.Prepare(Event() with { Changes = [] }));
-        Assert.Throws<ArgumentException>(() => TimingAssociationEventPublisher.Prepare(Event() with { Changes = [new(null, null)] }));
+        Assert.Throws<ArgumentException>(() => CourseConfigEventPublisher.Prepare(Event() with { EventId = Guid.Empty }));
+        Assert.Throws<ArgumentException>(() => CourseConfigEventPublisher.Prepare(Event() with { ChangeId = Guid.Empty }));
+        Assert.Throws<ArgumentException>(() => CourseConfigEventPublisher.Prepare(Event() with { FacilityId = Guid.Empty }));
+        Assert.Throws<ArgumentException>(() => CourseConfigEventPublisher.Prepare(Event() with { AssociationChanges = null! }));
+        Assert.Throws<ArgumentException>(() => CourseConfigEventPublisher.Prepare(Event() with { AssociationChanges = [] }));
+        Assert.Throws<ArgumentException>(() => CourseConfigEventPublisher.Prepare(Event() with { AssociationChanges = [new(null, null)] }));
+        Assert.Throws<ArgumentException>(() => CourseConfigEventPublisher.Prepare(Event() with
+            { Kind = CourseConfigChangeKind.LayoutRevision, CourseLayoutId = null }));
+        Assert.Throws<ArgumentException>(() => CourseConfigEventPublisher.Prepare(Event() with
+            { AffectedFromUtc = DateTimeOffset.UnixEpoch, AffectedToUtc = DateTimeOffset.UnixEpoch }));
     }
 
     [Fact]
@@ -106,12 +112,12 @@ public sealed class TimingAssociationMessagingTests
         Assert.Single(spy.Enqueued);
     }
 
-    internal static CoursePointTimingAssociationsChangedV1 Event()
+    internal static CourseConfigChangedV1 Event()
     {
         var instant = new DateTimeOffset(2026, 11, 2, 12, 0, 0, TimeSpan.FromHours(2));
         var point = Guid.NewGuid();
         var timing = Guid.NewGuid();
-        return new(Guid.NewGuid(), Guid.NewGuid(), instant, Guid.NewGuid(),
+        return new(Guid.NewGuid(), Guid.NewGuid(), instant, Guid.NewGuid(), CourseConfigChangeKind.TimingAssociation, null, null, null,
         [
             new(new(timing, point, null, instant), new(timing, point, null, instant.AddHours(1))),
             new(new(timing, point, instant, null), new(timing, point, instant.AddHours(1), null)),

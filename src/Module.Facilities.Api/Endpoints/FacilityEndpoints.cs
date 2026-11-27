@@ -40,50 +40,14 @@ internal static class FacilityEndpoints
         Guid id, [FromQuery] DateTimeOffset? at, FacilityDbContext storage,
         CancellationToken cancellationToken)
     {
-        var layouts = storage.Set<CourseLayout>()
-            .Where(cl => cl.FacilityId == id);
-
         if (!await storage.Set<Facility>().AnyAsync(facility => facility.Id == id, cancellationToken))
         {
             return TypedResults.NotFound();
         }
-
-        var records = await layouts.Include(layout => layout.Segments)
-            .ThenInclude(segment => segment.Start)
-            .Include(layout => layout.Segments)
-            .ThenInclude(segment => segment.End)
-            .ToListAsync(cancellationToken);
+        var records = await CourseConfigurationService.LayoutsWithHistory(storage).AsNoTracking()
+            .Where(layout => layout.FacilityId == id).OrderBy(layout => layout.Id).ToListAsync(cancellationToken);
         var instant = at.HasValue ? TimingAssociationService.Normalize(at.Value) : DateTimeOffset.UtcNow;
-        var associations = new TimingAssociationService(storage);
-        var mappings = await associations.ResolveManyAsync(
-            records.SelectMany(layout => layout.Segments.SelectMany(segment =>
-                new[] { segment.Start.Id, segment.End.Id })),
-            instant, cancellationToken);
-
-        return TypedResults.Ok(
-            records.Select(cl => new CourseLayoutDTO
-                {
-                    Id = cl.Id,
-                    FacilityId = cl.FacilityId,
-                    Segments = cl.Segments.Select(s => new SegmentDTO
-                    {
-                        Id = s.Id,
-                        Order = s.Order,
-                        Start = new CoursePointDTO
-                        {
-                            Id = s.Start.Id,
-                            Name = s.Start.Name ?? string.Empty,
-                            TimingPointId = mappings.GetValueOrDefault(s.Start.Id)
-                        },
-                        End = new CoursePointDTO
-                        {
-                            Id = s.End.Id,
-                            Name = s.End.Name ?? string.Empty,
-                            TimingPointId = mappings.GetValueOrDefault(s.End.Id)
-                        },
-                        Length = s.Length
-                    }).ToList()
-                }).ToList());
+        return TypedResults.Ok(await CourseLayoutProjection.ToDtosAsync(storage, records, instant, cancellationToken));
     }
 
     async static Task<Ok<List<FacilityDTO>>> ListFacilities(FacilityDbContext storage)

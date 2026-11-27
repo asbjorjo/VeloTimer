@@ -5,12 +5,12 @@ using VeloTime.Module.Facilities.Interface.Messages;
 namespace VeloTime.Module.Facilities.Api.Test;
 
 /// <summary>Broker-free mapping spy; not a transactional outbox durability substitute.</summary>
-public sealed class RecordingTimingAssociationPublisher : ITimingAssociationEventPublisher
+public sealed class RecordingTimingAssociationPublisher : ICourseConfigEventPublisher
 {
-    public ConcurrentQueue<CoursePointTimingAssociationsChangedV1> Enqueued { get; } = new();
+    public ConcurrentQueue<CourseConfigChangedV1> Enqueued { get; } = new();
     public Exception? Failure { get; set; }
 
-    public Task EnqueueAsync(CoursePointTimingAssociationsChangedV1 message, CancellationToken cancellationToken = default)
+    public Task EnqueueAsync(CourseConfigChangedV1 message, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (Failure is not null) return Task.FromException(Failure);

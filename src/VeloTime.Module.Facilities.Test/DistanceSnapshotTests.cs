@@ -46,9 +46,9 @@ public class DistanceSnapshotTests
         var layout = new CourseLayout { Id = Guid.NewGuid(), Facility = new() { Id = Guid.NewGuid() } };
         var lengths = new double[] { 10, 70, 20 };
         for (var i = 0; i < lengths.Length; i++)
-            layout.Segments.Add(new()
+            layout.EnsureUnboundedRevision().Segments.Add(new()
             {
-                Id = Guid.NewGuid(), CourseLayout = layout, Order = i,
+                Id = Guid.NewGuid(), Order = i,
                 Start = points[i], End = points[i + 1], Length = lengths[i]
             });
         writer.Add(layout);

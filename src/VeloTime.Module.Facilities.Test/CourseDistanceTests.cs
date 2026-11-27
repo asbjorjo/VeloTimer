@@ -77,14 +77,14 @@ public class CourseDistanceTests
     {
         var points = MakePoints(4);
         var layout = new CourseLayout { Id = Guid.NewGuid(), Facility = new() { Id = Guid.NewGuid() } };
-        layout.Segments.Add(new CourseSegment
+        layout.EnsureUnboundedRevision().Segments.Add(new CourseSegment
         {
-            Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = 1,
+            Id = Guid.NewGuid(), Order = 1,
             Start = points[0], End = points[1], Length = 100
         });
-        layout.Segments.Add(new CourseSegment
+        layout.EnsureUnboundedRevision().Segments.Add(new CourseSegment
         {
-            Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = 2,
+            Id = Guid.NewGuid(), Order = 2,
             Start = points[2], End = points[3], Length = 200
         });
         await using var context = await CreateServiceContextAsync(layout);
@@ -112,9 +112,9 @@ public class CourseDistanceTests
     {
         var layout = new CourseLayout { Id = Guid.NewGuid(), Facility = new() { Id = Guid.NewGuid() } };
         for (var index = 0; index < lengths.Count; index++)
-            layout.Segments.Add(new CourseSegment
+            layout.EnsureUnboundedRevision().Segments.Add(new CourseSegment
             {
-                Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = index + 1,
+                Id = Guid.NewGuid(), Order = index + 1,
                 Start = points[index], End = points[(index + 1) % points.Count], Length = lengths[index]
             });
         return layout;
@@ -174,9 +174,9 @@ public class CourseDistanceTests
         var lengths = new double[] { 50, 60, 40, 85, 15 };
         // Deliberately insert backwards: traversal must use Order, not collection insertion order.
         for (var i = lengths.Length - 1; i >= 0; i--)
-            layout.Segments.Add(new()
+            layout.EnsureUnboundedRevision().Segments.Add(new()
             {
-                Id = Guid.NewGuid(), CourseLayout = layout, Order = i,
+                Id = Guid.NewGuid(), Order = i,
                 Start = points[i], End = points[(i + 1) % points.Length], Length = lengths[i]
             });
         storage.Add(layout);

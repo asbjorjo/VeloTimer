@@ -41,10 +41,6 @@ public class CoursePointSerializationTests
         Assert.Equal(point.Id, restored.Id);
         Assert.Equal(point.TimingAssociations.Single().TimingPointId, restored.TimingAssociations.Single().TimingPointId);
         Assert.Same(restored, restored.TimingAssociations.Single().CoursePoint);
-#pragma warning disable CS0618 // The source-compatibility bridge must still fail explicitly.
-        Assert.Throws<NotSupportedException>(() => point.TimingPoint);
-        Assert.Throws<NotSupportedException>(() => point.TimingPoint = Guid.NewGuid());
-#pragma warning restore CS0618
     }
 
     [Fact]

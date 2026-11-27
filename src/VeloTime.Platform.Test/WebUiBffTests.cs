@@ -57,8 +57,17 @@ public sealed partial class WebUiBffTests
         Assert.Equal("Renamed", (await service.SaveFacilityAsync(ResourceId, new("Renamed"))).Name);
         var startId = Guid.NewGuid(); var endId = Guid.NewGuid();
         var layout = new FacilitiesContracts.SaveCourseLayoutRequest([new(startId, "Start"), new(endId, "End")], [new(Guid.NewGuid(), startId, endId, 250)]);
-        Assert.Equal(ResourceId, (await service.SaveLayoutAsync(ResourceId, null, layout)).Id);
-        Assert.Equal(ResourceId, (await service.SaveLayoutAsync(ResourceId, ResourceId, layout)).FacilityId);
+        Assert.Equal(ResourceId, (await service.CreateLayoutAsync(ResourceId, layout)).Id);
+        Assert.Equal(ResourceId, (await service.GetLayoutHistoryAsync(ResourceId, ResourceId)).LayoutId);
+        var from = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        Assert.Equal(ResourceId, (await service.SetLayoutRevisionAsync(ResourceId, ResourceId, new()
+        {
+            Points = layout.Points, Segments = layout.Segments, ValidFromUtc = from, ValidToUtc = null
+        })).RevisionId);
+        Assert.Single((await service.SetLayoutAssignmentAsync(ResourceId, ResourceId, new()
+        {
+            InUse = true, ValidFromUtc = from, ValidToUtc = null
+        })).Assignments);
         await service.SetTimingLinkAsync(startId, null);
         await service.DeleteLayoutAsync(ResourceId, ResourceId);
         await service.DeleteFacilityAsync(ResourceId);
@@ -70,7 +79,7 @@ public sealed partial class WebUiBffTests
         await service.DeleteTimingPointAsync(ResourceId, ResourceId);
         await service.DeleteInstallationAsync(ResourceId);
         var proxy = (PlatformServiceTests.TestProxy)(object)app.Services.GetRequiredService<IInfrastructureAdministrationService>();
-        Assert.Equal(16, proxy.Calls.Count);
+        Assert.Equal(18, proxy.Calls.Count);
     }
 
     [Fact]
@@ -674,7 +683,11 @@ public sealed partial class WebUiBffTests
             nameof(IInfrastructureAdministrationService.GetLayoutsAsync) => (IReadOnlyList<FacilitiesContracts.CourseLayoutDTO>)Array.Empty<FacilitiesContracts.CourseLayoutDTO>(),
             nameof(IInfrastructureAdministrationService.GetInstallationsAsync) => (IReadOnlyList<TimingContracts.InstallationDTO>)Array.Empty<TimingContracts.InstallationDTO>(),
             nameof(IInfrastructureAdministrationService.SaveFacilityAsync) => new FacilitiesContracts.FacilityDTO { Id = (Guid?)arguments[0] ?? ResourceId, Name = ((FacilitiesContracts.SaveFacilityRequest)arguments[1]!).Name },
-            nameof(IInfrastructureAdministrationService.SaveLayoutAsync) => new FacilitiesContracts.CourseLayoutDTO { Id = (Guid?)arguments[1] ?? ResourceId, FacilityId = (Guid)arguments[0]!, Segments = [] },
+            nameof(IInfrastructureAdministrationService.CreateLayoutAsync) => new FacilitiesContracts.CourseLayoutDTO { Id = ResourceId, FacilityId = (Guid)arguments[0]!, Segments = [] },
+            nameof(IInfrastructureAdministrationService.GetLayoutHistoryAsync) => new FacilitiesContracts.CourseLayoutHistoryDTO { LayoutId = (Guid)arguments[1]!, Assignments = [], Revisions = [] },
+            nameof(IInfrastructureAdministrationService.SetLayoutRevisionAsync) => new FacilitiesContracts.SetCourseLayoutRevisionResponse(Guid.NewGuid(), (Guid)arguments[1]!),
+            nameof(IInfrastructureAdministrationService.SetLayoutAssignmentAsync) => new FacilitiesContracts.SetFacilityLayoutAssignmentResponse(Guid.NewGuid(),
+                [new FacilitiesContracts.EffectiveIntervalDTO { ValidFromUtc = ((FacilitiesContracts.SetFacilityLayoutAssignmentRequest)arguments[2]!).ValidFromUtc, ValidToUtc = null }]),
             nameof(IInfrastructureAdministrationService.SaveInstallationAsync) => new TimingContracts.InstallationDTO
             {
                 Id = (Guid?)arguments[0] ?? ResourceId, AgentId = ((TimingContracts.SaveInstallationRequest)arguments[1]!).AgentId,

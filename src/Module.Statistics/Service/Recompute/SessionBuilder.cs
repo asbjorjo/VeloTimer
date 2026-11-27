@@ -74,7 +74,9 @@ public static class SessionBuilder
                 rejections?.Add(new("zero-duration sample", end.Time));
                 continue;
             }
-            var distance = course.ResolveDistance(start.CoursePointId, end.CoursePointId);
+            // Each passing's course point was resolved at its own time; the layout geometry is the one in
+            // effect when the rider entered the segment.
+            var distance = course.ResolveDistance(start.CoursePointId, end.CoursePointId, start.Time);
             if (distance is null)
             {
                 rejections?.Add(new("no compatible course layout", end.Time));

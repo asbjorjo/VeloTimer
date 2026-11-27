@@ -611,17 +611,17 @@ components:
         instance:
           type: string
           format: uri
-    CoursePointTimingAssociationsChangedV1:
+    CourseConfigChangedV1:
       type: object
       description: |
-        Facilities-owned version 1 integration event. EventId deduplicates delivery;
-        ChangeId is the stable atomic mapping revision. OccurredAtUtc is a UTC DateTimeOffset
-        serialized with a zero offset (Z or +00:00). Changes contains every affected mapping delta, including source
-        removal, destination displacement, unlinking, interval splitting, and restoration.
-        Before/After snapshots are sliced to the exact changed half-open interval; null means
-        no mapping on that side. All deltas from one transaction share this event/revision.
-        Effective no-ops and migration baseline backfill emit no event.
-      required: [eventId, changeId, occurredAtUtc, facilityId, changes]
+        Facilities-owned version 1 integration event for any course configuration change of one facility:
+        a timing association, a layout assignment (when the facility runs a layout), a layout geometry
+        revision, or a layout deletion. EventId deduplicates delivery; ChangeId identifies the atomic edit.
+        OccurredAtUtc is a UTC DateTimeOffset serialized with a zero offset (Z or +00:00).
+        [AffectedFromUtc, AffectedToUtc) is the half-open UTC window whose results may change; null bounds
+        are unbounded. For kind TimingAssociation, associationChanges holds every mapping delta sliced to
+        the exact changed interval. Effective no-ops and migration baseline backfill emit no event.
+      required: [eventId, changeId, occurredAtUtc, facilityId, kind, associationChanges]
       properties:
         eventId:
           type: string
@@ -636,17 +636,32 @@ components:
         facilityId:
           type: string
           format: uuid
-        changes:
+        kind:
+          type: string
+          enum: [TimingAssociation, LayoutAssignment, LayoutRevision, LayoutDeleted]
+        affectedFromUtc:
+          type: string
+          format: date-time
+          nullable: true
+        affectedToUtc:
+          type: string
+          format: date-time
+          nullable: true
+        courseLayoutId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Set for layout kinds.
+        associationChanges:
           type: array
-          minItems: 1
           items:
             $ref: '#/components/schemas/CoursePointTimingAssociationChange'
 x-messaging-contracts:
-  - name: CoursePointTimingAssociationsChangedV1
+  - name: CourseConfigChangedV1
     owner: Facilities
     consumer-guidance: |
-      A future Statistics recalculation consumer deduplicates by EventId, tolerates reordered
-      delivery, uses affected timing-point IDs and event-time windows to find impacted samples,
-      matches either endpoint independently, and reconciles against authoritative Facilities
-      mappings instead of applying stale snapshots as current state. This contract does not
-      imply a recalculation consumer or durable publication implementation.
+      Statistics consumes it on topic velotime-facilities, subscription statistics (sessions by
+      FacilityId). The handler evicts its cached facility history, then marks every transponder dirty over
+      [AffectedFromUtc, AffectedToUtc) with reason Configuration. It reconciles against the authoritative
+      Facilities history instead of applying the event's snapshots as current state, so duplicate or
+      reordered delivery converges.

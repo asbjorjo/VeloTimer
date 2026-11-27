@@ -14,16 +14,16 @@ namespace VeloTime.Module.Facilities.Api;
 
 public static class MessagingExtensions
 {
-    public const string TimingAssociationsTopic = "velotime-facilities";
+    public const string CourseConfigTopic = "velotime-facilities";
 
-    public static IHostApplicationBuilder AddTimingAssociationMessaging(this IHostApplicationBuilder builder)
+    public static IHostApplicationBuilder AddCourseConfigMessaging(this IHostApplicationBuilder builder)
     {
         var connectionString = builder.Configuration.GetConnectionString("MessageBus");
         if (string.IsNullOrWhiteSpace(connectionString))
-            throw new InvalidOperationException("ConnectionStrings:MessageBus is required for Facilities timing-association events.");
+            throw new InvalidOperationException("ConnectionStrings:MessageBus is required for Facilities course configuration events.");
 
         builder.Services.ConfigureOpenTelemetryTracerProvider(tracer => tracer.AddSource("Azure.Messaging.*"));
-        builder.Services.AddScoped<ITimingAssociationEventPublisher, TimingAssociationEventPublisher>();
+        builder.Services.AddScoped<ICourseConfigEventPublisher, CourseConfigEventPublisher>();
         builder.Services.AddSlimMessageBus(mbb =>
         {
             mbb.AutoStartConsumersEnabled(false);
@@ -36,11 +36,11 @@ public static class MessagingExtensions
             });
             mbb.AddJsonSerializer();
             mbb.WithHeaderModifier((headers, message) => headers["MessageName"] = message.GetType().Name);
-            mbb.Produce<CoursePointTimingAssociationsChangedV1>(producer => producer
-                .DefaultTopic(TimingAssociationsTopic)
+            mbb.Produce<CourseConfigChangedV1>(producer => producer
+                .DefaultTopic(CourseConfigTopic)
                 .WithModifier((message, transportMessage) =>
                 {
-                    // Atomic changes may span several coursepoints in one facility.
+                    // One session per facility keeps a facility's course configuration changes in order.
                     transportMessage.SessionId = message.FacilityId.ToString();
                     transportMessage.MessageId = message.EventId.ToString();
                 }));

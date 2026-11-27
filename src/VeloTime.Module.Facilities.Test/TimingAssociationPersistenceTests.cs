@@ -102,14 +102,4 @@ public class TimingAssociationPersistenceTests
         var error = await Assert.ThrowsAsync<DbUpdateException>(() => storage.SaveChangesAsync());
         Assert.Contains("ck_course_point_timing_association_interval", error.InnerException!.Message);
     }
-
-    [Fact]
-    public void LegacyProperty_IsNotASilentMutableMapping()
-    {
-        var point = new CoursePoint { Id = Guid.NewGuid() };
-#pragma warning disable CS0618
-        Assert.Throws<NotSupportedException>(() => point.TimingPoint);
-        Assert.Throws<NotSupportedException>(() => point.TimingPoint = Guid.NewGuid());
-#pragma warning restore CS0618
-    }
 }

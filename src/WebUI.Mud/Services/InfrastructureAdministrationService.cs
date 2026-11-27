@@ -50,19 +50,117 @@ public sealed class InfrastructureAdministrationService(IFacilitiesClient facili
         await cache.InvalidateTagAsync(FacilitiesCacheTags.Relationships, "deleting a facility");
         return true;
     });
-    public Task<Facilities.CourseLayoutDTO> SaveLayoutAsync(Guid facilityId, Guid? id, Facilities.SaveCourseLayoutRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    public Task<Facilities.CourseLayoutDTO> CreateLayoutAsync(Guid facilityId, Facilities.SaveCourseLayoutRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
     {
         await cache.RequirePolicyAsync(AdministrationAuthorization.FacilitiesPolicy, cancellationToken);
-        var body = new SaveCourseLayoutRequest
+        var body = new SaveCourseLayoutRequest { Points = ToClientPoints(request.Points), Segments = ToClientSegments(request.Segments) };
+        var response = await cache.WriteAndInvalidateAsync(
+            () => facilities.CreateCourseLayoutAsync(facilityId, body, cancellationToken),
+            FacilitiesCacheTags.Relationships, "creating a course layout");
+        return FacilityLookupSnapshots.ToContract(FacilityLookupSnapshots.From(response, null, facilityId));
+    });
+    public Task<Facilities.CourseLayoutHistoryDTO> GetLayoutHistoryAsync(Guid facilityId, Guid id, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.ReferencePolicy, cancellationToken);
+        var history = await facilities.GetCourseLayoutHistoryAsync(facilityId, id, cancellationToken);
+        if (history is null || history.LayoutId != id || history.Assignments is null || history.Revisions is null ||
+            history.Assignments.Any(interval => interval is null || !IsValidInterval(interval.ValidFromUtc, interval.ValidToUtc)) ||
+            history.Revisions.Any(revision => revision is null || revision.RevisionId == Guid.Empty || revision.Segments is null ||
+                !IsValidInterval(revision.ValidFromUtc, revision.ValidToUtc) || revision.Segments.Any(segment => segment is null)))
+            throw new InvalidDataException("The course layout history is invalid.");
+        return new Facilities.CourseLayoutHistoryDTO
         {
-            Points = request.Points.Select(point => new SaveCoursePointRequest { Id = point.Id, Name = point.Name }).ToList(),
-            Segments = request.Segments.Select(segment => new SaveCourseSegmentRequest { Id = segment.Id, StartId = segment.StartId, EndId = segment.EndId, Length = segment.Length }).ToList()
+            LayoutId = history.LayoutId,
+            Assignments = history.Assignments.Select(ToContract).ToArray(),
+            Revisions = history.Revisions.Select(revision => new Facilities.CourseLayoutRevisionHistoryDTO
+            {
+                RevisionId = revision.RevisionId,
+                ValidFromUtc = revision.ValidFromUtc,
+                ValidToUtc = revision.ValidToUtc,
+                Segments = revision.Segments.OrderBy(segment => segment.Order).Select(segment => new Facilities.CourseSegmentHistoryDTO
+                {
+                    Order = segment.Order, StartPointId = segment.StartPointId, EndPointId = segment.EndPointId, Length = segment.Length
+                }).ToArray()
+            }).ToArray()
+        };
+    });
+    public Task<Facilities.SetCourseLayoutRevisionResponse> SetLayoutRevisionAsync(Guid facilityId, Guid id, Facilities.SetCourseLayoutRevisionRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.FacilitiesPolicy, cancellationToken);
+        var body = new VeloTime.Module.Facilities.Client.SetCourseLayoutRevisionRequest
+        {
+            Points = ToClientPoints(request.Points),
+            Segments = ToClientSegments(request.Segments),
+            ValidFromUtc = request.ValidFromUtc,
+            ValidToUtc = request.ValidToUtc,
+            ConfirmationToken = request.ConfirmationToken
+        };
+        try
+        {
+            var response = await cache.WriteAndInvalidateAsync(
+                () => facilities.SetCourseLayoutRevisionAsync(facilityId, id, body, cancellationToken),
+                FacilitiesCacheTags.Relationships, "revising a course layout");
+            if (response is null || response.ChangeId.HasValue != response.RevisionId.HasValue ||
+                response.ChangeId == Guid.Empty || response.RevisionId == Guid.Empty)
+                throw new InvalidDataException("The course layout revision response is invalid.");
+            return new Facilities.SetCourseLayoutRevisionResponse(response.ChangeId, response.RevisionId);
+        }
+        catch (VeloTime.Module.Facilities.Client.ApiException exception) when (exception.StatusCode == 409)
+        {
+            try
+            {
+                var preview = exception is VeloTime.Module.Facilities.Client.ApiException<
+                    VeloTime.Module.Facilities.Client.CourseLayoutRevisionConflictPreview> { Result: { } result }
+                    ? ToContract(result)
+                    : JsonSerializer.Deserialize<Facilities.CourseLayoutRevisionConflictPreview>(
+                        exception.Response, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+                if (preview is not null && preview.Code is "revision-overlap" or "confirmation-stale" &&
+                    preview.CourseLayoutId == id && !string.IsNullOrWhiteSpace(preview.ConfirmationToken) &&
+                    preview.Overlaps is not null && preview.Overlaps.All(overlap =>
+                        overlap is not null && overlap.RevisionId != Guid.Empty &&
+                        IsValidInterval(overlap.OverlapValidFromUtc, overlap.OverlapValidToUtc)))
+                    throw new CourseLayoutRevisionConflictException(preview, exception);
+            }
+            catch (JsonException)
+            {
+                // A malformed structured conflict must remain an explicit upstream failure.
+            }
+            throw new HttpRequestException("The course layout revision conflict preview could not be read.", exception,
+                System.Net.HttpStatusCode.BadGateway);
+        }
+    });
+    public Task<Facilities.SetFacilityLayoutAssignmentResponse> SetLayoutAssignmentAsync(Guid facilityId, Guid id, Facilities.SetFacilityLayoutAssignmentRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.FacilitiesPolicy, cancellationToken);
+        var body = new VeloTime.Module.Facilities.Client.SetFacilityLayoutAssignmentRequest
+        {
+            InUse = request.InUse, ValidFromUtc = request.ValidFromUtc, ValidToUtc = request.ValidToUtc
         };
         var response = await cache.WriteAndInvalidateAsync(
-            () => id.HasValue ? facilities.UpdateCourseLayoutAsync(facilityId, id.Value, body, cancellationToken) : facilities.CreateCourseLayoutAsync(facilityId, body, cancellationToken),
-            FacilitiesCacheTags.Relationships, "saving a course layout");
-        return FacilityLookupSnapshots.ToContract(FacilityLookupSnapshots.From(response, id, facilityId));
+            () => facilities.SetFacilityLayoutAssignmentAsync(facilityId, id, body, cancellationToken),
+            FacilitiesCacheTags.Relationships, "updating a course layout assignment");
+        if (response is null || response.Assignments is null || response.ChangeId == Guid.Empty ||
+            response.Assignments.Any(interval => interval is null || !IsValidInterval(interval.ValidFromUtc, interval.ValidToUtc)))
+            throw new InvalidDataException("The course layout assignment response is invalid.");
+        return new Facilities.SetFacilityLayoutAssignmentResponse(response.ChangeId, response.Assignments.Select(ToContract).ToArray());
     });
+    private static List<SaveCoursePointRequest> ToClientPoints(IEnumerable<Facilities.SaveCoursePointRequest> points) =>
+        points.Select(point => new SaveCoursePointRequest { Id = point.Id, Name = point.Name }).ToList();
+    private static List<SaveCourseSegmentRequest> ToClientSegments(IEnumerable<Facilities.SaveCourseSegmentRequest> segments) =>
+        segments.Select(segment => new SaveCourseSegmentRequest { Id = segment.Id, StartId = segment.StartId, EndId = segment.EndId, Length = segment.Length }).ToList();
+    private static bool IsValidInterval(DateTimeOffset? from, DateTimeOffset? to) =>
+        !from.HasValue || !to.HasValue || from.Value < to.Value;
+    private static Facilities.EffectiveIntervalDTO ToContract(VeloTime.Module.Facilities.Client.EffectiveIntervalDTO interval) =>
+        new() { ValidFromUtc = interval.ValidFromUtc, ValidToUtc = interval.ValidToUtc };
+    private static Facilities.CourseLayoutRevisionConflictPreview? ToContract(
+        VeloTime.Module.Facilities.Client.CourseLayoutRevisionConflictPreview preview) =>
+        preview.Overlaps is null || preview.Overlaps.Any(overlap => overlap is null)
+            ? null
+            : new(preview.Code, preview.CourseLayoutId, preview.ValidFromUtc, preview.ValidToUtc,
+                preview.Overlaps.Select(overlap => new Facilities.CourseLayoutRevisionOverlap(overlap.RevisionId,
+                    overlap.ValidFromUtc, overlap.ValidToUtc, overlap.OverlapValidFromUtc, overlap.OverlapValidToUtc,
+                    overlap.TotalLength, overlap.SegmentCount)).ToArray(),
+                preview.ConfirmationToken);
     public Task DeleteLayoutAsync(Guid facilityId, Guid id, CancellationToken cancellationToken = default) => Execute(async () =>
     {
         await cache.RequirePolicyAsync(AdministrationAuthorization.FacilitiesPolicy, cancellationToken);

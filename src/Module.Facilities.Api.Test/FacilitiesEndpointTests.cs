@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Routing;
 using VeloTime.Module.Facilities.Model;
 using VeloTime.Module.Facilities.Storage;
 using VeloTime.Module.Facilities.Interface.Data;
+using VeloTime.Module.Facilities.Interface.Messages;
 
 namespace VeloTime.Module.Facilities.Api.Test;
 
@@ -31,7 +32,8 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         var created = await client.PostAsJsonAsync($"/api/facilities/facility/{facility.Id}/layouts", request);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var firstLayout = (await created.Content.ReadFromJsonAsync<CourseLayoutDTO>())!;
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync($"/api/facilities/facility/{facility.Id}/layouts/{firstLayout.Id}", request with { Segments = [secondSegment, firstSegment] })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync($"/api/facilities/facility/{facility.Id}/layouts/{firstLayout.Id}/revision",
+            Revision(request with { Segments = [secondSegment, firstSegment] }))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync($"/api/facilities/facility/{secondFacility.Id}/layouts", request with
         { Segments = [firstSegment with { Id = Guid.NewGuid() }, secondSegment with { Id = Guid.NewGuid() }] })).StatusCode);
         var secondRequest = new SaveCourseLayoutRequest([start, finish], [new(Guid.NewGuid(), start.Id, finish.Id, 250)]);
@@ -63,7 +65,7 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
     }
 
     [TimingAssociationPostgresFact]
-    public async Task RelationshipOutputPolicy_CachesOnlySafeGeometryForThirtySecondsAndBypassesMappingReads()
+    public async Task RelationshipOutputPolicy_CachesOnlyPointFacilityForThirtySecondsAndBypassesTimeDependentReads()
     {
         var graph = await SeedFacilityAsync();
         factory.OutputCache.Reset();
@@ -75,7 +77,8 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
             .Where(endpoint => endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains("GET") == true)
             .Select(endpoint => endpoint.Metadata.FirstOrDefault(item => item.GetType().Name == "NamedPolicy"))
             .Count(policy => policy is not null);
-        Assert.Equal(2, relationshipPolicyCount);
+        // Distances depend on the instant (dated layout revisions), so only point → facility is output cached.
+        Assert.Equal(1, relationshipPolicyCount);
         var routes = new[]
         {
             $"/api/facilities/coursepoint/{graph.Start.Id}",
@@ -95,31 +98,31 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         }
 
         var firstStoredResponses = factory.OutputCache.Stored;
-        Assert.True(firstStoredResponses.Count == 2,
-            $"Expected only facility and coursepoint geometry distance to be cached; store calls={factory.OutputCache.SetCalls}, tagged responses={firstStoredResponses.Count}; responses: {string.Join(" | ", responseDetails)}.");
+        Assert.True(firstStoredResponses.Count == 1,
+            $"Expected only the coursepoint facility to be cached; store calls={factory.OutputCache.SetCalls}, tagged responses={firstStoredResponses.Count}; responses: {string.Join(" | ", responseDetails)}.");
         Assert.All(firstStoredResponses, stored =>
         {
             Assert.Contains("Facilities.Relationships", stored.Tags);
             Assert.InRange(stored.ValidFor, TimeSpan.FromSeconds(29), TimeSpan.FromSeconds(30));
         });
-        Assert.Equal(2, factory.OutputCache.SetCalls);
+        Assert.Equal(1, factory.OutputCache.SetCalls);
 
         foreach (var route in routes)
         {
             Assert.Equal(HttpStatusCode.OK, (await GetAnonymouslyAsync(client, route)).StatusCode);
         }
-        Assert.Equal(2, factory.OutputCache.Stored.Count);
-        Assert.Equal(4, factory.OutputCache.GetCalls);
-        Assert.Equal(2, factory.OutputCache.SetCalls);
+        Assert.Equal(1, factory.OutputCache.Stored.Count);
+        Assert.Equal(2, factory.OutputCache.GetCalls);
+        Assert.Equal(1, factory.OutputCache.SetCalls);
 
         factory.OutputCache.AdvanceBy(TimeSpan.FromSeconds(31));
         foreach (var route in routes)
         {
             Assert.Equal(HttpStatusCode.OK, (await GetAnonymouslyAsync(client, route)).StatusCode);
         }
-        Assert.Equal(4, factory.OutputCache.Stored.Count);
-        Assert.Equal(6, factory.OutputCache.GetCalls);
-        Assert.Equal(4, factory.OutputCache.SetCalls);
+        Assert.Equal(2, factory.OutputCache.Stored.Count);
+        Assert.Equal(3, factory.OutputCache.GetCalls);
+        Assert.Equal(2, factory.OutputCache.SetCalls);
 
         var countBeforeMiss = factory.OutputCache.Stored.Count;
         Assert.Equal(HttpStatusCode.NotFound,
@@ -145,12 +148,15 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var layout = (await created.Content.ReadFromJsonAsync<CourseLayoutDTO>())!;
         var route = $"/api/facilities/facility/{facility.Id}/layouts/{layout.Id}";
-        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync(route, request with { Points = [start with { Name = "Renamed" }, finish] })).StatusCode);
+        var revisionRoute = $"{route}/revision";
+        // Same geometry throughout: a rename is applied in place and keeps the revision and its segment IDs.
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync(revisionRoute, Revision(request with { Points = [start with { Name = "Renamed" }, finish] }))).StatusCode);
         var updated = (await client.GetFromJsonAsync<CourseLayoutDTO>($"/api/facilities/layouts/{layout.Id}"))!;
         Assert.Equal(start.Id, Assert.Single(updated.Segments).Start.Id);
-        Assert.Equal(segment.Id, updated.Segments.Single().Id);
+        Assert.Equal(layout.Segments.Single().Id, updated.Segments.Single().Id);
+        Assert.Equal(layout.RevisionId, updated.RevisionId);
         Assert.Equal("Renamed", updated.Segments.Single().Start.Name);
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync(route, request with { Segments = [segment with { Length = -1 }] })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync(revisionRoute, Revision(request with { Segments = [segment with { Length = -1 }] }))).StatusCode);
 
         using var timingAdmin = factory.CreateClient();
         timingAdmin.DefaultRequestHeaders.Add("X-Test-Role", "timing-admin");
@@ -161,11 +167,14 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.OK, (await timingAdmin.PutAsJsonAsync($"/api/facilities/coursepoint/{start.Id}/timing-link", new SetCoursePointTimingLinkRequest(timingPointId))).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await timingAdmin.PutAsJsonAsync($"/api/facilities/coursepoint/{finish.Id}/timing-link", new SetCoursePointTimingLinkRequest(timingPointId))).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync(route)).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await timingAdmin.PutAsJsonAsync(route, request)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await timingAdmin.PutAsJsonAsync(revisionRoute, Revision(request))).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await timingAdmin.PutAsJsonAsync($"/api/facilities/coursepoint/{start.Id}/timing-link", new SetCoursePointTimingLinkRequest(null))).StatusCode);
         factory.References.Dependencies = 1;
         Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync(route)).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync(route, request with { Segments = [segment with { Length = 300 }] })).StatusCode);
+        // A geometry change over existing revisions needs confirmation; Statistics recomputes rather than blocking it.
+        using var revised = await client.PutAsJsonAsync(revisionRoute, Revision(request with { Segments = [segment with { Length = 300 }] }));
+        Assert.Equal(HttpStatusCode.Conflict, revised.StatusCode);
+        Assert.Equal("revision-overlap", (await revised.Content.ReadFromJsonAsync<CourseLayoutRevisionConflictPreview>())!.Code);
         factory.References.Dependencies = 0;
         // Unlink closes the current mapping; it no longer destroys effective history.
         // Deletion must retain the layout/facility required to interpret that history.
@@ -180,8 +189,69 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync($"/api/facilities/facility/{facility.Id}")).StatusCode);
         Assert.Equal(history, await client.GetFromJsonAsync<CoursePointTimingAssociationSnapshot[]>(
             $"/api/facilities/coursepoint/{start.Id}/timing-associations"));
-        Assert.Equal(segment.Id, Assert.Single((await client.GetFromJsonAsync<CourseLayoutDTO>(
+        Assert.Equal(layout.Segments.Single().Id, Assert.Single((await client.GetFromJsonAsync<CourseLayoutDTO>(
             $"/api/facilities/layouts/{layout.Id}"))!.Segments).Id);
+    }
+
+    [TimingAssociationPostgresFact]
+    public async Task LayoutRevisionsAndAssignments_AreDatedAndPublishCourseConfigChanges()
+    {
+        using var client = factory.CreateClient();
+        var facility = (await (await client.PostAsJsonAsync("/api/facilities/facility", new SaveFacilityRequest("Dated track"))).Content.ReadFromJsonAsync<FacilityDTO>())!;
+        var start = new SaveCoursePointRequest(Guid.NewGuid(), "Start");
+        var finish = new SaveCoursePointRequest(Guid.NewGuid(), "Finish");
+        var request = new SaveCourseLayoutRequest([start, finish], [new(Guid.NewGuid(), start.Id, finish.Id, 250)]);
+        var layout = (await (await client.PostAsJsonAsync($"/api/facilities/facility/{facility.Id}/layouts", request)).Content.ReadFromJsonAsync<CourseLayoutDTO>())!;
+        var route = $"/api/facilities/facility/{facility.Id}/layouts/{layout.Id}";
+        var changeAt = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        var longer = Revision(request with { Segments = [new(Guid.NewGuid(), start.Id, finish.Id, 333.3)] }, changeAt);
+
+        factory.Events.Enqueued.Clear();
+        using var preview = await client.PutAsJsonAsync($"{route}/revision", longer);
+        Assert.Equal(HttpStatusCode.Conflict, preview.StatusCode);
+        var conflict = (await preview.Content.ReadFromJsonAsync<CourseLayoutRevisionConflictPreview>())!;
+        var overlap = Assert.Single(conflict.Overlaps);
+        Assert.Equal(changeAt, overlap.OverlapValidFromUtc);
+        Assert.Null(overlap.OverlapValidToUtc);
+        Assert.Empty(factory.Events.Enqueued);
+
+        using var confirmed = await client.PutAsJsonAsync($"{route}/revision", longer with { ConfirmationToken = conflict.ConfirmationToken });
+        Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
+        var revised = (await confirmed.Content.ReadFromJsonAsync<SetCourseLayoutRevisionResponse>())!;
+        Assert.NotNull(revised.ChangeId);
+        var revisionEvent = Assert.Single(factory.Events.Enqueued);
+        Assert.Equal(CourseConfigChangeKind.LayoutRevision, revisionEvent.Kind);
+        Assert.Equal(facility.Id, revisionEvent.FacilityId);
+        Assert.Equal(layout.Id, revisionEvent.CourseLayoutId);
+        Assert.Equal(changeAt, revisionEvent.AffectedFromUtc);
+        Assert.Null(revisionEvent.AffectedToUtc);
+
+        // The old geometry applies before the change, the new one from it.
+        Assert.Equal(250, Assert.Single((await client.GetFromJsonAsync<CourseLayoutDTO>(
+            $"/api/facilities/layouts/{layout.Id}?at={Uri.EscapeDataString(changeAt.AddTicks(-1).ToString("o"))}"))!.Segments).Length);
+        Assert.Equal(333.3, Assert.Single((await client.GetFromJsonAsync<CourseLayoutDTO>(
+            $"/api/facilities/layouts/{layout.Id}?at={Uri.EscapeDataString(changeAt.ToString("o"))}"))!.Segments).Length);
+
+        factory.Events.Enqueued.Clear();
+        var retiredAt = changeAt.AddDays(30);
+        using var retired = await client.PutAsJsonAsync($"{route}/assignment",
+            new SetFacilityLayoutAssignmentRequest { InUse = false, ValidFromUtc = retiredAt, ValidToUtc = null });
+        Assert.Equal(HttpStatusCode.OK, retired.StatusCode);
+        var assignment = (await retired.Content.ReadFromJsonAsync<SetFacilityLayoutAssignmentResponse>())!;
+        var kept = Assert.Single(assignment.Assignments);
+        Assert.Null(kept.ValidFromUtc);
+        Assert.Equal(retiredAt, kept.ValidToUtc);
+        var assignmentEvent = Assert.Single(factory.Events.Enqueued);
+        Assert.Equal(CourseConfigChangeKind.LayoutAssignment, assignmentEvent.Kind);
+        Assert.Equal(retiredAt, assignmentEvent.AffectedFromUtc);
+
+        var history = (await client.GetFromJsonAsync<CourseLayoutHistoryDTO>($"{route}/history"))!;
+        Assert.Equal(layout.Id, history.LayoutId);
+        Assert.Equal(retiredAt, Assert.Single(history.Assignments).ValidToUtc);
+        Assert.Collection(history.Revisions,
+            before => { Assert.Null(before.ValidFromUtc); Assert.Equal(changeAt, before.ValidToUtc); Assert.Equal(250, Assert.Single(before.Segments).Length); },
+            after => { Assert.Equal(changeAt, after.ValidFromUtc); Assert.Null(after.ValidToUtc); Assert.Equal(333.3, Assert.Single(after.Segments).Length); });
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/facilities/facility/{facility.Id}/layouts/{Guid.NewGuid()}/history")).StatusCode);
     }
 
     [Fact]
@@ -293,19 +363,19 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         var middle = Point("Middle");
         var finish = Point("Finish");
         var layout = new CourseLayout { Id = Guid.NewGuid(), FacilityId = facility.Id, Facility = facility };
-        layout.Segments.Add(new CourseSegment
+        layout.EnsureUnboundedRevision().Segments.Add(new CourseSegment
         {
-            Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = 1,
+            Id = Guid.NewGuid(), Order = 1,
             Start = start, End = middle, Length = 125
         });
-        layout.Segments.Add(new CourseSegment
+        layout.EnsureUnboundedRevision().Segments.Add(new CourseSegment
         {
-            Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = 2,
+            Id = Guid.NewGuid(), Order = 2,
             Start = middle, End = finish, Length = 200
         });
-        layout.Segments.Add(new CourseSegment
+        layout.EnsureUnboundedRevision().Segments.Add(new CourseSegment
         {
-            Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id, Order = 3,
+            Id = Guid.NewGuid(), Order = 3,
             Start = finish, End = start, Length = 275
         });
         facility.Layouts.Add(layout);
@@ -333,21 +403,17 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
         var end = new CoursePoint { Id = Guid.NewGuid(), Name = "Finish",
             TimingAssociations = [new() { Id = Guid.NewGuid(), TimingPointId = Guid.NewGuid() }] };
         var layout = new CourseLayout { Id = Guid.NewGuid(), FacilityId = facility.Id, Facility = facility };
-        layout.Segments.Add(new CourseSegment
+        layout.EnsureUnboundedRevision().Segments.Add(new CourseSegment
         {
             Id = Guid.NewGuid(),
-            CourseLayout = layout,
-            CourseLayoutId = layout.Id,
             Order = 1,
             Start = start,
             End = middle,
             Length = 50
         });
-        layout.Segments.Add(new CourseSegment
+        layout.EnsureUnboundedRevision().Segments.Add(new CourseSegment
         {
             Id = Guid.NewGuid(),
-            CourseLayout = layout,
-            CourseLayoutId = layout.Id,
             Order = 2,
             Start = middle,
             End = end,
@@ -369,4 +435,7 @@ public sealed class FacilitiesEndpointTests(FacilitiesApiFactory factory) : ICla
     private sealed record FacilityGraph(Facility Facility, CourseLayout Layout, CoursePoint Start, CoursePoint End);
     private sealed record ClosedFacilityGraph(Facility Facility, CourseLayout Layout, CoursePoint Start,
         CoursePoint Middle, Guid StartTiming, Guid MiddleTiming);
+
+    private static SetCourseLayoutRevisionRequest Revision(SaveCourseLayoutRequest request, DateTimeOffset? from = null, DateTimeOffset? to = null) =>
+        new() { Points = request.Points, Segments = request.Segments, ValidFromUtc = from, ValidToUtc = to };
 }

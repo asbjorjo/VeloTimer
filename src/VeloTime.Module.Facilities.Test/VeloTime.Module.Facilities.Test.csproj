@@ -30,7 +30,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <!-- Compile the actual messaging sources independently of legacy endpoint compile blockers. -->
     <Compile Include="..\Module.Facilities.Api\MessagingExtensions.cs" Link="Messaging\MessagingExtensions.cs" />
-    <Compile Include="..\Module.Facilities.Api\TimingAssociationEventPublisher.cs" Link="Messaging\TimingAssociationEventPublisher.cs" />
+    <Compile Include="..\Module.Facilities.Api\CourseConfigEventPublisher.cs" Link="Messaging\CourseConfigEventPublisher.cs" />
     <Compile Include="..\Module.Facilities.Api.Test\RecordingTimingAssociationPublisher.cs" Link="Messaging\RecordingTimingAssociationPublisher.cs" />
   </ItemGroup>
 

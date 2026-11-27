@@ -44,7 +44,9 @@ public sealed class TimingAssociationConcurrencyResponseTests
                 storage.Add(new CourseLayout
                 {
                     Id = Guid.NewGuid(), FacilityId = facility,
-                    Segments = [new CourseSegment { Id = Guid.NewGuid(), Order = 0, Start = start, End = end, Length = 250 }]
+                    Assignments = [new() { Id = Guid.NewGuid(), FacilityId = facility }],
+                    Revisions = [new() { Id = Guid.NewGuid(),
+                        Segments = [new CourseSegment { Id = Guid.NewGuid(), Order = 0, Start = start, End = end, Length = 250 }] }]
                 });
                 storage.AddRange(
                     new CoursePointTimingAssociation
@@ -135,7 +137,7 @@ public sealed class TimingAssociationConcurrencyResponseTests
             Assert.NotNull(result.ChangeId);
             var message = Assert.Single(factory.Events.Enqueued);
             Assert.Equal(result.ChangeId, message.ChangeId);
-            Assert.Equal(result.Changes, message.Changes);
+            Assert.Equal(result.Changes, message.AssociationChanges);
             Assert.Contains(result.Changes, change =>
                 change.Before?.TimingPointId == originalSourceTiming &&
                 change.After?.TimingPointId == destinationTiming &&
