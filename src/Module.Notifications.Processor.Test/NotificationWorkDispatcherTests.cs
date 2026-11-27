@@ -53,7 +53,7 @@ public sealed class NotificationWorkDispatcherTests(ITestOutputHelper output)
         }
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task FailedPublicationIsDurablyRetriedAndAcknowledgedAfterRestart()
     {
         await using var database = await TestDatabase.CreateAsync();
@@ -112,7 +112,7 @@ public sealed class NotificationWorkDispatcherTests(ITestOutputHelper output)
         }
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task LostAcknowledgementCanRedeliverSameEventIdAfterLeaseExpiry()
     {
         await using var database = await TestDatabase.CreateAsync();
@@ -174,7 +174,7 @@ public sealed class NotificationWorkDispatcherTests(ITestOutputHelper output)
         }
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task CurrentDeadlineCompletesAtomicallyAndPublishesRefreshInSameCycle()
     {
         await using var database = await TestDatabase.CreateAsync();
@@ -222,7 +222,7 @@ public sealed class NotificationWorkDispatcherTests(ITestOutputHelper output)
         }
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task DeadlineHintPublicationFailureRetriesStableEventWithoutCompletingDeadlineAgain()
     {
         await using var database = await TestDatabase.CreateAsync();
@@ -273,7 +273,7 @@ public sealed class NotificationWorkDispatcherTests(ITestOutputHelper output)
         }
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task DispatchCycleKeepsDeadlineAndOutboxBatchesBounded()
     {
         await using var database = await TestDatabase.CreateAsync();
@@ -315,7 +315,7 @@ public sealed class NotificationWorkDispatcherTests(ITestOutputHelper output)
         }
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task EmptyCancelledIntervalDoesNotEmitDeadlineRefresh()
     {
         await using var database = await TestDatabase.CreateAsync();
@@ -350,7 +350,7 @@ public sealed class NotificationWorkDispatcherTests(ITestOutputHelper output)
         }
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task RescheduleWhileDeadlineClaimWaitsOnSourceLockFencesOldGeneration()
     {
         await using var database = await TestDatabase.CreateAsync();
@@ -440,7 +440,7 @@ public sealed class NotificationWorkDispatcherTests(ITestOutputHelper output)
         }
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task MatchingAccountDurationExpiryEnqueuesRefreshAndInvalidatesSnapshotRevision()
     {
         await using var database = await TestDatabase.CreateAsync();
@@ -485,7 +485,7 @@ public sealed class NotificationWorkDispatcherTests(ITestOutputHelper output)
         }
     }
 
-    [Theory]
+    [PostgresTheory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task HostedLoopPublishesWorkEligibleJustAfterCycleWithinLocalSchedulingBudget(bool deadline)
