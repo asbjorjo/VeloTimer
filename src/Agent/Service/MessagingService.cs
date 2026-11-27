@@ -49,12 +49,13 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
 
     private async Task<Passing[]> PreparePassingsAsync(Passing[] batch, CancellationToken cancellationToken)
     {
-        // Reject the whole batch before anything is stored if an ID cannot become a SourcePassingId.
-        foreach (var passing in batch) PassingIds.Parse(passing.Id);
+        // Reject the whole batch before anything is stored if a passing has no ID.
+        if (batch.Any(p => p.Id == Guid.Empty))
+            throw new ArgumentException("Every passing needs a non-empty UUID Id; it becomes PassingObservedV1.SourcePassingId.", nameof(batch));
         var unique = batch.DistinctBy(p => p.Id).ToArray();
         // Insert in a stable key order so concurrent overlapping batches acquire row locks consistently.
-        var ordered = unique.OrderBy(p => p.Id, StringComparer.Ordinal).ToArray();
-        var inserted = new HashSet<string>(StringComparer.Ordinal);
+        var ordered = unique.OrderBy(p => p.Id).ToArray();
+        var inserted = new HashSet<Guid>();
         foreach (var chunk in ordered.Chunk(PassingInsertChunkSize))
             inserted.UnionWith(await InsertPassingsIfAbsentAsync(chunk, cancellationToken));
         return unique.Where(p => inserted.Contains(p.Id)).ToArray();
@@ -64,7 +65,7 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
     /// Inserts passings in the current transaction, skipping IDs that already exist or are being inserted by a
     /// concurrent transaction (which blocks until that transaction commits or rolls back). Returns inserted IDs.
     /// </summary>
-    private async Task<List<string>> InsertPassingsIfAbsentAsync(Passing[] chunk, CancellationToken cancellationToken)
+    private async Task<List<Guid>> InsertPassingsIfAbsentAsync(Passing[] chunk, CancellationToken cancellationToken)
     {
         var entity = dbContext.Model.FindEntityType(typeof(Passing))
             ?? throw new InvalidOperationException("Passing is not mapped in AgentDbContext.");
@@ -75,6 +76,7 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
         var sql = dbContext.GetService<ISqlGenerationHelper>();
         string Column(string property) => sql.DelimitIdentifier(entity.FindProperty(property)!.GetColumnName(table)!);
         var timeMapping = entity.FindProperty(nameof(Passing.Time))!.GetRelationalTypeMapping();
+        var idMapping = entity.FindProperty(nameof(Passing.Id))!.GetRelationalTypeMapping();
         string[] columns =
         [
             Column(nameof(Passing.Id)), Column(nameof(Passing.Time)), Column(nameof(Passing.TransponderType)),
@@ -101,11 +103,17 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
             for (var i = 0; i < values.Length; i++)
             {
                 var parameterName = $"@p{index++}";
-                var parameter = values[i] is DateTime time
-                    ? timeMapping.CreateParameter(command, parameterName, time)
-                    : command.CreateParameter();
-                parameter.ParameterName = parameterName;
-                parameter.Value = values[i];
+                DbParameter parameter;
+                // Provider mappings keep the representation EF uses (e.g. SQLite stores Guid as TEXT).
+                if (values[i] is Guid guid) parameter = idMapping.CreateParameter(command, parameterName, guid);
+                else
+                {
+                    parameter = values[i] is DateTime time
+                        ? timeMapping.CreateParameter(command, parameterName, time)
+                        : command.CreateParameter();
+                    parameter.ParameterName = parameterName;
+                    parameter.Value = values[i];
+                }
                 command.Parameters.Add(parameter);
                 names[i] = parameter.ParameterName;
             }
@@ -116,11 +124,11 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
             $"INSERT INTO {sql.DelimitIdentifier(tableName, schema)} ({string.Join(", ", columns)}) " +
             $"VALUES {string.Join(", ", rows)} ON CONFLICT ({id}) DO NOTHING RETURNING {id}";
 
-        var inserted = new List<string>(chunk.Length);
+        var inserted = new List<Guid>(chunk.Length);
         try
         {
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken)) inserted.Add(reader.GetString(0));
+            while (await reader.ReadAsync(cancellationToken)) inserted.Add(reader.GetGuid(0));
         }
         catch (DbException exception)
         {

@@ -85,7 +85,7 @@ public sealed class WorkerHandlerTests
         await service.SendEventAsync(new VeloTime.Agent.Model.LoopStatus { Time = time, LoopId = "loop-1", Noise = 0.25 });
         await service.SendEventsAsync([new VeloTime.Agent.Model.Passing
         {
-            Id = "6f1c2d4e-0000-4000-8000-000000000001", Time = time, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1",
+            Id = Guid.Parse("6f1c2d4e-0000-4000-8000-000000000001"), Time = time, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1",
             LowBattery = true, LowStrength = true, LowHits = true
         }]);
         await service.SendEventsAsync([segment]);
@@ -106,7 +106,7 @@ public sealed class WorkerHandlerTests
     }
 
     [Fact]
-    public async Task AgentMessagingService_RejectsBatchesWithNonUuidPassingIds()
+    public async Task AgentMessagingService_RejectsBatchesWithEmptyPassingIds()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
@@ -117,13 +117,13 @@ public sealed class WorkerHandlerTests
         using var serviceProvider = new ServiceCollection().AddMetrics().BuildServiceProvider();
         var service = new MessagingService(messageBus, storage,
             new VeloTime.Agent.Metrics(serviceProvider.GetRequiredService<IMeterFactory>()), NullLogger<MessagingService>.Instance);
-        VeloTime.Agent.Model.Passing Passing(string id) => new()
+        VeloTime.Agent.Model.Passing Passing(Guid id) => new()
         {
             Id = id, Time = DateTime.UtcNow, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1"
         };
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            service.SendEventsAsync([Passing(Guid.NewGuid().ToString()), Passing("hardware-42")]));
+            service.SendEventsAsync([Passing(Guid.NewGuid()), Passing(Guid.Empty)]));
 
         Assert.Empty(recorder.Published);
         Assert.Empty(await storage.Set<VeloTime.Agent.Model.Passing>().ToListAsync());

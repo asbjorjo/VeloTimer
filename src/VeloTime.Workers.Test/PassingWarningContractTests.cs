@@ -14,14 +14,14 @@ public sealed class PassingWarningContractTests
     [InlineData(false, false, false)]
     public void PassingWarnings_SurviveMappingAndSerialization(bool battery, bool strength, bool hits)
     {
-        var passing = new Passing { Id = "6f1c2d4e-0000-4000-8000-000000000007", Time = DateTime.UtcNow, TransponderType = "X2",
+        var passing = new Passing { Id = Guid.Parse("6f1c2d4e-0000-4000-8000-000000000007"), Time = DateTime.UtcNow, TransponderType = "X2",
             TransponderId = "106187718", LoopId = "finish", LowBattery = battery, LowStrength = strength, LowHits = hits };
         var message = JsonSerializer.Deserialize<PassingObservedV1>(JsonSerializer.Serialize(passing.ToMessage()))!;
         Assert.Equal(battery, message.LowBattery);
         Assert.Equal(strength, message.LowStrength);
         Assert.Equal(hits, message.LowHits);
         var (sourcePassingId, time, type, id, loop) = message;
-        Assert.Equal(Guid.Parse(passing.Id), sourcePassingId);
+        Assert.Equal(passing.Id, sourcePassingId);
         Assert.Equal(passing.Time, time);
         Assert.Equal(passing.TransponderType, type);
         Assert.Equal(passing.TransponderId, id);

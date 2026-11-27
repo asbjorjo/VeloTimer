@@ -237,8 +237,8 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         "coalesce(convert_from(message_payload, 'UTF8')::jsonb->>'LoopId', convert_from(message_payload, 'UTF8')::jsonb->>'loopId')";
 
     /// <summary>Agents must use UUID passing IDs; tests keep readable labels and derive a stable UUID from each.</summary>
-    private static string PassingId(string label) =>
-        new Guid(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(label))).ToString();
+    private static Guid PassingId(string label) =>
+        new(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(label)));
 
     private static Passing KeyedPassing(string id, bool lowBattery = false) => new()
     {
