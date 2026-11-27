@@ -6,6 +6,7 @@ using VeloTime.Module.Common;
 using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Service;
+using VeloTime.Module.Statistics.Service.Recompute;
 using VeloTime.Module.Statistics.Storage;
 
 namespace VeloTime.Module.Statistics.Api.Endpoints;
@@ -110,6 +111,9 @@ internal static class StatisticsDefinitionEndpoints
             }
 
             var thresholdsChanged = item.MinDuration != request.MinDuration || item.MaxDuration != request.MaxDuration;
+            // Entries are derived from all passing facts, so a definition counts history from the start.
+            if (configs.Count > 0 && (item.Distance != request.Distance || item.DistanceMode != mode))
+                StatisticsRecomputeScheduler.All(storage, RecomputeReason.Definition, id);
             item.MinDuration = request.MinDuration;
             item.MaxDuration = request.MaxDuration;
             item.Name = request.Name.Trim();
@@ -241,6 +245,8 @@ internal static class StatisticsDefinitionEndpoints
             config.MaxDuration = request.MaxDuration;
             cacheKeys = CacheKeysFor(config).ToArray();
             storage.Add(config);
+            // A new definition counts every recorded passing, not only those arriving after it was saved.
+            StatisticsRecomputeScheduler.All(storage, RecomputeReason.Definition, config.Id);
             await storage.SaveChangesAsync(cancellationToken);
             if (config.MinDuration is not null || config.MaxDuration is not null)
             {
@@ -307,6 +313,8 @@ internal static class StatisticsDefinitionEndpoints
                 multi.Repetitions = request.Repetitions!.Value;
             }
             cacheKeys = oldCacheKeys.Concat(CacheKeysFor(config)).ToArray();
+            if (!SameStructure(structural, proposed with { MinDuration = null, MaxDuration = null }))
+                StatisticsRecomputeScheduler.All(storage, RecomputeReason.Definition, config.Id);
             await storage.SaveChangesAsync(cancellationToken);
             if (thresholdsChanged)
             {

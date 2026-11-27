@@ -7,6 +7,7 @@ using VeloTime.Module.Statistics;
 using VeloTime.Module.Statistics.Handlers;
 using VeloTime.Module.Statistics.Interface.Messages;
 using VeloTime.Module.Statistics.Service;
+using VeloTime.Module.Statistics.Service.Recompute;
 using VeloTime.Module.Timing.Interface.Messages;
 
 internal static class StartupExtensions
@@ -39,8 +40,15 @@ internal static class StartupExtensions
             {
                 headers["MessageName"] = message.GetType().Name;
             });
-            // Phase 1 of docs/replay-safe-statistics-plan.md removed TimingSampleComplete. Statistics ingests
-            // PassingRecordedV1 from Phase 2 onward; until then it receives no new samples.
+            // Passing facts and ownership changes share the session-enabled "statistics" subscription on the
+            // Timing topic; both are keyed by transponder. Statistics no longer messages itself (plan §3.3).
+            mbb.Consume<PassingRecordedV1>(x => x
+                .Topic("velotime-timing")
+                .SubscriptionName("statistics")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(PassingRecordedV1)}'")
+                .WithConsumer<PassingRecordedHandler>()
+                .Instances(1)
+                .EnableSession());
             mbb.Consume<TransponderOwnershipChanged>(x => x
                 .Topic("velotime-timing")
                 .SubscriptionName("statistics")
@@ -48,51 +56,13 @@ internal static class StartupExtensions
                 .WithConsumer<TransponderOwnershipChangedHandler>()
                 .Instances(1)
                 .EnableSession());
-            mbb.Consume<EntryCreated>(x => x
-                .Topic("velotime-statistics")
-                .SubscriptionName("statistics")
-                .SubscriptionSqlFilter($"MessageName = '{nameof(EntryCreated)}'")
-                .WithConsumer<EntryCreatedHandler>()
-                .WhenUndeclaredMessageTypeArrives(opts =>
-                {
-                    opts.Fail = false;
-                    opts.Log = true;
-                })
-                .Instances(1)
-                .EnableSession(s =>
-                {
-                    //s.MaxConcurrentSessions(1);
-                }));
-            mbb.Consume<SampleComplete>(x => x
-                .Topic("velotime-statistics")
-                .SubscriptionName("statistics")
-                .SubscriptionSqlFilter($"MessageName = '{nameof(SampleComplete)}'")
-                .WithConsumer<SampleCompleteHandler>()
-                .Instances(1)
-                .EnableSession(s =>
-                {
-                    //s.MaxConcurrentSessions(1);
-                }));
-            // Wake-up only: durable job rows are the source of work. Dedicated filtered subscription so the
-            // existing session-enabled "statistics" consumers never receive threshold events.
+            // Wake-up only: durable job rows are the source of work.
             mbb.Consume<StatisticsValidityThresholdsChangedV1>(x => x
                 .Topic("velotime-statistics")
                 .SubscriptionName("statistics-validity")
                 .SubscriptionSqlFilter($"MessageName = '{nameof(StatisticsValidityThresholdsChangedV1)}'")
                 .WithConsumer<StatisticsValidityThresholdsChangedHandler>()
                 .Instances(1));
-            mbb.Produce<EntryCreated>(x => x
-                .DefaultTopic("velotime-statistics")
-                .WithModifier((message, sbMessage) =>
-                {
-                    sbMessage.SessionId = message.TransponderId.ToString();
-                }));
-            mbb.Produce<SampleComplete>(x => x
-                .DefaultTopic("velotime-statistics")
-                .WithModifier((message, sbMessage) =>
-                {
-                    sbMessage.SessionId = message.TransponderId.ToString();
-                }));
             mbb.AddServicesFromAssemblyContaining<TransponderOwnershipChangedHandler>();
         });
 
@@ -110,6 +80,15 @@ internal static class StartupExtensions
         services.AddSingleton<StatisticsRevalidationSignal>();
         services.AddScoped<StatisticsRevalidationService>();
         services.AddHostedService<StatisticsRevalidationWorker>();
+        services.AddOptions<StatisticsRecomputeOptions>()
+            .Bind(configuration.GetSection(StatisticsRecomputeOptions.Section))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddSingleton<StatisticsRecomputeSignal>();
+        services.AddScoped<IStatisticsConfigurationSource, HttpStatisticsConfigurationSource>();
+        services.AddScoped<StatisticsConfigurationHistory>();
+        services.AddScoped<StatisticsRecomputeService>();
+        services.AddHostedService<StatisticsRecomputeWorker>();
 
         services.AddFacilitiesClient()
             .AddDefaultAccessTokenResiliency()

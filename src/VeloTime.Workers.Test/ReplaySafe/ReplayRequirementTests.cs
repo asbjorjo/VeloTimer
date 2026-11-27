@@ -24,7 +24,7 @@ public sealed class ReplayRequirementTests
         Assert.Equal(day.Count, (await world.SnapshotAsync()).TimingPassings);
     }
 
-    [RequirementFact(PendingPhase = "Phase 2 (S1, S4)")]
+    [RequirementFact]
     public async Task EveryMessageDeliveredTwice_MatchesSingleDelivery()
     {
         await using var once = await PipelineWorlds.CreateAsync();
@@ -43,7 +43,7 @@ public sealed class ReplayRequirementTests
         Assert.Equal(expected.TimingPassings, actual.TimingPassings);
     }
 
-    [RequirementFact(PendingPhase = "Phase 2 (S1, S4)")]
+    [RequirementFact]
     public async Task LateRedeliveryOfEveryConsumedMessage_ChangesNoRowOrId()
     {
         await using var world = await PipelineWorlds.CreateAsync();
@@ -60,7 +60,7 @@ public sealed class ReplayRequirementTests
         Assert.Equal(before.TimingPassings, after.TimingPassings);
     }
 
-    [RequirementFact(PendingPhase = "Phase 2 (T1, S1)")]
+    [RequirementFact]
     public async Task AgentReplayOfAFullDay_CreatesNoNewRows()
     {
         await using var world = await PipelineWorlds.CreateAsync();

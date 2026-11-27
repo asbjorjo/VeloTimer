@@ -15,9 +15,10 @@ using VeloTime.Module.Facilities.Service;
 using VeloTime.Module.Facilities.Storage;
 using VeloTime.Module.Statistics.Handlers;
 using VeloTime.Module.Statistics.Interface.Data;
-using VeloTime.Module.Statistics.Interface.Messages;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Service;
+using VeloTime.Module.Statistics.Service.Recompute;
+using Microsoft.Extensions.Options;
 using VeloTime.Module.Statistics.Storage;
 using VeloTime.Module.Timing.Handlers;
 using VeloTime.Module.Timing.Interface.Data;
@@ -41,12 +42,13 @@ public static class PipelineWorlds
 }
 
 /// <summary>
-/// The pipeline as of Phase 1: Timing records each <see cref="PassingObservedV1"/> as an idempotent
-/// fact and publishes <see cref="PassingRecordedV1"/>, which Statistics does not consume until Phase 2,
-/// so no samples or entries are derived yet. Statistics' SampleComplete → EntryCreated handlers are
-/// wired for when they are fed again; Facilities configuration lives in its own database. Messages
-/// go through an in-memory FIFO bus; a failing message is retried a few times and then
-/// dead-lettered, as the broker would.
+/// The pipeline as of Phase 2: Timing records each <see cref="PassingObservedV1"/> as an idempotent
+/// fact and publishes <see cref="PassingRecordedV1"/>; Statistics stores its own fact copy, marks the
+/// range dirty, and the recompute worker derives samples and entries per riding session from the facts
+/// and the configuration history (read through the shared cache from the Facilities and Timing
+/// databases). Messages go through an in-memory FIFO bus; a failing message is retried a few times and
+/// then dead-lettered, as the broker would. A recompute that fails is reported as a dead letter too.
+/// Configuration edits evict the cached history, as the Phase 3 change-event handlers will.
 /// </summary>
 internal sealed class CurrentPipelineWorld : IPipelineWorld
 {
@@ -136,6 +138,7 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
         await db.SaveChangesAsync();
         facilities[name] = created.Id;
         facilityNames[created.Id] = name;
+        await History().EvictAsync([], [created.Id]);
 
         CoursePoint Point(string pointName)
         {
@@ -161,6 +164,7 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
         var writable = await db.Set<Installation>().SingleAsync(i => i.Id == installation.Id);
         writable.Facility = facilities[facilityName];
         await db.SaveChangesAsync();
+        await History().EvictAsync([installation.Id], []);
     }
 
     public async Task AssociateLoopAsync(string agent, string loop, string coursePoint, DateTime? from = null, DateTime? to = null)
@@ -174,7 +178,9 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
             ValidToUtc = to.HasValue ? new DateTimeOffset(to.Value) : null
         });
         await db.SaveChangesAsync();
-        // Facilities publishes CoursePointTimingAssociationsChangedV1, but no service consumes it yet (C4).
+        // Facilities publishes CoursePointTimingAssociationsChangedV1, but no service consumes it yet (C4):
+        // the cache is evicted, yet nothing marks the affected range dirty until Phase 3.
+        await History().EvictAsync([], facilities.Values);
     }
 
     public async Task MoveLoopsAsync(string agent, IReadOnlyDictionary<string, string> moves, DateTime from)
@@ -198,6 +204,7 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
             });
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
+        await History().EvictAsync([], facilities.Values);
     }
 
     public async Task DefineSimpleItemAsync(string name, string start, string end, double distance,
@@ -213,6 +220,8 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
         };
         await using var db = StatisticsDb();
         db.Add(config);
+        // As StatisticsDefinitionEndpoints does: a new definition counts all recorded history.
+        StatisticsRecomputeScheduler.All(db, RecomputeReason.Definition, config.Id);
         await db.SaveChangesAsync();
         simpleItems[name] = config;
         itemNames[item.Id] = name;
@@ -228,6 +237,7 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
             Id = Guid.NewGuid(), StatisticsItem = item, StatisticsItemId = item.Id,
             ParentConfig = parentConfig, ParentConfigId = parentConfig.Id, Repetitions = repetitions
         });
+        StatisticsRecomputeScheduler.All(db, RecomputeReason.Definition);
         await db.SaveChangesAsync();
         itemNames[item.Id] = name;
     }
@@ -251,10 +261,19 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
 
     public async Task DrainAsync()
     {
-        while (queue.TryDequeue(out var envelope))
+        while (true)
         {
-            var times = redelivery == Redelivery.Immediate ? 2 : 1;
-            for (var i = 0; i < times; i++) await ConsumeAsync(envelope);
+            while (queue.TryDequeue(out var envelope))
+            {
+                var times = redelivery == Redelivery.Immediate ? 2 : 1;
+                for (var i = 0; i < times; i++) await ConsumeAsync(envelope);
+            }
+            // The recompute worker, one step at a time. A failed recompute backs off, so it ends the drain.
+            await using var db = StatisticsDb();
+            var result = await RecomputeService(db).ProcessNextAsync(CancellationToken.None);
+            if (result.Outcome == RecomputeStepOutcome.Failed)
+                deadLetters.Add($"Recompute of {result.TransponderId}: {result.Error?.GetType().Name}: {result.Error?.Message}");
+            if (result.Outcome is RecomputeStepOutcome.Idle or RecomputeStepOutcome.Failed && queue.Count == 0) return;
         }
     }
 
@@ -304,8 +323,20 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
         return new PipelineSnapshot(samples, entries, passings);
     }
 
-    public Task<IReadOnlyList<ManualDecisionReviewRow>> ManualDecisionReviewsAsync() =>
-        throw new NotSupportedException("§5.4: there is no manual decision review yet; a decision on a changed entry is silently kept or lost.");
+    public async Task<IReadOnlyList<ManualDecisionReviewRow>> ManualDecisionReviewsAsync()
+    {
+        Dictionary<Guid, string> riders;
+        await using (var db = TimingDb())
+        {
+            var names = transponderIds.ToDictionary(pair => pair.Value, pair => pair.Key);
+            riders = (await db.Set<Transponder>().AsNoTracking().ToListAsync())
+                .ToDictionary(t => t.Id, t => names.GetValueOrDefault(t.SystemId, t.SystemId));
+        }
+        await using var stats = StatisticsDb();
+        return (await stats.Set<ManualDecisionReview>().AsNoTracking().OrderBy(r => r.CreatedAtUtc).ThenBy(r => r.Id).ToListAsync())
+            .Select(r => new ManualDecisionReviewRow(r.EntryId, Name(riders, r.TransponderId), Name(itemNames, r.StatisticsItemId), r.Note ?? ""))
+            .ToList();
+    }
 
     // ---- Message handling -------------------------------------------------------------------
 
@@ -313,7 +344,6 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
 
     private void Enqueue(object message, IDictionary<string, object>? headers = null)
     {
-        if (message is PassingRecordedV1) return; // No Statistics consumer until Phase 2.
         if (message is IEnumerable batch and not string)
         {
             foreach (var item in batch) Enqueue(item!, headers);
@@ -353,20 +383,11 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
                 await handler.OnHandle(passing, CancellationToken.None);
                 break;
             }
-            case SampleComplete completed:
+            case PassingRecordedV1 recorded:
             {
                 await using var db = StatisticsDb();
-                await new SampleCompleteHandler(new StatisticsService(db, Cache),
-                    new StatisticsOwnershipService(db, new NoOwners()), new StatisticsMetrics(Meters), bus,
-                    NullLogger<SampleCompleteHandler>.Instance).OnHandle(completed, CancellationToken.None);
-                break;
-            }
-            case EntryCreated created:
-            {
-                await using var db = StatisticsDb();
-                await new EntryCreatedHandler(new StatisticsService(db, Cache),
-                    new StatisticsOwnershipService(db, new NoOwners()), bus,
-                    NullLogger<EntryCreatedHandler>.Instance).OnHandle(created, CancellationToken.None);
+                await new PassingRecordedHandler(db, new StatisticsRecomputeSignal(), new StatisticsMetrics(Meters),
+                    NullLogger<PassingRecordedHandler>.Instance).OnHandle(recorded, CancellationToken.None);
                 break;
             }
             default:
@@ -390,6 +411,46 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
             if (targetMethod?.Name != "Publish") throw new NotSupportedException(targetMethod?.Name);
             world.Enqueue(args![0]!, args.OfType<IDictionary<string, object>>().FirstOrDefault());
             return Task.CompletedTask;
+        }
+    }
+
+    private StatisticsConfigurationHistory History() => new(Cache, new DatabaseConfigurationSource(this));
+
+    private StatisticsRecomputeService RecomputeService(StatisticsDbContext db) => new(db, History(),
+        new StatisticsOwnershipService(db, new NoOwners()), new StatisticsValidityScheduler(db),
+        Microsoft.Extensions.Options.Options.Create(new StatisticsRecomputeOptions()), new StatisticsMetrics(Meters),
+        NullLogger<StatisticsRecomputeService>.Instance);
+
+    /// <summary>The owners' history read straight from their databases, where production reads their APIs.</summary>
+    private sealed class DatabaseConfigurationSource(CurrentPipelineWorld world) : IStatisticsConfigurationSource
+    {
+        public async Task<InstallationFacilityHistory> GetInstallationAsync(Guid installationId, CancellationToken cancellationToken)
+        {
+            await using var db = world.TimingDb();
+            var facility = await db.Set<Installation>().AsNoTracking().Where(i => i.Id == installationId)
+                .Select(i => (Guid?)i.Facility).SingleOrDefaultAsync(cancellationToken);
+            return new() { InstallationId = installationId, FacilityId = facility == Guid.Empty ? null : facility };
+        }
+
+        public async Task<FacilityCourseHistory> GetFacilityCourseAsync(Guid facilityId, CancellationToken cancellationToken)
+        {
+            await using var db = world.FacilityDb();
+            var history = await new FacilityCourseHistoryReader(db).ReadAsync(facilityId, cancellationToken);
+            return new()
+            {
+                FacilityId = facilityId,
+                Layouts = history?.Layouts.Select(l => new CourseLayoutVersion
+                {
+                    LayoutId = l.LayoutId,
+                    Segments = l.Segments.Select(s => new CourseSegmentVersion
+                        { Order = s.Order, StartPointId = s.StartPointId, EndPointId = s.EndPointId, Length = s.Length }).ToList()
+                }).ToList() ?? [],
+                Associations = history?.Associations.Select(a => new TimingAssociationVersion
+                {
+                    TimingPointId = a.TimingPointId, CoursePointId = a.CoursePointId,
+                    ValidFromUtc = a.ValidFromUtc?.UtcDateTime, ValidToUtc = a.ValidToUtc?.UtcDateTime
+                }).ToList() ?? []
+            };
         }
     }
 

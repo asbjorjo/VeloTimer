@@ -789,11 +789,12 @@ three-attempt default so ordinary outages do not exhaust retries.
 
 #### Statistics profile assignment
 
-The Statistics processor consumes ownership changes on `velotime-timing-test`,
-subscription `statistics`. If subscription filters are managed externally, allow
-its message type (`MessageName`) and retain session support. (`TimingSampleComplete`
-was removed in Phase 1 of the replay-safe statistics plan; Statistics consumes
-`PassingRecordedV1` from Phase 2.) Before/after periods identify impacted entries, including
+The Statistics processor consumes passing facts (`PassingRecordedV1`) and ownership
+changes on `velotime-timing-test`, subscription `statistics`. If subscription filters
+are managed externally, allow both message types (`MessageName`) and retain session
+support. Statistics no longer publishes to itself: `SampleComplete` and `EntryCreated`
+and the `statistics` subscription on `velotime-statistics` were removed in Phase 2 of
+the replay-safe statistics plan. Before/after periods identify impacted entries, including
 entries losing coverage after an ownership is shortened, moved, or deleted.
 The processor reads all current ownership periods from
 `GET /api/timing/ownerships/{transponderId}`; it does not apply stale event

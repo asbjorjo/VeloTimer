@@ -1,6 +1,8 @@
+using System.Globalization;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus;
+using VeloTime.Agent.Identity;
 using VeloTime.Agent.Interface;
 using VeloTime.Agent.Interface.Messages.Events;
 
@@ -8,7 +10,8 @@ namespace VeloTime.Agent.Dummy
 {
     /// <summary>
     /// Simulates a small group of riders circulating over a fixed set of loops. Every passing carries a stable
-    /// SourcePassingId, and the worker occasionally redelivers an earlier passing so Timing's deduplication is exercised.
+    /// SourcePassingId from PassingId.Create, and the worker occasionally redelivers an earlier passing so Timing's
+    /// deduplication is exercised.
     /// </summary>
     internal class DummyWorker : IHostedService
     {
@@ -50,9 +53,11 @@ namespace VeloTime.Agent.Dummy
                     var loop = nextLoop[transponder];
                     nextLoop[transponder] = (loop + 1) % Loops.Length;
 
+                    var time = DateTime.UtcNow;
                     var passing = new PassingObservedV1(
-                        SourcePassingId: Guid.NewGuid(),
-                        Time: DateTime.UtcNow,
+                        SourcePassingId: PassingId.Create("Dummy", transponder, Loops[loop],
+                            time.ToString("O", CultureInfo.InvariantCulture)),
+                        Time: time,
                         TransponderType: TransponderTypes.MylapsProChip,
                         TransponderId: transponder,
                         LoopId: Loops[loop]);

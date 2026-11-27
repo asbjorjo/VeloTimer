@@ -1,6 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using Microsoft.EntityFrameworkCore.Metadata;
 using VeloTime.Module.Common;
 using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Model;
@@ -22,23 +21,41 @@ public class StatisticsDbContext : BaseDbContext
             modelBuilder.HasPostgresExtension("public", "pg_trgm");
         }
 
+        modelBuilder.Entity<PassingFact>(e =>
+        {
+            e.HasKey(p => p.PassingId);
+            // Session expansion and loading scan one transponder's facts by time.
+            e.HasIndex(p => new { p.TransponderId, p.Time, p.PassingId })
+                .HasDatabaseName("ix_passing_fact_transponder_time");
+            e.HasIndex(p => new { p.Time, p.TransponderId })
+                .HasDatabaseName("ix_passing_fact_time_transponder");
+        });
+        modelBuilder.Entity<RecomputeRequest>(e =>
+        {
+            e.Property(r => r.Id).UseIdentityByDefaultColumn();
+            e.Property(r => r.Reason).HasConversion<string>().HasMaxLength(32);
+            e.Property(r => r.LastError).HasMaxLength(2000);
+            e.HasIndex(r => new { r.TransponderId, r.Id }).HasDatabaseName("ix_recompute_request_transponder_id");
+            e.HasIndex(r => new { r.NotBeforeUtc, r.Id }).HasDatabaseName("ix_recompute_request_not_before_id");
+        });
+        modelBuilder.Entity<ManualDecisionReview>(e =>
+        {
+            e.Property(r => r.Outcome).HasConversion<string>().HasMaxLength(32);
+            e.Property(r => r.Note).HasMaxLength(500);
+            e.HasIndex(r => new { r.CreatedAtUtc, r.Id }).HasDatabaseName("ix_manual_decision_review_created_id");
+            e.HasIndex(r => r.EntryId).HasDatabaseName("ix_manual_decision_review_entry");
+        });
         modelBuilder.Entity<Sample>(e =>
         {
-            // Completion messages lack a facility ID; do not put it before the exact times.
+            // Deterministic identity: one sample per pair of consecutive passings.
+            e.HasIndex(s => new { s.StartPassingId, s.EndPassingId })
+                .IsUnique()
+                .HasDatabaseName("ux_sample_passings");
+            // The recompute worker diffs one transponder's samples by time range.
             e.HasIndex(s => new { s.TransponderId, s.TimeStart, s.TimeEnd })
-                .HasDatabaseName("ix_sample_transponder_completion")
-                .IsCreatedConcurrently();
-            // Equality prefixes followed by time support backward LIMIT 1 scans; no DESC twin needed.
-            e.HasIndex(s => new { s.TransponderId, s.FacilityId, s.CoursePointStartId, s.TimeStart })
-                .HasDatabaseName("ix_sample_transponder_facility_start_time")
-                .IsCreatedConcurrently();
-            e.HasIndex(s => new { s.TransponderId, s.FacilityId, s.CoursePointEndId, s.TimeEnd })
-                .HasDatabaseName("ix_sample_transponder_facility_end_time")
-                .IsCreatedConcurrently();
-            // No point equality in attempt evidence; keep both times as searchable index keys.
+                .HasDatabaseName("ix_sample_transponder_time");
             e.HasIndex(s => new { s.TransponderId, s.FacilityId, s.TimeEnd, s.TimeStart })
-                .HasDatabaseName("ix_sample_transponder_facility_attempt")
-                .IsCreatedConcurrently();
+                .HasDatabaseName("ix_sample_transponder_facility_attempt");
         });
         modelBuilder.Entity<StatisticsItem>(e =>
         {
@@ -86,8 +103,7 @@ public class StatisticsDbContext : BaseDbContext
         modelBuilder.Entity<StatisticsEntry>(e =>
         {
             e.Property(s => s.IsValid).HasDefaultValue(true);
-            e.Property(s => s.RequiredCoursePointsSatisfied).HasDefaultValue(true)
-                .Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Throw);
+            e.Property(s => s.RequiredCoursePointsSatisfied).HasDefaultValue(true);
             e.Property(s => s.ManualInvalidationNote).HasMaxLength(500);
             if (Database.IsNpgsql())
             {

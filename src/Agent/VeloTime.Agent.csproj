@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <Version>2.1.0-alpha.50</Version>
+    <Version>2.1.0-alpha.52</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,6 +28,10 @@
     <PackageReference Include="SlimMessageBus.Host.AzureServiceBus" />
     <PackageReference Include="SlimMessageBus.Host.Outbox.PostgreSql.DbContext" />
     <PackageReference Include="SlimMessageBus.Host.Serialization.SystemTextJson" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="VeloTime.Workers.Test" />
   </ItemGroup>
 
   <ItemGroup>
