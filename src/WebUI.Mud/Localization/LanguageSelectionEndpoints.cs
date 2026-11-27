@@ -43,7 +43,7 @@ internal static class LanguageSelectionEndpoints
             ILanguagePreferenceService preferences, CancellationToken cancellationToken) =>
         {
             if (selection is null || selection.Language is not ("en" or "nb-NO") ||
-                !IsLocalReturnUrl(selection.ReturnUrl, http))
+                !LocalReturnUrl.IsLocal(selection.ReturnUrl, http))
             {
                 return Results.BadRequest();
             }
@@ -83,20 +83,5 @@ internal static class LanguageSelectionEndpoints
 
             return Results.Ok(new { redirectUrl = selection.ReturnUrl });
         });
-    }
-
-    private static bool IsLocalReturnUrl(string? value, HttpContext http)
-    {
-        if (string.IsNullOrWhiteSpace(value) || !value.StartsWith('/') || value.StartsWith("//") ||
-            value.Contains('\\') || value.Contains('#') || value.Any(char.IsControl))
-            return false;
-
-        // A rooted path can parse as an absolute file URI. Validate its rooted
-        // path/query shape above, then resolve against the origin instead.
-        var origin = new Uri($"{http.Request.Scheme}://{http.Request.Host}");
-        return Uri.TryCreate(origin, value, out var uri) &&
-               uri.Scheme == origin.Scheme &&
-               uri.Authority == origin.Authority &&
-               string.IsNullOrEmpty(uri.UserInfo);
     }
 }
