@@ -151,7 +151,7 @@ Statistics does not copy config into its own tables. It reads each owner's time-
 ## 6. Open decisions (recommendation in bold)
 
 1. **Version duration thresholds by time** (requirement read literally), or keep current-thresholds-for-all-history.
-2. `SessionGap` default: **30 min**, configurable.
+2. ~~`SessionGap` default~~ **Decided 2026-11-27: 30 min, configurable.**
 3. **Confine Multi windows to one session**, or allow cross-session chaining.
 4. **Close #132** and reuse its parts, or merge it first as an interim duplicate fix and accept a second derived-data reset.
 5. Whether anything outside Statistics needs result-change events now. **Nothing does today**, so publish none until a consumer exists.
