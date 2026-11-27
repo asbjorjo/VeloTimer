@@ -17,7 +17,7 @@ public sealed class NotificationCorePostgresTests(PostgresFixture database) : IC
         new("En testmelding", "Norsk tekst"));
 
     [Fact]
-    public void DatabaseTestsUseTheCiPostgresOptInAndCannotSilentlySkipInGitHubActions()
+    public void DatabaseTestsUseTheCiPostgresOptInAndCannotSilentlySkipInIntegrationCi()
     {
         Assert.Equal("NOTIFICATIONS_API_TEST_ADMIN_CONNECTION", PostgresFixture.ConfigurationKey);
         var databaseTests = new[] { typeof(NotificationCorePostgresTests), typeof(NotificationsApiAuthorizationTests) }
@@ -28,7 +28,7 @@ public sealed class NotificationCorePostgresTests(PostgresFixture database) : IC
         Assert.All(databaseTests, method =>
             Assert.IsType<PostgresFactAttribute>(Assert.Single(method.GetCustomAttributes(typeof(FactAttribute), false))));
 
-        if (string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(Environment.GetEnvironmentVariable("VELOTIME_TEST_REQUIRE_POSTGRES"), "true", StringComparison.OrdinalIgnoreCase))
         {
             Assert.False(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(PostgresFixture.ConfigurationKey)),
                 $"CI must set {PostgresFixture.ConfigurationKey}; otherwise core and API PostgreSQL tests skip.");
