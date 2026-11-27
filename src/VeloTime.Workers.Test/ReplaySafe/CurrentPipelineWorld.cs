@@ -27,11 +27,8 @@ using VeloTime.Module.Timing.Service;
 using VeloTime.Module.Timing.Storage;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
-using ClientDistance = VeloTime.Module.Facilities.Client.CoursePointDistance;
-using FacilitiesClient = VeloTime.Module.Facilities.Client.IFacilitiesClient;
 using StatisticsMetrics = VeloTime.Module.Statistics.Metrics;
 using TimingMetrics = VeloTime.Module.Timing.Metrics;
-using TimingSample = VeloTime.Module.Timing.Model.Sample;
 using StatisticsSample = VeloTime.Module.Statistics.Model.Sample;
 
 namespace VeloTime.Workers.Test.ReplaySafe;
@@ -40,18 +37,18 @@ namespace VeloTime.Workers.Test.ReplaySafe;
 public static class PipelineWorlds
 {
     public static Task<IPipelineWorld> CreateAsync(Redelivery redelivery = Redelivery.None) =>
-        V2PipelineWorld.CreateAsync(redelivery);
+        CurrentPipelineWorld.CreateAsync(redelivery);
 }
 
 /// <summary>
-/// The v2 pipeline as deployed: the Timing passing handler derives samples from the "previous"
-/// passing, Statistics' TimingSample → SampleComplete → EntryCreated handlers build entries
-/// incrementally, and Statistics resolves distances through a Facilities client (here served
-/// in-process by FacilitiesService over the Facilities database, as the API endpoint does).
-/// Messages go through an in-memory FIFO bus; a failing message is retried a few times and then
+/// The pipeline as of Phase 1: Timing records each <see cref="PassingObservedV1"/> as an idempotent
+/// fact and publishes <see cref="PassingRecordedV1"/>, which Statistics does not consume until Phase 2,
+/// so no samples or entries are derived yet. Statistics' SampleComplete → EntryCreated handlers are
+/// wired for when they are fed again; Facilities configuration lives in its own database. Messages
+/// go through an in-memory FIFO bus; a failing message is retried a few times and then
 /// dead-lettered, as the broker would.
 /// </summary>
-internal sealed class V2PipelineWorld : IPipelineWorld
+internal sealed class CurrentPipelineWorld : IPipelineWorld
 {
     private const int MaxAttempts = 3;
 
@@ -72,7 +69,7 @@ internal sealed class V2PipelineWorld : IPipelineWorld
     private readonly Dictionary<string, string> transponderIds = new();
     private string timing = "", facility = "", statistics = "";
 
-    private V2PipelineWorld(string admin, Redelivery redelivery)
+    private CurrentPipelineWorld(string admin, Redelivery redelivery)
     {
         this.admin = admin;
         this.redelivery = redelivery;
@@ -97,7 +94,7 @@ internal sealed class V2PipelineWorld : IPipelineWorld
     {
         var admin = Environment.GetEnvironmentVariable(RequirementFactAttribute.PostgresVariable)
                     ?? throw new InvalidOperationException($"{RequirementFactAttribute.PostgresVariable} is not set.");
-        var world = new V2PipelineWorld(admin, redelivery);
+        var world = new CurrentPipelineWorld(admin, redelivery);
         world.timing = await world.CreateDatabaseAsync("timing");
         world.facility = await world.CreateDatabaseAsync("facility");
         world.statistics = await world.CreateDatabaseAsync("statistics");
@@ -158,7 +155,7 @@ internal sealed class V2PipelineWorld : IPipelineWorld
     public async Task AssignInstallationAsync(string agent, string facilityName, DateTime? validFrom = null)
     {
         if (validFrom is not null)
-            throw new NotSupportedException("C2: Installation.Facility is a mutable field on v2; it has no effective date.");
+            throw new NotSupportedException("C2: Installation.Facility is still a mutable field; it has no effective date.");
         await using var db = TimingDb();
         var installation = await EnsureInstallationAsync(db, agent);
         var writable = await db.Set<Installation>().SingleAsync(i => i.Id == installation.Id);
@@ -177,7 +174,7 @@ internal sealed class V2PipelineWorld : IPipelineWorld
             ValidToUtc = to.HasValue ? new DateTimeOffset(to.Value) : null
         });
         await db.SaveChangesAsync();
-        // v2 publishes CoursePointTimingAssociationsChangedV1, but no service consumes it (C4).
+        // Facilities publishes CoursePointTimingAssociationsChangedV1, but no service consumes it yet (C4).
     }
 
     public async Task MoveLoopsAsync(string agent, IReadOnlyDictionary<string, string> moves, DateTime from)
@@ -207,7 +204,7 @@ internal sealed class V2PipelineWorld : IPipelineWorld
         DateTime? validFrom = null, TimeSpan? maxDuration = null)
     {
         if (validFrom is not null)
-            throw new NotSupportedException("C3: statistics definitions have no effective date on v2.");
+            throw new NotSupportedException("C3: statistics definitions have no effective date yet.");
         var item = new StatisticsItem { Id = Guid.NewGuid(), Name = name, Distance = (float)distance, MaxDuration = maxDuration };
         var config = new SimpleStatisticsItemConfig
         {
@@ -236,20 +233,18 @@ internal sealed class V2PipelineWorld : IPipelineWorld
     }
 
     public Task ChangeSegmentLengthsAsync(string facilityName, IReadOnlyList<SegmentInput> segments, DateTime validFrom) =>
-        throw new NotSupportedException("C1: course layouts and segment lengths are edited in place on v2; there are no dated revisions.");
+        throw new NotSupportedException("C1: course layouts and segment lengths are still edited in place; there are no dated revisions.");
 
     public Task ChangeItemAsync(string name, ItemChange change, DateTime validFrom) =>
-        throw new NotSupportedException("C3: statistics definitions (thresholds, required points) are not versioned on v2.");
+        throw new NotSupportedException("C3: statistics definitions (thresholds, required points) are not versioned yet.");
 
     // ---- Input ------------------------------------------------------------------------------
 
     public Task DeliverAsync(PassingInput passing)
     {
-        // v2's PassingEvent carries no stable passing ID (T1): SourcePassingId is dropped here,
-        // exactly as the agent's mapper drops it.
         if (!transponderIds.TryGetValue(passing.Rider, out var transponder))
             transponderIds[passing.Rider] = transponder = (200_000_000 + transponderIds.Count).ToString();
-        Enqueue(new PassingEvent(passing.Time, "MylapsX2", transponder, passing.Loop),
+        Enqueue(new PassingObservedV1(passing.SourcePassingId.ToString(), passing.Time, "MylapsX2", transponder, passing.Loop),
             new Dictionary<string, object> { ["AgentId"] = passing.Agent });
         return Task.CompletedTask;
     }
@@ -310,7 +305,7 @@ internal sealed class V2PipelineWorld : IPipelineWorld
     }
 
     public Task<IReadOnlyList<ManualDecisionReviewRow>> ManualDecisionReviewsAsync() =>
-        throw new NotSupportedException("§5.4: v2 has no manual decision review; a decision on a changed entry is silently kept or lost.");
+        throw new NotSupportedException("§5.4: there is no manual decision review yet; a decision on a changed entry is silently kept or lost.");
 
     // ---- Message handling -------------------------------------------------------------------
 
@@ -318,7 +313,7 @@ internal sealed class V2PipelineWorld : IPipelineWorld
 
     private void Enqueue(object message, IDictionary<string, object>? headers = null)
     {
-        if (message is PassingSaved) return; // No Statistics consumer.
+        if (message is PassingRecordedV1) return; // No Statistics consumer until Phase 2.
         if (message is IEnumerable batch and not string)
         {
             foreach (var item in batch) Enqueue(item!, headers);
@@ -346,23 +341,16 @@ internal sealed class V2PipelineWorld : IPipelineWorld
         var bus = QueueBus.Create(this);
         switch (envelope.Message)
         {
-            case PassingEvent passing:
+            case PassingObservedV1 passing:
             {
                 await using var db = TimingDb();
                 var installations = new InstallationService(db, Cache);
-                var agentService = new AgentService(installations, Cache, db, new TimingMetrics(Meters));
-                var handler = new PassingObservedHandler(agentService, installations, bus)
+                var agentService = new AgentService(installations, db, bus, new TimingMetrics(Meters));
+                var handler = new PassingObservedHandler(agentService, installations)
                 {
                     Context = WorkerHandlerTests.TestConsumerContext.Create(new Dictionary<string, object>(envelope.Headers))
                 };
                 await handler.OnHandle(passing, CancellationToken.None);
-                break;
-            }
-            case TimingSampleComplete sample:
-            {
-                await using var db = StatisticsDb();
-                await new TimingSampleHandler(db, FacilitiesProxy.Create(this), bus, new StatisticsMetrics(Meters),
-                    NullLogger<TimingSampleHandler>.Instance).OnHandle(sample, CancellationToken.None);
                 break;
             }
             case SampleComplete completed:
@@ -386,33 +374,11 @@ internal sealed class V2PipelineWorld : IPipelineWorld
         }
     }
 
-    /// <summary>Serves Distance2Async the way the Facilities API endpoint does.</summary>
-    private async Task<ClientDistance> DistanceAsync(Guid start, Guid end, DateTimeOffset? startAt, DateTimeOffset? endAt)
-    {
-        await using var db = FacilityDb();
-        var now = DateTimeOffset.UtcNow;
-        var associations = new TimingAssociationService(db);
-        var (startPoint, endPoint) = await associations.ResolveDistanceEndpointsAsync(start, end,
-            TimingAssociationService.Normalize(startAt ?? now), TimingAssociationService.Normalize(endAt ?? now),
-            CancellationToken.None);
-        if (startPoint is null || endPoint is null)
-            throw new InvalidOperationException("Facilities 404: a timing point has no coursepoint association at the requested instant.");
-        var service = new FacilitiesService(db, Cache);
-        var resolution = await service.CoursePointDistanceBetweenCoursePoints(startPoint, endPoint);
-        var owner = await service.FacilityByCoursePoint(startPoint.Id);
-        return new ClientDistance
-        {
-            CoursePointStartId = startPoint.Id, CoursePointEndId = endPoint.Id, Distance = resolution.Distance,
-            FacilityId = owner?.Id ?? Guid.Empty, CourseLayoutId = resolution.CourseLayoutId,
-            ClosedLoopDistanceMetres = resolution.ClosedLoopDistanceMetres
-        };
-    }
-
     public class QueueBus : DispatchProxy
     {
-        private V2PipelineWorld world = null!;
+        private CurrentPipelineWorld world = null!;
 
-        public static IMessageBus Create(V2PipelineWorld world)
+        public static IMessageBus Create(CurrentPipelineWorld world)
         {
             var bus = DispatchProxy.Create<IMessageBus, QueueBus>();
             ((QueueBus)(object)bus).world = world;
@@ -425,23 +391,6 @@ internal sealed class V2PipelineWorld : IPipelineWorld
             world.Enqueue(args![0]!, args.OfType<IDictionary<string, object>>().FirstOrDefault());
             return Task.CompletedTask;
         }
-    }
-
-    public class FacilitiesProxy : DispatchProxy
-    {
-        private V2PipelineWorld world = null!;
-
-        public static FacilitiesClient Create(V2PipelineWorld world)
-        {
-            var client = DispatchProxy.Create<FacilitiesClient, FacilitiesProxy>();
-            ((FacilitiesProxy)(object)client).world = world;
-            return client;
-        }
-
-        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
-            targetMethod?.Name == nameof(FacilitiesClient.Distance2Async)
-                ? world.DistanceAsync((Guid)args![0]!, (Guid)args[1]!, (DateTimeOffset?)args[2], (DateTimeOffset?)args[3])
-                : throw new NotSupportedException(targetMethod?.Name);
     }
 
     private sealed class NoOwners : ITransponderOwnershipReader

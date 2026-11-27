@@ -9,11 +9,11 @@ entries, on real PostgreSQL databases.
 - **`IPipelineWorld`** (`PipelineWorld.cs`) is the only surface the tests use. It speaks in names (riders, loops,
   course points, items) and exposes configuration, passing delivery, draining, redelivery, manual invalidation
   and a snapshot of stored rows. Each world gets fresh Timing, Facilities and Statistics databases.
-- **`V2PipelineWorld`** wires the current v2 code: the Timing passing handler, the Statistics
-  `TimingSample` → `SampleComplete` → `EntryCreated` handlers, and a Facilities client served in-process by
-  `FacilitiesService`. Messages go through an in-memory FIFO bus with retries and dead-lettering. Configuration
-  v2 cannot express (dated layout revisions, installation assignments, statistics config versions, manual
-  decision reviews) throws `NotSupportedException` naming the plan problem ID.
+- **`CurrentPipelineWorld`** wires the code as of Phase 1: the Timing passing handler records
+  `PassingObservedV1` facts and publishes `PassingRecordedV1`, which nothing in Statistics consumes yet, so no
+  samples or entries are derived until Phase 2. Messages go through an in-memory FIFO bus with retries and
+  dead-lettering. Configuration that cannot be expressed yet (dated layout revisions, installation assignments,
+  statistics config versions, manual decision reviews) throws `NotSupportedException` naming the plan problem ID.
 - **`PipelineWorlds.CreateAsync`** picks the implementation. Each phase rewires the driver (or replaces it) and
   leaves the tests alone.
 - **`Velodrome`** is the scenario: a 250 m closed loop (Finish → A 100 m → B 50 m → Finish 100 m) with loops
@@ -32,9 +32,13 @@ export VELOTIME_TEST_STATISTICS_POSTGRES="Host=localhost;Port=5432;Database=post
 VELOTIME_RUN_PENDING_REQUIREMENTS=1 dotnet test src/VeloTime.Workers.Test --filter "FullyQualifiedName~ReplaySafe"
 ```
 
+"Fails on v2" is the failure seen on `v2` before Phase 1. On Phase 1 every Statistics test fails because no
+samples are derived.
+
 | Test | Pending | Fails on v2 because |
 |---|---|---|
-| `InOrderArrival_OneSession_ProducesEveryLapAndSplit` | – (passes) | |
+| `Timing_RecordsEachPassingOnce_UnderShuffleDuplicationAndReplay` | – (passes on Phase 1) | |
+| `InOrderArrival_OneSession_ProducesEveryLapAndSplit` | Phase 2 | – (passed on v2; the driver sanity check) |
 | `InOrderArrival_TwoSessions_NoSampleOrLapSpansTheGap` | Phase 2 | an hour-long sample and Lap join the sessions |
 | `MultiWindows_NeverSpanTwoSessions` | Phase 2 | Two laps chains the last lap of one session to the next |
 | `LatePassing_P1P3P2_MatchesInOrderArrival` | Phase 2 | Timing throws "mismatched passings" (T2); laps are not rebuilt (S2) |

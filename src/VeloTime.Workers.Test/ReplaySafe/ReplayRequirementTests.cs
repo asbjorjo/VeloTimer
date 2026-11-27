@@ -8,6 +8,22 @@ namespace VeloTime.Workers.Test.ReplaySafe;
 /// </summary>
 public sealed class ReplayRequirementTests
 {
+    /// <summary>Phase 1: Timing stores each observation once, whatever the order, duplication or replay.</summary>
+    [RequirementFact]
+    public async Task Timing_RecordsEachPassingOnce_UnderShuffleDuplicationAndReplay()
+    {
+        await using var world = await PipelineWorlds.CreateAsync(Redelivery.Immediate);
+        await SetUpAsync(world);
+        var day = TwoSessions("R");
+
+        await world.DeliverEachAsync(day.Shuffled(7));
+        await world.DeliverEachAsync(day);
+        await world.RedeliverHistoryAsync();
+
+        Assert.True(world.DeadLetters.Count == 0, string.Join("\n", world.DeadLetters.Take(3)));
+        Assert.Equal(day.Count, (await world.SnapshotAsync()).TimingPassings);
+    }
+
     [RequirementFact(PendingPhase = "Phase 2 (S1, S4)")]
     public async Task EveryMessageDeliveredTwice_MatchesSingleDelivery()
     {
@@ -59,6 +75,7 @@ public sealed class ReplayRequirementTests
         await world.DeliverEachAsync(day);
 
         var after = await world.SnapshotAsync();
+        Assert.NotEmpty(before.Entries);
         Assert.Equal(day.Count, before.TimingPassings);
         Assert.Equal(before.TimingPassings, after.TimingPassings);
         Assert.True(before.WithIds() == after.WithIds(),
