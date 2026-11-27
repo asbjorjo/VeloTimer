@@ -12,7 +12,8 @@ draft handling and the test command, and the split into two jobs:
   port and ephemeral credentials.
 
 After the test step, CI writes an overall and per-project pass/fail/skip summary,
-including failed test names, to the GitHub Actions job summary. The summary step runs
+including failed test names and the 15 slowest tests, to the GitHub Actions job summary
+and the job log. The summary step runs
 even when tests fail; the TRX result artifact upload remains available independently.
 
 Run the focused check:

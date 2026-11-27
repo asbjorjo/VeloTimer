@@ -15,6 +15,17 @@ def local_name(tag):
 result_files = sorted(Path("src").glob("*.Test/TestResults/*.trx"))
 counts = defaultdict(Counter)
 failed_tests = []
+durations = []
+SLOWEST_TEST_COUNT = 15
+
+
+def seconds(duration):
+    # TRX durations look like "00:01:02.3456789".
+    try:
+        hours, minutes, rest = duration.split(":")
+        return int(hours) * 3600 + int(minutes) * 60 + float(rest)
+    except (AttributeError, ValueError):
+        return 0.0
 
 for result_file in result_files:
     project = result_file.parent.parent.name
@@ -24,6 +35,7 @@ for result_file in result_files:
             continue
 
         outcome = result.get("outcome", "").casefold()
+        durations.append((seconds(result.get("duration")), project, result.get("testName", "(unnamed test)")))
         if outcome == "passed":
             counts[project]["passed"] += 1
         elif outcome in {"failed", "error", "timeout", "aborted", "disconnected"}:
@@ -59,10 +71,15 @@ if failed_tests:
 else:
     lines.append("None")
 
+lines.extend(["", f"### Slowest tests (top {SLOWEST_TEST_COUNT})", "",
+              "| Seconds | Project | Test |", "| ---: | --- | --- |"])
+lines.extend(f"| {elapsed:.1f} | {markdown_cell(project)} | {markdown_cell(name)} |"
+             for elapsed, project, name in sorted(durations, reverse=True)[:SLOWEST_TEST_COUNT])
+
 summary = "\n".join(lines) + "\n"
 summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
 if summary_path:
     with open(summary_path, "a", encoding="utf-8") as output:
         output.write(summary)
-else:
-    print(summary, end="")
+# Also print to the log, which stays readable where the job summary is not.
+print(summary, end="")
