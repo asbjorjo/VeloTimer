@@ -10,6 +10,7 @@ Follow [repository instructions](../../AGENTS.md). Own frontend behavior in `src
 
 ## Approach and boundaries
 
+- Use the `run-and-verify-ui` skill from `.claude/skills/`, and `update-api-contract` when a BFF shape changes.
 - Inspect existing Razor/MudBlazor patterns, component lifecycles, services, and styling before editing. Preserve established localization, responsive layout, and authentication UX. Add every new user-visible string to both resource files.
 - You own the presentation boundary of the repository time and unit conventions: format and convert backend UTC/SI values for the browser locale or the user's explicit preferences.
 - Handle loading, empty, error, and unauthorized states explicitly. Preserve cancellation/disposal behavior and avoid duplicate requests or stale component state.

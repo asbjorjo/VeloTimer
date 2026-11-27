@@ -3,6 +3,9 @@
         ".github/agents": true,
         ".claude/agents": false
     },
+    "chat.agentSkillsLocations": {
+        ".claude/skills": true
+    },
     "chat.tools.terminal.autoApprove": {
         "dotnet build": true,
         "dotnet ef": true,

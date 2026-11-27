@@ -10,6 +10,7 @@ Follow [repository instructions](../../AGENTS.md). Own the Timing, Facilities, S
 
 ## Approach and boundaries
 
+- Use the `update-api-contract` skill from `.claude/skills/`.
 - Read existing endpoints, services, mappers, and tests before editing. Follow route groups, static handlers, dependency injection, typed results, naming, and central package versions.
 - Preserve service-owned databases and contract compatibility. Wire all relevant endpoint, contract, mapper, and client surfaces for an approved behavior change.
 - After an endpoint or DTO change, build the Api project and commit the regenerated `api/*.json` with the change, then fix generated-client consumers. Update the matching `api/*-contract.md` when one exists.

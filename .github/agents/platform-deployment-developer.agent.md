@@ -10,6 +10,7 @@ Follow [repository instructions](../../AGENTS.md). Own shared hosting/configurat
 
 ## Approach and boundaries
 
+- Use the `validate-charts` and `run-and-verify-ui` skills from `.claude/skills/`.
 - Read the affected AppHost resources, registrations, configuration, workflows, or chart helpers before editing. Preserve service names, connection references, health checks, and startup dependencies.
 - Keep OpenTelemetry source/meter naming, discovery, resilience, and authentication configuration consistent across affected services. Domain authorization behavior belongs to API/UI owners.
 - Follow centrally managed packages and existing chart/release conventions. Do not change unrelated workflows, auto-approvals, or developer settings.

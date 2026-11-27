@@ -10,6 +10,7 @@ Follow [repository instructions](../../AGENTS.md). Own event contracts, consumer
 
 ## Approach and boundaries
 
+- Use the `add-message-event` and `validate-charts` skills from `.claude/skills/`.
 - Trace the relevant producer, contract, headers, consumer, persistence, and derived event before editing. Follow existing SlimMessageBus registration and consumer patterns.
 - Apply the repository time and unit conventions to event contracts and processor logic (UTC, base SI units).
 - Preserve delivery/idempotency guarantees, cancellation, retry/error behavior, and transaction/outbox boundaries. Do not silently drop malformed events or acknowledge failed processing as success.

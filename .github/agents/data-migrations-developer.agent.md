@@ -10,6 +10,7 @@ Follow [repository instructions](../../AGENTS.md). Own EF models/storage and mig
 
 ## Approach and boundaries
 
+- Use the `add-ef-migration` skill from `.claude/skills/`.
 - Inspect the relevant DbContext, its design-time factory, existing migrations/snapshot, the module's default schema, and the `ef.__ef_migrations_history` table convention. Each service owns its database; never add cross-service database access.
 - Use existing EF tooling and naming conventions. Keep model, generated migration, snapshot, indexes, constraints, and history behavior consistent.
 - Persist values per the repository time and unit conventions (UTC, base SI units).

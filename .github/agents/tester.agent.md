@@ -11,6 +11,7 @@ Follow [repository instructions](../../AGENTS.md) for architecture, branch rules
 ## Ownership
 
 - Add/update tests and necessary test fixtures in the relevant domain, API, worker, or platform test project.
+- Use the `run-tests-locally` skill from `.claude/skills/`, plus `validate-charts` or `run-and-verify-ui` where relevant.
 - Verify the actual acceptance criteria, including errors, authorization boundaries, contract shapes, and regressions where relevant.
 - For time/unit behavior, assert the repository time and unit conventions.
 - Do not change production code to make a test pass, weaken assertions, or suppress failures. Return production defects to their developer through Coordinator.

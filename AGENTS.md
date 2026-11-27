@@ -44,6 +44,19 @@ These files change together; keep them in one commit.
 - **Workflows and YAML**: `actionlint` and `yamllint` are installed in the devcontainer.
 - **UI**: `playwright-cli` is installed in the devcontainer for browser checks against a running AppHost.
 
+### Skills
+
+Step-by-step procedures live as agent skills in [.claude/skills/](.claude/skills/), read by Claude Code and by VS Code Copilot. Use them instead of improvising:
+
+| Skill | Use when |
+|---|---|
+| [add-ef-migration](.claude/skills/add-ef-migration/SKILL.md) | an entity or `DbContext` changes |
+| [update-api-contract](.claude/skills/update-api-contract/SKILL.md) | an endpoint or exposed DTO changes |
+| [add-message-event](.claude/skills/add-message-event/SKILL.md) | a message, producer, consumer, subscription, or filter changes |
+| [run-tests-locally](.claude/skills/run-tests-locally/SKILL.md) | running tests, including PostgreSQL integration tests |
+| [validate-charts](.claude/skills/validate-charts/SKILL.md) | `charts/` or `topology.json` changes |
+| [run-and-verify-ui](.claude/skills/run-and-verify-ui/SKILL.md) | verifying UI or end-to-end behavior in the running app |
+
 ### Releases
 
 Releases are cut by the [publish workflow](.github/workflows/publish.yml), which runs Versionize to bump `<Version>` and write [CHANGELOG.md](CHANGELOG.md) from Conventional Commits. Pushes to `v2` publish development prereleases. Do not run Versionize, edit `CHANGELOG.md`, or bump versions by hand.
