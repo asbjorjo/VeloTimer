@@ -1,11 +1,8 @@
 using OpenTelemetry.Trace;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
-using SlimMessageBus.Host.Outbox;
-using SlimMessageBus.Host.Outbox.PostgreSql.DbContext;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
-using VeloTime.Module.Timing.Interface.Messages;
-using VeloTime.Module.Timing.Storage;
+using VeloTime.Module.Timing.Messaging;
 
 namespace VeloTime.Module.Timing.Api;
 
@@ -30,30 +27,7 @@ public static class MessagingExtensions
             });
             mbb.AddJsonSerializer();
             mbb.WithHeaderModifier((headers, message) => headers["MessageName"] = message.GetType().Name);
-            mbb.Produce<TransponderOwnershipChanged>(producer => producer
-                .DefaultTopic("velotime-timing")
-                .WithModifier((message, transportMessage) =>
-                {
-                    transportMessage.SessionId = message.TransponderId.ToString();
-                    transportMessage.MessageId = message.EventId.ToString();
-                }));
-            mbb.UseOutbox();
-            mbb.AddOutboxUsingDbContext<TimingDbContext>(options =>
-            {
-                options.PostgreSqlSettings.DatabaseSchemaName = "timing";
-                options.MaintainSequence = true;
-                // A failed oldest event must not be overtaken by a later event in the same batch.
-                options.PollBatchSize = 1;
-                options.PollIdleSleep = TimeSpan.FromSeconds(5);
-                options.MaxDeliveryAttempts = int.MaxValue;
-                options.MessageCleanup = new OutboxMessageCleanupSettings
-                {
-                    Enabled = true,
-                    BatchSize = 100,
-                    Age = TimeSpan.FromDays(3),
-                    Interval = TimeSpan.FromHours(1)
-                };
-            });
+            mbb.AddTimingEventsWithOutbox();
         });
         builder.Services.AddHostedService<OwnershipOutboxStartup>();
         return builder;

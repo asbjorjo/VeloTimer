@@ -37,6 +37,8 @@ namespace VeloTime.Workers.Test;
 
 public sealed class WorkerHandlerTests
 {
+    private static readonly Guid SourceId = Guid.Parse("6f1c2d4e-0000-4000-8000-000000000042");
+
     [Fact]
     public async Task AgentControlHandlers_DelegatePauseAndResumeCommands()
     {
@@ -83,7 +85,7 @@ public sealed class WorkerHandlerTests
         await service.SendEventAsync(new VeloTime.Agent.Model.LoopStatus { Time = time, LoopId = "loop-1", Noise = 0.25 });
         await service.SendEventsAsync([new VeloTime.Agent.Model.Passing
         {
-            Id = "passing-1", Time = time, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1",
+            Id = Guid.Parse("6f1c2d4e-0000-4000-8000-000000000001"), Time = time, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1",
             LowBattery = true, LowStrength = true, LowHits = true
         }]);
         await service.SendEventsAsync([segment]);
@@ -94,13 +96,37 @@ public sealed class WorkerHandlerTests
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.InstallationLayoutEvent>(recorder.Published[0].Payload);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopConfigEvent>(recorder.Published[1].Payload);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent>(recorder.Published[2].Payload);
-        Assert.IsType<VeloTime.Agent.Interface.Messages.Events.PassingEvent>(recorder.Published[3].Payload);
-        var sentPassing = Assert.IsType<PassingEvent>(recorder.Published[3].Payload);
+        var sentPassing = Assert.IsType<PassingObservedV1>(recorder.Published[3].Payload);
+        Assert.Equal(Guid.Parse("6f1c2d4e-0000-4000-8000-000000000001"), sentPassing.SourcePassingId);
         Assert.True(sentPassing.LowBattery && sentPassing.LowStrength && sentPassing.LowHits);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.SegmentConfigEvent>(recorder.Published[4].Payload);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.SystemConfigEvent>(recorder.Published[5].Payload);
         var storedPassing = await storage.Set<VeloTime.Agent.Model.Passing>().SingleAsync();
         Assert.True(storedPassing.LowBattery && storedPassing.LowStrength && storedPassing.LowHits);
+    }
+
+    [Fact]
+    public async Task AgentMessagingService_RejectsBatchesWithEmptyPassingIds()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<AgentDbContext>().UseSqlite(connection).Options;
+        await using var storage = new AgentDbContext(options);
+        await storage.Database.EnsureCreatedAsync();
+        var (messageBus, recorder) = RecordingMessageBus.Create();
+        using var serviceProvider = new ServiceCollection().AddMetrics().BuildServiceProvider();
+        var service = new MessagingService(messageBus, storage,
+            new VeloTime.Agent.Metrics(serviceProvider.GetRequiredService<IMeterFactory>()), NullLogger<MessagingService>.Instance);
+        VeloTime.Agent.Model.Passing Passing(Guid id) => new()
+        {
+            Id = id, Time = DateTime.UtcNow, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1"
+        };
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.SendEventsAsync([Passing(Guid.NewGuid()), Passing(Guid.Empty)]));
+
+        Assert.Empty(recorder.Published);
+        Assert.Empty(await storage.Set<VeloTime.Agent.Model.Passing>().ToListAsync());
     }
 
     [Fact]
@@ -239,79 +265,37 @@ public sealed class WorkerHandlerTests
     }
 
     [Fact]
-    public async Task PassingObservedHandler_PublishesPassingAndSampleEvents()
+    public async Task PassingObservedHandler_RegistersTheObservationWithItsSourcePassingId()
     {
         await using var database = await TimingTestDatabase.CreateAsync();
-        var transponderId = Guid.NewGuid();
-        var timingPointStart = Guid.NewGuid();
-        var timingPointEnd = Guid.NewGuid();
-        var start = new Passing
-        {
-            Id = Guid.NewGuid(), Time = DateTime.UtcNow.AddSeconds(-10), TransponderId = transponderId,
-            TimingPointId = timingPointStart
-        };
-        var end = new Passing
-        {
-            Id = Guid.NewGuid(), Time = DateTime.UtcNow, TransponderId = transponderId,
-            TimingPointId = timingPointEnd
-        };
-        var sample = new VeloTime.Module.Timing.Model.Sample { Id = Guid.NewGuid(), Start = start, End = end };
         var agentService = DispatchProxy.Create<IAgentService, RecordingAgentService>();
         var agentProxy = (RecordingAgentService)(object)agentService;
-        agentProxy.Passing = end;
-        agentProxy.Sample = sample;
-        var (messageBus, recorder) = RecordingMessageBus.Create();
-        var handler = new PassingObservedHandler(agentService, database.InstallationService, messageBus)
+        var handler = new PassingObservedHandler(agentService, database.InstallationService)
         {
             Context = TestConsumerContext.Create(new Dictionary<string, object> { ["AgentId"] = "agent-test" })
         };
+        var time = DateTime.UtcNow;
 
-        await handler.OnHandle(new VeloTime.Agent.Interface.Messages.Events.PassingEvent(
-            DateTime.UtcNow, "X2", "106187718", "loop-1") { LowBattery = true, LowStrength = true, LowHits = true }, CancellationToken.None);
-        Assert.Equal(new object?[] { true, true, true }, agentProxy.PassingArguments![5..8]);
+        await handler.OnHandle(new PassingObservedV1(SourceId, time, "X2", "106187718", "loop-1")
+            { LowBattery = true, LowStrength = true, LowHits = true }, CancellationToken.None);
 
-        Assert.Collection(recorder.Published,
-            call => Assert.IsType<PassingSaved>(call.Payload),
-            call => Assert.IsType<TimingSampleComplete>(call.Payload));
+        Assert.Equal(new PassingObservation("agent-test", SourceId, "106187718", "X2", "loop-1", time, true, true, true),
+            agentProxy.Observation);
     }
 
     [Fact]
-    public async Task TimingSampleHandler_PersistsSampleAndPublishesCompletedEvent()
+    public async Task PassingObservedHandler_RequiresAgentId()
     {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-        var options = new DbContextOptionsBuilder<StatisticsDbContext>().UseSqlite(connection).Options;
-        await using var storage = new StatisticsDbContext(options);
-        await storage.Database.EnsureCreatedAsync();
-        var startTime = DateTime.UtcNow.AddSeconds(-20);
-        var endTime = DateTime.UtcNow;
-        var distance = new VeloTime.Module.Facilities.Client.CoursePointDistance
+        await using var database = await TimingTestDatabase.CreateAsync();
+        var agentService = DispatchProxy.Create<IAgentService, RecordingAgentService>();
+        var handler = new PassingObservedHandler(agentService, database.InstallationService)
         {
-            CoursePointStartId = Guid.NewGuid(),
-            CoursePointEndId = Guid.NewGuid(),
-            Distance = 150,
-            FacilityId = Guid.NewGuid()
+            Context = TestConsumerContext.Create(new Dictionary<string, object>())
         };
-        var facilities = DispatchProxy.Create<IFacilitiesClient, RecordingFacilitiesClient>();
-        ((RecordingFacilitiesClient)(object)facilities).Distance = distance;
-        var (messageBus, recorder) = RecordingMessageBus.Create();
-        using var serviceProvider = new ServiceCollection().AddMetrics().BuildServiceProvider();
-        var handler = new TimingSampleHandler(
-            storage,
-            facilities,
-            messageBus,
-            new Metrics(serviceProvider.GetRequiredService<IMeterFactory>()),
-            NullLogger<TimingSampleHandler>.Instance);
 
-        await handler.OnHandle(new TimingSampleComplete(startTime, endTime, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()), CancellationToken.None);
-
-        var sample = await storage.Set<VeloTime.Module.Statistics.Model.Sample>().SingleAsync();
-        Assert.Equal(distance.Distance, sample.Distance);
-        Assert.Equal(distance.FacilityId, sample.FacilityId);
-        Assert.Equal(distance.Distance / (endTime - startTime).TotalSeconds, sample.Speed);
-        var published = Assert.IsType<SampleComplete>(Assert.Single(recorder.Published).Payload);
-        Assert.Equal(sample.CoursePointStartId, published.CoursePointStart);
-        Assert.Equal(sample.CoursePointEndId, published.CoursePointEnd);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.OnHandle(
+            new PassingObservedV1(SourceId, DateTime.UtcNow, "X2", "106187718", "loop-1"), CancellationToken.None));
+        Assert.Null(((RecordingAgentService)(object)agentService).Observation);
     }
 
     [Fact]
@@ -383,31 +367,16 @@ public sealed class WorkerHandlerTests
 
     public class RecordingAgentService : DispatchProxy
     {
-        public VeloTime.Module.Timing.Model.Passing Passing { get; set; } = null!;
-        public VeloTime.Module.Timing.Model.Sample? Sample { get; set; }
-        public object?[]? PassingArguments { get; private set; }
+        public PassingObservation? Observation { get; private set; }
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            if (targetMethod?.Name == nameof(IAgentService.RegisterPassingAsync)) PassingArguments = args;
-            return targetMethod?.Name switch
+            if (targetMethod?.Name != nameof(IAgentService.RegisterPassingAsync)) throw new NotSupportedException(targetMethod?.Name);
+            Observation = (PassingObservation)args![0]!;
+            return Task.FromResult(new PassingRegistration(PassingRegistrationOutcome.Recorded, new VeloTime.Module.Timing.Model.Passing
             {
-                nameof(IAgentService.RegisterPassingAsync) => Task.FromResult(Passing),
-                nameof(IAgentService.RegisterSampleAsync) => Task.FromResult(Sample),
-                _ => throw new NotSupportedException(targetMethod?.Name)
-            };
-        }
-    }
-
-    public class RecordingFacilitiesClient : DispatchProxy
-    {
-        public VeloTime.Module.Facilities.Client.CoursePointDistance Distance { get; set; } = null!;
-
-        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
-        {
-            return targetMethod?.Name == "Distance2Async"
-                ? Task.FromResult(Distance)
-                : throw new NotSupportedException(targetMethod?.Name);
+                Time = Observation.Time, SourcePassingId = Observation.SourcePassingId
+            }));
         }
     }
 

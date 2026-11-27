@@ -125,9 +125,9 @@ Each **domain service** (e.g., Timing, Facilities, Statistics) consists of:
 - **API Gateway** pattern via Aspire service discovery
 
 **Event Flow Example:**
-1. Agent (Worker Service) emits `PassingEvent` → SlimMessageBus
-2. Timing Processor service consumes `PassingEvent` → persists to Timing DB + publishes `PassingCreatedEvent`
-3. Statistics Processor service consumes `PassingCreatedEvent` → computes aggregates in Statistics DB
+1. Agent (Worker Service) emits `PassingObservedV1` (with the agent's `SourcePassingId`) → SlimMessageBus
+2. Timing Processor service consumes `PassingObservedV1` → deduplicates on (installation, `SourcePassingId`), persists the passing fact and enqueues `PassingRecordedV1` through the Timing outbox in one transaction
+3. Statistics Processor service consumes `PassingRecordedV1` → computes aggregates in Statistics DB (see [docs/replay-safe-statistics-plan.md](docs/replay-safe-statistics-plan.md))
 4. WebUI.Mud consumes services via HTTP clients (`.AddTimingClient()`, `.AddStatisticsClient()`)
 
 ### Cross-Cutting Concerns
@@ -210,11 +210,11 @@ Migration workers apply pending migrations at startup through `MigrateAsync()`; 
 
 - `HostingExtensions.cs` exposes `ConfigureAgent()` — the entry point all concrete agents must call
 - Manages Azure Service Bus connection, outbox pattern, OTEL, and the `VELOTIME_AGENT` identity
-- `MessagingService` handles publishing `PassingEvent`, `InstallationLayoutEvent`, etc. to the message bus
+- `MessagingService` handles publishing `PassingObservedV1`, `InstallationLayoutEvent`, etc. to the message bus
 - `AgentDbContext` provides a local outbox store to prevent duplicate event delivery
 - `Handler/` contains `PauseAgentHandler` and `ResumeAgentHandler` for remote control via Service Bus
 
-**`src/Agent.Interface/`** defines the shared contracts (events/commands) used by both agents and the processors that consume them (e.g., `PassingEvent`, `InstallationLayoutEvent`).
+**`src/Agent.Interface/`** defines the shared contracts (events/commands) used by both agents and the processors that consume them (e.g., `PassingObservedV1`, `InstallationLayoutEvent`).
 
 **`src/Agent.Dummy/`** is a local in-solution agent simulator used for development and testing only.
 

@@ -207,7 +207,7 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         await second;
 
         Assert.Equal(2, await Scalar("SELECT count(*)::int FROM agent.passing"));
-        Assert.Equal(1, await Scalar("SELECT count(*)::int FROM agent.passing WHERE id = 'shared' AND low_battery"));
+        Assert.Equal(1, await Scalar($"SELECT count(*)::int FROM agent.passing WHERE id = '{PassingId("shared")}' AND low_battery"));
         Assert.Equal(2, await Scalar("SELECT count(*)::int FROM agent.smb_outbox"));
         Assert.Equal(1, await OutboxPassingCount("shared"));
         Assert.Equal(1, await OutboxPassingCount("second-only"));
@@ -232,13 +232,17 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         Assert.Equal(ids.Order(StringComparer.Ordinal), enqueued.Order(StringComparer.Ordinal));
     }
 
-    // PassingEvent carries no passing ID, so these tests key each passing by a unique LoopId.
+    // KeyedPassing labels each passing by its LoopId; its UUID passing ID is derived from the same label.
     private const string OutboxPassingId =
         "coalesce(convert_from(message_payload, 'UTF8')::jsonb->>'LoopId', convert_from(message_payload, 'UTF8')::jsonb->>'loopId')";
 
+    /// <summary>Agents must use UUID passing IDs; tests keep readable labels and derive a stable UUID from each.</summary>
+    private static Guid PassingId(string label) =>
+        new(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(label)));
+
     private static Passing KeyedPassing(string id, bool lowBattery = false) => new()
     {
-        Id = id, Time = DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = id, LowBattery = lowBattery
+        Id = PassingId(id), Time = DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = id, LowBattery = lowBattery
     };
 
     private Task<int> OutboxPassingCount(string id) =>
@@ -267,7 +271,7 @@ public sealed class AgentOutboxTests : IAsyncLifetime
     public async Task PassingInsertFailureRollsBackPreviouslyInsertedOutboxEvents()
     {
         var host = await StartHost(new TestSender());
-        await Execute(connectionString, "ALTER TABLE agent.passing ADD CONSTRAINT reject_two CHECK (id <> $$two$$)");
+        await Execute(connectionString, $"ALTER TABLE agent.passing ADD CONSTRAINT reject_two CHECK (id <> '{PassingId("two")}')");
         await using var scope = host.Services.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<MessagingService>();
         await Assert.ThrowsAsync<DbUpdateException>(() => service.SendEventsAsync([Passing("one"), Passing("two")]));
@@ -341,7 +345,7 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         Assert.All(sender.Delivered, m =>
         {
             Assert.Equal("test-agent", m.ApplicationProperties["AgentId"]);
-            Assert.Equal(m.ApplicationProperties["MessageName"].ToString() == nameof(PassingEvent) ? "X2_123" : "test-agent", m.SessionId);
+            Assert.Equal(m.ApplicationProperties["MessageName"].ToString() == nameof(PassingObservedV1) ? "X2_123" : "test-agent", m.SessionId);
         });
     }
 
@@ -411,7 +415,7 @@ public sealed class AgentOutboxTests : IAsyncLifetime
 
     private static Passing Passing(string id, bool lowBattery = false, DateTime? time = null) => new()
     {
-        Id = id, Time = time ?? DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = "loop", LowBattery = lowBattery
+        Id = PassingId(id), Time = time ?? DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = "loop", LowBattery = lowBattery
     };
 
     private static async Task WaitUntil(Func<Task<bool>> condition)
@@ -420,10 +424,10 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         while (!await condition()) await Task.Delay(50, timeout.Token);
     }
 
-    private sealed class RejectSecondPassing : JsonConverter<PassingEvent>
+    private sealed class RejectSecondPassing : JsonConverter<PassingObservedV1>
     {
-        public override PassingEvent? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotSupportedException();
-        public override void Write(Utf8JsonWriter writer, PassingEvent value, JsonSerializerOptions options)
+        public override PassingObservedV1? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotSupportedException();
+        public override void Write(Utf8JsonWriter writer, PassingObservedV1 value, JsonSerializerOptions options)
         {
             if (++count == 2) throw new JsonException("Simulated serialization failure.");
             JsonSerializer.Serialize(writer, value, JsonOptions);

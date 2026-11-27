@@ -1,8 +1,12 @@
-﻿namespace VeloTime.Agent.Interface.Messages.Events;
+namespace VeloTime.Agent.Interface.Messages.Events;
 
 public record AgentStartedEvent(DateTime Time, string AgentId);
 
-public record PassingEvent(DateTime Time, string TransponderType, string TransponderId, string LoopId)
+/// <summary>
+/// A passing observed by an agent. <paramref name="SourcePassingId"/> is the agent's stable local passing ID and must
+/// be a UUID; together with the AgentId message header it identifies the observation, so redelivery and replay are idempotent.
+/// </summary>
+public record PassingObservedV1(Guid SourcePassingId, DateTime Time, string TransponderType, string TransponderId, string LoopId)
 {
     public bool LowBattery { get; init; }
     public bool LowStrength { get; init; }

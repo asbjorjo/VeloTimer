@@ -25,8 +25,9 @@ namespace VeloTime.Agent.Migrations
 
             modelBuilder.Entity("VeloTime.Agent.Model.Passing", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("text")
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
                     b.Property<string>("LoopId")

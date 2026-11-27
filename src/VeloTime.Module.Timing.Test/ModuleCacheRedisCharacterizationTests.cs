@@ -166,8 +166,8 @@ public sealed class ModuleCacheRedisCharacterizationTests(ITestOutputHelper outp
         var installationId = Guid.NewGuid();
         var transponderId = Guid.NewGuid();
         var id = $"timing-late-{namespaceId:N}";
-        var key = TimingCacheKeys.LastPassing(installationId, transponderId);
-        var tag = TimingCacheTags.LastPassing(installationId, transponderId);
+        var key = TimingCacheKeys.TimingPoint(installationId, transponderId.ToString("N"));
+        var tag = TimingCacheTags.TimingPointHardware(installationId, transponderId.ToString("N"));
 
         await using var database = await CacheDatabase.CreateAsync(postgres);
         await using var hostA = await CacheHost.CreateAsync(redis, postgres);

@@ -1,4 +1,4 @@
-﻿using Azure.Messaging.ServiceBus;
+using Azure.Messaging.ServiceBus;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -97,11 +97,12 @@ public static class StartupExtensions
                 {
                     sbMessage.SessionId = agentId;
                 }));
-            mbb.Produce<PassingEvent>(x => x
+            mbb.Produce<PassingObservedV1>(x => x
                 .DefaultTopic(settings.TopicName)
                 .WithModifier((message, sbMessage) =>
                 {
                     sbMessage.SessionId = $"{message.TransponderType}_{message.TransponderId}";
+                    sbMessage.MessageId = $"{agentId}:{message.SourcePassingId}";
                 }));
             mbb.Produce<SegmentConfigEvent>(x => x
                 .DefaultTopic(settings.TopicName)

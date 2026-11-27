@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics.Metrics;
+using System.Reflection;
+using SlimMessageBus;
+using VeloTime.Module.Timing.Interface.Messages;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using VeloTime.Module.Timing.Interface.Data;
@@ -59,7 +62,7 @@ public sealed class TimingServiceTests
             Id = Guid.NewGuid(),
             Time = DateTime.UtcNow,
             Transponder = transponder,
-            TimingPoint = timingPoint,
+            TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid(),
             TransponderId = transponder.Id,
             TimingPointId = timingPoint.Id
         };
@@ -146,7 +149,7 @@ public sealed class TimingServiceTests
             TransponderId = transponder.Id,
             Transponder = transponder,
             TimingPointId = timingPoint.Id,
-            TimingPoint = timingPoint
+            TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid()
         });
 
         static MylapsX2Transponder CreateTransponder(string label) => new()
@@ -180,136 +183,157 @@ public sealed class TimingServiceTests
     }
 
     [Fact]
-    public async Task AgentService_RegisterPassingIsIdempotent()
+    public async Task AgentService_RecordsPassingAndEnqueuesOneRecordedEventInItsTransaction()
     {
         await using var database = await TestDatabase.CreateAsync();
-        var timestamp = DateTime.UtcNow;
+        var timestamp = new DateTime(2026, 11, 27, 12, 0, 0, DateTimeKind.Utc).AddTicks(1234567);
 
-        var first = await database.AgentService.RegisterPassingAsync("agent-4", "106187721", "loop-4", timestamp, "X2", true, true, true);
-        var duplicate = await database.AgentService.RegisterPassingAsync("agent-4", "106187721", "loop-4", timestamp, "X2");
+        var first = await database.AgentService.RegisterPassingAsync(Observation("agent-4", "p-1", "106187721", "loop-4", timestamp, lowBattery: true));
 
-        Assert.Equal(first.Id, duplicate.Id);
-        Assert.True(duplicate.LowBattery && duplicate.LowStrength && duplicate.LowHits);
+        Assert.Equal(PassingRegistrationOutcome.Recorded, first.Outcome);
+        Assert.Equal(timestamp.AddTicks(-7), first.Passing.Time); // Stored at timestamptz (1 µs) precision.
+        var stored = await database.Storage.Set<Passing>().SingleAsync();
+        Assert.Equal(Id("p-1"), stored.SourcePassingId);
+        Assert.Equal((await database.Storage.Set<Installation>().SingleAsync()).Id, stored.InstallationId);
+        var recorded = Assert.IsType<PassingRecordedV1>(Assert.Single(database.Bus.Published));
+        Assert.Equal(new PassingRecordedV1(stored.Id, stored.InstallationId, stored.TimingPointId, stored.TransponderId, stored.Time,
+            true, false, false), recorded);
+        Assert.True(database.Bus.PublishedInTransaction.Single());
+    }
+
+    [Fact]
+    public async Task AgentService_RedeliveredObservationIsADuplicateAndPublishesNothing()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var observation = Observation("agent-4", "p-1", "106187721", "loop-4", DateTime.UtcNow, lowBattery: true, lowStrength: true, lowHits: true);
+
+        var first = await database.AgentService.RegisterPassingAsync(observation);
+        var duplicate = await database.AgentService.RegisterPassingAsync(observation);
+
+        Assert.Equal(PassingRegistrationOutcome.Duplicate, duplicate.Outcome);
+        Assert.Equal(first.Passing.Id, duplicate.Passing.Id);
+        Assert.True(duplicate.Passing.LowBattery && duplicate.Passing.LowStrength && duplicate.Passing.LowHits);
+        Assert.Single(await database.Storage.Set<Passing>().ToListAsync());
+        Assert.Single(database.Bus.Published);
+        Assert.Empty(await database.Storage.Set<PassingConflict>().ToListAsync());
+    }
+
+    [Fact]
+    public async Task AgentService_SameSourceIdWithDifferentPayloadIsRejectedAndFlagged()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var time = DateTime.UtcNow;
+        var first = await database.AgentService.RegisterPassingAsync(Observation("agent-c", "p-1", "106187721", "loop-1", time));
+
+        var changed = Observation("agent-c", "p-1", "106187721", "loop-1", time.AddSeconds(1));
+        var conflict = await database.AgentService.RegisterPassingAsync(changed);
+        var repeated = await database.AgentService.RegisterPassingAsync(changed);
+
+        Assert.Equal(PassingRegistrationOutcome.Conflict, conflict.Outcome);
+        Assert.Equal(PassingRegistrationOutcome.Conflict, repeated.Outcome);
+        Assert.Equal(first.Passing.Id, conflict.Passing.Id);
+        var stored = await database.Storage.Set<Passing>().SingleAsync();
+        Assert.Equal(first.Passing.Time, stored.Time); // The recorded fact is never rewritten.
+        var flagged = await database.Storage.Set<PassingConflict>().SingleAsync();
+        Assert.Equal(PassingConflictReason.SourcePassingIdPayloadMismatch, flagged.Reason);
+        Assert.Equal(first.Passing.Id, flagged.ExistingPassingId);
+        Assert.Equal(PassingTime.Normalize(changed.Time), flagged.Time);
+        Assert.Equal(2, flagged.Occurrences);
+        Assert.Single(database.Bus.Published);
+    }
+
+    [Fact]
+    public async Task AgentService_DifferentSourceIdForTheSameObservationIsFlagged()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var time = DateTime.UtcNow;
+        var first = await database.AgentService.RegisterPassingAsync(Observation("agent-d", "p-1", "106187721", "loop-1", time));
+
+        var other = await database.AgentService.RegisterPassingAsync(Observation("agent-d", "p-2", "106187721", "loop-1", time));
+
+        Assert.Equal(PassingRegistrationOutcome.Conflict, other.Outcome);
+        Assert.Equal(PassingConflictReason.DuplicateObservation, other.Conflict!.Reason);
+        Assert.Equal(first.Passing.Id, other.Conflict.ExistingPassingId);
+        Assert.Single(await database.Storage.Set<Passing>().ToListAsync());
+        Assert.Single(database.Bus.Published);
+    }
+
+    [Fact]
+    public async Task AgentService_SourceIdsAreScopedToTheirInstallation()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var time = DateTime.UtcNow;
+
+        var a = await database.AgentService.RegisterPassingAsync(Observation("agent-a", "p-1", "106187721", "loop-1", time));
+        var b = await database.AgentService.RegisterPassingAsync(Observation("agent-b", "p-1", "106187721", "loop-1", time));
+
+        Assert.Equal(PassingRegistrationOutcome.Recorded, a.Outcome);
+        Assert.Equal(PassingRegistrationOutcome.Recorded, b.Outcome);
+        Assert.NotEqual(a.Passing.InstallationId, b.Passing.InstallationId);
+        Assert.Equal(2, database.Bus.Published.Count);
+    }
+
+    [Fact]
+    public async Task AgentService_LatePassingIsRecordedLikeAnyOther()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var start = new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
+
+        // P1, P3, then the late P2: previously the late passing could never be processed.
+        foreach (var (id, seconds) in new[] { ("p-1", 0), ("p-3", 20), ("p-2", 10) })
+            Assert.Equal(PassingRegistrationOutcome.Recorded,
+                (await database.AgentService.RegisterPassingAsync(Observation("late-agent", id, "106187724", "finish", start.AddSeconds(seconds)))).Outcome);
+
+        Assert.Equal([Id("p-1"), Id("p-2"), Id("p-3")], await database.Storage.Set<Passing>().OrderBy(p => p.Time).Select(p => p.SourcePassingId).ToListAsync());
+        Assert.Equal(3, database.Bus.Published.Count);
+    }
+
+    [Fact]
+    public async Task AgentService_FailedEnqueueRollsBackThePassing()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        database.Bus.Failure = new InvalidOperationException("outbox unavailable");
+        var observation = Observation("agent-r", "p-1", "106187721", "loop-1", DateTime.UtcNow);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => database.AgentService.RegisterPassingAsync(observation));
+        Assert.Empty(await database.Storage.Set<Passing>().ToListAsync());
+
+        database.Bus.Failure = null;
+        Assert.Equal(PassingRegistrationOutcome.Recorded, (await database.AgentService.RegisterPassingAsync(observation)).Outcome);
         Assert.Single(await database.Storage.Set<Passing>().ToListAsync());
     }
 
     [Fact]
-    public async Task AgentService_PreviousPassingIsScopedToInstallation()
+    public async Task AgentService_RejectsObservationsWithoutSourcePassingId()
     {
         await using var database = await TestDatabase.CreateAsync();
-        var transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = "106187723" };
-        var firstInstallation = new Installation
-        {
-            Id = Guid.NewGuid(), AgentId = "passing-installation-a", TimingSystem = TimingSystem.MyLaps_X2
-        };
-        var secondInstallation = new Installation
-        {
-            Id = Guid.NewGuid(), AgentId = "passing-installation-b", TimingSystem = TimingSystem.MyLaps_X2
-        };
-        var firstPoint = new TimingPoint
-        {
-            Id = Guid.NewGuid(), SystemId = "loop-a", Installation = firstInstallation, Description = "A"
-        };
-        var secondPoint = new TimingPoint
-        {
-            Id = Guid.NewGuid(), SystemId = "loop-b", Installation = secondInstallation, Description = "B"
-        };
-        database.Storage.AddRange(firstInstallation, secondInstallation, firstPoint, secondPoint, transponder);
-        database.Storage.Add(new Passing
-        {
-            Id = Guid.NewGuid(), Time = DateTime.UtcNow.AddMinutes(-2),
-            TransponderId = transponder.Id, Transponder = transponder,
-            TimingPointId = firstPoint.Id, TimingPoint = firstPoint
-        });
-        await database.Storage.SaveChangesAsync();
-        database.Storage.ChangeTracker.Clear();
 
-        var current = await database.AgentService.RegisterPassingAsync(
-            secondInstallation.AgentId, transponder.SystemId, secondPoint.SystemId,
-            DateTime.UtcNow, "X2");
-
-        Assert.Null(await database.AgentService.RegisterSampleAsync(current));
-        Assert.Empty(await database.Storage.Set<Sample>().ToListAsync());
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            database.AgentService.RegisterPassingAsync(Observation("agent-x", "x", "106187721", "loop-1", DateTime.UtcNow) with { SourcePassingId = Guid.Empty }));
     }
 
-    [Fact]
-    public async Task AgentService_OutOfOrderPassingsUseStrictlyEarlierPriorAndRemainIdempotent()
+    private static PassingObservation Observation(string agentId, string sourcePassingId, string transponderId, string loopId,
+        DateTime time, bool lowBattery = false, bool lowStrength = false, bool lowHits = false) =>
+        new(agentId, Id(sourcePassingId), transponderId, "X2", loopId, time, lowBattery, lowStrength, lowHits);
+
+    /// <summary>A stable UUID per readable test label.</summary>
+    private static Guid Id(string label) => new(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(label)));
+
+    public class RecordingBus : DispatchProxy
     {
-        await using var database = await TestDatabase.CreateAsync();
-        var installation = new Installation
-        {
-            Id = Guid.NewGuid(), AgentId = "out-of-order-agent", TimingSystem = TimingSystem.MyLaps_X2
-        };
-        var point = new TimingPoint { Id = Guid.NewGuid(), SystemId = "finish", Description = "Finish", Installation = installation };
-        var transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = "106187724" };
-        var startTime = new DateTime(2026, 10, 31, 12, 0, 0, DateTimeKind.Utc);
-        var earlier = new Passing
-        {
-            Id = Guid.NewGuid(), Time = startTime, Transponder = transponder, TransponderId = transponder.Id,
-            TimingPoint = point, TimingPointId = point.Id
-        };
-        var middle = new Passing
-        {
-            Id = Guid.NewGuid(), Time = startTime.AddSeconds(10), Transponder = transponder, TransponderId = transponder.Id,
-            TimingPoint = point, TimingPointId = point.Id
-        };
-        var latest = new Passing
-        {
-            Id = Guid.NewGuid(), Time = startTime.AddSeconds(20), Transponder = transponder, TransponderId = transponder.Id,
-            TimingPoint = point, TimingPointId = point.Id
-        };
-        database.Storage.AddRange(installation, point, transponder, earlier, middle, latest);
-        await database.Storage.SaveChangesAsync();
-        database.Storage.ChangeTracker.Clear();
+        public List<object?> Published { get; } = [];
+        public List<bool> PublishedInTransaction { get; } = [];
+        public Exception? Failure { get; set; }
+        public TimingDbContext? Storage { get; set; }
 
-        var latestSample = await database.AgentService.RegisterSampleAsync(latest);
-        Assert.NotNull(latestSample);
-        Assert.Equal(middle.Id, latestSample.StartId);
-        Assert.Equal(latest.Id, latestSample.EndId);
-        database.Storage.ChangeTracker.Clear();
-
-        var middleSample = await database.AgentService.RegisterSampleAsync(middle);
-        var repeatedMiddleSample = await database.AgentService.RegisterSampleAsync(middle);
-
-        Assert.NotNull(middleSample);
-        Assert.Equal(earlier.Id, middleSample.StartId);
-        Assert.Equal(middle.Id, middleSample.EndId);
-        Assert.Equal(middleSample.Id, repeatedMiddleSample?.Id);
-        Assert.Equal(2, await database.Storage.Set<Sample>().CountAsync());
-    }
-
-    [Fact]
-    public async Task AgentService_RegisterSampleCreatesOneSampleForConsecutivePassings()
-    {
-        await using var database = await TestDatabase.CreateAsync();
-        var installation = new Installation { Id = Guid.NewGuid(), AgentId = "agent-5", TimingSystem = TimingSystem.MyLaps_X2 };
-        var timingPoint = new TimingPoint { Id = Guid.NewGuid(), SystemId = "loop-5", Installation = installation, Description = "Loop" };
-        var transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = "106187722" };
-        Assert.Equal("106187722", database.Storage.Entry(transponder).Property(nameof(Transponder.SystemId)).CurrentValue);
-        installation.TimingPoints.Add(timingPoint);
-        var first = new Passing
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            Id = Guid.NewGuid(), Time = DateTime.UtcNow.AddSeconds(-10), Transponder = transponder,
-            TimingPoint = timingPoint, TransponderId = transponder.Id, TimingPointId = timingPoint.Id
-        };
-        var second = new Passing
-        {
-            Id = Guid.NewGuid(), Time = DateTime.UtcNow, Transponder = transponder,
-            TimingPoint = timingPoint, TransponderId = transponder.Id, TimingPointId = timingPoint.Id
-        };
-        database.Storage.AddRange(installation, transponder, first, second);
-        await database.Storage.SaveChangesAsync();
-        database.Storage.ChangeTracker.Clear();
-
-        Assert.Null(await database.AgentService.RegisterSampleAsync(first));
-        var sample = await database.AgentService.RegisterSampleAsync(second);
-        var repeated = await database.AgentService.RegisterSampleAsync(second);
-
-        Assert.NotNull(sample);
-        Assert.Equal(first.Id, sample.StartId);
-        Assert.Equal(second.Id, sample.EndId);
-        Assert.Equal(sample.Id, repeated?.Id);
-        Assert.Single(await database.Storage.Set<Sample>().ToListAsync());
+            if (targetMethod?.Name != "Publish") throw new NotSupportedException(targetMethod?.Name);
+            if (Failure is not null) return Task.FromException(Failure);
+            Published.Add(args?.FirstOrDefault());
+            PublishedInTransaction.Add(Storage?.Database.CurrentTransaction is not null);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class TestDatabase : IAsyncDisposable
@@ -325,13 +349,17 @@ public sealed class TimingServiceTests
             var cache = services.GetRequiredService<HybridCache>();
             InstallationService = new InstallationService(storage, cache);
             TransponderService = new TransponderService(storage, cache);
-            AgentService = new AgentService(InstallationService, cache, storage, new Metrics(services.GetRequiredService<IMeterFactory>()));
+            var bus = DispatchProxy.Create<IMessageBus, RecordingBus>();
+            Bus = (RecordingBus)(object)bus;
+            Bus.Storage = storage;
+            AgentService = new AgentService(InstallationService, storage, bus, new Metrics(services.GetRequiredService<IMeterFactory>()));
         }
 
         public TimingDbContext Storage { get; }
         public InstallationService InstallationService { get; }
         public TransponderService TransponderService { get; }
         public AgentService AgentService { get; }
+        public RecordingBus Bus { get; }
 
         public static async Task<TestDatabase> CreateAsync()
         {

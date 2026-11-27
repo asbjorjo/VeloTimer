@@ -1,26 +1,26 @@
-﻿using SlimMessageBus;
+using SlimMessageBus;
 using System.Diagnostics;
 using VeloTime.Agent.Interface.Messages.Events;
-using VeloTime.Module.Timing.Interface.Messages;
 using VeloTime.Module.Timing.Service;
 
 namespace VeloTime.Module.Timing.Handlers;
 
-public class PassingObservedHandler(IAgentService agentService, InstallationService installationService, IMessageBus messageBus) : IConsumer<PassingEvent>, IConsumerWithContext
+public class PassingObservedHandler(IAgentService agentService, InstallationService installationService) : IConsumer<PassingObservedV1>, IConsumerWithContext
 {
     public required IConsumerContext Context { get; set; }
 
-    public async Task OnHandle(PassingEvent message, CancellationToken cancellationToken)
+    public async Task OnHandle(PassingObservedV1 message, CancellationToken cancellationToken)
     {
-        using var activity = Instrumentation.Source.StartActivity("Handle PassingEvent");
-        
+        using var activity = Instrumentation.Source.StartActivity("Handle PassingObservedV1");
+
         activity?.SetTag("TransponderSystemId", message.TransponderId);
         activity?.SetTag("TransponderType", message.TransponderType);
         activity?.SetTag("LoopSystemId", message.LoopId);
+        activity?.SetTag("SourcePassingId", message.SourcePassingId);
 
         Context.Headers.TryGetValue("AgentId", out object? agentIdObj);
         string AgentId = agentIdObj?.ToString() ?? string.Empty;
-        
+
         if (string.IsNullOrWhiteSpace(AgentId))
         {
             activity?.SetStatus(ActivityStatusCode.Error, "AgentId is missing in message properties");
@@ -29,32 +29,17 @@ public class PassingObservedHandler(IAgentService agentService, InstallationServ
 
         activity?.SetTag("AgentId", AgentId);
 
-        var passing = await agentService.RegisterPassingAsync(
-            AgentId,
-            message.TransponderId,
-            message.LoopId,
-            message.Time,
-            message.TransponderType,
-            message.LowBattery,
-            message.LowStrength,
-            message.LowHits,
-            cancellationToken
-        );
-
-        var sample = await agentService.RegisterSampleAsync(passing, cancellationToken);
-
-        await messageBus.Publish(new PassingSaved(passing.Time, passing.TransponderId, passing.TimingPointId), cancellationToken: cancellationToken);
-
-        if (sample is not null)
-        {
-            await messageBus.Publish(new TimingSampleComplete(
-                TimeStart: sample.Start.Time,
-                TimeEnd: sample.End.Time,
-                TransponderId: sample.Start.TransponderId,
-                TimingPointStart: sample.Start.TimingPointId,
-                TimingPointEnd: sample.End.TimingPointId
-                ), cancellationToken: cancellationToken);
-        }
+        // Stores the fact and enqueues PassingRecordedV1 atomically; duplicates and conflicts publish nothing.
+        await agentService.RegisterPassingAsync(new PassingObservation(
+            AgentId: AgentId,
+            SourcePassingId: message.SourcePassingId,
+            TransponderId: message.TransponderId,
+            TransponderType: message.TransponderType,
+            LoopId: message.LoopId,
+            Time: message.Time,
+            LowBattery: message.LowBattery,
+            LowStrength: message.LowStrength,
+            LowHits: message.LowHits), cancellationToken);
 
         var installation = await installationService.GetInstallationForAgent(AgentId, cancellationToken);
         if (installation is not null)
