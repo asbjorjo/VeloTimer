@@ -10,7 +10,7 @@ Applications run with SlimMessageBus `TopologyProvisioning.Enabled = false`. Top
 Current topics and subscriptions (from [topology.json](../../../src/MessageBus.Topology/topology.json)):
 
 | Topic | Subscriptions |
-|---|---|
+| --- | --- |
 | `velotime-agent` | `timing` (sessions), `infrastructure` |
 | `velotime-timing` | `statistics` |
 | `velotime-statistics` | `statistics`, `statistics-validity` |

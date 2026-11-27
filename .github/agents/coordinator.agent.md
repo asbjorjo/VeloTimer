@@ -13,7 +13,7 @@ Follow [repository instructions](../../AGENTS.md). You own task decomposition, i
 Select only the specialists needed for the request, using their exact names:
 
 | Specialist | Ownership |
-|---|---|
+| --- | --- |
 | Planner | Research notes and implementation plans in `docs/`, draft contract notes in `api/*-contract.md` |
 | .NET API Developer | Domain services (all five modules), Minimal APIs, DTOs/mapping, OpenAPI documents and generated clients, authorization integration |
 | Blazor UI Developer | Blazor/MudBlazor components, BFF endpoints, UI state, forms, localization, accessibility, authentication UX |

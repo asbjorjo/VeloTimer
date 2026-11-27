@@ -8,7 +8,7 @@ description: Add, check, or remove an EF Core migration for a VeloTimer module (
 Migrations live in the **core** project, `src/Module.{Domain}/Migrations/` (or `src/Agent/Migrations/`). The `src/Module.{Domain}.Migration/` projects only *run* them, so never add migrations there. Each DbContext has an `IDesignTimeDbContextFactory`, so EF tooling needs no running database or startup project.
 
 | Module | Project | DbContext |
-|---|---|---|
+| --- | --- | --- |
 | Timing | `src/Module.Timing` | `TimingDbContext` |
 | Facilities | `src/Module.Facilities` | `FacilityDbContext` |
 | Statistics | `src/Module.Statistics` | `StatisticsDbContext` |

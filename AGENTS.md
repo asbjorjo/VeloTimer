@@ -30,7 +30,7 @@ VeloTimer is a competitive cycling race timing system built as .NET 10 microserv
 These files change together; keep them in one commit.
 
 | When you change | Also update |
-|---|---|
+| --- | --- |
 | Endpoints, request/response DTOs, or OpenAPI metadata in `Module.{Domain}.Api` | Build the Api project and commit the regenerated `api/VeloTime.Module.{Domain}.Api.json`. The NSwag `Module.{Domain}.Client` regenerates from it on build; fix its consumers. Update any matching `api/*-contract.md`. |
 | A message published on Azure Service Bus (new event, subscription, or filter) | Add the subscription rule to [topology.json](src/MessageBus.Topology/topology.json) **and** `messageBusTopology` in [values.yaml](charts/velotime/values.yaml); a chart test keeps them identical. |
 | An EF entity or `DbContext` | Add a migration in `src/Module.{Domain}/Migrations/` with `dotnet ef migrations add` and commit the updated model snapshot. |
@@ -49,7 +49,7 @@ These files change together; keep them in one commit.
 Step-by-step procedures live as agent skills in [.claude/skills/](.claude/skills/), read by Claude Code and by VS Code Copilot. Use them instead of improvising:
 
 | Skill | Use when |
-|---|---|
+| --- | --- |
 | [add-ef-migration](.claude/skills/add-ef-migration/SKILL.md) | an entity or `DbContext` changes |
 | [update-api-contract](.claude/skills/update-api-contract/SKILL.md) | an endpoint or exposed DTO changes |
 | [add-message-event](.claude/skills/add-message-event/SKILL.md) | a message, producer, consumer, subscription, or filter changes |
@@ -91,7 +91,7 @@ The shared architecture and conventions in this file remain the source of truth.
 
 The system is organized as **independent domain services with vertical slices**. Timing, Facilities, Statistics, Profiles, and Notifications each follow the layout below; Profiles has no Processor.
 
-```
+```text
 src/
 ├── Module.{Domain}/             # Core: domain logic, EF model, DbContext, and Migrations/
 ├── Module.{Domain}.Api/         # Service: Minimal API endpoints; emits api/VeloTime.Module.{Domain}.Api.json on build

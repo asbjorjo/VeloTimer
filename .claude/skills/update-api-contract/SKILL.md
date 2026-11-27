@@ -10,7 +10,7 @@ The OpenAPI document is a build output of each Api project: `OpenApiDocumentsDir
 ## Consumers of each generated client
 
 | Client | Consumers |
-|---|---|
+| --- | --- |
 | `Module.Timing.Client` | `WebUI.Mud`, `Module.Statistics.Processor`, `Users.Migration` |
 | `Module.Facilities.Client` | `WebUI.Mud`, `Module.Statistics`, `Module.Statistics.Processor`, `Module.Facilities.Api.Test` |
 | `Module.Statistics.Client` | `WebUI.Mud`, `Users.Migration` |
