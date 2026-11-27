@@ -85,7 +85,7 @@ public sealed class WorkerHandlerTests
         await service.SendEventAsync(new VeloTime.Agent.Model.LoopStatus { Time = time, LoopId = "loop-1", Noise = 0.25 });
         await service.SendEventsAsync([new VeloTime.Agent.Model.Passing
         {
-            Id = Guid.Parse("6f1c2d4e-0000-4000-8000-000000000001"), Time = time, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1",
+            Id = Guid.Parse("6f1c2d4e-0000-4000-8000-000000000001"), Time = time, TransponderType = "ProChip", TransponderId = "106187718", LoopId = "loop-1",
             LowBattery = true, LowStrength = true, LowHits = true
         }]);
         await service.SendEventsAsync([segment]);
@@ -119,7 +119,7 @@ public sealed class WorkerHandlerTests
             new VeloTime.Agent.Metrics(serviceProvider.GetRequiredService<IMeterFactory>()), NullLogger<MessagingService>.Instance);
         VeloTime.Agent.Model.Passing Passing(Guid id) => new()
         {
-            Id = id, Time = DateTime.UtcNow, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1"
+            Id = id, Time = DateTime.UtcNow, TransponderType = "ProChip", TransponderId = "106187718", LoopId = "loop-1"
         };
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
@@ -199,7 +199,8 @@ public sealed class WorkerHandlerTests
         var refreshedInstallation = await database.InstallationService.GetInstallationForAgent("layout-agent");
         Assert.NotNull(refreshedInstallation);
         Assert.Equal("Installed system", refreshedInstallation.Description);
-        Assert.Equal(TimingSystem.MyLaps_X2, refreshedInstallation.TimingSystem);
+        // The decoder system is descriptive and admin-set; a layout never guesses it.
+        Assert.Equal(TimingSystem.Unknown, refreshedInstallation.TimingSystem);
         Assert.Equal("Existing loop description",
             (await database.InstallationService.GetTimingPoint(refreshedInstallation, "existing-loop"))?.Description);
         Assert.Equal("New loop description",
@@ -276,10 +277,10 @@ public sealed class WorkerHandlerTests
         };
         var time = DateTime.UtcNow;
 
-        await handler.OnHandle(new PassingObservedV1(SourceId, time, "X2", "106187718", "loop-1")
+        await handler.OnHandle(new PassingObservedV1(SourceId, time, "ProChip", "106187718", "loop-1")
             { LowBattery = true, LowStrength = true, LowHits = true }, CancellationToken.None);
 
-        Assert.Equal(new PassingObservation("agent-test", SourceId, "106187718", "X2", "loop-1", time, true, true, true),
+        Assert.Equal(new PassingObservation("agent-test", SourceId, "106187718", "ProChip", "loop-1", time, true, true, true),
             agentProxy.Observation);
     }
 

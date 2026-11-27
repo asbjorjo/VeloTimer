@@ -40,7 +40,7 @@ public sealed partial class TimingEndpointTests(TimingApiFactory factory) : ICla
     public async Task TransponderAdministration_UpdatesLabelAndProtectsDependencies()
     {
         using var client = factory.CreateClient();
-        var created = await client.PostAsync("/api/timing/transponders?Type=X2&SystemId=106187718", null);
+        var created = await client.PostAsync("/api/timing/transponders?Type=ProChip&SystemId=106187718", null);
         var id = await created.Content.ReadFromJsonAsync<Guid>();
         Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"/api/timing/transponders/{id}", new SaveTransponderRequest("Training"))).StatusCode);
         Assert.Equal("Training", (await client.GetFromJsonAsync<TransponderDTO>($"/api/timing/transponders/{id}"))!.Label);
@@ -66,8 +66,8 @@ public sealed partial class TimingEndpointTests(TimingApiFactory factory) : ICla
             {
                 Id = Guid.NewGuid(), SystemId = "finish", InstallationId = installation.Id, Installation = installation, Description = "Finish"
             };
-            var seen = new MylapsX2Transponder { Id = seenId, SystemId = "106187718" };
-            var unseen = new MylapsX2Transponder { Id = unseenId, SystemId = "106187719" };
+            var seen = new MylapsProChipTransponder { Id = seenId, SystemId = "106187718" };
+            var unseen = new MylapsProChipTransponder { Id = unseenId, SystemId = "106187719" };
             storage.AddRange(installation, seen, unseen);
             storage.AddRange(
                 new Passing { Id = Guid.NewGuid(), Time = older, Transponder = seen, TransponderId = seen.Id, TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid(), TimingPointId = timingPoint.Id },
@@ -301,10 +301,17 @@ public sealed partial class TimingEndpointTests(TimingApiFactory factory) : ICla
     {
         using var client = factory.CreateClient();
 
-        var invalidRegistration = await client.PostAsync("/api/timing/transponders?Type=X2", content: null);
+        var invalidRegistration = await client.PostAsync("/api/timing/transponders?Type=ProChip", content: null);
         Assert.Equal((HttpStatusCode)422, invalidRegistration.StatusCode);
+        // Transponders are typed by chip, not decoder; IDs must be valid for the type.
+        Assert.Equal((HttpStatusCode)422, (await client.PostAsync("/api/timing/transponders?Type=X2&SystemId=106187718", content: null)).StatusCode);
+        Assert.Equal((HttpStatusCode)422, (await client.PostAsync("/api/timing/transponders?Type=ProChip&SystemId=123456", content: null)).StatusCode);
+        Assert.Equal((HttpStatusCode)422, (await client.PostAsync("/api/timing/transponders?Type=ProChip&SystemLabel=AB-12345", content: null)).StatusCode);
+        var byCode = await client.PostAsync("/api/timing/transponders?Type=ProChip&SystemLabel=HT-24423", content: null);
+        Assert.Equal(HttpStatusCode.OK, byCode.StatusCode);
+        Assert.Equal("106187719", (await client.GetFromJsonAsync<TransponderDTO>($"/api/timing/transponders/{await byCode.Content.ReadFromJsonAsync<Guid>()}"))!.SystemId);
 
-        var registration = await client.PostAsync("/api/timing/transponders?Type=X2&SystemId=106187718", content: null);
+        var registration = await client.PostAsync("/api/timing/transponders?Type=ProChip&SystemId=106187718", content: null);
         Assert.Equal(HttpStatusCode.OK, registration.StatusCode);
         var transponderId = await registration.Content.ReadFromJsonAsync<Guid>();
 

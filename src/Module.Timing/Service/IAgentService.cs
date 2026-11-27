@@ -22,10 +22,13 @@ public enum PassingRegistrationOutcome
     Duplicate,
     /// <summary>The observation contradicts a recorded passing; it was stored as a <see cref="PassingConflict"/> for review.</summary>
     Conflict,
+    /// <summary>The transponder could not be resolved; the raw observation was stored as a <see cref="RejectedPassing"/>.</summary>
+    Rejected,
 }
 
-/// <param name="Passing">The recorded passing: the new one, or the existing one for duplicates and conflicts.</param>
-public sealed record PassingRegistration(PassingRegistrationOutcome Outcome, Passing Passing, PassingConflict? Conflict = null);
+/// <param name="Passing">The recorded passing: the new one, or the existing one for duplicates and conflicts. Null when rejected.</param>
+public sealed record PassingRegistration(PassingRegistrationOutcome Outcome, Passing? Passing, PassingConflict? Conflict = null,
+    RejectedPassing? Rejection = null);
 
 public interface IAgentService
 {

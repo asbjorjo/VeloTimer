@@ -42,7 +42,7 @@ public sealed partial class TimingEndpointTests
             var boundaries = new[] { start.AddTicks(-10), start, end.AddTicks(-10), end };
             for (var i = 0; i < ids.Length; i++)
             {
-                db.Add(new MylapsX2Transponder { Id = ids[i], SystemId = (106187718 + i).ToString(), Label = "range-" + i });
+                db.Add(new MylapsProChipTransponder { Id = ids[i], SystemId = (106187718 + i).ToString(), Label = "range-" + i });
                 if (i == 4) continue; // unassigned transponder
                 if (i == 5)
                 {

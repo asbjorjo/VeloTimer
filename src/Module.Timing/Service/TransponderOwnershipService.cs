@@ -161,17 +161,22 @@ public sealed class TransponderOwnershipService(TimingDbContext storage, IMessag
         await transaction.CommitAsync(cancellationToken);
     }
 
-    private static string SystemId(string code)
-    {
-        var numericId = MylapsX2Transponder.CodeToId(code.Trim().ToUpperInvariant());
-        _ = MylapsX2Transponder.IdToCode(numericId);
-        return numericId.ToString(System.Globalization.CultureInfo.InvariantCulture);
-    }
+    // Riders register by printed code; ProChip is the only type with printed codes today.
+    private const TransponderType RegistrationType = TransponderType.MylapsProChip;
 
-    private async Task<Transponder> FindOrCreateAsync(string systemId, CancellationToken cancellationToken) =>
-        await storage.Set<Transponder>().Include(transponder => transponder.Owners)
-            .SingleOrDefaultAsync(transponder => transponder.System == TimingSystem.MyLaps_X2 && transponder.SystemId == systemId, cancellationToken)
-        ?? new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = systemId };
+    private static string SystemId(string code) =>
+        TransponderFactory.TryParseCode(RegistrationType, code, out var systemId)
+            ? systemId
+            : throw new ArgumentException("Invalid transponder code.");
+
+    private async Task<Transponder> FindOrCreateAsync(string systemId, CancellationToken cancellationToken)
+    {
+        var existing = await storage.Set<Transponder>().Include(transponder => transponder.Owners)
+            .SingleOrDefaultAsync(transponder => transponder.Type == RegistrationType && transponder.SystemId == systemId, cancellationToken);
+        if (existing is not null) return existing;
+        if (!TransponderFactory.TryCreate(RegistrationType, systemId, out var created, out var error)) throw new ArgumentException(error);
+        return created!;
+    }
 
     private async Task<IDbContextTransaction> LockAsync(string systemId, CancellationToken cancellationToken)
     {
@@ -180,7 +185,7 @@ public sealed class TransponderOwnershipService(TimingDbContext storage, IMessag
         {
             if (storage.Database.IsNpgsql())
             {
-                var key = $"transponder-ownership:{systemId}";
+                var key = $"transponder-ownership:{RegistrationType}:{systemId}";
                 await storage.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", cancellationToken);
             }
             return transaction;
@@ -201,7 +206,7 @@ public sealed class TransponderOwnershipService(TimingDbContext storage, IMessag
             throw new InvalidOperationException("The ownership period overlaps an existing owner.");
     }
 
-    public static TransponderDTO ToDto(Transponder transponder, Guid? ownerId = null) => new(transponder.Id, transponder.System.ToString(), transponder.SystemId, transponder.Label,
+    public static TransponderDTO ToDto(Transponder transponder, Guid? ownerId = null) => new(transponder.Id, transponder.Type.ToString(), transponder.SystemId, transponder.Label,
         transponder.Owners.Where(owner => !ownerId.HasValue || owner.OwnerId == ownerId).OrderByDescending(owner => owner.OwnedFrom).Select(ToDto).ToList());
 
     public static TransponderOwnershipDTO ToDto(TransponderOwner owner) => new(owner.Id, owner.TransponderId, owner.OwnerId,

@@ -29,8 +29,8 @@ internal static class OwnershipPreflight
                     throw new ArgumentException("Only MyLaps X2 transponders are supported.");
                 if (!long.TryParse(group.Key.SystemId, NumberStyles.None, CultureInfo.InvariantCulture, out var systemId))
                     throw new ArgumentException("The system ID must be numeric.");
-                var code = MylapsX2Code.IdToCode(systemId);
-                if (MylapsX2Code.CodeToId(code) != systemId)
+                var code = MylapsProChipCode.IdToCode(systemId);
+                if (MylapsProChipCode.CodeToId(code) != systemId)
                     throw new ArgumentException("The system ID is outside the X2 code range.");
                 foreach (var row in group)
                 {

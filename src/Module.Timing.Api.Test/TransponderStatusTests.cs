@@ -28,7 +28,7 @@ public sealed class TransponderStatusTests(TimingApiFactory factory) : IClassFix
         var status = await Get(client, id);
         Assert.True(status.Administration);
         Assert.Equal("Training label", status.Label);
-        Assert.Equal(MylapsX2Transponder.IdToCode("106187718"), status.Code);
+        Assert.Equal(MylapsProChipTransponder.IdToCode("106187718"), status.Code);
         Assert.NotEqual(status.Label, status.Code);
         Assert.Equal("106187718", status.SystemId);
         Assert.Equal(3, status.OwnershipCount);
@@ -227,7 +227,7 @@ public sealed class TransponderStatusTests(TimingApiFactory factory) : IClassFix
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var storage = scope.ServiceProvider.GetRequiredService<TimingDbContext>();
-        var transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = systemId };
+        var transponder = new MylapsProChipTransponder { Id = Guid.NewGuid(), SystemId = systemId };
         transponder.Owners.Add(new TransponderOwner { OwnerId = OwnerId, OwnedFrom = from.UtcDateTime, OwnedTo = to?.UtcDateTime });
         storage.Add(transponder);
         await storage.SaveChangesAsync();
@@ -238,7 +238,7 @@ public sealed class TransponderStatusTests(TimingApiFactory factory) : IClassFix
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var storage = scope.ServiceProvider.GetRequiredService<TimingDbContext>();
-        var transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = "106187718", Label = "Training label" };
+        var transponder = new MylapsProChipTransponder { Id = Guid.NewGuid(), SystemId = "106187718", Label = "Training label" };
         transponder.Owners.Add(new() { OwnerId = OwnerId, OwnedFrom = Now.UtcDateTime.AddDays(-6), OwnedTo = Now.UtcDateTime.AddDays(-5) });
         transponder.Owners.Add(new() { OwnerId = OtherOwnerId, OwnedFrom = Now.UtcDateTime.AddDays(-5), OwnedTo = Now.UtcDateTime.AddDays(-2) });
         transponder.Owners.Add(new() { OwnerId = OwnerId, OwnedFrom = Now.UtcDateTime.AddDays(-2) });

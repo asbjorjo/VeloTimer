@@ -54,7 +54,7 @@ public sealed class OwnershipOutboxTests : IAsyncLifetime
         connectionString = new NpgsqlConnectionStringBuilder(adminConnectionString) { Database = databaseName }.ConnectionString;
         await using var storage = new TimingDbContext(new DbContextOptionsBuilder<TimingDbContext>().UseNpgsql(connectionString).Options);
         await storage.Database.EnsureCreatedAsync();
-        var transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = "106187718" };
+        var transponder = new MylapsProChipTransponder { Id = Guid.NewGuid(), SystemId = "106187718" };
         transponderId = transponder.Id;
         storage.Add(transponder);
         await storage.SaveChangesAsync();

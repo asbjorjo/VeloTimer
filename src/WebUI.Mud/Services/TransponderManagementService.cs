@@ -61,7 +61,7 @@ public sealed class TransponderManagementService(ITimingClient client, ITranspon
             var clientFilters = filters is null ? null : new VeloTime.Module.Timing.Client.TransponderColumnFilters
             {
                 Label = filters.Label,
-                System = filters.System,
+                Type = filters.Type,
                 LastSeen = filters.LastSeen?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
                 Owner = filters.Owner,
                 OwnedFrom = filters.OwnedFrom?.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
@@ -80,7 +80,7 @@ public sealed class TransponderManagementService(ITimingClient client, ITranspon
             var result = administration ? await client.QueryTranspondersAsync(request, cancellationToken)
                 : await client.QueryMyTranspondersAsync(request, cancellationToken);
             return new Contracts.TransponderPage(result.Items.Select(row => new Contracts.TransponderRow(
-                new(row.Transponder.Id, row.Transponder.System, row.Transponder.SystemId, row.Transponder.Label, [], row.Transponder.LastSeen, row.Transponder.CanViewStatus),
+                new(row.Transponder.Id, row.Transponder.Type, row.Transponder.SystemId, row.Transponder.Label, [], row.Transponder.LastSeen, row.Transponder.CanViewStatus),
                 row.Ownership is { } owner ? new(owner.Id, owner.TransponderId, owner.OwnerId, owner.OwnedFrom, owner.OwnedTo) : null)).ToList(), result.TotalCount);
         });
 
@@ -108,7 +108,7 @@ public sealed class TransponderManagementService(ITimingClient client, ITranspon
 
     public Task RegisterAsync(string code, bool administration, CancellationToken cancellationToken = default) => Execute(async () =>
     {
-        if (administration) await client.TranspondersPOSTAsync(null!, code, "X2", cancellationToken);
+        if (administration) await client.TranspondersPOSTAsync(null!, code, "ProChip", cancellationToken);
         else await client.ClaimMyTransponderAsync(new ClaimTransponderRequest { Code = code }, cancellationToken);
         return true;
     });

@@ -155,7 +155,7 @@
   <data name="TimingInstallationsTitle" xml:space="preserve"><value>Timing installations</value></data>
   <data name="SearchInstallations" xml:space="preserve"><value>Search installations</value></data>
   <data name="NewInstallation" xml:space="preserve"><value>New installation</value></data>
-  <data name="Agent" xml:space="preserve"><value>Agent</value></data><data name="System" xml:space="preserve"><value>System</value></data>
+  <data name="Agent" xml:space="preserve"><value>Agent</value></data><data name="System" xml:space="preserve"><value>System</value></data><data name="TransponderType" xml:space="preserve"><value>Type</value></data>
   <data name="TimingPoints" xml:space="preserve"><value>Timing points</value></data><data name="LastSeenUTC" xml:space="preserve"><value>Last seen (UTC)</value></data>
   <data name="NoInstallations" xml:space="preserve"><value>No installations match this view.</value></data>
   <data name="InstallationsLoadFailed" xml:space="preserve"><value>Installations could not be loaded. Refresh to try again.</value></data>

@@ -45,16 +45,16 @@ public sealed class TimingServiceTests
         await using var database = await TestDatabase.CreateAsync();
         var installation = new Installation { Id = Guid.NewGuid(), AgentId = "agent-2", TimingSystem = TimingSystem.MyLaps_X2 };
         var timingPoint = new TimingPoint { Id = Guid.NewGuid(), SystemId = "loop-2", Installation = installation, Description = "Finish" };
-        var transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = "106187718" };
+        var transponder = new MylapsProChipTransponder { Id = Guid.NewGuid(), SystemId = "106187718" };
         Assert.Equal("106187718", database.Storage.Entry(transponder).Property(nameof(Transponder.SystemId)).CurrentValue);
         installation.TimingPoints.Add(timingPoint);
         database.Storage.Add(installation);
         database.Storage.Add(transponder);
         await database.Storage.SaveChangesAsync();
 
-        Assert.Null(await database.InstallationService.GetTransponder("missing", TimingSystem.MyLaps_X2));
-        var registered = await database.InstallationService.RegisterTransponder(new MylapsX2Transponder { SystemId = "106187719" });
-        var repeated = await database.InstallationService.RegisterTransponder(new MylapsX2Transponder { SystemId = "106187719" });
+        Assert.Null(await database.InstallationService.GetTransponder(TransponderType.MylapsProChip, "missing"));
+        var registered = await database.InstallationService.RegisterTransponder(new MylapsProChipTransponder { SystemId = "106187719" });
+        var repeated = await database.InstallationService.RegisterTransponder(new MylapsProChipTransponder { SystemId = "106187719" });
         Assert.Equal(registered.Id, repeated.Id);
 
         var passing = new Passing
@@ -152,7 +152,7 @@ public sealed class TimingServiceTests
             TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid()
         });
 
-        static MylapsX2Transponder CreateTransponder(string label) => new()
+        static MylapsProChipTransponder CreateTransponder(string label) => new()
         {
             Id = Guid.NewGuid(),
             SystemId = Guid.NewGuid().ToString("N"),
@@ -164,7 +164,7 @@ public sealed class TimingServiceTests
     public async Task TransponderService_ListsFindsAndUpdatesTransponders()
     {
         await using var database = await TestDatabase.CreateAsync();
-        var transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = "106187720" };
+        var transponder = new MylapsProChipTransponder { Id = Guid.NewGuid(), SystemId = "106187720" };
         Assert.Equal("106187720", database.Storage.Entry(transponder).Property(nameof(Transponder.SystemId)).CurrentValue);
         database.Storage.Add(transponder);
         await database.Storage.SaveChangesAsync();
@@ -312,9 +312,159 @@ public sealed class TimingServiceTests
             database.AgentService.RegisterPassingAsync(Observation("agent-x", "x", "106187721", "loop-1", DateTime.UtcNow) with { SourcePassingId = Guid.Empty }));
     }
 
+    [Fact]
+    public async Task AgentService_ResolvesTheSameProChipFromX2AndP3Installations()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        await database.InstallationService.CreateInstallationForAgent("x2-agent", TimingSystem.MyLaps_X2);
+        await database.InstallationService.CreateInstallationForAgent("p3-agent", TimingSystem.MyLaps_P3);
+        var time = DateTime.UtcNow;
+
+        var x2 = await database.AgentService.RegisterPassingAsync(Observation("x2-agent", "x-1", "106187718", "loop-1", time));
+        var p3 = await database.AgentService.RegisterPassingAsync(Observation("p3-agent", "p-1", "106187718", "loop-1", time));
+        var unknown = await database.AgentService.RegisterPassingAsync(Observation("new-agent", "n-1", "106187718", "loop-1", time));
+
+        Assert.All(new[] { x2, p3, unknown }, result => Assert.Equal(PassingRegistrationOutcome.Recorded, result.Outcome));
+        var transponder = Assert.Single(await database.Storage.Set<Transponder>().ToListAsync());
+        Assert.IsType<MylapsProChipTransponder>(transponder);
+        Assert.Equal(TransponderType.MylapsProChip, transponder.Type);
+        Assert.All(new[] { x2, p3, unknown }, result => Assert.Equal(transponder.Id, result.Passing!.TransponderId));
+        Assert.Equal(TimingSystem.Unknown, (await database.InstallationService.GetInstallationForAgent("new-agent"))!.TimingSystem);
+    }
+
+    [Theory]
+    [InlineData("ProChip")]
+    [InlineData("prochip")]
+    public async Task AgentService_MatchesTheContractTypeCaseInsensitively(string type)
+    {
+        await using var database = await TestDatabase.CreateAsync();
+
+        var result = await database.AgentService.RegisterPassingAsync(
+            Observation("agent-case", "p-1", "106187718", "loop-1", DateTime.UtcNow) with { TransponderType = type });
+
+        Assert.Equal(PassingRegistrationOutcome.Recorded, result.Outcome);
+    }
+
+    [Theory]
+    [InlineData("X2", "106187718", PassingRejectionReason.UnsupportedTransponderType)]
+    [InlineData("P3", "123456", PassingRejectionReason.UnsupportedTransponderType)]
+    [InlineData("DummyType", "1000001", PassingRejectionReason.UnsupportedTransponderType)]
+    [InlineData("ProChip", "123456", PassingRejectionReason.InvalidTransponderId)]
+    [InlineData("ProChip", "HT-24422", PassingRejectionReason.InvalidTransponderId)]
+    public async Task AgentService_StoresUnresolvableObservationsAsRejectedPassings(string type, string transponderId, PassingRejectionReason reason)
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        using var outcomes = new OutcomeListener("agent-reject");
+        var observation = Observation("agent-reject", "p-1", transponderId, "loop-1", DateTime.UtcNow, lowBattery: true) with { TransponderType = type };
+
+        var first = await database.AgentService.RegisterPassingAsync(observation);
+        var redelivered = await database.AgentService.RegisterPassingAsync(observation);
+
+        Assert.Equal(PassingRegistrationOutcome.Rejected, first.Outcome);
+        Assert.Null(first.Passing);
+        Assert.Equal(reason, first.Rejection!.Reason);
+        Assert.Equal(PassingRegistrationOutcome.Rejected, redelivered.Outcome);
+        var row = Assert.Single(await database.Storage.Set<RejectedPassing>().ToListAsync());
+        Assert.Equal((type, transponderId, "loop-1", true, 2), (row.TransponderType, row.TransponderId, row.LoopId, row.LowBattery, row.Occurrences));
+        Assert.Equal(Id("p-1"), row.SourcePassingId);
+        // Nothing is resolved for a rejected observation: no configuration rows, no fact, no event.
+        Assert.Empty(await database.Storage.Set<Passing>().ToListAsync());
+        Assert.Empty(await database.Storage.Set<Transponder>().ToListAsync());
+        Assert.Empty(await database.Storage.Set<Installation>().ToListAsync());
+        Assert.Empty(database.Bus.Published);
+        Assert.Equal([("rejected", reason.ToString()), ("rejected", reason.ToString())], outcomes.Recorded);
+    }
+
+    [Fact]
+    public async Task AgentService_RecordingAPassingRemovesItsEarlierRejection()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var observation = Observation("agent-fixed", "p-1", "106187718", "loop-1", DateTime.UtcNow);
+        await database.AgentService.RegisterPassingAsync(observation with { TransponderType = "X2" });
+        await database.AgentService.RegisterPassingAsync(Observation("agent-fixed", "p-2", "1", "loop-1", DateTime.UtcNow));
+
+        var replayed = await database.AgentService.RegisterPassingAsync(observation);
+
+        Assert.Equal(PassingRegistrationOutcome.Recorded, replayed.Outcome);
+        Assert.Equal(Id("p-2"), Assert.Single(await database.Storage.Set<RejectedPassing>().ToListAsync()).SourcePassingId);
+    }
+
+    [Fact]
+    public async Task RejectedPassingService_ReprocessesFixableRowsAndKeepsTheRest()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var time = new DateTime(2026, 11, 27, 12, 0, 0, DateTimeKind.Utc);
+        await database.AgentService.RegisterPassingAsync(Observation("agent-p", "late", "106187718", "loop-1", time.AddSeconds(10)) with { TransponderType = "P3" });
+        await database.AgentService.RegisterPassingAsync(Observation("agent-p", "early", "106187718", "loop-1", time) with { TransponderType = "P3" });
+        await database.AgentService.RegisterPassingAsync(Observation("agent-p", "broken", "42", "loop-1", time.AddSeconds(20)));
+        await database.AgentService.RegisterPassingAsync(Observation("agent-q", "other", "106187719", "loop-1", time) with { TransponderType = "P3" });
+        // The cause is fixed for the P3 rows (as a code change adding the type would), so they now resolve.
+        await database.Storage.Set<RejectedPassing>().Where(r => r.TransponderType == "P3").ExecuteUpdateAsync(set => set.SetProperty(r => r.TransponderType, "ProChip"));
+        var service = new RejectedPassingService(database.Storage, database.AgentService);
+
+        var result = await service.ReprocessAsync("agent-p", null, CancellationToken.None);
+
+        Assert.Equal(new(Recorded: 2, Duplicate: 0, Conflict: 0, StillRejected: 1), result);
+        Assert.Equal([Id("early"), Id("late")], await database.Storage.Set<Passing>().OrderBy(p => p.Time).Select(p => p.SourcePassingId).ToListAsync());
+        var remaining = await database.Storage.Set<RejectedPassing>().OrderBy(r => r.AgentId).ToListAsync();
+        Assert.Equal([("agent-p", Id("broken")), ("agent-q", Id("other"))], remaining.Select(r => (r.AgentId, r.SourcePassingId)));
+        var page = await service.ListAsync(null, PassingRejectionReason.InvalidTransponderId, 0, 10, CancellationToken.None);
+        Assert.Equal(1, page.TotalCount);
+        Assert.Equal("InvalidTransponderId", Assert.Single(page.Items).Reason);
+        Assert.True(await service.DismissAsync(page.Items[0].Id, CancellationToken.None));
+        Assert.False(await service.DismissAsync(page.Items[0].Id, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task RejectedPassingService_ReprocessedConflictMovesToPassingConflicts()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var time = DateTime.UtcNow;
+        await database.AgentService.RegisterPassingAsync(Observation("agent-c", "kept", "106187718", "loop-1", time));
+        await database.AgentService.RegisterPassingAsync(Observation("agent-c", "again", "106187718", "loop-1", time) with { TransponderType = "P3" });
+        await database.Storage.Set<RejectedPassing>().ExecuteUpdateAsync(set => set.SetProperty(r => r.TransponderType, "ProChip"));
+
+        var result = await new RejectedPassingService(database.Storage, database.AgentService).ReprocessAsync(null, null, CancellationToken.None);
+
+        Assert.Equal(1, result.Conflict);
+        Assert.Empty(await database.Storage.Set<RejectedPassing>().ToListAsync());
+        Assert.Single(await database.Storage.Set<PassingConflict>().ToListAsync());
+    }
+
+    /// <summary>Collects passing_processed outcome and reason tags for one agent.</summary>
+    private sealed class OutcomeListener : IDisposable
+    {
+        private readonly MeterListener listener = new();
+        private readonly string agent;
+        public List<(string? Outcome, string? Reason)> Recorded { get; } = [];
+
+        public OutcomeListener(string agent)
+        {
+            this.agent = agent;
+            listener.InstrumentPublished = (instrument, meterListener) =>
+            {
+                if (instrument.Name == "velotime.module.timing.passing_processed") meterListener.EnableMeasurementEvents(instrument);
+            };
+            listener.SetMeasurementEventCallback<int>((_, _, tags, _) =>
+            {
+                string? tagAgent = null, outcome = null, reason = null;
+                foreach (var tag in tags)
+                {
+                    if (tag.Key == "agent") tagAgent = tag.Value as string;
+                    else if (tag.Key == "outcome") outcome = tag.Value as string;
+                    else if (tag.Key == "reason") reason = tag.Value as string;
+                }
+                if (tagAgent == this.agent) lock (Recorded) Recorded.Add((outcome, reason));
+            });
+            listener.Start();
+        }
+
+        public void Dispose() => listener.Dispose();
+    }
+
     private static PassingObservation Observation(string agentId, string sourcePassingId, string transponderId, string loopId,
         DateTime time, bool lowBattery = false, bool lowStrength = false, bool lowHits = false) =>
-        new(agentId, Id(sourcePassingId), transponderId, "X2", loopId, time, lowBattery, lowStrength, lowHits);
+        new(agentId, Id(sourcePassingId), transponderId, "ProChip", loopId, time, lowBattery, lowStrength, lowHits);
 
     /// <summary>A stable UUID per readable test label.</summary>
     private static Guid Id(string label) => new(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(label)));

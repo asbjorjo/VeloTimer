@@ -93,7 +93,7 @@ public sealed class TransponderStatusServiceTests
             return new TransponderStatus
             {
                 Id = expected.Status.Id, Label = expected.Status.Label, Code = expected.Status.Code,
-                System = "MyLaps_X2", SystemId = expected.Status.SystemId, Administration = true,
+                Type = "MylapsProChip", SystemId = expected.Status.SystemId, Administration = true,
                 WarningWindowStart = expected.Status.WarningWindowStart, WarningWindowEnd = expected.Status.WarningWindowEnd,
                 LowBattery = true, LowStrength = true, LowHits = true, OwnershipCount = 1, WarningCount = 1,
                 Ownerships = [new TransponderOwnershipDTO { Id = Guid.NewGuid(), OwnerId = TransponderStatusTestData.OwnerId,
@@ -151,7 +151,7 @@ internal static class TransponderStatusTestData
         var time = new DateTimeOffset(2026, 10, 30, 12, 0, 0, TimeSpan.Zero);
         var sighting = new Contracts.TransponderSighting(Guid.NewGuid(), time, Guid.NewGuid(), Guid.NewGuid(),
             "Track installation", Guid.NewGuid(), "Finish", true, true, true);
-        return new(new(id, "Training label", "HT-24422", "106187718", "MyLaps_X2", administration,
+        return new(new(id, "Training label", "HT-24422", "106187718", "MylapsProChip", administration,
             sighting, time.AddDays(-7), time, true, true, true,
             [new(Guid.NewGuid(), id, OwnerId, time.AddDays(-1), null)], 1, [sighting], 1),
             new Dictionary<Guid, string> { [sighting.FacilityId] = "Arena" }, null);

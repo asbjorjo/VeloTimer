@@ -26,7 +26,7 @@
             <MudGrid>
                 <MudItem xs="12" md="6"><MudTextField @bind-Value="_agentId" @bind-Value:after="MarkDirty" Label="@L["AgentId"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || _pointEditing || _installation?.LastSeen is not null)" /></MudItem>
                 <MudItem xs="12" md="6"><MudSelect T="string" @bind-Value="_system" @bind-Value:after="MarkDirty" Label="@L["TimingSystem"]" Required="true" RequiredError="@L["RequiredError"]" Disabled="@(_busy || _pointEditing || _installation?.LastSeen is not null)">
-                    <MudSelectItem Value="@("Unknown")">@L["UnknownSystem"]</MudSelectItem><MudSelectItem Value="@("MyLaps_X2")">MyLaps X2</MudSelectItem>
+                    <MudSelectItem Value="@("Unknown")">@L["UnknownSystem"]</MudSelectItem><MudSelectItem Value="@("MyLaps_X2")">MyLaps X2</MudSelectItem><MudSelectItem Value="@("MyLaps_P3")">MyLaps P3</MudSelectItem>
                 </MudSelect></MudItem>
                 <MudItem xs="12" md="6"><MudSelect T="Guid?" @bind-Value="_facilityId" @bind-Value:after="MarkDirty" Label="@L["Facility"]" Clearable="true" Disabled="@(_busy || _pointEditing)">
                     @foreach (var facility in _facilities) { <MudSelectItem T="Guid?" Value="@((Guid?)facility.Id)">@facility.Name</MudSelectItem> }

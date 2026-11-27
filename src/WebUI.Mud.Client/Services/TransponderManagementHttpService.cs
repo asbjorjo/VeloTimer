@@ -20,7 +20,7 @@ public sealed class TransponderManagementHttpService(HttpClient client) : ITrans
             $"includeHistory={includeHistory}"
         };
         AddQuery(query, "labelFilter", filters?.Label);
-        AddQuery(query, "systemFilter", filters?.System);
+        AddQuery(query, "typeFilter", filters?.Type);
         AddQuery(query, "ownerFilter", filters?.Owner);
         AddQuery(query, "lastSeenFilter", filters?.LastSeen?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
         AddQuery(query, "ownedFromFilter", filters?.OwnedFrom?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));

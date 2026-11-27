@@ -156,7 +156,7 @@
   <data name="TimingInstallationsTitle" xml:space="preserve"><value>Tidtakerinstallasjoner</value></data>
   <data name="SearchInstallations" xml:space="preserve"><value>Søk etter installasjoner</value></data>
   <data name="NewInstallation" xml:space="preserve"><value>Ny installasjon</value></data>
-  <data name="Agent" xml:space="preserve"><value>Agent</value></data><data name="System" xml:space="preserve"><value>System</value></data>
+  <data name="Agent" xml:space="preserve"><value>Agent</value></data><data name="System" xml:space="preserve"><value>System</value></data><data name="TransponderType" xml:space="preserve"><value>Type</value></data>
   <data name="TimingPoints" xml:space="preserve"><value>Tidtakerpunkter</value></data><data name="LastSeenUTC" xml:space="preserve"><value>Sist sett (UTC)</value></data>
   <data name="NoInstallations" xml:space="preserve"><value>Ingen installasjoner samsvarer med denne visningen.</value></data>
   <data name="InstallationsLoadFailed" xml:space="preserve"><value>Kunne ikke laste inn installasjoner. Oppdater for å prøve igjen.</value></data>

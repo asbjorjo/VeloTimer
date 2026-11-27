@@ -55,7 +55,7 @@
         finally { _loading = false; }
     }
     private string FacilityName(Guid id) => id == Guid.Empty ? L["Unassigned"] : _facilities.FirstOrDefault(facility => facility.Id == id)?.Name ?? L["MissingFacility"];
-    private string TimingSystemName(string value) => value == "Unknown" ? L["UnknownSystem"].Value : value == "MyLaps_X2" ? "MyLaps X2" : value;
+    private string TimingSystemName(string value) => value == "Unknown" ? L["UnknownSystem"].Value : value == "MyLaps_X2" ? "MyLaps X2" : value == "MyLaps_P3" ? "MyLaps P3" : value;
     private bool Matches(InstallationDTO installation) => (!_facilityId.HasValue || installation.FacilityId == _facilityId) &&
         $"{installation.AgentId} {installation.Description} {FacilityName(installation.FacilityId)}".Contains(_search, StringComparison.OrdinalIgnoreCase);
     private async Task Delete(InstallationDTO installation)

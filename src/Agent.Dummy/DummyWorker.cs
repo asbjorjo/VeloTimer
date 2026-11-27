@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus;
 using VeloTime.Agent.Identity;
+using VeloTime.Agent.Interface;
 using VeloTime.Agent.Interface.Messages.Events;
 
 namespace VeloTime.Agent.Dummy
@@ -15,7 +16,8 @@ namespace VeloTime.Agent.Dummy
     internal class DummyWorker : IHostedService
     {
         private static readonly string[] Loops = ["dummy-loop-1", "dummy-loop-2", "dummy-loop-3"];
-        private static readonly string[] Transponders = ["1000001", "1000002", "1000003", "1000004", "1000005"];
+        // Valid ProChip IDs (106187718 is printed HT-24422).
+        private static readonly string[] Transponders = ["106187718", "106187719", "106187720", "106187721", "106187722"];
         private const double RedeliveryProbability = 0.1;
 
         private readonly ILogger<DummyWorker> logger;
@@ -56,7 +58,7 @@ namespace VeloTime.Agent.Dummy
                         SourcePassingId: PassingId.Create("Dummy", transponder, Loops[loop],
                             time.ToString("O", CultureInfo.InvariantCulture)),
                         Time: time,
-                        TransponderType: "DummyType",
+                        TransponderType: TransponderTypes.MylapsProChip,
                         TransponderId: transponder,
                         LoopId: Loops[loop]);
                     await messagingService.Publish(passing, cancellationToken: cancellationToken);

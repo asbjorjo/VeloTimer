@@ -110,7 +110,7 @@ public sealed partial class TimingEndpointTests
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var storage = scope.ServiceProvider.GetRequiredService<TimingDbContext>();
-        var transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = "106187718" };
+        var transponder = new MylapsProChipTransponder { Id = Guid.NewGuid(), SystemId = "106187718" };
         storage.Add(transponder);
         await storage.SaveChangesAsync();
         return transponder.Id;

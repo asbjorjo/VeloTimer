@@ -192,6 +192,82 @@ namespace VeloTime.Module.Timing.Migrations
                     b.ToTable("passing_conflict", "timing");
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.RejectedPassing", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AgentId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("agent_id");
+
+                    b.Property<DateTime>("FirstSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_seen_at");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen_at");
+
+                    b.Property<string>("LoopId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("loop_id");
+
+                    b.Property<bool>("LowBattery")
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_battery");
+
+                    b.Property<bool>("LowHits")
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_hits");
+
+                    b.Property<bool>("LowStrength")
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_strength");
+
+                    b.Property<int>("Occurrences")
+                        .HasColumnType("integer")
+                        .HasColumnName("occurrences");
+
+                    b.Property<int>("Reason")
+                        .HasColumnType("integer")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("SourcePassingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("source_passing_id");
+
+                    b.Property<DateTime>("Time")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("time");
+
+                    b.Property<string>("TransponderId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("transponder_id");
+
+                    b.Property<string>("TransponderType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("transponder_type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_rejected_passing");
+
+                    b.HasIndex("LastSeenAt")
+                        .HasDatabaseName("ix_rejected_passing_last_seen_at");
+
+                    b.HasIndex("AgentId", "SourcePassingId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_rejected_passing_agent_id_source_passing_id");
+
+                    b.ToTable("rejected_passing", "timing");
+                });
+
             modelBuilder.Entity("VeloTime.Module.Timing.Model.TimingPoint", b =>
                 {
                     b.Property<Guid>("Id")
@@ -235,25 +311,25 @@ namespace VeloTime.Module.Timing.Migrations
                         .HasColumnType("text")
                         .HasColumnName("label");
 
-                    b.Property<int>("System")
-                        .HasColumnType("integer")
-                        .HasColumnName("system");
-
                     b.Property<string>("SystemId")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("system_id");
 
+                    b.Property<int>("Type")
+                        .HasColumnType("integer")
+                        .HasColumnName("type");
+
                     b.HasKey("Id")
                         .HasName("pk_transponder");
 
-                    b.HasIndex("System", "SystemId")
+                    b.HasIndex("Type", "SystemId")
                         .IsUnique()
-                        .HasDatabaseName("ix_transponder_system_system_id");
+                        .HasDatabaseName("ix_transponder_type_system_id");
 
                     b.ToTable("transponder", "timing");
 
-                    b.HasDiscriminator<int>("System");
+                    b.HasDiscriminator<int>("Type");
 
                     b.UseTphMappingStrategy();
                 });
@@ -290,7 +366,7 @@ namespace VeloTime.Module.Timing.Migrations
                     b.ToTable("transponder_owner", "timing");
                 });
 
-            modelBuilder.Entity("VeloTime.Module.Timing.Model.MylapsX2Transponder", b =>
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.MylapsProChipTransponder", b =>
                 {
                     b.HasBaseType("VeloTime.Module.Timing.Model.Transponder");
 

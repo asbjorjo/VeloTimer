@@ -31,7 +31,7 @@
         <MudPaper Class="pa-4 mb-4" Outlined="true">
             <MudText Typo="Typo.h6">@status.Label</MudText>
             <MudText>@L["Code"]: @status.Code</MudText>
-            <MudText>@L["SystemId"]: @status.SystemId (@status.System)</MudText>
+            <MudText>@L["SystemId"]: @status.SystemId (@TransponderTypeNames.Display(status.Type))</MudText>
             <MudText Typo="Typo.caption">@L["TransponderId"]: @status.Id</MudText>
         </MudPaper>
         @if (view.FacilityError is not null)

@@ -11,7 +11,7 @@ namespace VeloTime.Module.Timing.Api.Test;
 
 public sealed class PassingListingTests(TimingApiFactory factory) : IClassFixture<TimingApiFactory>, IAsyncLifetime
 {
-    private static readonly ConcurrentDictionary<Guid, MylapsX2Transponder> Transponders = new();
+    private static readonly ConcurrentDictionary<Guid, MylapsProChipTransponder> Transponders = new();
     private static readonly DateTimeOffset Start = new(2026, 11, 1, 0, 0, 0, TimeSpan.Zero);
     public Task InitializeAsync() => factory.InitializeDatabaseAsync();
     public Task DisposeAsync() => Task.CompletedTask;
@@ -149,7 +149,7 @@ public sealed class PassingListingTests(TimingApiFactory factory) : IClassFixtur
     private static RowSeed Row(Guid id, Guid transponderId, DateTimeOffset time, string description,
         bool lowBattery = false, bool lowStrength = false, bool lowHits = false)
     {
-        var transponder = Transponders.GetOrAdd(transponderId, key => new MylapsX2Transponder
+        var transponder = Transponders.GetOrAdd(transponderId, key => new MylapsProChipTransponder
         {
             Id = key, SystemId = Random.Shared.NextInt64(100000000, 999999999).ToString(CultureInfo.InvariantCulture)
         });
@@ -162,5 +162,5 @@ public sealed class PassingListingTests(TimingApiFactory factory) : IClassFixtur
             LowBattery = lowBattery, LowStrength = lowStrength, LowHits = lowHits };
         return new(transponder, installation, point, passing, installation.Facility);
     }
-    private sealed record RowSeed(MylapsX2Transponder Transponder, Installation Installation, TimingPoint Point, Passing Passing, Guid Facility);
+    private sealed record RowSeed(MylapsProChipTransponder Transponder, Installation Installation, TimingPoint Point, Passing Passing, Guid Facility);
 }

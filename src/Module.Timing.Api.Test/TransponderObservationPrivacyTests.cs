@@ -118,7 +118,7 @@ public sealed class TransponderObservationPrivacyTests(TimingApiFactory factory)
         var point = new TimingPoint { Id = Guid.NewGuid(), SystemId = "privacy", Description = "Finish", Installation = new Installation { Id = Guid.NewGuid(), AgentId = "privacy-test" } };
         for (var index = 0; index < ids.Length; index++)
         {
-            var transponder = new MylapsX2Transponder { Id = ids[index], SystemId = (106187718 + index).ToString(), Label = "Same label" };
+            var transponder = new MylapsProChipTransponder { Id = ids[index], SystemId = (106187718 + index).ToString(), Label = "Same label" };
             transponder.Owners.Add(new() { OwnerId = Caller, OwnedFrom = day.AddDays(-6), OwnedTo = day.AddDays(-5) });
             transponder.Owners.Add(new() { OwnerId = Other, OwnedFrom = day.AddDays(-5), OwnedTo = current ? day.AddDays(-2) : null });
             if (current) transponder.Owners.Add(new() { OwnerId = Caller, OwnedFrom = day.AddDays(-2) });
