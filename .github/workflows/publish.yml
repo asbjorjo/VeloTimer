@@ -58,6 +58,7 @@ jobs:
           git config --local user.name "github-actions[bot]"
 
       - name: Version Bump
+        id: bump
         env:
           PRERELEASE: ${{ inputs.prerelease }}
         run: |
@@ -65,9 +66,22 @@ jobs:
           if [[ -n "$PRERELEASE" ]]; then
             args+=(--pre-release "$PRERELEASE")
           fi
-          dotnet tool run versionize -- "${args[@]}"
+          set +e
+          output=$(dotnet tool run versionize -- "${args[@]}" 2>&1)
+          status=$?
+          set -e
+          echo "$output"
+          if [[ $status -eq 0 ]]; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+          elif grep -q "Version was not affected by commits since last release" <<< "$output"; then
+            echo "::notice ::No version-bumping commits since the last release; skipping publish."
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          else
+            exit "$status"
+          fi
 
       - name: Get application version
+        if: steps.bump.outputs.released == 'true'
         id: version
         run: |
           APP_VERSION=$(grep -oP '(?<=<Version>)[^<]+' src/AppHost/VeloTime.AppHost.csproj | head -n 1)
@@ -78,6 +92,7 @@ jobs:
           echo "version=$APP_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Login to GitHub Container Registry
+        if: steps.bump.outputs.released == 'true'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -85,19 +100,23 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Solution
+        if: steps.bump.outputs.released == 'true'
         run: dotnet build VeloTimer.sln --configuration Release
 
       - name: Build Package
+        if: steps.bump.outputs.released == 'true'
         run: dotnet pack --output nupkgs --configuration Release
 
       - name: Push to Nuget
+        if: steps.bump.outputs.released == 'true'
         run: dotnet nuget push "nupkgs/*.nupkg" -s https://nuget.pkg.github.com/asbjorjo/index.json -k ${{secrets.GITHUB_TOKEN}} --skip-duplicate
 
       - name: Push to GHCR
+        if: steps.bump.outputs.released == 'true'
         run: dotnet publish VeloTimer.sln --configuration Release /t:PublishContainer -p ContainerRegistry=ghcr.io
 
       - name: Update chart versions
-        if: inputs.prerelease != ''
+        if: steps.bump.outputs.released == 'true' && inputs.prerelease != ''
         env:
           APP_VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -112,12 +131,14 @@ jobs:
           fi
 
       - name: Push changes to GitHub
+        if: steps.bump.outputs.released == 'true'
         env:
           PUBLISH_REF: ${{ github.ref }}
           APP_VERSION: ${{ steps.version.outputs.version }}
         run: git push --atomic origin "HEAD:$PUBLISH_REF" "refs/tags/v$APP_VERSION"
 
       - name: Record published version and commit
+        if: steps.bump.outputs.released == 'true'
         id: published
         env:
           APP_VERSION: ${{ steps.version.outputs.version }}
