@@ -29,6 +29,18 @@ public class AgentService(InstallationService installationService, TimingDbConte
             throw new ArgumentException("A passing observation must carry the agent's SourcePassingId UUID.", nameof(observation));
         activity?.SetTag("SourcePassingId", observation.SourcePassingId);
 
+        // Resolve the transponder from the observation alone, before creating any configuration rows, so a rejected
+        // observation leaves nothing behind except its RejectedPassing record.
+        if (!TransponderFactory.TryParseType(observation.TransponderType, out var transponderType))
+            return await RejectAsync(observation, PassingRejectionReason.UnsupportedTransponderType, activity, cancellationToken);
+        var transponder = await installationService.GetTransponder(transponderType, observation.TransponderId, cancellationToken);
+        if (transponder is null)
+        {
+            if (!TransponderFactory.TryCreate(transponderType, observation.TransponderId, out var created, out _))
+                return await RejectAsync(observation, PassingRejectionReason.InvalidTransponderId, activity, cancellationToken);
+            transponder = await installationService.RegisterTransponder(created!, cancellationToken: cancellationToken);
+        }
+
         // Identity resolution creates configuration rows idempotently and outside the fact transaction,
         // so the cache never holds entities from a rolled-back transaction.
         var installation =
@@ -38,10 +50,6 @@ public class AgentService(InstallationService installationService, TimingDbConte
         var timingPoint =
             await installationService.GetTimingPoint(installation, observation.LoopId, cancellationToken: cancellationToken) ??
             await installationService.CreateTimingPoint(installation, observation.LoopId, cancellationToken: cancellationToken);
-
-        var transponder =
-            await installationService.GetTransponder(observation.TransponderId, installation.TimingSystem, cancellationToken: cancellationToken) ??
-            await installationService.RegisterTransponder(new MylapsX2Transponder() { SystemId = observation.TransponderId }, cancellationToken: cancellationToken);
 
         var received = new Passing
         {
@@ -60,6 +68,10 @@ public class AgentService(InstallationService installationService, TimingDbConte
         try
         {
             var result = await RegisterAsync(received, cancellationToken);
+            // A resolved observation supersedes an earlier rejection of the same passing.
+            await storage.Set<RejectedPassing>()
+                .Where(r => r.AgentId == observation.AgentId && r.SourcePassingId == observation.SourcePassingId)
+                .ExecuteDeleteAsync(cancellationToken);
             if (transaction is not null) await transaction.CommitAsync(cancellationToken);
 
             var outcome = result.Outcome.ToString().ToLowerInvariant();
@@ -81,6 +93,58 @@ public class AgentService(InstallationService installationService, TimingDbConte
         {
             if (transaction is not null) await transaction.DisposeAsync();
         }
+    }
+
+    private async Task<PassingRegistration> RejectAsync(PassingObservation observation, PassingRejectionReason reason, Activity? activity,
+        CancellationToken cancellationToken)
+    {
+        var now = _time.GetUtcNow().UtcDateTime;
+        var time = PassingTime.Normalize(observation.Time);
+        var rejection = await storage.Set<RejectedPassing>().SingleOrDefaultAsync(r =>
+            r.AgentId == observation.AgentId && r.SourcePassingId == observation.SourcePassingId, cancellationToken);
+        if (rejection is null)
+        {
+            rejection = new RejectedPassing
+            {
+                AgentId = observation.AgentId,
+                SourcePassingId = observation.SourcePassingId,
+                TransponderType = observation.TransponderType,
+                TransponderId = observation.TransponderId,
+                LoopId = observation.LoopId,
+                FirstSeenAt = now
+            };
+            storage.Add(rejection);
+        }
+        else
+        {
+            // Nothing downstream depends on a rejected row, so the latest payload wins.
+            rejection.TransponderType = observation.TransponderType;
+            rejection.TransponderId = observation.TransponderId;
+            rejection.LoopId = observation.LoopId;
+            rejection.Occurrences++;
+        }
+        rejection.Time = time;
+        rejection.LowBattery = observation.LowBattery;
+        rejection.LowStrength = observation.LowStrength;
+        rejection.LowHits = observation.LowHits;
+        rejection.Reason = reason;
+        rejection.LastSeenAt = now;
+        try
+        {
+            await storage.SaveChangesAsync(cancellationToken);
+        }
+        finally
+        {
+            storage.Entry(rejection).State = EntityState.Detached;
+        }
+
+        activity?.SetTag("Outcome", "rejected");
+        activity?.SetTag("RejectionReason", reason.ToString());
+        _logger.LogWarning(
+            "Rejected passing {SourcePassingId} from agent {AgentId} ({Reason}): transponder type {TransponderType}, ID {TransponderId}.",
+            observation.SourcePassingId, observation.AgentId, reason, observation.TransponderType, observation.TransponderId);
+        metrics.PassingProcessed(observation.AgentId, activity, "rejected", reason.ToString());
+        return new PassingRegistration(PassingRegistrationOutcome.Rejected, null, Rejection: rejection);
     }
 
     private async Task<PassingRegistration> RegisterAsync(Passing received, CancellationToken cancellationToken)

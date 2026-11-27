@@ -14,7 +14,7 @@ public static class TimingCacheKeys
     // This existing key stores an Installation value, not a TimingPoint.
     public static string InstallationForTimingPoint(Guid timingPointId) => $"velotime:timing:installation-for-timing-point:v1:{timingPointId}";
 
-    public static string Transponder(TimingSystem system, string systemId) => $"velotime:timing:transponder:v1:{system}:{systemId}";
+    public static string Transponder(TransponderType type, string systemId) => $"velotime:timing:transponder:v2:{type}:{systemId}";
 
     public static HybridCacheEntryOptions NewEntryOptions() => new()
     {
@@ -29,7 +29,7 @@ public static class TimingCacheTags
     public static string Installation(Guid installationId) => $"Timing.Installation.{installationId}";
     public static string TimingPointHardware(Guid installationId, string systemId) => $"Timing.TimingPoint.Hardware.{installationId}.{systemId}";
     public static string TimingPointId(Guid timingPointId) => $"Timing.TimingPoint.Id.{timingPointId}";
-    public static string Transponder(TimingSystem system, string systemId) => $"Timing.Transponder.{system}.{systemId}";
+    public static string Transponder(TransponderType type, string systemId) => $"Timing.Transponder.{type}.{systemId}";
 }
 
 public readonly record struct TimingPointCacheIdentity(Guid InstallationId, Guid TimingPointId, string SystemId)
@@ -44,10 +44,10 @@ public readonly record struct TimingPointCacheIdentity(Guid InstallationId, Guid
     ];
 }
 
-public readonly record struct TimingTransponderCacheIdentity(TimingSystem System, string SystemId)
+public readonly record struct TimingTransponderCacheIdentity(TransponderType Type, string SystemId)
 {
-    public string Key => TimingCacheKeys.Transponder(System, SystemId);
-    public string Tag => TimingCacheTags.Transponder(System, SystemId);
+    public string Key => TimingCacheKeys.Transponder(Type, SystemId);
+    public string Tag => TimingCacheTags.Transponder(Type, SystemId);
 }
 
 public sealed record TimingInstallationCacheIdentity(Guid InstallationId, string AgentId, ImmutableArray<TimingPointCacheIdentity> TimingPoints)

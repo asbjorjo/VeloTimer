@@ -48,6 +48,12 @@ public class TimingDbContext : BaseDbContext
             e.HasIndex(c => c.LastSeenAt);
         });
 
+        modelBuilder.Entity<RejectedPassing>(e =>
+        {
+            e.HasIndex(r => new { r.AgentId, r.SourcePassingId }).IsUnique();
+            e.HasIndex(r => r.LastSeenAt);
+        });
+
         modelBuilder.Entity<TimingPoint>(e =>
         {
             e.HasIndex(tp => new { tp.InstallationId, tp.SystemId }).IsUnique();
@@ -56,9 +62,9 @@ public class TimingDbContext : BaseDbContext
         modelBuilder.Entity<Transponder>(e =>
         {
             e.Property(transponder => transponder.Label).UsePropertyAccessMode(PropertyAccessMode.Property);
-            e.HasDiscriminator(t => t.System)
-                .HasValue<MylapsX2Transponder>(TimingSystem.MyLaps_X2);
-            e.HasIndex(t => new { t.System, t.SystemId }).IsUnique();
+            e.HasDiscriminator(t => t.Type)
+                .HasValue<MylapsProChipTransponder>(TransponderType.MylapsProChip);
+            e.HasIndex(t => new { t.Type, t.SystemId }).IsUnique();
         });
 
         modelBuilder.Entity<Installation>(e =>

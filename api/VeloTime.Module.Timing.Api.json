@@ -1499,6 +1499,127 @@
           }
         }
       }
+    },
+    "/api/timing/rejected-passings": {
+      "get": {
+        "tags": [
+          "RejectedPassings"
+        ],
+        "summary": "List agent passings Timing could not resolve, most recently seen first",
+        "operationId": "GetRejectedPassings",
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RejectedPassingPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/timing/rejected-passings/reprocess": {
+      "post": {
+        "tags": [
+          "RejectedPassings"
+        ],
+        "summary": "Re-submit matching rejected passings; rows that now record, duplicate or conflict are deleted",
+        "operationId": "ReprocessRejectedPassings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReprocessRejectedPassingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprocessRejectedPassingsResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/timing/rejected-passings/{id}": {
+      "delete": {
+        "tags": [
+          "RejectedPassings"
+        ],
+        "operationId": "DismissRejectedPassing",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1750,6 +1871,162 @@
           }
         }
       },
+      "RejectedPassingDTO": {
+        "required": [
+          "id",
+          "agentId",
+          "sourcePassingId",
+          "time",
+          "transponderType",
+          "transponderId",
+          "loopId",
+          "lowBattery",
+          "lowStrength",
+          "lowHits",
+          "reason",
+          "firstSeenAt",
+          "lastSeenAt",
+          "occurrences"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "sourcePassingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "transponderType": {
+            "type": "string"
+          },
+          "transponderId": {
+            "type": "string"
+          },
+          "loopId": {
+            "type": "string"
+          },
+          "lowBattery": {
+            "type": "boolean"
+          },
+          "lowStrength": {
+            "type": "boolean"
+          },
+          "lowHits": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "firstSeenAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "occurrences": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "RejectedPassingPage": {
+        "required": [
+          "items",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RejectedPassingDTO"
+            }
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "ReprocessRejectedPassingsRequest": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ReprocessRejectedPassingsResult": {
+        "required": [
+          "recorded",
+          "duplicate",
+          "conflict",
+          "stillRejected"
+        ],
+        "type": "object",
+        "properties": {
+          "recorded": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "duplicate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "conflict": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "stillRejected": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SampleDTO": {
         "required": [
           "transponderId",
@@ -1899,7 +2176,7 @@
               "string"
             ]
           },
-          "system": {
+          "type": {
             "type": [
               "null",
               "string"
@@ -1977,7 +2254,7 @@
       "TransponderDTO": {
         "required": [
           "id",
-          "system",
+          "type",
           "systemId",
           "label",
           "ownerships"
@@ -1988,7 +2265,7 @@
             "type": "string",
             "format": "uuid"
           },
-          "system": {
+          "type": {
             "type": "string"
           },
           "systemId": {
@@ -2339,7 +2616,7 @@
           "label",
           "code",
           "systemId",
-          "system",
+          "type",
           "administration",
           "lastSeen",
           "warningWindowStart",
@@ -2367,7 +2644,7 @@
           "systemId": {
             "type": "string"
           },
-          "system": {
+          "type": {
             "type": "string"
           },
           "administration": {
@@ -2452,6 +2729,9 @@
   "tags": [
     {
       "name": "Timing"
+    },
+    {
+      "name": "RejectedPassings"
     }
   ]
 }

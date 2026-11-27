@@ -40,14 +40,14 @@ public static class TransponderQuery
             var label = filters.Label.Trim().ToUpperInvariant();
             transponders = transponders.Where(transponder => transponder.Label.ToUpper().Contains(label));
         }
-        if (!string.IsNullOrWhiteSpace(filters.System))
+        if (!string.IsNullOrWhiteSpace(filters.Type))
         {
-            var system = filters.System.Trim();
-            var matchingSystems = Enum.GetNames<TimingSystem>()
-                .Where(name => name.Contains(system, StringComparison.OrdinalIgnoreCase))
-                .Select(name => Enum.Parse<TimingSystem>(name))
+            var type = filters.Type.Trim();
+            var matchingTypes = Enum.GetNames<TransponderType>()
+                .Where(name => name.Contains(type, StringComparison.OrdinalIgnoreCase))
+                .Select(name => Enum.Parse<TransponderType>(name))
                 .ToArray();
-            transponders = transponders.Where(transponder => matchingSystems.Contains(transponder.System));
+            transponders = transponders.Where(transponder => matchingTypes.Contains(transponder.Type));
         }
 
         var now = DateTime.UtcNow;
@@ -125,8 +125,8 @@ public static class TransponderQuery
         var total = await rowsWithLastSeen.CountAsync(cancellationToken);
         var orderedRows = (request.SortBy, request.SortDescending) switch
         {
-            ("system", false) => rowsWithLastSeen.OrderBy(row => row.Transponder.System).ThenBy(row => row.Transponder.SystemId),
-            ("system", true) => rowsWithLastSeen.OrderByDescending(row => row.Transponder.System).ThenByDescending(row => row.Transponder.SystemId),
+            ("type", false) => rowsWithLastSeen.OrderBy(row => row.Transponder.Type).ThenBy(row => row.Transponder.SystemId),
+            ("type", true) => rowsWithLastSeen.OrderByDescending(row => row.Transponder.Type).ThenByDescending(row => row.Transponder.SystemId),
             ("lastSeen", false) => rowsWithLastSeen.OrderBy(row => row.LastSeen == null).ThenBy(row => row.LastSeen),
             ("lastSeen", true) => rowsWithLastSeen.OrderBy(row => row.LastSeen == null).ThenByDescending(row => row.LastSeen),
             ("ownedLastSeen", _) => rowsWithLastSeen
@@ -154,7 +154,7 @@ public static class TransponderQuery
             .ThenBy(row => row.Owner == null ? (Guid?)null : row.Owner.Id)
             .Skip(request.Page * request.PageSize).Take(request.PageSize).ToListAsync(cancellationToken);
         return new(page.Select(row => new TransponderRow(
-            new(row.Transponder.Id, row.Transponder.System.ToString(), row.Transponder.SystemId, row.Transponder.Label, [],
+            new(row.Transponder.Id, row.Transponder.Type.ToString(), row.Transponder.SystemId, row.Transponder.Label, [],
                 row.LastSeen is { } time
                     ? new DateTimeOffset(DateTime.SpecifyKind(time, DateTimeKind.Utc)) : null, row.CanViewStatus),
             row.Owner is null ? null : TransponderOwnershipService.ToDto(row.Owner))).ToList(), total);
@@ -205,7 +205,7 @@ public static class TransponderQuery
 
     private static void ValidateSort(string? sortBy)
     {
-        if (sortBy is not (null or "" or "label" or "system" or "lastSeen" or "ownedLastSeen" or "ownedFrom" or "ownedTo" or "status"))
+        if (sortBy is not (null or "" or "label" or "type" or "lastSeen" or "ownedLastSeen" or "ownedFrom" or "ownedTo" or "status"))
             throw new ArgumentException("The transponder sort column is invalid.");
     }
 }

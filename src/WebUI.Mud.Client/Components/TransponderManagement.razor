@@ -97,7 +97,7 @@
                     }
                 </CellTemplate>
             </PropertyColumn>
-            <PropertyColumn Property="row => row.System" Title="@L["System"]" FilterOperators="@ContainsFilterOperators" />
+            <PropertyColumn Property="row => row.Type" Title="@L["TransponderType"]" FilterOperators="@ContainsFilterOperators" />
             @if (Administration)
             {
                 <PropertyColumn Property="row => row.LastSeenDate" Title="@L["LastSeen"]" FilterOperators="@DateFilterOperators"
@@ -286,7 +286,7 @@
 
     private TransponderColumnFilters GetFilters(IEnumerable<IFilterDefinition<GridTransponderRow>> definitions) => new(
         Label: GetStringFilter(definitions, nameof(GridTransponderRow.Label)),
-        System: GetStringFilter(definitions, nameof(GridTransponderRow.System)),
+        Type: GetStringFilter(definitions, nameof(GridTransponderRow.Type)),
         Owner: GetStringFilter(definitions, nameof(GridTransponderRow.OwnerName)),
         Status: GetStatusFilter(definitions))
     {
@@ -334,7 +334,7 @@
     private static string GetSortKey(string sortBy) => sortBy switch
     {
         "label" or nameof(GridTransponderRow.Label) => "label",
-        "system" or nameof(GridTransponderRow.System) => "system",
+        "type" or nameof(GridTransponderRow.Type) => "type",
         "lastSeen" or nameof(GridTransponderRow.LastSeenDate) => "lastSeen",
         "ownedFrom" or nameof(GridTransponderRow.OwnedFromDate) => "ownedFrom",
         "ownedTo" or nameof(GridTransponderRow.OwnedToDate) => "ownedTo",
@@ -490,7 +490,7 @@
     private sealed record GridTransponderRow(TransponderRow Row, string OwnerName, Func<EffectiveDisplaySettings> Settings)
     {
         public string Label => Row.Transponder.Label;
-        public string System => Row.Transponder.System;
+        public string Type => TransponderTypeNames.Display(Row.Transponder.Type);
         public DateOnly? LastSeenDate => Row.Transponder.LastSeen is { } lastSeen
             ? Settings().CalendarDate(lastSeen) : null;
         public DateOnly? OwnedFromDate => Row.Ownership is { } ownership

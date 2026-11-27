@@ -2,13 +2,15 @@
 
 namespace VeloTime.Module.Timing.Model
 {
-    [JsonDerivedType(typeof(MylapsX2Transponder), typeDiscriminator: "MylapsX2")]
+    [JsonDerivedType(typeof(MylapsProChipTransponder), typeDiscriminator: "MylapsProChip")]
     public abstract class Transponder
     {
         public Guid Id { get; init; }
-        public virtual TimingSystem System { get; } = TimingSystem.Unknown;
+        public virtual TransponderType Type { get; } = TransponderType.Unknown;
         public required virtual string SystemId { get; init; }
         public virtual string Label { get; set; } = string.Empty;
+        /// <summary>The code a person reads off the chip.</summary>
+        public virtual string DisplayCode => SystemId;
         public ICollection<TransponderOwner> Owners { get; set; } = new List<TransponderOwner>();
 
         public void AddOwner(Guid OwnerId, DateTime OwnedFrom, DateTime? OwnedTo = null)
@@ -34,9 +36,12 @@ namespace VeloTime.Module.Timing.Model
         }
     }
 
-    public class MylapsX2Transponder : Transponder
+    /// <summary>A MYLAPS ProChip, read by both X2 and P3 decoders. <see cref="Transponder.SystemId"/> is the numeric chip ID.</summary>
+    public class MylapsProChipTransponder : Transponder
     {
-        public override TimingSystem System { get; } = TimingSystem.MyLaps_X2;
+        public override TransponderType Type { get; } = TransponderType.MylapsProChip;
+
+        public override string DisplayCode => IdToCode(SystemId);
 
         public override string Label
         {
@@ -58,8 +63,8 @@ namespace VeloTime.Module.Timing.Model
             }
         }
 
-        public static string IdToCode(long Id) => Interface.MylapsX2Code.IdToCode(Id);
+        public static string IdToCode(long Id) => Interface.MylapsProChipCode.IdToCode(Id);
 
-        public static long CodeToId(string code) => Interface.MylapsX2Code.CodeToId(code);
+        public static long CodeToId(string code) => Interface.MylapsProChipCode.CodeToId(code);
     }
 }

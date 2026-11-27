@@ -5,7 +5,7 @@ namespace VeloTime.Module.Timing.Test;
 
 public class TestTransponder : Transponder
 {
-    public override TimingSystem System { get; } = TimingSystem.Unknown;
+    public override TransponderType Type { get; } = TransponderType.Unknown;
 }
 
 public class TransponderTest
@@ -16,7 +16,7 @@ public class TransponderTest
         long Id = 106187718;
         string Code = "HT-24422";
 
-        Transponder transponder = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = Id.ToString() };
+        Transponder transponder = new MylapsProChipTransponder { Id = Guid.NewGuid(), SystemId = Id.ToString() };
         Assert.Equal(Id.ToString(), transponder.SystemId);
         Assert.Equal(Code, transponder.Label);
     }
@@ -27,7 +27,7 @@ public class TransponderTest
         string Code = "HT-24422";
         long Expected = 106187718;
 
-        var transponder = MylapsX2Transponder.CodeToId(Code);
+        var transponder = MylapsProChipTransponder.CodeToId(Code);
 
         Assert.Equal(Expected, transponder);
     }
@@ -38,7 +38,7 @@ public class TransponderTest
         long Id = 106187718;
         string Expected = "HT-24422";
 
-        var transponder = MylapsX2Transponder.IdToCode(Id);
+        var transponder = MylapsProChipTransponder.IdToCode(Id);
 
         Assert.Equal(Expected, transponder);
     }
@@ -48,7 +48,7 @@ public class TransponderTest
     {
         string Id = "HT-24422";
 
-        var exception = Assert.Throws<ArgumentException>(() => MylapsX2Transponder.IdToCode(Id));
+        var exception = Assert.Throws<ArgumentException>(() => MylapsProChipTransponder.IdToCode(Id));
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public class TransponderTest
     {
         long Id = 123;
 
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => MylapsX2Transponder.IdToCode(Id));
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => MylapsProChipTransponder.IdToCode(Id));
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class TransponderTest
     {
         string Code = "AA-12345";
 
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => MylapsX2Transponder.CodeToId(Code));
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => MylapsProChipTransponder.CodeToId(Code));
     }
 
     [Fact]
@@ -172,4 +172,70 @@ public class TransponderTest
             DateTime.ParseExact("2000-01-01", "yyyy-MM-dd", CultureInfo.InvariantCulture))
         );
     }
+
+    [Theory]
+    [InlineData("106187718", true)]
+    [InlineData("100663297", true)]
+    [InlineData("100663296", false)]
+    [InlineData("123456", false)]
+    [InlineData("HT-24422", false)]
+    [InlineData("+106187718", false)]
+    [InlineData(" 106187718", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void Factory_ValidatesProChipIds(string? systemId, bool valid)
+    {
+        Assert.Equal(valid, TransponderFactory.TryCreate(TransponderType.MylapsProChip, systemId, out var transponder, out var error));
+        if (valid)
+        {
+            Assert.IsType<MylapsProChipTransponder>(transponder);
+            Assert.Equal(systemId, transponder!.SystemId);
+            Assert.Null(error);
+        }
+        else
+        {
+            Assert.Null(transponder);
+            Assert.NotNull(error);
+        }
+    }
+
+    [Fact]
+    public void Factory_RejectsUnknownType() =>
+        Assert.False(TransponderFactory.TryCreate(TransponderType.Unknown, "106187718", out _, out _));
+
+    [Theory]
+    [InlineData("ProChip", true)]
+    [InlineData("PROCHIP", true)]
+    [InlineData("X2", false)]
+    [InlineData("MylapsX2", false)]
+    [InlineData("MylapsProChip", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void Factory_ParsesOnlyTheContractTypeValue(string? value, bool supported)
+    {
+        Assert.Equal(supported, TransponderFactory.TryParseType(value, out var type));
+        Assert.Equal(supported ? TransponderType.MylapsProChip : TransponderType.Unknown, type);
+    }
+
+    [Theory]
+    [InlineData("HT-24422", "106187718")]
+    [InlineData("ht-24422", "106187718")]
+    [InlineData("HT24422", "106187718")]
+    public void Factory_ParsesPrintedProChipCodes(string code, string expected)
+    {
+        Assert.True(TransponderFactory.TryParseCode(TransponderType.MylapsProChip, code, out var systemId));
+        Assert.Equal(expected, systemId);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("HT-2442")]
+    [InlineData("AB-24422")]
+    [InlineData("106187718")]
+    public void Factory_RejectsInvalidPrintedCodes(string code) =>
+        Assert.False(TransponderFactory.TryParseCode(TransponderType.MylapsProChip, code, out _));
+
+    [Fact]
+    public void ProChip_DisplaysThePrintedCode() =>
+        Assert.Equal("HT-24422", new MylapsProChipTransponder { SystemId = "106187718" }.DisplayCode);
 }

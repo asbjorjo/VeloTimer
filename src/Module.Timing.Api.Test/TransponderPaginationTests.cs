@@ -17,7 +17,7 @@ public sealed partial class TimingEndpointTests
         {
             var storage = scope.ServiceProvider.GetRequiredService<TimingDbContext>();
             for (var index = 0; index < 125; index++)
-                storage.Add(new MylapsX2Transponder
+                storage.Add(new MylapsProChipTransponder
                 {
                     Id = Guid.NewGuid(), SystemId = (106187718 + index).ToString(), Label = "Duplicate"
                 });
@@ -198,14 +198,14 @@ public sealed partial class TimingEndpointTests
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var storage = scope.ServiceProvider.GetRequiredService<TimingDbContext>();
-        var shared = new MylapsX2Transponder { Id = Guid.NewGuid(), SystemId = "106187718", Label = "00 Shared" };
+        var shared = new MylapsProChipTransponder { Id = Guid.NewGuid(), SystemId = "106187718", Label = "00 Shared" };
         var now = DateTime.UtcNow;
         shared.Owners.Add(new() { Id = Guid.NewGuid(), TransponderId = shared.Id, OwnerId = TestAuthenticationHandler.DefaultOwnerId, OwnedFrom = now.AddDays(-4), OwnedTo = now.AddDays(-3) });
         shared.Owners.Add(new() { Id = Guid.NewGuid(), TransponderId = shared.Id, OwnerId = TestAuthenticationHandler.DefaultOwnerId, OwnedFrom = now.AddDays(-1) });
         shared.Owners.Add(new() { Id = Guid.NewGuid(), TransponderId = shared.Id, OwnerId = Guid.NewGuid(), OwnedFrom = now.AddDays(1) });
         storage.Add(shared);
         for (var index = 1; index <= 21; index++)
-            storage.Add(new MylapsX2Transponder
+            storage.Add(new MylapsProChipTransponder
             {
                 Id = Guid.NewGuid(), SystemId = (106187718 + index).ToString(), Label = $"{index:00} Transponder"
             });

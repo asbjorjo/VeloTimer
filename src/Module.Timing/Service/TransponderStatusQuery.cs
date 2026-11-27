@@ -43,8 +43,8 @@ public static class TransponderStatusQuery
         var warningPageItems = await Sightings(warnings.OrderByDescending(passing => passing.Time).ThenBy(passing => passing.Id)
             .Skip(warningPage * pageSize).Take(pageSize)).ToListAsync(cancellationToken);
         return new(transponder.Id, transponder.Label,
-            transponder is MylapsX2Transponder ? MylapsX2Transponder.IdToCode(transponder.SystemId) : transponder.SystemId,
-            transponder.SystemId, transponder.System.ToString(), !ownerId.HasValue, lastSeen,
+            transponder.DisplayCode,
+            transponder.SystemId, transponder.Type.ToString(), !ownerId.HasValue, lastSeen,
             new DateTimeOffset(cutoff, TimeSpan.Zero), now.ToUniversalTime(),
             lowBattery, lowStrength, lowHits, owners.Select(TransponderOwnershipService.ToDto).ToList(),
             ownershipCount, warningPageItems, count);

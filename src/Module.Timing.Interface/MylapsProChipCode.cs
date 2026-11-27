@@ -1,14 +1,14 @@
 namespace VeloTime.Module.Timing.Interface;
 
-/// <summary>Converts between MyLaps X2 system IDs and printed transponder codes.</summary>
-public static class MylapsX2Code
+/// <summary>Converts between MYLAPS ProChip numeric IDs and printed transponder codes.</summary>
+public static class MylapsProChipCode
 {
     private const int IdOffset = 0x6000000;
     private const int NumericOffset = 100000;
     private static readonly char[] Characters = ['C', 'F', 'G', 'H', 'K', 'L', 'N', 'P', 'R', 'S', 'T', 'V', 'W', 'X', 'Z'];
 
     /// <summary>Converts a numeric system ID to its printed code.</summary>
-    /// <param name="id">The MyLaps X2 system ID.</param>
+    /// <param name="id">The ProChip numeric ID.</param>
     /// <returns>The printed transponder code.</returns>
     public static string IdToCode(long id)
     {
@@ -31,7 +31,7 @@ public static class MylapsX2Code
     }
 
     /// <summary>Converts a printed transponder code to its numeric system ID.</summary>
-    /// <param name="code">The MyLaps X2 code.</param>
+    /// <param name="code">The printed ProChip code.</param>
     /// <returns>The numeric system ID.</returns>
     public static long CodeToId(string code)
     {

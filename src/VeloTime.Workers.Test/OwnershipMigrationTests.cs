@@ -301,8 +301,8 @@ public sealed class OwnershipMigrationTests
     [Fact]
     public void ExtractedCodeConversionRetainsKnownMappings()
     {
-        Assert.Equal("HT-24422", MylapsX2Code.IdToCode(106187718));
-        Assert.Equal(106187718, MylapsX2Code.CodeToId("HT-24422"));
+        Assert.Equal("HT-24422", MylapsProChipCode.IdToCode(106187718));
+        Assert.Equal(106187718, MylapsProChipCode.CodeToId("HT-24422"));
     }
 
     private static SourceOwnership Row(long id, DateTime from, DateTime? until) =>

@@ -1,6 +1,6 @@
 namespace VeloTime.Module.Timing.Interface.Data;
 
-public sealed record TransponderDTO(Guid Id, string System, string SystemId, string Label, IReadOnlyList<TransponderOwnershipDTO> Ownerships,
+public sealed record TransponderDTO(Guid Id, string Type, string SystemId, string Label, IReadOnlyList<TransponderOwnershipDTO> Ownerships,
     DateTimeOffset? LastSeen = null, bool CanViewStatus = false);
 
 public sealed record TransponderOwnershipDTO(Guid Id, Guid TransponderId, Guid OwnerId, DateTimeOffset OwnedFrom, DateTimeOffset? OwnedTo);
@@ -17,7 +17,7 @@ public enum TransponderOwnershipStatus
 
 public sealed record TransponderColumnFilters(
     string? Label = null,
-    string? System = null,
+    string? Type = null,
     DateOnly? LastSeen = null,
     string? Owner = null,
     DateOnly? OwnedFrom = null,
@@ -57,7 +57,7 @@ public sealed record TransponderLookupItem(Guid Id, string Label, string SystemI
 public sealed record TransponderLookupPage(IReadOnlyList<TransponderLookupItem> Items, int TotalCount);
 
 /// <summary>A calendar-day registration converted by the browser to UTC instants.</summary>
-/// <param name="Code">The MyLaps X2 transponder code.</param>
+/// <param name="Code">The printed MYLAPS ProChip code, e.g. HT-24422.</param>
 /// <param name="OwnedFrom">The inclusive start instant.</param>
 /// <param name="OwnedTo">The exclusive end instant, or null for no expiry.</param>
 /// <param name="OwnerId">The selected administrator-owned registration subject; omitted for self-service.</param>

@@ -54,29 +54,19 @@ internal static class TransponderEndpoints
             return TypedResults.UnprocessableEntity(errors);
         }
 
-        if (Type == "X2")
-        {
-            long id;
-            try
-            {
-                id = string.IsNullOrWhiteSpace(SystemLabel) ? long.Parse(SystemId!) : MylapsX2Transponder.CodeToId(SystemLabel.Trim().ToUpperInvariant());
-                _ = MylapsX2Transponder.IdToCode(id);
-            }
-            catch (Exception exception) when (exception is ArgumentException or FormatException or OverflowException)
-            {
-                return TypedResults.UnprocessableEntity(new List<string> { "Invalid transponder code or system ID." });
-            }
-            var result = await installationService.RegisterTransponder(new MylapsX2Transponder
-            {
-                SystemId = id.ToString(),
-            }, cancellationToken);
-
-            return TypedResults.Ok(result.Id);
-        } else
+        if (!TransponderFactory.TryParseType(Type, out var type))
         {
             errors.Add($"Unsupported transponder type: {Type}");
             return TypedResults.UnprocessableEntity(errors);
         }
+        var systemId = SystemId;
+        if (!string.IsNullOrWhiteSpace(SystemLabel) && !TransponderFactory.TryParseCode(type, SystemLabel, out systemId))
+            return TypedResults.UnprocessableEntity(new List<string> { "Invalid transponder code or system ID." });
+        if (!TransponderFactory.TryCreate(type, systemId, out var transponder, out _))
+            return TypedResults.UnprocessableEntity(new List<string> { "Invalid transponder code or system ID." });
+
+        var result = await installationService.RegisterTransponder(transponder!, cancellationToken);
+        return TypedResults.Ok(result.Id);
     }
 
     static Task<Results<Ok<TransponderPage>, ProblemHttpResult>> ListTransponders(TimingDbContext storage, CancellationToken cancellationToken,
@@ -132,10 +122,10 @@ internal static class TransponderEndpoints
     {
         var transponder = await storage.Set<Transponder>().Include(transponder => transponder.Owners).SingleOrDefaultAsync(transponder => transponder.Id == id, cancellationToken);
         if (transponder is null) return TypedResults.NotFound();
-        var oldIdentity = new TimingTransponderCacheIdentity(transponder.System, transponder.SystemId);
+        var oldIdentity = new TimingTransponderCacheIdentity(transponder.Type, transponder.SystemId);
         transponder.Label = request.Label?.Trim() ?? "";
         await storage.SaveChangesAsync(cancellationToken);
-        var newIdentity = new TimingTransponderCacheIdentity(transponder.System, transponder.SystemId);
+        var newIdentity = new TimingTransponderCacheIdentity(transponder.Type, transponder.SystemId);
         await TimingCacheInvalidation.InvalidateAsync(cache, logger,
             [oldIdentity.Key, newIdentity.Key], [oldIdentity.Tag, newIdentity.Tag], invalidation);
         return TypedResults.Ok(TransponderOwnershipService.ToDto(transponder));
@@ -147,7 +137,7 @@ internal static class TransponderEndpoints
     {
         var transponder = await storage.Set<Transponder>().FindAsync([id], cancellationToken);
         if (transponder is null) return TypedResults.NotFound();
-        var identity = new TimingTransponderCacheIdentity(transponder.System, transponder.SystemId);
+        var identity = new TimingTransponderCacheIdentity(transponder.Type, transponder.SystemId);
         var owners = await storage.Set<TransponderOwner>().CountAsync(owner => owner.TransponderId == id, cancellationToken);
         var passings = await storage.Set<Passing>().CountAsync(passing => passing.TransponderId == id, cancellationToken);
         if (owners > 0 || passings > 0) return TypedResults.Problem(detail: $"This transponder has {owners} ownership period(s) and {passings} recorded passing(s).", statusCode: 409);

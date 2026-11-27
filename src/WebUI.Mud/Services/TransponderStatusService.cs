@@ -26,7 +26,7 @@ public sealed class TransponderStatusService(ITimingClient timing,
         }
         if (result is null || result.Id != id)
             throw new HttpRequestException("The transponder status response was invalid.", null, HttpStatusCode.BadGateway);
-        var status = new Contracts.TransponderStatus(result.Id, result.Label, result.Code, result.SystemId, result.System,
+        var status = new Contracts.TransponderStatus(result.Id, result.Label, result.Code, result.SystemId, result.Type,
             result.Administration, result.LastSeen is null ? null : ToSighting(result.LastSeen),
             result.WarningWindowStart, result.WarningWindowEnd, result.LowBattery, result.LowStrength, result.LowHits,
             result.Ownerships.Select(owner => new Contracts.TransponderOwnershipDTO(

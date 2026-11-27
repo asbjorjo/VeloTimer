@@ -27,9 +27,9 @@ public class TransponderService(TimingDbContext storage, HybridCache cache, ILog
     {
         var oldIdentity = await storage.Set<Transponder>().AsNoTracking()
             .Where(item => item.Id == transponder.Id)
-            .Select(item => (TimingTransponderCacheIdentity?)new TimingTransponderCacheIdentity(item.System, item.SystemId))
+            .Select(item => (TimingTransponderCacheIdentity?)new TimingTransponderCacheIdentity(item.Type, item.SystemId))
             .SingleOrDefaultAsync(cancellationToken);
-        var newIdentity = new TimingTransponderCacheIdentity(transponder.System, transponder.SystemId);
+        var newIdentity = new TimingTransponderCacheIdentity(transponder.Type, transponder.SystemId);
         storage.Set<Transponder>().Update(transponder);
         await storage.SaveChangesAsync(cancellationToken);
         await TimingCacheInvalidation.InvalidateAsync(cache, _logger,

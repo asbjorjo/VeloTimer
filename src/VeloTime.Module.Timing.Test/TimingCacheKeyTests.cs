@@ -14,7 +14,7 @@ public sealed class TimingCacheKeyTests
         Assert.Equal("velotime:timing:installation:v1:agent-1", TimingCacheKeys.Installation("agent-1"));
         Assert.Equal($"velotime:timing:timing-point:v1:{installationId}:loop-1", TimingCacheKeys.TimingPoint(installationId, "loop-1"));
         Assert.Equal($"velotime:timing:installation-for-timing-point:v1:{transponderId}", TimingCacheKeys.InstallationForTimingPoint(transponderId));
-        Assert.Equal($"velotime:timing:transponder:v1:{TimingSystem.Unknown}:device-1", TimingCacheKeys.Transponder(TimingSystem.Unknown, "device-1"));
+        Assert.Equal($"velotime:timing:transponder:v2:{TransponderType.MylapsProChip}:device-1", TimingCacheKeys.Transponder(TransponderType.MylapsProChip, "device-1"));
     }
 
     [Fact]

@@ -163,18 +163,18 @@ public class InstallationService(TimingDbContext storage, HybridCache cache, ILo
         );
     }
 
-    public async Task<Transponder?> GetTransponder(string systemId, TimingSystem timingSystem, CancellationToken cancellationToken = default)
+    public async Task<Transponder?> GetTransponder(TransponderType type, string systemId, CancellationToken cancellationToken = default)
     {
         var activity = Instrumentation.Source.StartActivity("GetTransponder");
         activity?.SetTag("systemId", systemId);
-        activity?.SetTag("timingSystem", timingSystem);
+        activity?.SetTag("transponderType", type);
 
         return await cache.GetOrCreateAsync(
-            TimingCacheKeys.Transponder(timingSystem, systemId),
+            TimingCacheKeys.Transponder(type, systemId),
             async cancel => await storage.Set<Transponder>()
-                .SingleOrDefaultAsync(t => t.System == timingSystem && t.SystemId == systemId, cancellationToken: cancel),
+                .SingleOrDefaultAsync(t => t.Type == type && t.SystemId == systemId, cancellationToken: cancel),
             options: TimingCacheKeys.NewEntryOptions(),
-            tags: [TimingCacheTags.Transponder(timingSystem, systemId)],
+            tags: [TimingCacheTags.Transponder(type, systemId)],
             cancellationToken: cancellationToken
         );
     }
@@ -187,7 +187,7 @@ public class InstallationService(TimingDbContext storage, HybridCache cache, ILo
 
         try
         {
-            var transponderEntry = await GetTransponder(transponder.SystemId, transponder.System, cancellationToken);
+            var transponderEntry = await GetTransponder(transponder.Type, transponder.SystemId, cancellationToken);
 
             if (transponderEntry is null)
             {
@@ -195,8 +195,8 @@ public class InstallationService(TimingDbContext storage, HybridCache cache, ILo
                 await storage.AddAsync(transponderEntry, cancellationToken: cancellationToken);
                 await storage.SaveChangesAsync(cancellationToken: cancellationToken);
                 await TimingCacheInvalidation.InvalidateAsync(cache, _logger,
-                    [TimingCacheKeys.Transponder(transponderEntry.System, transponderEntry.SystemId)],
-                    [TimingCacheTags.Transponder(transponderEntry.System, transponderEntry.SystemId)], evictionOperations);
+                    [TimingCacheKeys.Transponder(transponderEntry.Type, transponderEntry.SystemId)],
+                    [TimingCacheTags.Transponder(transponderEntry.Type, transponderEntry.SystemId)], evictionOperations);
             }
 
             activity?.SetTag("transponderId", transponderEntry.Id);

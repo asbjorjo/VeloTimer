@@ -59,7 +59,7 @@ public sealed class PassingOutboxTests : IAsyncLifetime
     {
         var sender = new TestSender();
         var host = await StartHost(sender);
-        var observation = new PassingObservation("outbox-agent", Guid.NewGuid(), "106187718", "X2", "finish", DateTime.UtcNow);
+        var observation = new PassingObservation("outbox-agent", Guid.NewGuid(), "106187718", "ProChip", "finish", DateTime.UtcNow);
 
         var first = await Register(host, observation);
         var duplicate = await Register(host, observation);
@@ -82,7 +82,7 @@ public sealed class PassingOutboxTests : IAsyncLifetime
     public async Task CommitFailureRollsBackPassingAndEvent()
     {
         var host = await StartHost(new TestSender { Available = false });
-        var observation = new PassingObservation("rollback-agent", Guid.NewGuid(), "106187718", "X2", "finish", DateTime.UtcNow);
+        var observation = new PassingObservation("rollback-agent", Guid.NewGuid(), "106187718", "ProChip", "finish", DateTime.UtcNow);
         // Resolve installation, timing point and transponder first; they commit outside the fact transaction.
         await Register(host, observation with { SourcePassingId = Guid.NewGuid(), Time = observation.Time.AddMinutes(-1) });
         var outboxBefore = await Scalar("SELECT count(*)::int FROM timing.smb_outbox");
@@ -104,9 +104,9 @@ public sealed class PassingOutboxTests : IAsyncLifetime
         var host = await StartHost(new TestSender { Available = false });
         var time = DateTime.UtcNow;
         var id = Guid.NewGuid();
-        await Register(host, new PassingObservation("conflict-agent", id, "106187718", "X2", "finish", time));
+        await Register(host, new PassingObservation("conflict-agent", id, "106187718", "ProChip", "finish", time));
 
-        var conflict = await Register(host, new PassingObservation("conflict-agent", id, "106187718", "X2", "finish", time.AddSeconds(5)));
+        var conflict = await Register(host, new PassingObservation("conflict-agent", id, "106187718", "ProChip", "finish", time.AddSeconds(5)));
 
         Assert.Equal(PassingRegistrationOutcome.Conflict, conflict.Outcome);
         Assert.Equal(1, await Scalar("SELECT count(*)::int FROM timing.\"PassingConflict\""));

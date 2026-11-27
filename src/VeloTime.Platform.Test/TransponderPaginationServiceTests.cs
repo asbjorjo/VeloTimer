@@ -27,7 +27,7 @@ public sealed class TransponderPaginationServiceTests
         var service = new TransponderManagementService(new Timing.TimingClient(http), owners);
         var date = new DateOnly(2026, 10, 29);
         var result = await service.GetTranspondersAsync(administration, 2, 25, "", false,
-            filters: new(Label: "generated", System: "X2", LastSeen: date, Owner: "Rider",
+            filters: new(Label: "generated", Type: "ProChip", LastSeen: date, Owner: "Rider",
                 OwnedFrom: date, OwnedTo: date, Status: Contracts.TransponderOwnershipStatus.Active),
             sortBy: "status", sortDescending: true);
         Assert.Equal(80, result.TotalCount);
@@ -57,7 +57,7 @@ public sealed class TransponderPaginationServiceTests
             return new Timing.TransponderPage
             {
                 TotalCount = 101,
-                Items = [new() { Transponder = new() { Id = id, Label = "Label", System = "MyLaps_X2", SystemId = "106187718", Ownerships = [] } }]
+                Items = [new() { Transponder = new() { Id = id, Label = "Label", Type = "MylapsProChip", SystemId = "106187718", Ownerships = [] } }]
             };
         });
         var service = new TransponderManagementService(timing, NoContentClientCallTests.UnusedOwners());
@@ -231,7 +231,7 @@ public sealed class TransponderPaginationServiceTests
             Assert.Null(body.MatchingTransponderIds);
             var filters = Assert.IsType<Contracts.TransponderColumnFilters>(body.Filters);
             Assert.Equal("generated", filters.Label);
-            Assert.Equal("X2", filters.System);
+            Assert.Equal("ProChip", filters.Type);
             Assert.Equal(new DateOnly(2026, 10, 29), filters.LastSeen);
             Assert.Equal("Rider", filters.Owner);
             Assert.Equal(new DateOnly(2026, 10, 29), filters.OwnedFrom);
@@ -242,7 +242,7 @@ public sealed class TransponderPaginationServiceTests
             return new(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(new Contracts.TransponderPage(
-                    [new(new(id, "MyLaps_X2", "106187718", "Generated client row", [], LastSeen),
+                    [new(new(id, "MylapsProChip", "106187718", "Generated client row", [], LastSeen),
                         new(Guid.NewGuid(), id, id, LastSeen.AddDays(-1), null))], 80))
             };
         }
@@ -266,7 +266,7 @@ public sealed partial class WebUiBffTests
             Assert.Equal(false, args[4]);
             var filters = Assert.IsType<Contracts.TransponderColumnFilters>(args[6]);
             Assert.Equal("Label &", filters.Label);
-            Assert.Equal("X2", filters.System);
+            Assert.Equal("ProChip", filters.Type);
             Assert.Equal("Ada +", filters.Owner);
             Assert.Equal(new DateOnly(2026, 10, 29), filters.LastSeen);
             Assert.Equal(new DateOnly(2026, 10, 28), filters.OwnedFrom);
@@ -280,7 +280,7 @@ public sealed partial class WebUiBffTests
         using var client = CreateClient(app);
         await client.GetAsync(administration ? "signin?role=timing-admin" : "signin?role=user");
         var page = await new TransponderManagementHttpService(client).GetTranspondersAsync(administration, 3, 25,
-            "Name & code +", false, filters: new("Label &", "X2", new(2026, 10, 29), "Ada +",
+            "Name & code +", false, filters: new("Label &", "ProChip", new(2026, 10, 29), "Ada +",
                 new(2026, 10, 28), new(2026, 10, 30), Contracts.TransponderOwnershipStatus.Scheduled),
             sortBy: "status", sortDescending: true);
         Assert.Empty(page.Items);

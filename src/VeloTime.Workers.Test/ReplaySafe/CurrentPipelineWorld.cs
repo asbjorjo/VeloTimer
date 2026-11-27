@@ -244,7 +244,7 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
     {
         if (!transponderIds.TryGetValue(passing.Rider, out var transponder))
             transponderIds[passing.Rider] = transponder = (200_000_000 + transponderIds.Count).ToString();
-        Enqueue(new PassingObservedV1(new Guid(0, 0, 0, BitConverter.GetBytes(passing.SourcePassingId)), passing.Time, "MylapsX2", transponder, passing.Loop),
+        Enqueue(new PassingObservedV1(new Guid(0, 0, 0, BitConverter.GetBytes(passing.SourcePassingId)), passing.Time, "ProChip", transponder, passing.Loop),
             new Dictionary<string, object> { ["AgentId"] = passing.Agent });
         return Task.CompletedTask;
     }

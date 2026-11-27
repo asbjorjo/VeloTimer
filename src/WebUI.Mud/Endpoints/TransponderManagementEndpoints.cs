@@ -16,7 +16,7 @@ internal static class TransponderManagementEndpoints
     {
         endpoints.MapGet("/transponders", async (ITransponderManagementService service, CancellationToken cancellationToken,
             int page = 0, int pageSize = 10, string search = "", bool includeHistory = true,
-            string? labelFilter = null, string? systemFilter = null, DateOnly? lastSeenFilter = null,
+            string? labelFilter = null, string? typeFilter = null, DateOnly? lastSeenFilter = null,
             string? ownerFilter = null, DateOnly? ownedFromFilter = null, DateOnly? ownedToFilter = null,
             TransponderOwnershipStatus? statusFilter = null, string? sortBy = null, bool sortDescending = false,
             DateTimeOffset? lastSeenUtcStart = null, DateTimeOffset? lastSeenUtcEnd = null,
@@ -28,7 +28,7 @@ internal static class TransponderManagementEndpoints
                 !TryCreateRange(ownedToUtcStart, ownedToUtcEnd, ownedToFilter, "ownedTo", out var ownedToRange, out error))
                 return Results.Problem(detail: error, statusCode: StatusCodes.Status400BadRequest);
 
-            var filters = new TransponderColumnFilters(labelFilter, systemFilter, lastSeenFilter, ownerFilter,
+            var filters = new TransponderColumnFilters(labelFilter, typeFilter, lastSeenFilter, ownerFilter,
                 ownedFromFilter, ownedToFilter, statusFilter)
             {
                 LastSeenUtcRange = lastSeenRange,

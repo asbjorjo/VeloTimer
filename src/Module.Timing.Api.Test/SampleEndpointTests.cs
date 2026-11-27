@@ -25,8 +25,8 @@ public sealed class SampleEndpointTests(TimingApiFactory factory) : IClassFixtur
             var trackA = Installation("track-a", out var a1, out var a2);
             var trackB = Installation("track-b", out var b1, out _);
             storage.AddRange(trackA, trackB,
-                new MylapsX2Transponder { Id = transponder, SystemId = "106187718" },
-                new MylapsX2Transponder { Id = other, SystemId = "106187719" });
+                new MylapsProChipTransponder { Id = transponder, SystemId = "106187718" },
+                new MylapsProChipTransponder { Id = other, SystemId = "106187719" });
             // Inserted out of time order: pairing must depend on event time only.
             storage.AddRange(
                 Passing(transponder, a1, 30),
@@ -63,7 +63,7 @@ public sealed class SampleEndpointTests(TimingApiFactory factory) : IClassFixtur
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var storage = scope.ServiceProvider.GetRequiredService<TimingDbContext>();
-            storage.AddRange(Installation("count", out var point, out _), new MylapsX2Transponder { Id = transponder, SystemId = "106187720" });
+            storage.AddRange(Installation("count", out var point, out _), new MylapsProChipTransponder { Id = transponder, SystemId = "106187720" });
             for (var i = 0; i < 5; i++) storage.Add(Passing(transponder, point, i * 10));
             await storage.SaveChangesAsync();
         }

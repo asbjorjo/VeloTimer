@@ -31,7 +31,7 @@ public sealed class TransponderOwnerRenderingTests
         services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderManagementService>((method, _) =>
         {
             Assert.Equal(nameof(ITransponderManagementService.GetTranspondersAsync), method.Name);
-            return new TransponderPage([new(new(transponderId, "MyLaps_X2", "106187718", "HT-24422", [], LastSeen, true),
+            return new TransponderPage([new(new(transponderId, "MylapsProChip", "106187718", "HT-24422", [], LastSeen, true),
                 new(Guid.NewGuid(), transponderId, OwnerId, DateTimeOffset.UtcNow.AddDays(-1), null))], 1);
         }));
         services.AddSingleton(PlatformServiceTests.TestProxy.Create<ITransponderOwnerService>((method, _) => method.Name switch
@@ -66,7 +66,8 @@ public sealed class TransponderOwnerRenderingTests
         Assert.Contains("HT-24422", html);
         Assert.Contains($"href=\"/transponders/{transponderId}\"", html);
         Assert.Contains("Transponder", html);
-        Assert.Contains("System", html);
+        Assert.Contains("Type", html);
+        Assert.Contains("MYLAPS ProChip", html);
         Assert.Contains("Owner", html);
         Assert.Contains("Status", html);
         if (administration)

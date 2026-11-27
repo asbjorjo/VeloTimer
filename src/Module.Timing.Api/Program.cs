@@ -21,6 +21,9 @@ if (Assembly.GetEntryAssembly()?.GetName().Name != "GetDocument.Insider")
     builder.AddOwnershipMessaging();
 builder.Services.AddScoped<VeloTime.Module.Timing.Service.TransponderOwnershipService>();
 builder.Services.AddScoped<VeloTime.Module.Timing.Service.TimingAdministrationService>();
+// Reprocessing rejected passings records facts through the same path as the processor, writing to the shared outbox.
+builder.Services.AddScoped<VeloTime.Module.Timing.Service.IAgentService, VeloTime.Module.Timing.Service.AgentService>();
+builder.Services.AddScoped<VeloTime.Module.Timing.Service.RejectedPassingService>();
 
 var app = builder.Build();
 
