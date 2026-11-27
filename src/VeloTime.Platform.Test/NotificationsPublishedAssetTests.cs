@@ -17,7 +17,7 @@ namespace VeloTime.Platform.Test;
 public sealed class NotificationsPublishedAssetTests(NotificationsPublishFixture publish)
     : IClassFixture<NotificationsPublishFixture>
 {
-    [Theory]
+    [ReleasePublishTheory]
     [InlineData("")]
     [InlineData("/velotime")]
     public async Task ImportedModuleIsServedFromProductionPublish(string pathBase)
@@ -74,6 +74,8 @@ public sealed class NotificationsPublishFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
+        // The Release publish takes many minutes in CI; only run it where the tests are enabled.
+        if (!ReleasePublishTheoryAttribute.Enabled) return;
         var repository = new DirectoryInfo(AppContext.BaseDirectory);
         while (repository is not null && !File.Exists(Path.Combine(repository.FullName, "VeloTimer.sln")))
             repository = repository.Parent;
@@ -112,5 +114,22 @@ public sealed class NotificationsPublishFixture : IAsyncLifetime
     {
         if (Output is not null && Directory.Exists(Output)) Directory.Delete(Output, recursive: true);
         return Task.CompletedTask;
+    }
+}
+
+/// <summary>
+/// Opt-in for the Release publish test. CI sets <c>VELOTIME_TEST_RELEASE_PUBLISH=true</c> only in the
+/// master integration job, because the publish keeps the Platform tests waiting for over ten minutes.
+/// </summary>
+public sealed class ReleasePublishTheoryAttribute : TheoryAttribute
+{
+    public const string ConfigurationKey = "VELOTIME_TEST_RELEASE_PUBLISH";
+
+    public static bool Enabled =>
+        string.Equals(Environment.GetEnvironmentVariable(ConfigurationKey), "true", StringComparison.OrdinalIgnoreCase);
+
+    public ReleasePublishTheoryAttribute()
+    {
+        if (!Enabled) Skip = $"Set {ConfigurationKey}=true to publish WebUI in Release and check its served assets.";
     }
 }

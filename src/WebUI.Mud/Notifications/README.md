@@ -44,7 +44,8 @@ the shared `NotificationsBrowserService.ModulePath` (`./notifications.js`),
 relative to the document base. No duplicate script or compatibility route is
 needed. `NotificationsPublishedAssetTests` publishes Release and HTTP-checks
 the exact import against the Production endpoint manifest at root and beneath
-a path base; it does not rely on Development static asset handling.
+a path base; it does not rely on Development static asset handling. It is opt-in
+with `VELOTIME_TEST_RELEASE_PUBLISH=true`, which only the master CI integration job sets.
 
 The small module remains necessary: anonymous dismissals deliberately live in
 browser `sessionStorage`, and InteractiveServer C# HTTP requests do not
