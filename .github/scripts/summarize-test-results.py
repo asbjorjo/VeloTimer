@@ -1,4 +1,5 @@
 from collections import Counter, defaultdict
+from datetime import datetime
 from pathlib import Path
 from xml.etree import ElementTree
 import os
@@ -16,7 +17,21 @@ result_files = sorted(Path("src").glob("*.Test/TestResults/*.trx"))
 counts = defaultdict(Counter)
 failed_tests = []
 durations = []
+class_spans = {}
 SLOWEST_TEST_COUNT = 15
+
+
+def timestamp(value):
+    # TRX timestamps carry 7 fractional digits, more than fromisoformat accepts before Python 3.11.
+    if not value:
+        return None
+    try:
+        head, _, rest = value.partition(".")
+        digits = "".join(c for c in rest if c.isdigit())
+        zone = rest[len(digits):]
+        return datetime.fromisoformat(f"{head}.{digits[:6].ljust(6, '0')}{zone}" if rest else value)
+    except ValueError:
+        return None
 
 
 def seconds(duration):
@@ -35,7 +50,15 @@ for result_file in result_files:
             continue
 
         outcome = result.get("outcome", "").casefold()
-        durations.append((seconds(result.get("duration")), project, result.get("testName", "(unnamed test)")))
+        name = result.get("testName", "(unnamed test)")
+        durations.append((seconds(result.get("duration")), project, name))
+        start, end = timestamp(result.get("startTime")), timestamp(result.get("endTime"))
+        if start and end:
+            # Wall-clock span of a test class, from its first test's start to its last test's end.
+            # Unlike test durations, this includes class fixture setup and waits between tests.
+            key = (project, name.split("(", 1)[0].rsplit(".", 1)[0])
+            first, last = class_spans.get(key, (start, end))
+            class_spans[key] = (min(first, start), max(last, end))
         if outcome == "passed":
             counts[project]["passed"] += 1
         elif outcome in {"failed", "error", "timeout", "aborted", "disconnected"}:
@@ -75,6 +98,12 @@ lines.extend(["", f"### Slowest tests (top {SLOWEST_TEST_COUNT})", "",
               "| Seconds | Project | Test |", "| ---: | --- | --- |"])
 lines.extend(f"| {elapsed:.1f} | {markdown_cell(project)} | {markdown_cell(name)} |"
              for elapsed, project, name in sorted(durations, reverse=True)[:SLOWEST_TEST_COUNT])
+
+lines.extend(["", f"### Longest test class spans (top {SLOWEST_TEST_COUNT})", "",
+              "| Seconds | Project | Class |", "| ---: | --- | --- |"])
+spans = sorted(((last - first).total_seconds(), project, name) for (project, name), (first, last) in class_spans.items())
+lines.extend(f"| {elapsed:.1f} | {markdown_cell(project)} | {markdown_cell(name)} |"
+             for elapsed, project, name in reversed(spans[-SLOWEST_TEST_COUNT:]))
 
 summary = "\n".join(lines) + "\n"
 summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
