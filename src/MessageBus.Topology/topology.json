@@ -8,7 +8,7 @@
             "name": "timing",
             "requiresSession": true,
             "rules": [
-              { "name": "PassingEvent", "sqlFilter": "MessageName = 'PassingEvent'" }
+              { "name": "PassingObservedV1", "sqlFilter": "MessageName = 'PassingObservedV1'" }
             ]
           },
           {
@@ -28,7 +28,6 @@
             "name": "statistics",
             "requiresSession": true,
             "rules": [
-              { "name": "TimingSampleComplete", "sqlFilter": "MessageName = 'TimingSampleComplete'" },
               { "name": "TransponderOwnershipChanged", "sqlFilter": "MessageName = 'TransponderOwnershipChanged'" }
             ]
           }

@@ -1,4 +1,4 @@
-﻿using Duende.AccessTokenManagement;
+using Duende.AccessTokenManagement;
 using OpenTelemetry.Trace;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
@@ -39,16 +39,8 @@ internal static class StartupExtensions
             {
                 headers["MessageName"] = message.GetType().Name;
             });
-            mbb.Consume<TimingSampleComplete>(x => x
-                .Topic("velotime-timing")
-                .SubscriptionName("statistics")
-                .SubscriptionSqlFilter($"MessageName = '{nameof(TimingSampleComplete)}'")
-                .WithConsumer<TimingSampleHandler>()
-                .Instances(1)
-                .EnableSession(s =>
-                {
-                    //s.MaxConcurrentSessions(1);
-                }));
+            // Phase 1 of docs/replay-safe-statistics-plan.md removed TimingSampleComplete. Statistics ingests
+            // PassingRecordedV1 from Phase 2 onward; until then it receives no new samples.
             mbb.Consume<TransponderOwnershipChanged>(x => x
                 .Topic("velotime-timing")
                 .SubscriptionName("statistics")
@@ -101,7 +93,7 @@ internal static class StartupExtensions
                 {
                     sbMessage.SessionId = message.TransponderId.ToString();
                 }));
-            mbb.AddServicesFromAssemblyContaining<TimingSampleHandler>();
+            mbb.AddServicesFromAssemblyContaining<TransponderOwnershipChangedHandler>();
         });
 
         builder.AddModuleIdentity("velotime.statistics.processor");

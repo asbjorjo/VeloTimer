@@ -196,7 +196,7 @@ public sealed class MessageBusTopologyReconcilerTests
     }
 
     [Theory]
-    [InlineData("MessageName = 'PassingEvent'")]
+    [InlineData("MessageName = 'PassingObservedV1'")]
     [InlineData("MessageName = 'OR 1=1'")]
     [InlineData("sys.Label = 'x' AND 1 = 1")]
     [InlineData("(MessageName = 'A' OR MessageName = 'B')")]
@@ -228,7 +228,7 @@ public sealed class MessageBusTopologyReconcilerTests
         Assert.Empty(MessageBusTopologyValidator.Validate(topology));
         var timing = topology.Topics.Single(topic => topic.Name == "velotime-agent").Subscriptions.Single(s => s.Name == "timing");
         Assert.True(timing.RequiresSession);
-        Assert.Equal("MessageName = 'PassingEvent'", timing.Rules.Single().SqlFilter);
+        Assert.Equal("MessageName = 'PassingObservedV1'", timing.Rules.Single().SqlFilter);
         Assert.All(topology.Topics.SelectMany(topic => topic.Subscriptions), subscription => Assert.NotEmpty(subscription.Rules));
     }
 

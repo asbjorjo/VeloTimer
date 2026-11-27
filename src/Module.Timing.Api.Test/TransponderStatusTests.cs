@@ -142,7 +142,7 @@ public sealed class TransponderStatusTests(TimingApiFactory factory) : IClassFix
             var point = new TimingPoint { Id = Guid.NewGuid(), SystemId = "second",
                 Description = "Second finish", Installation = new Installation { AgentId = "second-agent", Facility = facilityId, Description = "Second installation" } };
             storage.Add(new Passing { Id = passingId, Time = Now.UtcDateTime, TransponderId = id,
-                TimingPoint = point, LowHits = true });
+                TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid().ToString(), LowHits = true });
             storage.Add(new TransponderOwner { Id = Guid.NewGuid(), OwnerId = OwnerId, TransponderId = id,
                 OwnedFrom = Now.UtcDateTime.AddDays(-1) });
             await storage.SaveChangesAsync();
@@ -252,7 +252,7 @@ public sealed class TransponderStatusTests(TimingApiFactory factory) : IClassFix
             (0, true, false, false), (1, false, false, true)
         })
             storage.Add(new Passing { Id = Guid.NewGuid(), Time = Now.UtcDateTime.AddDays(days),
-                Transponder = transponder, TimingPoint = point, LowBattery = battery, LowStrength = strength, LowHits = hits });
+                Transponder = transponder, TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid().ToString(), LowBattery = battery, LowStrength = strength, LowHits = hits });
         await storage.SaveChangesAsync();
         return transponder.Id;
     }

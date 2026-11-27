@@ -26,10 +26,8 @@ public sealed class StatisticsProcessorRegistrationTests
         await using var provider = builder.Services.BuildServiceProvider();
         var bus = Assert.IsAssignableFrom<MessageBusBase>(provider.GetRequiredService<IMasterMessageBus>());
         var timingConsumers = bus.Settings.Consumers.Where(consumer => consumer.Path == "velotime-timing").ToList();
-        Assert.Equal(2, timingConsumers.Count);
-        Assert.Contains(timingConsumers, consumer => consumer.MessageType == typeof(TimingSampleComplete) &&
-            consumer.ConsumerType == typeof(TimingSampleHandler));
-        Assert.Contains(timingConsumers, consumer => consumer.MessageType == typeof(TransponderOwnershipChanged) &&
+        // TimingSampleComplete is gone (replay-safe plan, Phase 1); PassingRecordedV1 is consumed from Phase 2.
+        Assert.Single(timingConsumers, consumer => consumer.MessageType == typeof(TransponderOwnershipChanged) &&
             consumer.ConsumerType == typeof(TransponderOwnershipChangedHandler));
         Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(ITransponderOwnershipReader) &&
             descriptor.ImplementationType == typeof(TransponderOwnershipReader));

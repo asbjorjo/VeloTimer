@@ -1,13 +1,14 @@
-﻿using VeloTime.Agent.Interface.Messages.Events;
+using VeloTime.Agent.Interface.Messages.Events;
 
 namespace VeloTime.Agent.Model;
 
 public static class EventMappers
 {
-    public static PassingEvent ToMessage(this Passing passing)
+    public static PassingObservedV1 ToMessage(this Passing passing)
     {
-        return new PassingEvent
+        return new PassingObservedV1
         (
+            SourcePassingId: passing.Id,
             Time: passing.Time,
             LoopId: passing.LoopId,
             TransponderId: passing.TransponderId,

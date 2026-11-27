@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -9,7 +9,7 @@ using SlimMessageBus.Host.Serialization.SystemTextJson;
 using VeloTime.Agent.Interface.Messages.Events;
 using VeloTime.Module.Timing;
 using VeloTime.Module.Timing.Handlers;
-using VeloTime.Module.Timing.Interface.Messages;
+using VeloTime.Module.Timing.Messaging;
 using VeloTime.Module.Timing.Service;
 
 public static class StartupExtensions
@@ -42,28 +42,18 @@ public static class StartupExtensions
             {
                 headers["MessageName"] = message.GetType().Name;
             });
-            mbb.Consume<PassingEvent>(x => x
+            mbb.Consume<PassingObservedV1>(x => x
                 .Topic("velotime-agent")
                 .SubscriptionName("timing")
-                .SubscriptionSqlFilter($"MessageName = '{nameof(PassingEvent)}'")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(PassingObservedV1)}'")
                 .WithConsumer<PassingObservedHandler>()
                 .Instances(1)
                 .EnableSession(s =>
                 {
                     //s.MaxConcurrentSessions(1);
                 }));
-            mbb.Produce<PassingSaved>(x => x
-                .DefaultTopic("velotime-timing")
-                .WithModifier((message, sbMessage) =>
-                {
-                    sbMessage.SessionId = message.TransponderId.ToString();
-                }));
-            mbb.Produce<TimingSampleComplete>(x => x
-                .DefaultTopic("velotime-timing")
-                .WithModifier((message, sbMessage) =>
-                {
-                    sbMessage.SessionId = message.TransponderId.ToString();
-                }));
+            // PassingRecordedV1 is enqueued in the passing's transaction and dispatched from timing.smb_outbox.
+            mbb.AddTimingEventsWithOutbox();
             mbb.Consume<InstallationLayoutEvent>(x => x
                 .Topic("velotime-agent")
                 .SubscriptionName("infrastructure")

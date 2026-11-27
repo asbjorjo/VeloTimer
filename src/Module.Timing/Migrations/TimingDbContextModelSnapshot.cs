@@ -18,7 +18,7 @@ namespace VeloTime.Module.Timing.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("timing")
-                .HasAnnotation("ProductVersion", "10.0.9")
+                .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -65,6 +65,10 @@ namespace VeloTime.Module.Timing.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid>("InstallationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("installation_id");
+
                     b.Property<bool>("LowBattery")
                         .HasColumnType("boolean")
                         .HasColumnName("low_battery");
@@ -76,6 +80,12 @@ namespace VeloTime.Module.Timing.Migrations
                     b.Property<bool>("LowStrength")
                         .HasColumnType("boolean")
                         .HasColumnName("low_strength");
+
+                    b.Property<string>("SourcePassingId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("source_passing_id");
 
                     b.Property<DateTime>("Time")
                         .HasColumnType("timestamp with time zone")
@@ -92,42 +102,98 @@ namespace VeloTime.Module.Timing.Migrations
                     b.HasKey("Id")
                         .HasName("pk_passing");
 
+                    b.HasIndex("Time")
+                        .HasDatabaseName("ix_passing_time");
+
                     b.HasIndex("TimingPointId")
                         .HasDatabaseName("ix_passing_timing_point_id");
+
+                    b.HasIndex("InstallationId", "SourcePassingId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_passing_installation_id_source_passing_id");
 
                     b.HasIndex("TransponderId", "Time", "TimingPointId")
                         .IsUnique()
                         .HasDatabaseName("ix_passing_transponder_id_time_timing_point_id");
 
+                    b.HasIndex("InstallationId", "TransponderId", "Time", "Id")
+                        .HasDatabaseName("ix_passing_installation_id_transponder_id_time_id");
+
                     b.ToTable("passing", "timing");
                 });
 
-            modelBuilder.Entity("VeloTime.Module.Timing.Model.Sample", b =>
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.PassingConflict", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<Guid>("EndId")
+                    b.Property<Guid>("ExistingPassingId")
                         .HasColumnType("uuid")
-                        .HasColumnName("end_id");
+                        .HasColumnName("existing_passing_id");
 
-                    b.Property<Guid>("StartId")
+                    b.Property<DateTime>("FirstSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("first_seen_at");
+
+                    b.Property<Guid>("InstallationId")
                         .HasColumnType("uuid")
-                        .HasColumnName("start_id");
+                        .HasColumnName("installation_id");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen_at");
+
+                    b.Property<bool>("LowBattery")
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_battery");
+
+                    b.Property<bool>("LowHits")
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_hits");
+
+                    b.Property<bool>("LowStrength")
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_strength");
+
+                    b.Property<int>("Occurrences")
+                        .HasColumnType("integer")
+                        .HasColumnName("occurrences");
+
+                    b.Property<int>("Reason")
+                        .HasColumnType("integer")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("SourcePassingId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("source_passing_id");
+
+                    b.Property<DateTime>("Time")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("time");
+
+                    b.Property<Guid>("TimingPointId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("timing_point_id");
+
+                    b.Property<Guid>("TransponderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transponder_id");
 
                     b.HasKey("Id")
-                        .HasName("pk_sample");
+                        .HasName("pk_passing_conflict");
 
-                    b.HasIndex("EndId")
-                        .HasDatabaseName("ix_sample_end_id");
+                    b.HasIndex("LastSeenAt")
+                        .HasDatabaseName("ix_passing_conflict_last_seen_at");
 
-                    b.HasIndex("StartId", "EndId")
+                    b.HasIndex("InstallationId", "SourcePassingId", "Reason", "TransponderId", "TimingPointId", "Time", "LowBattery", "LowStrength", "LowHits")
                         .IsUnique()
-                        .HasDatabaseName("ix_sample_start_id_end_id");
+                        .HasDatabaseName("ix_passing_conflict_installation_id_source_passing_id_reason_t");
 
-                    b.ToTable("sample", "timing");
+                    b.ToTable("passing_conflict", "timing");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Timing.Model.TimingPoint", b =>
@@ -239,6 +305,13 @@ namespace VeloTime.Module.Timing.Migrations
 
             modelBuilder.Entity("VeloTime.Module.Timing.Model.Passing", b =>
                 {
+                    b.HasOne("VeloTime.Module.Timing.Model.Installation", "Installation")
+                        .WithMany()
+                        .HasForeignKey("InstallationId")
+                        .OnDelete(DeleteBehavior.ClientNoAction)
+                        .IsRequired()
+                        .HasConstraintName("fk_passing_installation_installation_id");
+
                     b.HasOne("VeloTime.Module.Timing.Model.TimingPoint", "TimingPoint")
                         .WithMany()
                         .HasForeignKey("TimingPointId")
@@ -253,30 +326,11 @@ namespace VeloTime.Module.Timing.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_passing_transponder_transponder_id");
 
+                    b.Navigation("Installation");
+
                     b.Navigation("TimingPoint");
 
                     b.Navigation("Transponder");
-                });
-
-            modelBuilder.Entity("VeloTime.Module.Timing.Model.Sample", b =>
-                {
-                    b.HasOne("VeloTime.Module.Timing.Model.Passing", "End")
-                        .WithMany()
-                        .HasForeignKey("EndId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_sample_passing_end_id");
-
-                    b.HasOne("VeloTime.Module.Timing.Model.Passing", "Start")
-                        .WithMany()
-                        .HasForeignKey("StartId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_sample_passing_start_id");
-
-                    b.Navigation("End");
-
-                    b.Navigation("Start");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Timing.Model.TimingPoint", b =>

@@ -232,9 +232,9 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         Assert.Equal(ids.Order(StringComparer.Ordinal), enqueued.Order(StringComparer.Ordinal));
     }
 
-    // PassingEvent carries no passing ID, so these tests key each passing by a unique LoopId.
+    // PassingObservedV1 carries the agent's passing ID.
     private const string OutboxPassingId =
-        "coalesce(convert_from(message_payload, 'UTF8')::jsonb->>'LoopId', convert_from(message_payload, 'UTF8')::jsonb->>'loopId')";
+        "coalesce(convert_from(message_payload, 'UTF8')::jsonb->>'SourcePassingId', convert_from(message_payload, 'UTF8')::jsonb->>'sourcePassingId')";
 
     private static Passing KeyedPassing(string id, bool lowBattery = false) => new()
     {
@@ -341,7 +341,7 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         Assert.All(sender.Delivered, m =>
         {
             Assert.Equal("test-agent", m.ApplicationProperties["AgentId"]);
-            Assert.Equal(m.ApplicationProperties["MessageName"].ToString() == nameof(PassingEvent) ? "X2_123" : "test-agent", m.SessionId);
+            Assert.Equal(m.ApplicationProperties["MessageName"].ToString() == nameof(PassingObservedV1) ? "X2_123" : "test-agent", m.SessionId);
         });
     }
 
@@ -420,10 +420,10 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         while (!await condition()) await Task.Delay(50, timeout.Token);
     }
 
-    private sealed class RejectSecondPassing : JsonConverter<PassingEvent>
+    private sealed class RejectSecondPassing : JsonConverter<PassingObservedV1>
     {
-        public override PassingEvent? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotSupportedException();
-        public override void Write(Utf8JsonWriter writer, PassingEvent value, JsonSerializerOptions options)
+        public override PassingObservedV1? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) => throw new NotSupportedException();
+        public override void Write(Utf8JsonWriter writer, PassingObservedV1 value, JsonSerializerOptions options)
         {
             if (++count == 2) throw new JsonException("Simulated serialization failure.");
             JsonSerializer.Serialize(writer, value, JsonOptions);

@@ -113,8 +113,8 @@ public sealed partial class TimingEndpointTests
             var latestPassing = oldPassing.AddDays(1);
             storage.Add(installation);
             storage.AddRange(
-                new Passing { Id = Guid.NewGuid(), Time = oldPassing.AddHours(12), TransponderId = transponderId, TimingPoint = timingPoint, TimingPointId = timingPoint.Id },
-                new Passing { Id = Guid.NewGuid(), Time = latestPassing.AddHours(12), TransponderId = transponderId, TimingPoint = timingPoint, TimingPointId = timingPoint.Id });
+                new Passing { Id = Guid.NewGuid(), Time = oldPassing.AddHours(12), TransponderId = transponderId, TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid().ToString(), TimingPointId = timingPoint.Id },
+                new Passing { Id = Guid.NewGuid(), Time = latestPassing.AddHours(12), TransponderId = transponderId, TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid().ToString(), TimingPointId = timingPoint.Id });
             await storage.SaveChangesAsync();
         }
         using var client = factory.CreateClient();

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using VeloTime.Module.Common;
 using VeloTime.Module.Timing.Model;
@@ -25,7 +25,29 @@ public class TimingDbContext : BaseDbContext
                 .WithMany()
                 .IsRequired()
                 .OnDelete(DeleteBehavior.ClientNoAction);
+            e.HasOne(p => p.Installation)
+                .WithMany()
+                .IsRequired()
+                .OnDelete(DeleteBehavior.ClientNoAction);
+            e.Property(p => p.SourcePassingId).HasMaxLength(256);
+            // Observation identity: an agent's passing ID is unique within its installation.
+            e.HasIndex(p => new { p.InstallationId, p.SourcePassingId }).IsUnique();
+            // One recorded fact per transponder, timing point and instant.
             e.HasIndex(p => new {p.TransponderId, p.Time, p.TimingPointId}).IsUnique();
+            // Adjacent-passing reads: previous passing per installation and transponder, ordered by (Time, Id).
+            e.HasIndex(p => new { p.InstallationId, p.TransponderId, p.Time, p.Id });
+            e.HasIndex(p => p.Time);
+        });
+
+        modelBuilder.Entity<PassingConflict>(e =>
+        {
+            e.Property(c => c.SourcePassingId).HasMaxLength(256);
+            e.HasIndex(c => new
+            {
+                c.InstallationId, c.SourcePassingId, c.Reason, c.TransponderId, c.TimingPointId, c.Time,
+                c.LowBattery, c.LowStrength, c.LowHits
+            }).IsUnique();
+            e.HasIndex(c => c.LastSeenAt);
         });
 
         modelBuilder.Entity<TimingPoint>(e =>
@@ -47,18 +69,6 @@ public class TimingDbContext : BaseDbContext
                 .WithOne(tp => tp.Installation)
                 .IsRequired();
 
-        });
-        modelBuilder.Entity<Sample>(e =>
-        {
-            e.HasOne(s => s.Start)
-                .WithMany()
-                .IsRequired()
-                .OnDelete(DeleteBehavior.Cascade);
-            e.HasOne(s => s.End)
-                .WithMany()
-                .IsRequired()
-                .OnDelete(DeleteBehavior.Cascade);
-            e.HasIndex(s => new { s.StartId, s.EndId }).IsUnique();
         });
         modelBuilder.Entity<TransponderOwner>(e =>
         {

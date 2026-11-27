@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
 namespace VeloTime.Module.Timing;
@@ -22,11 +22,12 @@ public class Metrics
         _timingPointCacheHits.Add(hit ? 1 : -1);
     }
 
-    public void PassingProcessed(string Agent, Activity? activity, bool duplicate = false)
+    public void PassingProcessed(string Agent, Activity? activity, string outcome)
     {
         _passingProcessed.Add(1,
             new KeyValuePair<string, object?>("agent", Agent),
-            new KeyValuePair<string, object?>("duplicate", duplicate));
+            new KeyValuePair<string, object?>("outcome", outcome),
+            new KeyValuePair<string, object?>("duplicate", outcome != "recorded"));
         if (activity == null) return;
         _passingProcessingTime.Record((DateTime.UtcNow - activity.StartTimeUtc).TotalMilliseconds);
     }

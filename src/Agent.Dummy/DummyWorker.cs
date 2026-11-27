@@ -5,47 +5,74 @@ using VeloTime.Agent.Interface.Messages.Events;
 
 namespace VeloTime.Agent.Dummy
 {
+    /// <summary>
+    /// Simulates a small group of riders circulating over a fixed set of loops. Every passing carries a stable
+    /// SourcePassingId, and the worker occasionally redelivers an earlier passing so Timing's deduplication is exercised.
+    /// </summary>
     internal class DummyWorker : IHostedService
     {
+        private static readonly string[] Loops = ["dummy-loop-1", "dummy-loop-2", "dummy-loop-3"];
+        private static readonly string[] Transponders = ["1000001", "1000002", "1000003", "1000004", "1000005"];
+        private const double RedeliveryProbability = 0.1;
+
         private readonly ILogger<DummyWorker> logger;
         private readonly IMessageBus messagingService;
-       
+        private CancellationTokenSource? stopping;
+        private Task? running;
+
         public DummyWorker(ILogger<DummyWorker> logger, IMessageBus messagingService)
         {
             this.logger = logger;
             this.messagingService = messagingService;
         }
 
-        public async Task StartAsync(CancellationToken cancellationToken)
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            logger.LogInformation("Dummy Worker started");
+            stopping = new CancellationTokenSource();
+            running = RunAsync(stopping.Token);
+            return Task.CompletedTask;
+        }
+
+        private async Task RunAsync(CancellationToken cancellationToken)
         {
             var random = new Random();
-            logger.LogInformation("Dummy Worker started");
-            var messages = new List<PassingEvent>();
+            var nextLoop = Transponders.ToDictionary(t => t, _ => random.Next(Loops.Length));
+            PassingObservedV1? previous = null;
 
-            while (!cancellationToken.IsCancellationRequested)
+            try
             {
-                for (int i = 0; i < random.Next(1, 6); i++)
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    PassingEvent passing = new(
+                    var transponder = Transponders[random.Next(Transponders.Length)];
+                    var loop = nextLoop[transponder];
+                    nextLoop[transponder] = (loop + 1) % Loops.Length;
+
+                    var passing = new PassingObservedV1(
+                        SourcePassingId: Guid.NewGuid().ToString(),
                         Time: DateTime.UtcNow,
                         TransponderType: "DummyType",
-                        TransponderId: Guid.NewGuid().ToString(),
-                        LoopId: Guid.NewGuid().ToString()
-                    );
-                    messages.Add(passing);
-                }
+                        TransponderId: transponder,
+                        LoopId: Loops[loop]);
+                    await messagingService.Publish(passing, cancellationToken: cancellationToken);
 
-                foreach (var message in messages)
-                    await messagingService.Publish(message, cancellationToken: cancellationToken);
-                messages.Clear();
-                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+                    if (previous is not null && random.NextDouble() < RedeliveryProbability)
+                        await messagingService.Publish(previous, cancellationToken: cancellationToken);
+                    previous = passing;
+
+                    await Task.Delay(TimeSpan.FromSeconds(random.Next(1, 6)), cancellationToken);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
             }
         }
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        public async Task StopAsync(CancellationToken cancellationToken)
         {
+            stopping?.Cancel();
+            if (running is not null) await running.WaitAsync(cancellationToken);
             logger.LogInformation("Dummy Worker stopped");
-            return Task.CompletedTask;
         }
     }
 }

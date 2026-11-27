@@ -158,7 +158,7 @@ public sealed class PassingListingTests(TimingApiFactory factory) : IClassFixtur
         var point = new TimingPoint { Id = Guid.NewGuid(), SystemId = Guid.NewGuid().ToString("N"),
             Description = description, InstallationId = installation.Id, Installation = installation };
         var passing = new Passing { Id = id, Time = time.UtcDateTime, Transponder = transponder,
-            TransponderId = transponderId, TimingPoint = point, TimingPointId = point.Id,
+            TransponderId = transponderId, TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid().ToString(), TimingPointId = point.Id,
             LowBattery = lowBattery, LowStrength = lowStrength, LowHits = lowHits };
         return new(transponder, installation, point, passing, installation.Facility);
     }

@@ -16,11 +16,12 @@ public sealed class PassingWarningContractTests
     {
         var passing = new Passing { Id = "test", Time = DateTime.UtcNow, TransponderType = "X2",
             TransponderId = "106187718", LoopId = "finish", LowBattery = battery, LowStrength = strength, LowHits = hits };
-        var message = JsonSerializer.Deserialize<PassingEvent>(JsonSerializer.Serialize(passing.ToMessage()))!;
+        var message = JsonSerializer.Deserialize<PassingObservedV1>(JsonSerializer.Serialize(passing.ToMessage()))!;
         Assert.Equal(battery, message.LowBattery);
         Assert.Equal(strength, message.LowStrength);
         Assert.Equal(hits, message.LowHits);
-        var (time, type, id, loop) = message;
+        var (sourcePassingId, time, type, id, loop) = message;
+        Assert.Equal(passing.Id, sourcePassingId);
         Assert.Equal(passing.Time, time);
         Assert.Equal(passing.TransponderType, type);
         Assert.Equal(passing.TransponderId, id);
@@ -28,10 +29,11 @@ public sealed class PassingWarningContractTests
     }
 
     [Fact]
-    public void LegacyPassing_DeserializesWithoutWarnings()
+    public void PassingWithoutWarnings_DeserializesWithWarningsOff()
     {
-        var message = JsonSerializer.Deserialize<PassingEvent>(
-            """{"Time":"2026-10-30T12:00:00Z","TransponderType":"X2","TransponderId":"106187718","LoopId":"finish"}""")!;
+        var message = JsonSerializer.Deserialize<PassingObservedV1>(
+            """{"SourcePassingId":"p-1","Time":"2026-10-30T12:00:00Z","TransponderType":"X2","TransponderId":"106187718","LoopId":"finish"}""")!;
+        Assert.Equal("p-1", message.SourcePassingId);
         Assert.False(message.LowBattery || message.LowStrength || message.LowHits);
     }
 }

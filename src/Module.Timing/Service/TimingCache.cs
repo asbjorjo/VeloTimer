@@ -15,9 +15,6 @@ public static class TimingCacheKeys
     public static string InstallationForTimingPoint(Guid timingPointId) => $"velotime:timing:installation-for-timing-point:v1:{timingPointId}";
 
     public static string Transponder(TimingSystem system, string systemId) => $"velotime:timing:transponder:v1:{system}:{systemId}";
-    // v2 stores the installation-scoped latest passing; never interpret the legacy threshold-scoped value.
-    public static string LastPassing(Guid installationId, Guid transponderId) => $"velotime:timing:last-passing:v2:{installationId}:{transponderId}";
-    public static string LegacyLastPassing(Guid transponderId) => $"LastPassing_{transponderId}";
 
     public static HybridCacheEntryOptions NewEntryOptions() => new()
     {
@@ -33,7 +30,6 @@ public static class TimingCacheTags
     public static string TimingPointHardware(Guid installationId, string systemId) => $"Timing.TimingPoint.Hardware.{installationId}.{systemId}";
     public static string TimingPointId(Guid timingPointId) => $"Timing.TimingPoint.Id.{timingPointId}";
     public static string Transponder(TimingSystem system, string systemId) => $"Timing.Transponder.{system}.{systemId}";
-    public static string LastPassing(Guid installationId, Guid transponderId) => $"Timing.LastPassing.{installationId}.{transponderId}";
 }
 
 public readonly record struct TimingPointCacheIdentity(Guid InstallationId, Guid TimingPointId, string SystemId)
