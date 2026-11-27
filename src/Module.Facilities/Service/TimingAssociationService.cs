@@ -147,7 +147,7 @@ public sealed class TimingAssociationService
     public async Task<TimingAssociationEditResult> SetIntervalAsync(Guid coursePointId,
         SetCoursePointTimingAssociationRequest request, DateTimeOffset occurredAtUtc,
         IAdministrationReferences references,
-        Func<CoursePointTimingAssociationsChangedV1, CancellationToken, Task> enqueueEvent,
+        Func<CourseConfigChangedV1, CancellationToken, Task> enqueueEvent,
         CancellationToken cancellationToken)
         => await SetIntervalCoreAsync(coursePointId, request, occurredAtUtc, references,
             enqueueEvent, false, cancellationToken);
@@ -170,7 +170,7 @@ public sealed class TimingAssociationService
     private async Task<TimingAssociationEditResult> SetIntervalCoreAsync(Guid coursePointId,
         SetCoursePointTimingAssociationRequest request, DateTimeOffset occurredAtUtc,
         IAdministrationReferences references,
-        Func<CoursePointTimingAssociationsChangedV1, CancellationToken, Task>? enqueueEvent,
+        Func<CourseConfigChangedV1, CancellationToken, Task>? enqueueEvent,
         bool previewOnly, CancellationToken cancellationToken)
     {
         if (request.TimingPointId == Guid.Empty)
@@ -321,8 +321,10 @@ public sealed class TimingAssociationService
         // snapshots exactly describe the persisted temporal slices.
         await storage.SaveChangesAsync(cancellationToken);
         var changeId = Guid.NewGuid();
-        var message = new CoursePointTimingAssociationsChangedV1(
-            Guid.NewGuid(), changeId, Normalize(occurredAtUtc), facilityId ?? Guid.Empty, deltas);
+        var (affectedFrom, affectedTo) = CourseConfigChangedV1.Hull(deltas);
+        var message = new CourseConfigChangedV1(
+            Guid.NewGuid(), changeId, Normalize(occurredAtUtc), facilityId ?? Guid.Empty,
+            CourseConfigChangeKind.TimingAssociation, affectedFrom, affectedTo, null, deltas);
         await enqueueEvent!(message, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return new TimingAssociationEditResult(changeId, deltas, null, facilityId);
@@ -356,7 +358,7 @@ public sealed class TimingAssociationService
     private async Task<Guid?> PointFacilityAsync(Guid coursePointId, CancellationToken cancellationToken) =>
         await storage.Set<CourseSegment>().Where(segment =>
                 segment.Start.Id == coursePointId || segment.End.Id == coursePointId)
-            .Select(segment => (Guid?)segment.CourseLayout.FacilityId).Distinct()
+            .Select(segment => (Guid?)segment.Revision.CourseLayout.FacilityId).Distinct()
             .SingleOrDefaultAsync(cancellationToken);
 
     private static CoursePointTimingAssociation CreateAssociation(CoursePointTimingAssociation original, Interval window) => new()

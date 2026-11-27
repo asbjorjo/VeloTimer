@@ -12,10 +12,8 @@ public sealed class FacilitiesCacheKeyTests
 
         Assert.Equal($"velotime:facilities:facility-by-course-point:v1:{startId}", FacilitiesCache.FacilityByCoursePoint(startId));
         Assert.Equal($"velotime:facilities:course-point-by-id:v1:{startId}", FacilitiesCache.CoursePointById(startId));
-        Assert.Equal($"velotime:facilities:segments-between-course-points:v1:{startId}:{endId}", FacilitiesCache.SegmentsBetweenCoursePoints(startId, endId));
-        Assert.Equal($"velotime:facilities:distance-between-course-points:v3:{startId}:{endId}", FacilitiesCache.DistanceBetweenCoursePoints(startId, endId));
-        Assert.NotEqual(FacilitiesCache.DistanceBetweenCoursePoints(startId, endId),
-            FacilitiesCache.DistanceBetweenCoursePoints(endId, startId));
+        // Distances depend on the instant (dated layout revisions), so they are not cached.
+        Assert.DoesNotContain(typeof(FacilitiesCache).GetMethods(), method => method.Name == "DistanceBetweenCoursePoints");
         Assert.DoesNotContain(typeof(FacilitiesCache).GetMethods(),
             method => method.Name == "CoursePointByTimingPoint");
     }

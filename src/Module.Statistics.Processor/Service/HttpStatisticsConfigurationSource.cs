@@ -34,10 +34,20 @@ public sealed class HttpStatisticsConfigurationSource(ITimingClient timing, IFac
                 Layouts = history.Layouts.Select(layout => new CourseLayoutVersion
                 {
                     LayoutId = layout.LayoutId,
-                    Segments = layout.Segments.Select(segment => new CourseSegmentVersion
+                    Assignments = layout.Assignments.Select(assignment => new EffectiveVersion
                     {
-                        Order = segment.Order, StartPointId = segment.StartPointId, EndPointId = segment.EndPointId,
-                        Length = segment.Length
+                        ValidFromUtc = assignment.ValidFromUtc?.UtcDateTime, ValidToUtc = assignment.ValidToUtc?.UtcDateTime
+                    }).ToList(),
+                    Revisions = layout.Revisions.Select(revision => new CourseLayoutRevisionVersion
+                    {
+                        RevisionId = revision.RevisionId,
+                        ValidFromUtc = revision.ValidFromUtc?.UtcDateTime,
+                        ValidToUtc = revision.ValidToUtc?.UtcDateTime,
+                        Segments = revision.Segments.Select(segment => new CourseSegmentVersion
+                        {
+                            Order = segment.Order, StartPointId = segment.StartPointId, EndPointId = segment.EndPointId,
+                            Length = segment.Length
+                        }).ToList()
                     }).ToList()
                 }).ToList(),
                 Associations = history.Associations.Select(association => new TimingAssociationVersion

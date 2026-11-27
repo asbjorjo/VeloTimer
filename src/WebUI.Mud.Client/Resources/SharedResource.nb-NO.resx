@@ -529,7 +529,7 @@
   <data name="NoLowerBound" xml:space="preserve"><value>Ingen nedre grense (fra begynnelsen)</value></data>
   <data name="NoUpperBound" xml:space="preserve"><value>Ingen øvre grense (ingen sluttdato)</value></data>
   <data name="LegacyImmediateHelp" xml:space="preserve"><value>Dette bruker den eldre umiddelbare skriveoperasjonen; den oppretter ikke et helt ubegrenset intervall.</value></data>
-  <data name="BackdatedAssociationStatisticsGuidance" xml:space="preserve"><value>Tilbakedaterte endringer kan gjøre eksisterende statistikkresultater og aggregater utdaterte. En separat oppfølging for omberegning/reparasjon er nødvendig; denne lagringen reparerer dem ikke umiddelbart.</value></data>
+  <data name="BackdatedAssociationStatisticsGuidance" xml:space="preserve"><value>Statistikken beregnes på nytt for det berørte intervallet etter lagring. Tilbakedaterte endringer kan ta litt tid før de vises i resultatene.</value></data>
   <data name="AssociationConflictNeedsConfirmation" xml:space="preserve"><value>Dette intervallet overlapper koblinger til andre banepunkter</value></data>
   <data name="ConflictConfirmationRequired" xml:space="preserve"><value>Kontroller hvert nøyaktige overlapp ovenfor. Bekreftelse erstatter bare de overlappende intervallene for målpunktene. En endret forhåndsvisning krever ny bekreftelse.</value></data>
   <data name="ConfirmExactReplacement" xml:space="preserve"><value>Bekreft disse nøyaktige erstatningene</value></data>
@@ -706,4 +706,23 @@
   <data name="StatisticsLayoutThresholdHelp" xml:space="preserve"><value>Fartsbaserte grenser krever en kjent fast distanse. Rediger varighet i stedet.</value></data>
   <data name="StatisticsLayoutMultiInvalid" xml:space="preserve"><value>Distanse fra banekonfigurasjon kan ikke brukes for en Multi-konfigurasjon.</value></data>
   <data name="HallOfFameSpeedRanking" xml:space="preserve"><value>Globale runder rangeres etter fart, høyeste først. Tider vises for hvert resultat.</value></data>
+  <data name="YesValue" xml:space="preserve"><value>Ja</value></data>
+  <data name="NoValue" xml:space="preserve"><value>Nei</value></data>
+  <data name="TotalLength" xml:space="preserve"><value>Total lengde</value></data>
+  <data name="LayoutRevisionInterval" xml:space="preserve"><value>Når geometriendringen gjelder</value></data>
+  <data name="LayoutRevisionIntervalHelp" xml:space="preserve"><value>Lagring endrer segmenter, rekkefølge og lengder i det halvåpne intervallet [fra, til). Revisjoner utenfor intervallet beholdes. Velg ingen nedre og ingen øvre grense for å erstatte hele historikken.</value></data>
+  <data name="BackdatedLayoutStatisticsGuidance" xml:space="preserve"><value>Statistikken beregnes på nytt for det berørte intervallet etter lagring. Tilbakedaterte endringer kan ta litt tid før de vises i resultatene.</value></data>
+  <data name="LayoutRevisionConflictNeedsConfirmation" xml:space="preserve"><value>Dette intervallet erstatter eksisterende baneoppsettrevisjoner</value></data>
+  <data name="LayoutRevisionOverlapWindow" xml:space="preserve"><value>{0}: {1} segmenter, {2}</value></data>
+  <data name="LayoutHistory" xml:space="preserve"><value>Historikk for baneoppsett</value></data>
+  <data name="LayoutRevisions" xml:space="preserve"><value>Geometrirevisjoner</value></data>
+  <data name="NoLayoutRevisions" xml:space="preserve"><value>Ingen geometrirevisjoner</value></data>
+  <data name="LayoutInUseSchedule" xml:space="preserve"><value>Når anlegget bruker dette baneoppsettet</value></data>
+  <data name="LayoutInUse" xml:space="preserve"><value>I bruk</value></data>
+  <data name="ChangeLayoutInUse" xml:space="preserve"><value>Endre når baneoppsettet er i bruk</value></data>
+  <data name="LayoutInUseOption" xml:space="preserve"><value>I bruk i dette intervallet</value></data>
+  <data name="LayoutNotInUseOption" xml:space="preserve"><value>Ikke i bruk i dette intervallet</value></data>
+  <data name="SaveLayoutInUse" xml:space="preserve"><value>Lagre bruksintervall</value></data>
+  <data name="LayoutInUseSaved" xml:space="preserve"><value>Bruksintervall lagret</value></data>
+  <data name="LayoutHistoryLoadFailed" xml:space="preserve"><value>Historikken for baneoppsettet kunne ikke lastes.</value></data>
 </root>

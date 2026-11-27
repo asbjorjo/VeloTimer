@@ -65,8 +65,8 @@ public sealed class FacilitiesApiFactory : WebApplicationFactory<Program>
                 && (descriptor.ImplementationType?.Namespace?.StartsWith("SlimMessageBus", StringComparison.Ordinal) == true
                     || descriptor.ImplementationType?.Name == "TimingAssociationOutboxStartup")).ToList())
                 services.Remove(descriptor);
-            services.RemoveAll<ITimingAssociationEventPublisher>();
-            services.AddSingleton<ITimingAssociationEventPublisher>(Events);
+            services.RemoveAll<ICourseConfigEventPublisher>();
+            services.AddSingleton<ICourseConfigEventPublisher>(Events);
             services.RemoveAll<FacilityDbContext>();
             services.RemoveAll<DbContextOptions<FacilityDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<FacilityDbContext>>();

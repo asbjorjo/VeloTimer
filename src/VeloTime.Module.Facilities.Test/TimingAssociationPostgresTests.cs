@@ -212,13 +212,17 @@ public class TimingAssociationPostgresTests
             $"INSERT INTO facility.facility (id, name) VALUES ({facility}, 'test')");
         await storage.Database.ExecuteSqlInterpolatedAsync(
             $"INSERT INTO facility.course_layout (id, facility_id) VALUES ({layout}, {facility})");
+        var revision = Guid.NewGuid();
+        await storage.Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT INTO facility.course_layout_revision (id, course_layout_id, valid_from_utc, valid_to_utc) VALUES ({revision}, {layout}, NULL, NULL)");
         await storage.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO facility.course_segment (id, course_layout_id, start_id, end_id, "order", length)
-            VALUES ({Guid.NewGuid()}, {layout}, {point}, {point}, 0, 1)
+            INSERT INTO facility.course_segment (id, course_layout_revision_id, start_id, end_id, "order", length)
+            VALUES ({Guid.NewGuid()}, {revision}, {point}, {point}, 0, 1)
             """);
         foreach (var sql in new[]
         {
             $"DELETE FROM facility.course_point WHERE id = '{point}'",
+            $"DELETE FROM facility.course_layout_revision WHERE id = '{revision}'",
             $"DELETE FROM facility.course_layout WHERE id = '{layout}'",
             $"DELETE FROM facility.facility WHERE id = '{facility}'"
         })

@@ -319,7 +319,9 @@ public sealed class WebUiRedisCacheTests(ITestOutputHelper output)
         object LayoutRequest(string name) => new
         {
             points = new[] { new { id = start, name }, new { id = end, name = "End" } },
-            segments = new[] { new { id = segment, startId = start, endId = end, length = 100d } }
+            segments = new[] { new { id = segment, startId = start, endId = end, length = 100d } },
+            validFromUtc = (DateTimeOffset?)null,
+            validToUtc = (DateTimeOffset?)null
         };
         using var layoutResponse = await writer.PostAsJsonAsync($"/api/facilities/facility/{facility.Id}/layouts", LayoutRequest("Before"));
         Assert.Equal(HttpStatusCode.Created, layoutResponse.StatusCode);
@@ -335,7 +337,7 @@ public sealed class WebUiRedisCacheTests(ITestOutputHelper output)
         Assert.Equal(HttpStatusCode.OK, (await rawB.SendAsync(warm)).StatusCode);
         Assert.Equal("Before", await ReadSampleName(uiA, user));
         Assert.Equal("Before", await ReadSampleName(uiB, user));
-        using var updated = await writer.PutAsJsonAsync($"/api/facilities/facility/{facility.Id}/layouts/{layout.Id}", LayoutRequest("After"));
+        using var updated = await writer.PutAsJsonAsync($"/api/facilities/facility/{facility.Id}/layouts/{layout.Id}/revision", LayoutRequest("After"));
         Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
         var committed = Stopwatch.StartNew();
         // API owner's existing tag reaches the independent UI host, but a remote

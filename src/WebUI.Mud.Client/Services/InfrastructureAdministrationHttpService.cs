@@ -14,8 +14,16 @@ public sealed class InfrastructureAdministrationHttpService(HttpClient httpClien
         await client.SendAsync<Facilities.FacilityDTO>(id.HasValue ? HttpMethod.Put : HttpMethod.Post, $"api/admin/facilities{Suffix(id)}", request, cancellationToken) ?? throw new HttpRequestException("Missing facility response.");
     public Task DeleteFacilityAsync(Guid id, CancellationToken cancellationToken = default) =>
         client.SendAsync<object>(HttpMethod.Delete, $"api/admin/facilities/{id}", null, cancellationToken);
-    public async Task<Facilities.CourseLayoutDTO> SaveLayoutAsync(Guid facilityId, Guid? id, Facilities.SaveCourseLayoutRequest request, CancellationToken cancellationToken = default) =>
-        await client.SendAsync<Facilities.CourseLayoutDTO>(id.HasValue ? HttpMethod.Put : HttpMethod.Post, $"api/admin/facilities/{facilityId}/layouts{Suffix(id)}", request, cancellationToken) ?? throw new HttpRequestException("Missing layout response.");
+    public async Task<Facilities.CourseLayoutDTO> CreateLayoutAsync(Guid facilityId, Facilities.SaveCourseLayoutRequest request, CancellationToken cancellationToken = default) =>
+        await client.SendAsync<Facilities.CourseLayoutDTO>(HttpMethod.Post, $"api/admin/facilities/{facilityId}/layouts", request, cancellationToken) ?? throw new HttpRequestException("Missing layout response.");
+    public async Task<Facilities.CourseLayoutHistoryDTO> GetLayoutHistoryAsync(Guid facilityId, Guid id, CancellationToken cancellationToken = default) =>
+        await client.SendAsync<Facilities.CourseLayoutHistoryDTO>(HttpMethod.Get, $"api/admin/facilities/{facilityId}/layouts/{id}/history", null, cancellationToken)
+        ?? throw new HttpRequestException("The layout history is missing.");
+    public Task<Facilities.SetCourseLayoutRevisionResponse> SetLayoutRevisionAsync(Guid facilityId, Guid id, Facilities.SetCourseLayoutRevisionRequest request, CancellationToken cancellationToken = default) =>
+        client.SendLayoutRevisionAsync($"api/admin/facilities/{facilityId}/layouts/{id}/revision", request, cancellationToken);
+    public async Task<Facilities.SetFacilityLayoutAssignmentResponse> SetLayoutAssignmentAsync(Guid facilityId, Guid id, Facilities.SetFacilityLayoutAssignmentRequest request, CancellationToken cancellationToken = default) =>
+        await client.SendAsync<Facilities.SetFacilityLayoutAssignmentResponse>(HttpMethod.Put, $"api/admin/facilities/{facilityId}/layouts/{id}/assignment", request, cancellationToken)
+        ?? throw new HttpRequestException("Missing layout assignment response.");
     public Task DeleteLayoutAsync(Guid facilityId, Guid id, CancellationToken cancellationToken = default) =>
         client.SendAsync<object>(HttpMethod.Delete, $"api/admin/facilities/{facilityId}/layouts/{id}", null, cancellationToken);
     public Task SetTimingLinkAsync(Guid pointId, Guid? timingPointId, CancellationToken cancellationToken = default) =>

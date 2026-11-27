@@ -165,15 +165,11 @@ public sealed class RecomputeBuildingBlockTests
         FacilityId = Facility,
         Layouts =
         [
-            new()
-            {
-                LayoutId = Guid.NewGuid(),
-                Segments =
-                [
-                    new() { Order = 0, StartPointId = Finish, EndPointId = Pursuit, Length = 125 },
-                    new() { Order = 1, StartPointId = Pursuit, EndPointId = Finish, Length = 125 }
-                ]
-            }
+            CourseLayoutVersion.Unbounded(Guid.NewGuid(),
+            [
+                new() { Order = 0, StartPointId = Finish, EndPointId = Pursuit, Length = 125 },
+                new() { Order = 1, StartPointId = Pursuit, EndPointId = Finish, Length = 125 }
+            ])
         ]
     };
 

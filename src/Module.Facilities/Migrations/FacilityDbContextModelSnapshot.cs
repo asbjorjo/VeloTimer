@@ -44,6 +44,39 @@ namespace VeloTime.Module.Facilities.Migrations
                     b.ToTable("course_layout", "facility");
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Facilities.Model.CourseLayoutRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CourseLayoutId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_layout_id");
+
+                    b.Property<DateTimeOffset?>("ValidFromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_from_utc");
+
+                    b.Property<DateTimeOffset?>("ValidToUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_to_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_course_layout_revision");
+
+                    b.HasIndex("CourseLayoutId", "ValidFromUtc", "ValidToUtc")
+                        .HasDatabaseName("ix_course_layout_revision_course_layout_id_valid_from_utc_vali");
+
+                    b.ToTable("course_layout_revision", "facility", t =>
+                        {
+                            t.HasCheckConstraint("ck_course_layout_revision_finite_bounds", "(valid_from_utc IS NULL OR isfinite(valid_from_utc)) AND (valid_to_utc IS NULL OR isfinite(valid_to_utc))");
+
+                            t.HasCheckConstraint("ck_course_layout_revision_interval", "valid_from_utc IS NULL OR valid_to_utc IS NULL OR valid_from_utc < valid_to_utc");
+                        });
+                });
+
             modelBuilder.Entity("VeloTime.Module.Facilities.Model.CoursePoint", b =>
                 {
                     b.Property<Guid>("Id")
@@ -108,9 +141,9 @@ namespace VeloTime.Module.Facilities.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<Guid>("CourseLayoutId")
+                    b.Property<Guid>("CourseLayoutRevisionId")
                         .HasColumnType("uuid")
-                        .HasColumnName("course_layout_id");
+                        .HasColumnName("course_layout_revision_id");
 
                     b.Property<Guid>("EndId")
                         .HasColumnType("uuid")
@@ -131,8 +164,8 @@ namespace VeloTime.Module.Facilities.Migrations
                     b.HasKey("Id")
                         .HasName("pk_course_segment");
 
-                    b.HasIndex("CourseLayoutId")
-                        .HasDatabaseName("ix_course_segment_course_layout_id");
+                    b.HasIndex("CourseLayoutRevisionId")
+                        .HasDatabaseName("ix_course_segment_course_layout_revision_id");
 
                     b.HasIndex("EndId")
                         .HasDatabaseName("ix_course_segment_end_id");
@@ -161,6 +194,46 @@ namespace VeloTime.Module.Facilities.Migrations
                     b.ToTable("facility", "facility");
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Facilities.Model.FacilityLayoutAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CourseLayoutId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_layout_id");
+
+                    b.Property<Guid>("FacilityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("facility_id");
+
+                    b.Property<DateTimeOffset?>("ValidFromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_from_utc");
+
+                    b.Property<DateTimeOffset?>("ValidToUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_to_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_facility_layout_assignment");
+
+                    b.HasIndex("CourseLayoutId", "ValidFromUtc", "ValidToUtc")
+                        .HasDatabaseName("ix_facility_layout_assignment_course_layout_id_valid_from_utc_");
+
+                    b.HasIndex("FacilityId", "ValidFromUtc", "ValidToUtc")
+                        .HasDatabaseName("ix_facility_layout_assignment_facility_id_valid_from_utc_valid");
+
+                    b.ToTable("facility_layout_assignment", "facility", t =>
+                        {
+                            t.HasCheckConstraint("ck_facility_layout_assignment_finite_bounds", "(valid_from_utc IS NULL OR isfinite(valid_from_utc)) AND (valid_to_utc IS NULL OR isfinite(valid_to_utc))");
+
+                            t.HasCheckConstraint("ck_facility_layout_assignment_interval", "valid_from_utc IS NULL OR valid_to_utc IS NULL OR valid_from_utc < valid_to_utc");
+                        });
+                });
+
             modelBuilder.Entity("VeloTime.Module.Facilities.Model.CourseLayout", b =>
                 {
                     b.HasOne("VeloTime.Module.Facilities.Model.Facility", "Facility")
@@ -171,6 +244,18 @@ namespace VeloTime.Module.Facilities.Migrations
                         .HasConstraintName("fk_course_layout_facility_facility_id");
 
                     b.Navigation("Facility");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Facilities.Model.CourseLayoutRevision", b =>
+                {
+                    b.HasOne("VeloTime.Module.Facilities.Model.CourseLayout", "CourseLayout")
+                        .WithMany("Revisions")
+                        .HasForeignKey("CourseLayoutId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_course_layout_revision_course_layout_course_layout_id");
+
+                    b.Navigation("CourseLayout");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Facilities.Model.CoursePointTimingAssociation", b =>
@@ -187,12 +272,12 @@ namespace VeloTime.Module.Facilities.Migrations
 
             modelBuilder.Entity("VeloTime.Module.Facilities.Model.CourseSegment", b =>
                 {
-                    b.HasOne("VeloTime.Module.Facilities.Model.CourseLayout", "CourseLayout")
+                    b.HasOne("VeloTime.Module.Facilities.Model.CourseLayoutRevision", "Revision")
                         .WithMany("Segments")
-                        .HasForeignKey("CourseLayoutId")
+                        .HasForeignKey("CourseLayoutRevisionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_course_segment_course_layout_course_layout_id");
+                        .HasConstraintName("fk_course_segment_course_layout_revision_course_layout_revisio");
 
                     b.HasOne("VeloTime.Module.Facilities.Model.CoursePoint", "End")
                         .WithMany()
@@ -208,14 +293,40 @@ namespace VeloTime.Module.Facilities.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_course_segment_course_point_start_id");
 
-                    b.Navigation("CourseLayout");
-
                     b.Navigation("End");
+
+                    b.Navigation("Revision");
 
                     b.Navigation("Start");
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Facilities.Model.FacilityLayoutAssignment", b =>
+                {
+                    b.HasOne("VeloTime.Module.Facilities.Model.CourseLayout", "CourseLayout")
+                        .WithMany("Assignments")
+                        .HasForeignKey("CourseLayoutId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_facility_layout_assignment_course_layout_course_layout_id");
+
+                    b.HasOne("VeloTime.Module.Facilities.Model.Facility", null)
+                        .WithMany()
+                        .HasForeignKey("FacilityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_facility_layout_assignment_facility_facility_id");
+
+                    b.Navigation("CourseLayout");
+                });
+
             modelBuilder.Entity("VeloTime.Module.Facilities.Model.CourseLayout", b =>
+                {
+                    b.Navigation("Assignments");
+
+                    b.Navigation("Revisions");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Facilities.Model.CourseLayoutRevision", b =>
                 {
                     b.Navigation("Segments");
                 });

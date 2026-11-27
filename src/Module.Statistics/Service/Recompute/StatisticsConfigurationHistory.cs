@@ -22,23 +22,31 @@ public static class StatisticsConfigurationCacheKeys
 {
     public const string Tag = "Statistics.ConfigurationHistory";
     public static string Installation(Guid installationId) => $"velotime:statistics:config-history:installation:v1:{installationId:D}";
-    public static string FacilityCourse(Guid facilityId) => $"velotime:statistics:config-history:facility-course:v1:{facilityId:D}";
+    public static string FacilityCourse(Guid facilityId) => $"velotime:statistics:config-history:facility-course:v2:{facilityId:D}";
 }
 
 /// <summary>
 /// Configuration history read through the shared HybridCache (plan §4.3): one entry per scope holding
 /// every version, resolved locally per instant. Entries never fall back to stale values; a miss the owner
 /// cannot serve fails the recompute, which is retried. Change-event handlers must call the eviction
-/// methods before enqueueing a recompute (evict-before-enqueue; consumed from Phase 3).
+/// methods before enqueueing a recompute (evict-before-enqueue; see CourseConfigChangedHandler).
 /// </summary>
 public sealed class StatisticsConfigurationHistory(HybridCache cache, IStatisticsConfigurationSource source,
     ICacheInvalidationOperations? invalidation = null, ILogger<StatisticsConfigurationHistory>? logger = null)
 {
-    // Bounded staleness until Phase 3 delivers change events for Facilities config.
+    // Bounded staleness until Phase 4 delivers change events for installation assignments.
     private static readonly HybridCacheEntryOptions EntryOptions = new()
     {
         Expiration = TimeSpan.FromMinutes(5),
         LocalCacheExpiration = TimeSpan.FromMinutes(1)
+    };
+
+    // Facilities publishes CourseConfigChangedV1 for every edit, and its handler evicts this key before it
+    // enqueues the recompute, so the expiration only bounds memory, not staleness.
+    private static readonly HybridCacheEntryOptions FacilityCourseEntryOptions = new()
+    {
+        Expiration = TimeSpan.FromHours(12),
+        LocalCacheExpiration = TimeSpan.FromHours(12)
     };
 
     public ValueTask<InstallationFacilityHistory> GetInstallationAsync(Guid installationId, CancellationToken cancellationToken) =>
@@ -51,7 +59,7 @@ public sealed class StatisticsConfigurationHistory(HybridCache cache, IStatistic
         cache.GetOrCreateAsync(StatisticsConfigurationCacheKeys.FacilityCourse(facilityId),
             (source, facilityId), static (state, cancel) => new ValueTask<FacilityCourseHistory>(
                 state.source.GetFacilityCourseAsync(state.facilityId, cancel)),
-            EntryOptions, [StatisticsConfigurationCacheKeys.Tag], cancellationToken);
+            FacilityCourseEntryOptions, [StatisticsConfigurationCacheKeys.Tag], cancellationToken);
 
     /// <summary>Strictly evicts the given scopes; throws when eviction cannot be confirmed.</summary>
     public Task EvictAsync(IEnumerable<Guid> installationIds, IEnumerable<Guid> facilityIds) =>

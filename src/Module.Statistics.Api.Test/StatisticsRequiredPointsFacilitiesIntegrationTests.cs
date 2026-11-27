@@ -179,9 +179,9 @@ public sealed class StatisticsRequiredPointsFacilitiesIntegrationTests : IAsyncL
         {
             var layout = new CourseLayout { Id = Guid.NewGuid(), FacilityId = facility.Id, Facility = facility };
             for (var index = 0; index < path.Length - 1; index++)
-                layout.Segments.Add(new CourseSegment
+                layout.EnsureUnboundedRevision().Segments.Add(new CourseSegment
                 {
-                    Id = Guid.NewGuid(), CourseLayout = layout, CourseLayoutId = layout.Id,
+                    Id = Guid.NewGuid(),
                     Order = index + 1, Start = points[path[index]], End = points[path[index + 1]], Length = 25
                 });
             facility.Layouts.Add(layout);
@@ -196,7 +196,7 @@ public sealed class StatisticsRequiredPointsFacilitiesIntegrationTests : IAsyncL
             this.layouts.Set(new CourseLayoutDTO
             {
                 Id = layout.Id, FacilityId = facility.Id,
-                Segments = layout.Segments.OrderBy(segment => segment.Order).Select(segment => new SegmentDTO
+                Segments = layout.Revisions.Single().Segments.OrderBy(segment => segment.Order).Select(segment => new SegmentDTO
                 {
                     Id = segment.Id, Order = segment.Order, Length = segment.Length,
                     Start = new CoursePointDTO { Id = segment.Start.Id, Name = segment.Start.Name ?? string.Empty },

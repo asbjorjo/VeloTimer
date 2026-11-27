@@ -16,7 +16,7 @@ public sealed class BackdatedConfigRequirementTests
     private static IReadOnlyList<PassingInput> Data() =>
         [.. TwoSessions("R1"), .. TwoSessions("R2", firstSourceId: 1_000)];
 
-    [RequirementFact(PendingPhase = "Phase 3 (C4)")]
+    [RequirementFact]
     public async Task MissingAssociationAddedLater_ProducesTheSamplesItWouldHaveProduced()
     {
         // L3 is first left unassociated: its passings are stored but cannot produce samples (§5.3).
@@ -31,7 +31,7 @@ public sealed class BackdatedConfigRequirementTests
             unaffectedBefore: null);
     }
 
-    [RequirementFact(PendingPhase = "Phase 3 (C4)")]
+    [RequirementFact]
     public async Task LoopsSwappedFromX_RecomputeOnlyResultsFromX()
     {
         // The installer reports L2 and L3 were cabled the wrong way round from X.
@@ -41,7 +41,7 @@ public sealed class BackdatedConfigRequirementTests
             unaffectedBefore: X);
     }
 
-    [RequirementFact(PendingPhase = "Phase 3 (C1)")]
+    [RequirementFact]
     public async Task SegmentLengthsRevisedFromX_RecomputeOnlyResultsFromX()
     {
         await AssertBackdatedEditMatchesFreshRun(

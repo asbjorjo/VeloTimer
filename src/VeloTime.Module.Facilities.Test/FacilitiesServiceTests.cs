@@ -72,11 +72,9 @@ public class FacilitiesServiceTests
         var end = new CoursePoint { Id = Guid.NewGuid(), Name = "Finish",
             TimingAssociations = [new() { Id = Guid.NewGuid(), TimingPointId = endTiming }] };
         var layout = new CourseLayout { Id = Guid.NewGuid(), FacilityId = facility.Id, Facility = facility };
-        layout.Segments.Add(new CourseSegment
+        layout.EnsureUnboundedRevision().Segments.Add(new CourseSegment
         {
             Id = Guid.NewGuid(),
-            CourseLayout = layout,
-            CourseLayoutId = layout.Id,
             Order = 1,
             Start = start,
             End = end,
@@ -96,8 +94,6 @@ public class FacilitiesServiceTests
 
         await service.CreateCourseLayout(layout);
 
-        var segments = (await service.GetSegmentsBetweenCoursePoints(start, end)).ToList();
-        Assert.Single(segments);
         Assert.Equal(125, await service.CalculateDistanceBetweenCoursePoints(start, end));
         Assert.Equal(125, await service.DistanceBetweenCoursePoints(start, start));
         Assert.Equal(125, await service.DistanceBetweenTimingPoints(startTiming, endTiming));

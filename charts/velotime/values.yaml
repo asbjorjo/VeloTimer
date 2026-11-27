@@ -100,7 +100,12 @@ messageBusTopology:
             - name: StatisticsValidityThresholdsChangedV1
               sqlFilter: MessageName = 'StatisticsValidityThresholdsChangedV1'
     - name: velotime-facilities
-      subscriptions: []
+      subscriptions:
+        - name: statistics
+          requiresSession: true
+          rules:
+            - name: CourseConfigChangedV1
+              sqlFilter: MessageName = 'CourseConfigChangedV1'
     - name: velotime-notifications
       subscriptions:
         - name: webui-notifications

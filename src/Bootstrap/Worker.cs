@@ -49,32 +49,55 @@ internal class Worker(IServiceProvider serviceProvider, IHostApplicationLifetime
         await timingContext.SaveChangesAsync();
 
         var facility = await facilityContext.Set<Facility>()
-            .Include(f => f.Layouts)
-            .ThenInclude(l => l.Segments)
-            .ThenInclude(s => s.Start)
+            .Include(f => f.Layouts).ThenInclude(l => l.Revisions).ThenInclude(r => r.Segments).ThenInclude(s => s.Start)
             .SingleOrDefaultAsync(f => f.Name == "Sola Arena");
         if (facility is null)
         {
-            List<CoursePoint> coursePoints = sola.TimingPoints.Select(t => new CoursePoint() { Name = t.Description, TimingPoint = t.Id }).ToList();
-            List<CourseSegment> courseSegments = new List<CourseSegment>
-            {
-                new() { Start = coursePoints.Single(c => c.Name == "Finish"), End = coursePoints.Single(c => c.Name == "200m"), Order = 0, Length = 50},
-                new() { Start = coursePoints.Single(c => c.Name == "200m"), End = coursePoints.Single(c => c.Name == "Green"), Order = 1, Length = 60},
-                new() { Start = coursePoints.Single(c => c.Name == "Green"), End = coursePoints.Single(c => c.Name == "100m"), Order = 2, Length = 40},
-                new() { Start = coursePoints.Single(c => c.Name == "100m"), End = coursePoints.Single(c => c.Name == "Red"), Order = 3, Length = 85},
-                new() { Start = coursePoints.Single(c => c.Name == "Red"), End = coursePoints.Single(c => c.Name == "Finish"), Order = 4, Length = 15},
-            };
-            List<CourseLayout> layouts = new() { new (){ Segments = courseSegments } };
-
-            facility = new() { Name = "Sola Arena" , Layouts = layouts};
-
+            facility = new() { Id = Guid.NewGuid(), Name = "Sola Arena" };
             await facilityContext.AddAsync(facility);
             await facilityContext.SaveChangesAsync();
+        }
+        if (sola.Facility != facility.Id)
+        {
             sola.Facility = facility.Id;
             await timingContext.SaveChangesAsync();
         }
+        if (facility.Layouts.Count == 0)
+        {
+            // One layout in use for all time with one unbounded revision, and each course point associated with its
+            // timing point for all time (docs/replay-safe-statistics-plan.md §4.2).
+            List<CoursePoint> coursePoints = sola.TimingPoints.Select(t => new CoursePoint { Id = Guid.NewGuid(), Name = t.Description }).ToList();
+            foreach (var (point, timingPoint) in coursePoints.Zip(sola.TimingPoints))
+                point.TimingAssociations.Add(new CoursePointTimingAssociation
+                {
+                    Id = Guid.NewGuid(), CoursePointId = point.Id, CoursePoint = point, TimingPointId = timingPoint.Id
+                });
+            var layout = new CourseLayout { Id = Guid.NewGuid(), FacilityId = facility.Id, Facility = facility };
+            var revision = new CourseLayoutRevision { Id = Guid.NewGuid(), CourseLayoutId = layout.Id, CourseLayout = layout };
+            CoursePoint Point(string name) => coursePoints.Single(c => c.Name == name);
+            (string From, string To, double Length)[] segments =
+            [
+                ("Finish", "200m", 50), ("200m", "Green", 60), ("Green", "100m", 40), ("100m", "Red", 85), ("Red", "Finish", 15)
+            ];
+            for (var order = 0; order < segments.Length; order++)
+                revision.Segments.Add(new CourseSegment
+                {
+                    Id = Guid.NewGuid(), Revision = revision, CourseLayoutRevisionId = revision.Id, Order = order,
+                    Start = Point(segments[order].From), End = Point(segments[order].To), Length = segments[order].Length
+                });
+            layout.Revisions.Add(revision);
+            layout.Assignments.Add(new FacilityLayoutAssignment
+            {
+                Id = Guid.NewGuid(), FacilityId = facility.Id, CourseLayoutId = layout.Id, CourseLayout = layout
+            });
+            facility.Layouts.Add(layout);
+            await facilityContext.AddRangeAsync(coursePoints);
+            await facilityContext.AddAsync(layout);
+            await facilityContext.SaveChangesAsync();
+        }
 
-        IEnumerable<CoursePoint> coursepoints = facility.Layouts.First().Segments.Select(s => s.Start);
+        IEnumerable<CoursePoint> coursepoints = facility.Layouts.First().Revisions.SelectMany(r => r.Segments).Select(s => s.Start)
+            .DistinctBy(p => p.Id);
 
         var lap = await statisticsContext.Set<StatisticsItem>().SingleOrDefaultAsync(s => s.Name == "Lap");
         if (lap is null)

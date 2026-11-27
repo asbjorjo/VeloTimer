@@ -37,7 +37,7 @@ public sealed class TimingAssociationConfirmationTests : IAsyncLifetime
     private readonly Guid occupant = Guid.NewGuid();
     private readonly Guid sourceTiming = Guid.NewGuid();
     private readonly Guid destinationTiming = Guid.NewGuid();
-    private readonly List<CoursePointTimingAssociationsChangedV1> events = [];
+    private readonly List<CourseConfigChangedV1> events = [];
 
     public async Task InitializeAsync()
     {
@@ -69,7 +69,9 @@ public sealed class TimingAssociationConfirmationTests : IAsyncLifetime
         storage.Add(new CourseLayout
         {
             Id = Guid.NewGuid(), FacilityId = facilityId,
-            Segments = [new CourseSegment { Id = Guid.NewGuid(), Order = 0, Start = start, End = end, Length = 250 }]
+            Assignments = [new() { Id = Guid.NewGuid(), FacilityId = facilityId }],
+            Revisions = [new() { Id = Guid.NewGuid(),
+                Segments = [new CourseSegment { Id = Guid.NewGuid(), Order = 0, Start = start, End = end, Length = 250 }] }]
         });
         storage.AddRange(
             Association(source, sourceTiming, null, null),
@@ -129,7 +131,7 @@ public sealed class TimingAssociationConfirmationTests : IAsyncLifetime
              new CoursePointTimingAssociationChange(new(sourceTiming, source, T0.AddDays(1), null),
                  new(destinationTiming, source, T0.AddDays(1), null))],
             result.Changes);
-        Assert.Equal(result.Changes, message.Changes);
+        Assert.Equal(result.Changes, message.AssociationChanges);
         await AssertHistoryAsync(source,
             new(sourceTiming, source, null, T0.AddDays(1)),
             new(destinationTiming, source, T0.AddDays(1), null));
@@ -203,13 +205,13 @@ public sealed class TimingAssociationConfirmationTests : IAsyncLifetime
         Assert.Equal(accepted.ChangeId, message.ChangeId);
         Assert.Equal(facilityId, message.FacilityId);
         Assert.Equal(T0.AddDays(3), message.OccurredAtUtc);
-        Assert.Equal(accepted.Changes, message.Changes);
+        Assert.Equal(accepted.Changes, message.AssociationChanges);
         Assert.Equal(
             [new(new(destinationTiming, occupant, T0.AddDays(1), T0.AddDays(2)), null),
              new CoursePointTimingAssociationChange(new(sourceTiming, source, T0.AddDays(1), T0.AddDays(2)),
                  new(destinationTiming, source, T0.AddDays(1), T0.AddDays(2)))],
-            message.Changes);
-        Assert.All(message.Changes.SelectMany(delta => new[] { delta.Before, delta.After }).OfType<CoursePointTimingAssociationSnapshot>(),
+            message.AssociationChanges);
+        Assert.All(message.AssociationChanges.SelectMany(delta => new[] { delta.Before, delta.After }).OfType<CoursePointTimingAssociationSnapshot>(),
             snapshot =>
             {
                 Assert.Equal(TimeSpan.Zero, snapshot.ValidFromUtc!.Value.Offset);
@@ -277,7 +279,7 @@ public sealed class TimingAssociationConfirmationTests : IAsyncLifetime
             Assert.Equal(source, (await service.FindCoursePointByTimingPointIdAsync(timing, at, default))!.Id);
             Assert.Equal(timing, (await service.ResolveManyAsync([source], at, default))[source]);
         }
-        Assert.All(Assert.Single(events).Changes, delta =>
+        Assert.All(Assert.Single(events).AssociationChanges, delta =>
         {
             Assert.Equal(T0, delta.Before!.ValidFromUtc);
             Assert.Equal(T0.AddDays(1), delta.After!.ValidToUtc);
@@ -315,7 +317,7 @@ public sealed class TimingAssociationConfirmationTests : IAsyncLifetime
                  new(destinationTiming, source, T0, T0.AddDays(7))),
              new(new(destinationTiming, occupant, T0.AddDays(2), T0.AddDays(4)), null),
              new(new(destinationTiming, occupant, T0.AddDays(6), T0.AddDays(7)), null)],
-            Assert.Single(events).Changes.OrderBy(delta => delta.Before!.ValidFromUtc).ToArray());
+            Assert.Single(events).AssociationChanges.OrderBy(delta => delta.Before!.ValidFromUtc).ToArray());
         await AssertHistoryAsync(occupant,
             new(destinationTiming, occupant, null, T0),
             new(destinationTiming, occupant, T0.AddDays(7), null));

@@ -94,7 +94,9 @@ public sealed class FacilitiesOutputEligibilityTests(FacilitiesApiFactory factor
         var point = new CoursePoint { Id = Guid.NewGuid(), Name = "Eligibility" };
         var facility = new Facility { Id = Guid.NewGuid(), Name = "Eligibility track" };
         storage.Add(new CourseLayout { Id = Guid.NewGuid(), Facility = facility,
-            Segments = [new() { Id = Guid.NewGuid(), Start = point, End = new CoursePoint { Id = Guid.NewGuid() }, Length = 100 }] });
+            Assignments = [new() { Id = Guid.NewGuid(), FacilityId = facility.Id }],
+            Revisions = [new() { Id = Guid.NewGuid(),
+                Segments = [new() { Id = Guid.NewGuid(), Start = point, End = new CoursePoint { Id = Guid.NewGuid() }, Length = 100 }] }] });
         await storage.SaveChangesAsync();
         return $"/api/facilities/coursepoint/{point.Id}/facility";
     }

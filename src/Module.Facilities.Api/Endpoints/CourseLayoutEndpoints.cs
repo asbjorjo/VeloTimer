@@ -21,43 +21,13 @@ internal static class CourseLayoutEndpoints
         Guid id, [FromQuery] DateTimeOffset? at, FacilityDbContext storage,
         CancellationToken cancellationToken)
     {
-        var layout = await storage.Set<CourseLayout>()
-            .Include(l => l.Segments)
-            .ThenInclude(s => s.Start)
-            .Include(l => l.Segments)
-            .ThenInclude(s => s.End)
+        var layout = await CourseConfigurationService.LayoutsWithHistory(storage).AsNoTracking()
             .FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (layout == null)
         {
             return TypedResults.NotFound();
         }
         var instant = at.HasValue ? TimingAssociationService.Normalize(at.Value) : DateTimeOffset.UtcNow;
-        var associations = new TimingAssociationService(storage);
-        var mappings = await associations.ResolveManyAsync(
-            layout.Segments.SelectMany(segment => new[] { segment.Start.Id, segment.End.Id }),
-            instant, cancellationToken);
-        return TypedResults.Ok(new CourseLayoutDTO
-        {
-            Id = layout.Id,
-            FacilityId = layout.FacilityId,
-            Segments = layout.Segments.Select(s => new SegmentDTO
-            {
-                Id = s.Id,
-                Order = s.Order,
-                Length = s.Length,
-                Start = new CoursePointDTO
-                {
-                    Id = s.Start.Id,
-                    Name = s.Start.Name ?? string.Empty,
-                    TimingPointId = mappings.GetValueOrDefault(s.Start.Id)
-                },
-                End = new CoursePointDTO
-                {
-                    Id = s.End.Id,
-                    Name = s.End.Name ?? string.Empty,
-                    TimingPointId = mappings.GetValueOrDefault(s.End.Id)
-                }
-            }).ToList()
-        });
+        return TypedResults.Ok((await CourseLayoutProjection.ToDtosAsync(storage, [layout], instant, cancellationToken)).Single());
     }
 }

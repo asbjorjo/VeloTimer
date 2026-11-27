@@ -3,6 +3,7 @@ using OpenTelemetry.Trace;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
+using VeloTime.Module.Facilities.Interface.Messages;
 using VeloTime.Module.Statistics;
 using VeloTime.Module.Statistics.Handlers;
 using VeloTime.Module.Statistics.Interface.Messages;
@@ -54,6 +55,14 @@ internal static class StartupExtensions
                 .SubscriptionName("statistics")
                 .SubscriptionSqlFilter($"MessageName = '{nameof(TransponderOwnershipChanged)}'")
                 .WithConsumer<TransponderOwnershipChangedHandler>()
+                .Instances(1)
+                .EnableSession());
+            // Facilities course configuration changes, one session per facility so a facility's edits stay in order.
+            mbb.Consume<CourseConfigChangedV1>(x => x
+                .Topic("velotime-facilities")
+                .SubscriptionName("statistics")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(CourseConfigChangedV1)}'")
+                .WithConsumer<CourseConfigChangedHandler>()
                 .Instances(1)
                 .EnableSession());
             // Wake-up only: durable job rows are the source of work.

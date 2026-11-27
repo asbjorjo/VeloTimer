@@ -88,11 +88,11 @@ public sealed class TimingAssociationOutboxTests : IAsyncLifetime
         Assert.Equal(expected, sender.Delivered.Select(message => message.Body.ToString()));
         Assert.All(sender.Attempts, message =>
         {
-            var payload = JsonSerializer.Deserialize<CoursePointTimingAssociationsChangedV1>(message.Body.ToString(),
+            var payload = JsonSerializer.Deserialize<CourseConfigChangedV1>(message.Body.ToString(),
                 TimingAssociationMessagingTests.JsonOptions)!;
             Assert.Equal(payload.EventId.ToString(), message.MessageId);
             Assert.Equal(facilityId.ToString(), message.SessionId);
-            Assert.Equal(nameof(CoursePointTimingAssociationsChangedV1), message.ApplicationProperties["MessageName"]);
+            Assert.Equal(nameof(CourseConfigChangedV1), message.ApplicationProperties["MessageName"]);
             Assert.NotEqual(Guid.Empty, payload.ChangeId);
             Assert.Equal(TimeSpan.Zero, payload.OccurredAtUtc.Offset);
             Assert.Contains(message.Body.ToString(), expected);
@@ -114,7 +114,7 @@ public sealed class TimingAssociationOutboxTests : IAsyncLifetime
         {
             Assert.Equal(message.EventId.ToString(), delivered.MessageId);
             Assert.Equal(facilityId.ToString(), delivered.SessionId);
-            var payload = JsonSerializer.Deserialize<CoursePointTimingAssociationsChangedV1>(delivered.Body.ToString(),
+            var payload = JsonSerializer.Deserialize<CourseConfigChangedV1>(delivered.Body.ToString(),
                 TimingAssociationMessagingTests.JsonOptions)!;
             Assert.Equal(message.ChangeId, payload.ChangeId);
         });
@@ -212,14 +212,14 @@ public sealed class TimingAssociationOutboxTests : IAsyncLifetime
     {
         var host = await StartHost(new ControlledSender());
         await using var scope = host.Services.CreateAsyncScope();
-        var publisher = scope.ServiceProvider.GetRequiredService<ITimingAssociationEventPublisher>();
+        var publisher = scope.ServiceProvider.GetRequiredService<ICourseConfigEventPublisher>();
         await Assert.ThrowsAsync<InvalidOperationException>(() => publisher.EnqueueAsync(TimingAssociationMessagingTests.Event()));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             publisher.EnqueueAsync(TimingAssociationMessagingTests.Event(), new CancellationToken(true)));
         Assert.Equal(0, await Scalar("SELECT count(*)::int FROM facility.smb_outbox"));
     }
 
-    private async Task<CoursePointTimingAssociationsChangedV1> CommitEvent(IHost host)
+    private async Task<CourseConfigChangedV1> CommitEvent(IHost host)
     {
         await using var scope = host.Services.CreateAsyncScope();
         var storage = scope.ServiceProvider.GetRequiredService<FacilityDbContext>();
@@ -229,7 +229,7 @@ public sealed class TimingAssociationOutboxTests : IAsyncLifetime
         return message;
     }
 
-    private async Task<CoursePointTimingAssociationsChangedV1> SaveAndEnqueue(IServiceProvider services, bool nonOverlapping = false)
+    private async Task<CourseConfigChangedV1> SaveAndEnqueue(IServiceProvider services, bool nonOverlapping = false)
     {
         var storage = services.GetRequiredService<FacilityDbContext>();
         var count = await storage.Set<CoursePointTimingAssociation>().CountAsync();
@@ -242,9 +242,9 @@ public sealed class TimingAssociationOutboxTests : IAsyncLifetime
         storage.Add(association);
         await storage.SaveChangesAsync();
         await storage.Entry(association).ReloadAsync(); // Event snapshots use PostgreSQL's persisted precision.
-        var message = new CoursePointTimingAssociationsChangedV1(Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow,
-            facilityId, [new(null, new(association.TimingPointId, coursePointId, association.ValidFromUtc, association.ValidToUtc))]);
-        await services.GetRequiredService<ITimingAssociationEventPublisher>().EnqueueAsync(message);
+        var message = new CourseConfigChangedV1(Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow,
+            facilityId, CourseConfigChangeKind.TimingAssociation, association.ValidFromUtc, association.ValidToUtc, null, [new(null, new(association.TimingPointId, coursePointId, association.ValidFromUtc, association.ValidToUtc))]);
+        await services.GetRequiredService<ICourseConfigEventPublisher>().EnqueueAsync(message);
         return message;
     }
 
@@ -256,7 +256,7 @@ public sealed class TimingAssociationOutboxTests : IAsyncLifetime
         builder.Services.AddDbContext<FacilityDbContext>(options => options
             .UseNpgsql(connectionString, pg => pg.MigrationsHistoryTable("__ef_migrations_history", "ef"))
             .UseSnakeCaseNamingConvention());
-        builder.AddTimingAssociationMessaging();
+        builder.AddCourseConfigMessaging();
         var busBuilder = (MessageBusBuilder)builder.Services.Single(service => service.ServiceType == typeof(MessageBusBuilder)).ImplementationInstance!;
         busBuilder.WithProviderServiceBus(options =>
         {
@@ -317,11 +317,11 @@ public sealed class TimingAssociationOutboxTests : IAsyncLifetime
         while (!await condition()) await Task.Delay(50, timeout.Token);
     }
 
-    private sealed class RejectSerialization : JsonConverter<CoursePointTimingAssociationsChangedV1>
+    private sealed class RejectSerialization : JsonConverter<CourseConfigChangedV1>
     {
-        public override CoursePointTimingAssociationsChangedV1? Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options) =>
+        public override CourseConfigChangedV1? Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options) =>
             throw new NotSupportedException();
-        public override void Write(Utf8JsonWriter writer, CoursePointTimingAssociationsChangedV1 value, JsonSerializerOptions options) =>
+        public override void Write(Utf8JsonWriter writer, CourseConfigChangedV1 value, JsonSerializerOptions options) =>
             throw new JsonException("Simulated serialization failure.");
     }
 
