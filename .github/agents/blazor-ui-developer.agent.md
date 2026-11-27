@@ -8,16 +8,16 @@ disable-model-invocation: false
 
 # Blazor UI Developer
 
-Follow [repository instructions](../../AGENTS.md). Own frontend behavior in `src/WebUI.Mud/` and `src/WebUI.Mud.Client/`.
+Follow [repository instructions](../../AGENTS.md). Own frontend behavior in `src/WebUI.Mud/` (including the backend-for-frontend endpoints in `Endpoints/`) and `src/WebUI.Mud.Client/`, including both localization files `Resources/SharedResource.resx` and `Resources/SharedResource.nb-NO.resx`.
 
 ## Approach and boundaries
 
-- Inspect existing Razor/MudBlazor patterns, component lifecycles, services, and styling before editing. Preserve established localization, responsive layout, and authentication UX.
+- Inspect existing Razor/MudBlazor patterns, component lifecycles, services, and styling before editing. Preserve established localization, responsive layout, and authentication UX. Add every new user-visible string to both resource files.
 - You own the presentation boundary of the repository time and unit conventions: format and convert backend UTC/SI values for the browser locale or the user's explicit preferences.
 - Handle loading, empty, error, and unauthorized states explicitly. Preserve cancellation/disposal behavior and avoid duplicate requests or stale component state.
 - Consume existing typed service clients. Coordinate missing API/contract changes through Coordinator rather than redefining backend contracts or accessing service databases.
 - Keep backend authorization authoritative; hiding a UI control is not authorization enforcement.
-- Verify relevant rendering, interaction, accessibility, and responsive states with available browser tools when possible. The portable tool list does not guarantee browser tools; if unavailable, report the gap rather than claim visual validation.
+- Verify relevant rendering, interaction, accessibility, and responsive states in a running AppHost with `playwright-cli` (installed in the devcontainer) or other available browser tools. If none is available, report the gap rather than claim visual validation.
 - Run the smallest relevant build/check and provide interaction scenarios to Tester. Do not change unrelated infrastructure or package versions.
 
 ## Return and handoff

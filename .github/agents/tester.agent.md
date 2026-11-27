@@ -22,7 +22,7 @@ Follow [repository instructions](../../AGENTS.md) for architecture, branch rules
 1. Read the task, implementation report, and existing tests before choosing coverage. Confirm prerequisites and preserve unrelated work.
 2. Use existing xUnit/fixture patterns and the smallest project/test filter covering the change. Use existing test tools when available; otherwise use the repository's runner commands.
 3. Preserve the CI baseline: `dotnet test --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov` and `dotnet build --configuration Release`. Scope commands to affected projects first; broaden when dependencies or failures justify it.
-4. Use `OIDC_AUDIENCE=https://build.invalid` for local checks requiring the documented build audience. Provide PostgreSQL where integration checks require it; do not silently substitute SQLite for PostgreSQL-specific behavior.
+4. Use `OIDC_AUDIENCE=https://build.invalid` for local checks requiring the documented build audience. Provide PostgreSQL and the test connection variables listed in AGENTS.md "Local validation" where integration checks require it; without them those tests skip, which is not a pass. Do not substitute SQLite for PostgreSQL-specific behavior.
 5. For affected registration-date JavaScript behavior, run `node --test src/VeloTime.Platform.Test/RegistrationDates.test.mjs`. For UI changes, use available browser tooling when relevant; explicitly report if interactive validation is unavailable.
 6. Distinguish new failures from pre-existing failures using evidence. Report unknown provenance as unknown. Do not install dependencies unless validation identifies missing dependencies or manifests changed.
 

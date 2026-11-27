@@ -16,7 +16,7 @@ Follow [repository instructions](../../AGENTS.md). Own shared hosting/configurat
 - Keep OpenTelemetry source/meter naming, discovery, resilience, and authentication configuration consistent across affected services. Domain authorization behavior belongs to API/UI owners.
 - Follow centrally managed packages and existing chart/release conventions. Do not change unrelated workflows, auto-approvals, or developer settings.
 - Never print, embed, or commit credentials. Use existing secret/configuration mechanisms and do not weaken authentication for a passing build.
-- Use existing focused validators/builds. Do not deploy, publish artifacts, apply infrastructure, run shared-database migrations, or mutate shared external services without appropriate explicit approval.
+- Validate with the checks in AGENTS.md "Local validation": helm lint/template and `python3 -m unittest discover -s charts/tests -v` for charts (CI runs them only for `master`), `actionlint` for workflows, and `yamllint` for YAML. Use other existing focused validators/builds as relevant. Do not deploy, publish artifacts, apply infrastructure, run shared-database migrations, or mutate shared external services without appropriate explicit approval.
 - Coordinate application, message-contract, and schema changes through Coordinator rather than taking ownership of those surfaces. Give Tester prerequisites and precise integration checks.
 
 ## Return and handoff

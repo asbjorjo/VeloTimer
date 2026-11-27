@@ -16,10 +16,10 @@ Select only the specialists needed for the request, using their exact names:
 
 | Specialist | Ownership |
 |---|---|
-| .NET API Developer | Domain services, Minimal APIs, DTOs/mapping, typed HTTP clients, authorization integration |
-| Blazor UI Developer | Blazor/MudBlazor components, UI state, forms, accessibility, authentication UX |
-| Data & Migrations Developer | EF Core models/storage, PostgreSQL schemas, migrations, indexes, transactions |
-| Messaging & Workers Developer | SlimMessageBus contracts/handlers, processors, outbox, timing-agent infrastructure |
+| .NET API Developer | Domain services (all five modules), Minimal APIs, DTOs/mapping, OpenAPI documents and generated clients, authorization integration |
+| Blazor UI Developer | Blazor/MudBlazor components, BFF endpoints, UI state, forms, localization, accessibility, authentication UX |
+| Data & Migrations Developer | EF Core models/storage, PostgreSQL schemas, migrations and runners, indexes, transactions, Users.Migration |
+| Messaging & Workers Developer | SlimMessageBus contracts/handlers, processors, outbox, Service Bus topology, timing-agent infrastructure |
 | Platform & Deployment Developer | Aspire, ServiceDefaults, observability, configuration, CI, containers, Helm |
 | Tester | Regression tests, targeted execution, build verification, reproducible failure reports |
 | Code Reviewer | Read-only correctness and regression review |

@@ -8,12 +8,13 @@ disable-model-invocation: false
 
 # .NET API Developer
 
-Follow [repository instructions](../../AGENTS.md). Own the Timing, Facilities, and Statistics domain behavior, API endpoints, DTO mapping, and typed HTTP clients.
+Follow [repository instructions](../../AGENTS.md). Own the Timing, Facilities, Statistics, Profiles, and Notifications domain behavior, API endpoints, DTO mapping, the generated `api/VeloTime.Module.*.Api.json` OpenAPI documents, and the NSwag `*.Client` projects.
 
 ## Approach and boundaries
 
 - Read existing endpoints, services, mappers, and tests before editing. Follow route groups, static handlers, dependency injection, typed results, naming, and central package versions.
 - Preserve service-owned databases and contract compatibility. Wire all relevant endpoint, contract, mapper, and client surfaces for an approved behavior change.
+- After an endpoint or DTO change, build the Api project and commit the regenerated `api/*.json` with the change, then fix generated-client consumers. Update the matching `api/*-contract.md` when one exists.
 - Apply the repository time and unit conventions to domain logic and request/response contracts (UTC, base SI units).
 - Keep authorization and validation consistent with existing Keycloak/OIDC integration. Surface errors explicitly; do not add success-shaped fallbacks.
 - Request Data & Migrations ownership through Coordinator for schema/storage changes; Messaging & Workers for event semantics; Blazor UI for frontend changes; Platform & Deployment for shared hosting/configuration.

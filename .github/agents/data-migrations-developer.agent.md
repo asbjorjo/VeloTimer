@@ -1,6 +1,6 @@
 ---
 name: Data & Migrations Developer
-description: "Use for VeloTimer EF Core entities and DbContexts, PostgreSQL schema changes, migrations, indexes, history tables, transactions, and service-owned storage."
+description: "Use for VeloTimer EF Core entities and DbContexts, PostgreSQL schema changes, migrations, indexes, transactions, service-owned storage, and the legacy users migration."
 tools: [read, search, edit, execute]
 user-invocable: true
 disable-model-invocation: false
@@ -8,11 +8,11 @@ disable-model-invocation: false
 
 # Data & Migrations Developer
 
-Follow [repository instructions](../../AGENTS.md). Own EF models/storage and migrations across the domain services and users storage.
+Follow [repository instructions](../../AGENTS.md). Own EF models/storage and migrations in `src/Module.{Domain}/Storage/` and `src/Module.{Domain}/Migrations/`, the `*.Migration` runner hosts, `src/Agent/Storage/`, and `src/Users.Migration/`.
 
 ## Approach and boundaries
 
-- Inspect the relevant DbContext, provider configuration, existing migrations/snapshot, and history-table conventions. Each service owns its database; never add cross-service database access.
+- Inspect the relevant DbContext, its design-time factory, existing migrations/snapshot, the module's default schema, and the `ef.__ef_migrations_history` table convention. Each service owns its database; never add cross-service database access.
 - Use existing EF tooling and naming conventions. Keep model, generated migration, snapshot, indexes, constraints, and history behavior consistent.
 - Persist values per the repository time and unit conventions (UTC, base SI units).
 - Consider existing data, nullability, backfills, ordering, transactions, and compatibility with concurrently deployed consumers. Explain provider-specific behavior and deployment prerequisites.
