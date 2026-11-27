@@ -1,6 +1,6 @@
 # Replay-safe, order-independent statistics: refactoring plan
 
-Status: draft for review. Planning only; no code changed.
+Status: decisions confirmed 2026-11-27; ready for implementation approval. Planning only; no code changed.
 Base: `v2` at `53ba7b9a`. Builds on, and partly supersedes, [PR #132](https://github.com/asbjorjo/VeloTimer/pull/132) and [`docs/research/agent-timing-statistics-messaging-plan.md`](./research/agent-timing-statistics-messaging-plan.md).
 
 ## 1. Requirements
@@ -79,7 +79,7 @@ A **session** is a maximal run of one transponder's passings at one facility in 
 - Late passing: it may fall inside a session, extend one, or join two sessions. The worker recomputes the merged session.
 - Config change over [from, to): the worker recomputes every session overlapping the interval for the affected facility, timing points or item.
 
-**Decision:** Multi windows are confined to one session. Today they can chain across arbitrary gaps.
+**Decided:** Multi windows are confined to one session; no cross-session chaining. Today they can chain across arbitrary gaps.
 
 ### 3.3 Dirty ranges and the recompute worker
 
@@ -88,7 +88,7 @@ A **session** is a maximal run of one transponder's passings at one facility in 
   1. loads the session's `PassingFact`s ordered by `(Time, PassingId)`, a deterministic tie-breaker (see §6);
   2. resolves each passing's timing point → course point at its **own** time, and each sample's layout/segment distance at its time, from the cached config history (§4.3), read once at the start of the session recompute;
   3. derives samples, then Simple entries per active config version, then Multi entries, then validity, then ownership;
-  4. **diffs** the result against stored rows by deterministic identity (§3.4): unchanged rows are left alone, changed rows are updated, missing rows are deleted, and new rows are inserted. It also enqueues any outgoing integration events into the outbox, which is only needed if something external consumes results.
+  4. **diffs** the result against stored rows by deterministic identity (§3.4): unchanged rows are left alone, changed rows are updated, missing rows are deleted, and new rows are inserted. It also publishes no result-change events (decision 5); add them through the outbox only when a consumer exists.
 - Bulk config-change recompute runs in the background with throttling and progress. Readers see each session switch atomically from old to new (eventual consistency, the same as the accepted threshold-revalidation behaviour).
 - Remove `SampleComplete`, `EntryCreated`, their handlers, subscriptions and outboxes (S4). Statistics no longer messages itself.
 
@@ -148,13 +148,13 @@ Statistics does not copy config into its own tables. It reads each owner's time-
 5. **Ownership** is applied in the recompute step from the cached ownership history, so `TransponderOwnershipChanged` simply becomes another dirty-range trigger.
 6. **Caching**: Statistics read caches are invalidated per affected facility/item after each recompute commit (existing `StatisticsCache` tags).
 
-## 6. Open decisions (recommendation in bold)
+## 6. Decisions (all decided 2026-11-27)
 
 1. ~~Threshold versioning~~ **Decided 2026-11-27: dated limits.** Duration/speed thresholds are versioned like all other config. A new limit applies from its `ValidFrom`. Applying a limit to older history needs an explicitly backdated start, which triggers a recompute from that date.
 2. ~~`SessionGap` default~~ **Decided 2026-11-27: 30 min, configurable.**
-3. **Confine Multi windows to one session**, or allow cross-session chaining.
-4. **Close #132** and reuse its parts, or merge it first as an interim duplicate fix and accept a second derived-data reset.
-5. Whether anything outside Statistics needs result-change events now. **Nothing does today**, so publish none until a consumer exists.
+3. **Decided: Multi windows stay within one session**; no cross-session chaining.
+4. **Decided: do not merge #132.** Close it once Phase 2 lands, reusing its precision helper, fixtures and test scenarios.
+5. **Decided: no outbound result-change events** until a consumer exists.
 
 ## 7. Phases
 
