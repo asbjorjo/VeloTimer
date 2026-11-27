@@ -147,6 +147,20 @@ public sealed class AgentOutboxTests : IAsyncLifetime
     }
 
     [PostgreSqlOutboxFact]
+    public async Task HardwarePassingIdIsStoredOptionalAndNeverOverwrittenByResends()
+    {
+        var host = await StartHost(new TestSender());
+        await using var scope = host.Services.CreateAsyncScope();
+        var service = scope.ServiceProvider.GetRequiredService<MessagingService>();
+        await service.SendEventsAsync([Passing("one", hardwarePassingId: "4711"), Passing("two")]);
+        await service.SendEventsAsync([Passing("one", hardwarePassingId: "9999"), Passing("two", hardwarePassingId: "42")]);
+        Assert.Equal(2, await Scalar("SELECT count(*)::int FROM agent.passing"));
+        Assert.Equal(1, await Scalar($"SELECT count(*)::int FROM agent.passing WHERE id = '{PassingId("one")}' AND hardware_passing_id = '4711'"));
+        Assert.Equal(1, await Scalar($"SELECT count(*)::int FROM agent.passing WHERE id = '{PassingId("two")}' AND hardware_passing_id IS NULL"));
+        Assert.Equal(2, await Scalar("SELECT count(*)::int FROM agent.smb_outbox"));
+    }
+
+    [PostgreSqlOutboxFact]
     public async Task PassingInsertRejectsNonUtcDateTimeKinds()
     {
         var host = await StartHost(new TestSender());
@@ -413,9 +427,10 @@ public sealed class AgentOutboxTests : IAsyncLifetime
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private static Passing Passing(string id, bool lowBattery = false, DateTime? time = null) => new()
+    private static Passing Passing(string id, bool lowBattery = false, DateTime? time = null, string? hardwarePassingId = null) => new()
     {
-        Id = PassingId(id), Time = time ?? DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = "loop", LowBattery = lowBattery
+        Id = PassingId(id), Time = time ?? DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = "loop", LowBattery = lowBattery,
+        HardwarePassingId = hardwarePassingId
     };
 
     private static async Task WaitUntil(Func<Task<bool>> condition)

@@ -30,6 +30,10 @@ namespace VeloTime.Agent.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("HardwarePassingId")
+                        .HasColumnType("text")
+                        .HasColumnName("hardware_passing_id");
+
                     b.Property<string>("LoopId")
                         .IsRequired()
                         .HasColumnType("text")

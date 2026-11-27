@@ -31,6 +31,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="VeloTime.Workers.Test" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Agent.Interface\VeloTime.Agent.Interface.csproj" />
     <ProjectReference Include="..\Module.Timing.Interface\VeloTime.Module.Timing.Interface.csproj" />
     <ProjectReference Include="..\ServiceDefaults\VeloTime.ServiceDefaults.csproj" />
