@@ -124,7 +124,7 @@ Every result-affecting config item gets **effective-dated versions** over a half
 | Timing point ↔ installation | Timing | created from agent layout | Treat as immutable. A loop moved to another installation gets a new timing point. |
 | **Required course points / required layout** | Statistics | mutable; edit-blocked once results exist | Move to `SimpleStatisticsConfigVersion`. Remove the edit block, because a new version from date X triggers a recompute from X. |
 | **Item distance, distance mode, start/end course points, Multi repetitions** | Statistics | mutable | The same versioned config (`StatisticsConfigVersion` for Simple and Multi). An entry references the version it was computed with. |
-| **Duration/speed thresholds** (global and per-config) | Statistics | mutable; history revalidated using current values | **Decision** (§6): version them like the rest, which is the requirement read literally, or keep "current thresholds apply to all history" as today. Recommended: version them. Then `StatisticsRevalidationService` and the `StatisticsValidityThresholdsChangedV1` flow fold into the recompute worker. |
+| **Duration/speed thresholds** (global and per-config) | Statistics | mutable; history revalidated using current values | Version them like the rest (decided, §6). `StatisticsRevalidationService` and the `StatisticsValidityThresholdsChangedV1` flow fold into the recompute worker. |
 | Statistics item/config existence (when a definition starts counting) | Statistics | none | A version's `ValidFrom` gives this for free. |
 | Manual invalidations | Statistics | per entry | Not config. They stay attached to the entry by deterministic ID (§5.4). |
 
@@ -150,7 +150,7 @@ Statistics does not copy config into its own tables. It reads each owner's time-
 
 ## 6. Open decisions (recommendation in bold)
 
-1. **Version duration thresholds by time** (requirement read literally), or keep current-thresholds-for-all-history.
+1. ~~Threshold versioning~~ **Decided 2026-11-27: dated limits.** Duration/speed thresholds are versioned like all other config. A new limit applies from its `ValidFrom`. Applying a limit to older history needs an explicitly backdated start, which triggers a recompute from that date.
 2. ~~`SessionGap` default~~ **Decided 2026-11-27: 30 min, configurable.**
 3. **Confine Multi windows to one session**, or allow cross-session chaining.
 4. **Close #132** and reuse its parts, or merge it first as an interim duplicate fix and accept a second derived-data reset.
@@ -168,7 +168,7 @@ Each phase deletes derived Statistics data and lets the recompute worker rebuild
 
 **Phase 3: Time-bound Facilities config.** Add `FacilityLayoutAssignment`, `CourseLayoutRevision`, the shared distance library, `CourseConfigChangedV1` (covering association, assignment and revision changes), per-facility history read endpoints, and admin UI effective-date editing that reuses the association editor's interval and conflict-confirmation pattern. Add the Statistics cached-history readers, evict-then-enqueue handlers and dirty-range triggers. Delete existing layouts and seed them again as unbounded revisions; Bootstrap reseeds.
 
-**Phase 4: Time-bound Timing and Statistics config.** Add `InstallationFacilityAssignment` with its event. Add `StatisticsConfigVersion` (required points, layout, distance, repetitions, and thresholds if decision 1 says so). Drop the structural edit block. Fold threshold revalidation and ownership reconcile into the worker.
+**Phase 4: Time-bound Timing and Statistics config.** Add `InstallationFacilityAssignment` with its event. Add `StatisticsConfigVersion` (required points, layout, distance, repetitions, thresholds). Drop the structural edit block. Fold threshold revalidation and ownership reconcile into the worker.
 
 **Phase 5: Operations.** Add an admin "recompute range" action and a progress view. Add metrics (dirty backlog, oldest dirty age, unresolved passings, review backlog, outbox age) and DLQ alerts. Document the runbook.
 
