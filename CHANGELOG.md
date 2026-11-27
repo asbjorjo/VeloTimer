@@ -21,6 +21,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.52"></a>
+## [2.1.0-alpha.52](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.52) (2026-11-27)
+
+### Features
+
+* **agent:** add deterministic UUIDv5 passing ID helper and hardware passing ID ([#143](https://www.github.com/asbjorjo/VeloTimer/issues/143)) ([3c41196](https://www.github.com/asbjorjo/VeloTimer/commit/3c411963952c6746515948ebddde20940d1ec45a))
+
 <a name="2.1.0-alpha.51"></a>
 ## [2.1.0-alpha.51](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.51) (2026-11-27)
 
