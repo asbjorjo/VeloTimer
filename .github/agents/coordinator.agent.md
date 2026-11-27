@@ -2,8 +2,6 @@
 name: Coordinator
 description: "Use for substantial VeloTimer tasks spanning implementation, tests, or review. Delegate to API, Blazor, data, messaging, platform, tester, and reviewer specialists and coordinate their handoffs."
 tools: [read, search, execute, agent, todo]
-user-invocable: true
-disable-model-invocation: false
 ---
 
 # Coordinator

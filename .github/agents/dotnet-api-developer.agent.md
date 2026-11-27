@@ -2,8 +2,6 @@
 name: .NET API Developer
 description: "Use for .NET 10 domain services, ASP.NET Core Minimal APIs, typed results, DTO mapping, HTTP clients, validation, and authorization integration in VeloTimer."
 tools: [read, search, edit, execute]
-user-invocable: true
-disable-model-invocation: false
 ---
 
 # .NET API Developer

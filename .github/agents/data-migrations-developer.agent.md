@@ -2,8 +2,6 @@
 name: Data & Migrations Developer
 description: "Use for VeloTimer EF Core entities and DbContexts, PostgreSQL schema changes, migrations, indexes, transactions, service-owned storage, and the legacy users migration."
 tools: [read, search, edit, execute]
-user-invocable: true
-disable-model-invocation: false
 ---
 
 # Data & Migrations Developer

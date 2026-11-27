@@ -2,8 +2,6 @@
 name: Platform & Deployment Developer
 description: "Use for VeloTimer Aspire AppHost, ServiceDefaults, service discovery, OpenTelemetry, resilience, Keycloak configuration, CI workflows, container publishing, and Helm deployments."
 tools: [read, search, edit, execute]
-user-invocable: true
-disable-model-invocation: false
 ---
 
 # Platform & Deployment Developer

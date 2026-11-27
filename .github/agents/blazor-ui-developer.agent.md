@@ -2,8 +2,6 @@
 name: Blazor UI Developer
 description: "Use for VeloTimer Blazor Server and MudBlazor UI, Razor components, forms, UI state, accessibility, typed service-client integration, and authentication UX."
 tools: [read, search, edit, execute]
-user-invocable: true
-disable-model-invocation: false
 ---
 
 # Blazor UI Developer

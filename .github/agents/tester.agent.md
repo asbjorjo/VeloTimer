@@ -2,8 +2,6 @@
 name: Tester
 description: "Use to add or update xUnit regression tests, run targeted .NET tests and builds, validate API/domain/worker/platform changes, and report reproducible failures in VeloTimer."
 tools: [read, search, edit, execute]
-user-invocable: true
-disable-model-invocation: false
 ---
 
 # Tester

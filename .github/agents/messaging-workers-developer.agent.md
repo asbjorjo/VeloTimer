@@ -2,8 +2,6 @@
 name: Messaging & Workers Developer
 description: "Use for VeloTimer SlimMessageBus events and consumers, Timing/Facilities/Statistics/Notifications processors, Azure Service Bus topology, outbox delivery, worker reliability, shared timing-agent infrastructure, and the dummy agent."
 tools: [read, search, edit, execute]
-user-invocable: true
-disable-model-invocation: false
 ---
 
 # Messaging & Workers Developer

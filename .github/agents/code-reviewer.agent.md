@@ -2,8 +2,6 @@
 name: Code Reviewer
 description: "Use for read-only VeloTimer change review: correctness, regressions, API/event compatibility, service boundaries, UI behavior, data safety, and meaningful test gaps."
 tools: [read, search]
-user-invocable: true
-disable-model-invocation: false
 ---
 
 # Code Reviewer
