@@ -25,8 +25,8 @@ public class AgentService(InstallationService installationService, TimingDbConte
     public async Task<PassingRegistration> RegisterPassingAsync(PassingObservation observation, CancellationToken cancellationToken = default)
     {
         using var activity = Instrumentation.Source.StartActivity("RegisterPassing");
-        if (string.IsNullOrWhiteSpace(observation.SourcePassingId))
-            throw new ArgumentException("A passing observation must carry the agent's SourcePassingId.", nameof(observation));
+        if (observation.SourcePassingId == Guid.Empty)
+            throw new ArgumentException("A passing observation must carry the agent's SourcePassingId UUID.", nameof(observation));
         activity?.SetTag("SourcePassingId", observation.SourcePassingId);
 
         // Identity resolution creates configuration rows idempotently and outside the fact transaction,

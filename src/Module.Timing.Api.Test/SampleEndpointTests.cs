@@ -87,7 +87,7 @@ public sealed class SampleEndpointTests(TimingApiFactory factory) : IClassFixtur
     private static Passing Passing(Guid transponder, TimingPoint point, int seconds) => new()
     {
         Id = Guid.NewGuid(),
-        SourcePassingId = Guid.NewGuid().ToString(),
+        SourcePassingId = Guid.NewGuid(),
         InstallationId = point.InstallationId,
         TransponderId = transponder,
         TimingPointId = point.Id,

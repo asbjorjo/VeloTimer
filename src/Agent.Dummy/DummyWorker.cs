@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SlimMessageBus;
 using VeloTime.Agent.Interface.Messages.Events;
@@ -49,7 +49,7 @@ namespace VeloTime.Agent.Dummy
                     nextLoop[transponder] = (loop + 1) % Loops.Length;
 
                     var passing = new PassingObservedV1(
-                        SourcePassingId: Guid.NewGuid().ToString(),
+                        SourcePassingId: Guid.NewGuid(),
                         Time: DateTime.UtcNow,
                         TransponderType: "DummyType",
                         TransponderId: transponder,

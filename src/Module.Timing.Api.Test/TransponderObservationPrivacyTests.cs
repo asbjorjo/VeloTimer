@@ -125,8 +125,8 @@ public sealed class TransponderObservationPrivacyTests(TimingApiFactory factory)
             db.Add(transponder);
             // Inclusive caller start; exclusive caller end; other rider; future (even if owned).
             foreach (var time in new[] { day.AddDays(-7), day.AddDays(-6), day.AddDays(-5), day.AddDays(-3), day.AddHours(12), day.AddDays(3) })
-                if (!(current && index == 1 && time == day.AddHours(12))) db.Add(new Passing { Id = Guid.NewGuid(), Transponder = transponder, TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid().ToString(), Time = time });
-            if (current && index == 1) db.Add(new Passing { Id = Guid.NewGuid(), Transponder = transponder, TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid().ToString(), Time = day.AddDays(-1) });
+                if (!(current && index == 1 && time == day.AddHours(12))) db.Add(new Passing { Id = Guid.NewGuid(), Transponder = transponder, TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid(), Time = time });
+            if (current && index == 1) db.Add(new Passing { Id = Guid.NewGuid(), Transponder = transponder, TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid(), Time = day.AddDays(-1) });
             if (current && index == 0) transponder.Owners.Last().OwnedFrom = day.AddHours(18); // Current period with no sightings: retain earlier owned sighting.
         }
         await db.SaveChangesAsync();
@@ -137,7 +137,7 @@ public sealed class TransponderObservationPrivacyTests(TimingApiFactory factory)
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<TimingDbContext>();
         var point = await db.Set<TimingPoint>().SingleAsync();
-        db.Add(new Passing { Id = Guid.NewGuid(), TransponderId = id, TimingPointId = point.Id, InstallationId = point.InstallationId, SourcePassingId = Guid.NewGuid().ToString(), Time = time });
+        db.Add(new Passing { Id = Guid.NewGuid(), TransponderId = id, TimingPointId = point.Id, InstallationId = point.InstallationId, SourcePassingId = Guid.NewGuid(), Time = time });
         await db.SaveChangesAsync();
     }
 }

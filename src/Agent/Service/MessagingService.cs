@@ -49,6 +49,8 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
 
     private async Task<Passing[]> PreparePassingsAsync(Passing[] batch, CancellationToken cancellationToken)
     {
+        // Reject the whole batch before anything is stored if an ID cannot become a SourcePassingId.
+        foreach (var passing in batch) PassingIds.Parse(passing.Id);
         var unique = batch.DistinctBy(p => p.Id).ToArray();
         // Insert in a stable key order so concurrent overlapping batches acquire row locks consistently.
         var ordered = unique.OrderBy(p => p.Id, StringComparer.Ordinal).ToArray();

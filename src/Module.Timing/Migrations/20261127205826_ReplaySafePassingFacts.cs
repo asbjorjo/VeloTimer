@@ -19,6 +19,7 @@ namespace VeloTime.Module.Timing.Migrations
                 schema: "timing");
 
             migrationBuilder.Sql("DELETE FROM timing.passing;");
+
             migrationBuilder.AddColumn<Guid>(
                 name: "installation_id",
                 schema: "timing",
@@ -27,14 +28,13 @@ namespace VeloTime.Module.Timing.Migrations
                 nullable: false,
                 defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
 
-            migrationBuilder.AddColumn<string>(
+            migrationBuilder.AddColumn<Guid>(
                 name: "source_passing_id",
                 schema: "timing",
                 table: "passing",
-                type: "character varying(256)",
-                maxLength: 256,
+                type: "uuid",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
 
             migrationBuilder.CreateTable(
                 name: "passing_conflict",
@@ -43,7 +43,7 @@ namespace VeloTime.Module.Timing.Migrations
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     installation_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    source_passing_id = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    source_passing_id = table.Column<Guid>(type: "uuid", nullable: false),
                     reason = table.Column<int>(type: "integer", nullable: false),
                     existing_passing_id = table.Column<Guid>(type: "uuid", nullable: false),
                     transponder_id = table.Column<Guid>(type: "uuid", nullable: false),

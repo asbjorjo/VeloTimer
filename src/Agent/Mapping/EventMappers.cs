@@ -2,13 +2,21 @@ using VeloTime.Agent.Interface.Messages.Events;
 
 namespace VeloTime.Agent.Model;
 
+public static class PassingIds
+{
+    /// <summary>Agent passing IDs must be UUIDs; they become <see cref="PassingObservedV1.SourcePassingId"/>.</summary>
+    public static Guid Parse(string id) => Guid.TryParse(id, out var value) && value != Guid.Empty
+        ? value
+        : throw new ArgumentException($"Agent passing ID '{id}' is not a UUID; agents must identify passings with UUIDs.", nameof(id));
+}
+
 public static class EventMappers
 {
     public static PassingObservedV1 ToMessage(this Passing passing)
     {
         return new PassingObservedV1
         (
-            SourcePassingId: passing.Id,
+            SourcePassingId: PassingIds.Parse(passing.Id),
             Time: passing.Time,
             LoopId: passing.LoopId,
             TransponderId: passing.TransponderId,

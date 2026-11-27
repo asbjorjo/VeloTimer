@@ -29,7 +29,6 @@ public class TimingDbContext : BaseDbContext
                 .WithMany()
                 .IsRequired()
                 .OnDelete(DeleteBehavior.ClientNoAction);
-            e.Property(p => p.SourcePassingId).HasMaxLength(256);
             // Observation identity: an agent's passing ID is unique within its installation.
             e.HasIndex(p => new { p.InstallationId, p.SourcePassingId }).IsUnique();
             // One recorded fact per transponder, timing point and instant.
@@ -41,7 +40,6 @@ public class TimingDbContext : BaseDbContext
 
         modelBuilder.Entity<PassingConflict>(e =>
         {
-            e.Property(c => c.SourcePassingId).HasMaxLength(256);
             e.HasIndex(c => new
             {
                 c.InstallationId, c.SourcePassingId, c.Reason, c.TransponderId, c.TimingPointId, c.Time,

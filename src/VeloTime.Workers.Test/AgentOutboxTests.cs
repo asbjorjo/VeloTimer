@@ -207,7 +207,7 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         await second;
 
         Assert.Equal(2, await Scalar("SELECT count(*)::int FROM agent.passing"));
-        Assert.Equal(1, await Scalar("SELECT count(*)::int FROM agent.passing WHERE id = 'shared' AND low_battery"));
+        Assert.Equal(1, await Scalar($"SELECT count(*)::int FROM agent.passing WHERE id = '{PassingId("shared")}' AND low_battery"));
         Assert.Equal(2, await Scalar("SELECT count(*)::int FROM agent.smb_outbox"));
         Assert.Equal(1, await OutboxPassingCount("shared"));
         Assert.Equal(1, await OutboxPassingCount("second-only"));
@@ -232,13 +232,17 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         Assert.Equal(ids.Order(StringComparer.Ordinal), enqueued.Order(StringComparer.Ordinal));
     }
 
-    // PassingObservedV1 carries the agent's passing ID.
+    // KeyedPassing labels each passing by its LoopId; its UUID passing ID is derived from the same label.
     private const string OutboxPassingId =
-        "coalesce(convert_from(message_payload, 'UTF8')::jsonb->>'SourcePassingId', convert_from(message_payload, 'UTF8')::jsonb->>'sourcePassingId')";
+        "coalesce(convert_from(message_payload, 'UTF8')::jsonb->>'LoopId', convert_from(message_payload, 'UTF8')::jsonb->>'loopId')";
+
+    /// <summary>Agents must use UUID passing IDs; tests keep readable labels and derive a stable UUID from each.</summary>
+    private static string PassingId(string label) =>
+        new Guid(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(label))).ToString();
 
     private static Passing KeyedPassing(string id, bool lowBattery = false) => new()
     {
-        Id = id, Time = DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = id, LowBattery = lowBattery
+        Id = PassingId(id), Time = DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = id, LowBattery = lowBattery
     };
 
     private Task<int> OutboxPassingCount(string id) =>
@@ -267,7 +271,7 @@ public sealed class AgentOutboxTests : IAsyncLifetime
     public async Task PassingInsertFailureRollsBackPreviouslyInsertedOutboxEvents()
     {
         var host = await StartHost(new TestSender());
-        await Execute(connectionString, "ALTER TABLE agent.passing ADD CONSTRAINT reject_two CHECK (id <> $$two$$)");
+        await Execute(connectionString, $"ALTER TABLE agent.passing ADD CONSTRAINT reject_two CHECK (id <> '{PassingId("two")}')");
         await using var scope = host.Services.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<MessagingService>();
         await Assert.ThrowsAsync<DbUpdateException>(() => service.SendEventsAsync([Passing("one"), Passing("two")]));
@@ -411,7 +415,7 @@ public sealed class AgentOutboxTests : IAsyncLifetime
 
     private static Passing Passing(string id, bool lowBattery = false, DateTime? time = null) => new()
     {
-        Id = id, Time = time ?? DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = "loop", LowBattery = lowBattery
+        Id = PassingId(id), Time = time ?? DateTime.UtcNow, TransponderType = "X2", TransponderId = "123", LoopId = "loop", LowBattery = lowBattery
     };
 
     private static async Task WaitUntil(Func<Task<bool>> condition)

@@ -12,7 +12,7 @@ using VeloTime.Module.Timing.Storage;
 namespace VeloTime.Module.Timing.Migrations
 {
     [DbContext(typeof(TimingDbContext))]
-    [Migration("20261127201621_ReplaySafePassingFacts")]
+    [Migration("20261127205826_ReplaySafePassingFacts")]
     partial class ReplaySafePassingFacts
     {
         /// <inheritdoc />
@@ -84,10 +84,8 @@ namespace VeloTime.Module.Timing.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("low_strength");
 
-                    b.Property<string>("SourcePassingId")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
+                    b.Property<Guid>("SourcePassingId")
+                        .HasColumnType("uuid")
                         .HasColumnName("source_passing_id");
 
                     b.Property<DateTime>("Time")
@@ -168,10 +166,8 @@ namespace VeloTime.Module.Timing.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("reason");
 
-                    b.Property<string>("SourcePassingId")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
+                    b.Property<Guid>("SourcePassingId")
+                        .HasColumnType("uuid")
                         .HasColumnName("source_passing_id");
 
                     b.Property<DateTime>("Time")

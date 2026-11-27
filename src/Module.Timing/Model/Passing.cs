@@ -4,8 +4,8 @@ public class Passing {
     public Guid Id { get; init; }
     /// <summary>The installation (agent) that observed the passing; part of the observation identity.</summary>
     public Guid InstallationId { get; init; }
-    /// <summary>The agent's own passing ID. Unique per installation.</summary>
-    public required string SourcePassingId { get; init; }
+    /// <summary>The agent's own passing ID (a UUID). Unique per installation.</summary>
+    public required Guid SourcePassingId { get; init; }
     public Guid TransponderId { get; init; }
     public Guid TimingPointId { get; init; }
     public required DateTime Time { get; init; }

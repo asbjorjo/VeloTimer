@@ -70,8 +70,8 @@ public sealed partial class TimingEndpointTests(TimingApiFactory factory) : ICla
             var unseen = new MylapsX2Transponder { Id = unseenId, SystemId = "106187719" };
             storage.AddRange(installation, seen, unseen);
             storage.AddRange(
-                new Passing { Id = Guid.NewGuid(), Time = older, Transponder = seen, TransponderId = seen.Id, TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid().ToString(), TimingPointId = timingPoint.Id },
-                new Passing { Id = Guid.NewGuid(), Time = latest, Transponder = seen, TransponderId = seen.Id, TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid().ToString(), TimingPointId = timingPoint.Id });
+                new Passing { Id = Guid.NewGuid(), Time = older, Transponder = seen, TransponderId = seen.Id, TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid(), TimingPointId = timingPoint.Id },
+                new Passing { Id = Guid.NewGuid(), Time = latest, Transponder = seen, TransponderId = seen.Id, TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid(), TimingPointId = timingPoint.Id });
             await storage.SaveChangesAsync();
         }
 

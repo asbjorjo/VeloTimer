@@ -5,7 +5,7 @@ namespace VeloTime.Module.Timing.Service;
 /// <summary>A passing as reported by an agent, before Timing resolves its identities.</summary>
 public sealed record PassingObservation(
     string AgentId,
-    string SourcePassingId,
+    Guid SourcePassingId,
     string TransponderId,
     string TransponderType,
     string LoopId,

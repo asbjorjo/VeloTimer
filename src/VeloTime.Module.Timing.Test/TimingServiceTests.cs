@@ -62,7 +62,7 @@ public sealed class TimingServiceTests
             Id = Guid.NewGuid(),
             Time = DateTime.UtcNow,
             Transponder = transponder,
-            TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid().ToString(),
+            TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid(),
             TransponderId = transponder.Id,
             TimingPointId = timingPoint.Id
         };
@@ -149,7 +149,7 @@ public sealed class TimingServiceTests
             TransponderId = transponder.Id,
             Transponder = transponder,
             TimingPointId = timingPoint.Id,
-            TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid().ToString()
+            TimingPoint = timingPoint, Installation = timingPoint.Installation, SourcePassingId = Guid.NewGuid()
         });
 
         static MylapsX2Transponder CreateTransponder(string label) => new()
@@ -193,7 +193,7 @@ public sealed class TimingServiceTests
         Assert.Equal(PassingRegistrationOutcome.Recorded, first.Outcome);
         Assert.Equal(timestamp.AddTicks(-7), first.Passing.Time); // Stored at timestamptz (1 µs) precision.
         var stored = await database.Storage.Set<Passing>().SingleAsync();
-        Assert.Equal("p-1", stored.SourcePassingId);
+        Assert.Equal(Id("p-1"), stored.SourcePassingId);
         Assert.Equal((await database.Storage.Set<Installation>().SingleAsync()).Id, stored.InstallationId);
         var recorded = Assert.IsType<PassingRecordedV1>(Assert.Single(database.Bus.Published));
         Assert.Equal(new PassingRecordedV1(stored.Id, stored.InstallationId, stored.TimingPointId, stored.TransponderId, stored.Time,
@@ -284,7 +284,7 @@ public sealed class TimingServiceTests
             Assert.Equal(PassingRegistrationOutcome.Recorded,
                 (await database.AgentService.RegisterPassingAsync(Observation("late-agent", id, "106187724", "finish", start.AddSeconds(seconds)))).Outcome);
 
-        Assert.Equal(["p-1", "p-2", "p-3"], await database.Storage.Set<Passing>().OrderBy(p => p.Time).Select(p => p.SourcePassingId).ToListAsync());
+        Assert.Equal([Id("p-1"), Id("p-2"), Id("p-3")], await database.Storage.Set<Passing>().OrderBy(p => p.Time).Select(p => p.SourcePassingId).ToListAsync());
         Assert.Equal(3, database.Bus.Published.Count);
     }
 
@@ -309,12 +309,15 @@ public sealed class TimingServiceTests
         await using var database = await TestDatabase.CreateAsync();
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            database.AgentService.RegisterPassingAsync(Observation("agent-x", " ", "106187721", "loop-1", DateTime.UtcNow)));
+            database.AgentService.RegisterPassingAsync(Observation("agent-x", "x", "106187721", "loop-1", DateTime.UtcNow) with { SourcePassingId = Guid.Empty }));
     }
 
     private static PassingObservation Observation(string agentId, string sourcePassingId, string transponderId, string loopId,
         DateTime time, bool lowBattery = false, bool lowStrength = false, bool lowHits = false) =>
-        new(agentId, sourcePassingId, transponderId, "X2", loopId, time, lowBattery, lowStrength, lowHits);
+        new(agentId, Id(sourcePassingId), transponderId, "X2", loopId, time, lowBattery, lowStrength, lowHits);
+
+    /// <summary>A stable UUID per readable test label.</summary>
+    private static Guid Id(string label) => new(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(label)));
 
     public class RecordingBus : DispatchProxy
     {

@@ -50,9 +50,9 @@ public sealed partial class TimingEndpointTests
                     continue; // open ownership and null last-seen must not match.
                 }
                 db.Add(new TransponderOwner { Id = Guid.NewGuid(), TransponderId = ids[i], OwnerId = i == 2 ? Guid.NewGuid() : TestAuthenticationHandler.DefaultOwnerId, OwnedFrom = field == "ownedFrom" ? boundaries[i] : start.AddDays(-2), OwnedTo = field == "ownedTo" ? boundaries[i] : null });
-                db.Add(new Passing { Id = Guid.NewGuid(), TransponderId = ids[i], Time = boundaries[i], TimingPointId = point.Id, TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid().ToString() });
+                db.Add(new Passing { Id = Guid.NewGuid(), TransponderId = ids[i], Time = boundaries[i], TimingPointId = point.Id, TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid() });
                 // MAX(last-seen), not any historical passing, decides matching.
-                if (i == 3) db.Add(new Passing { Id = Guid.NewGuid(), TransponderId = ids[i], Time = start.AddHours(1), TimingPointId = point.Id, TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid().ToString() });
+                if (i == 3) db.Add(new Passing { Id = Guid.NewGuid(), TransponderId = ids[i], Time = start.AddHours(1), TimingPointId = point.Id, TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid() });
             }
             await db.SaveChangesAsync();
         }

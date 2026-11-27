@@ -37,6 +37,8 @@ namespace VeloTime.Workers.Test;
 
 public sealed class WorkerHandlerTests
 {
+    private static readonly Guid SourceId = Guid.Parse("6f1c2d4e-0000-4000-8000-000000000042");
+
     [Fact]
     public async Task AgentControlHandlers_DelegatePauseAndResumeCommands()
     {
@@ -83,7 +85,7 @@ public sealed class WorkerHandlerTests
         await service.SendEventAsync(new VeloTime.Agent.Model.LoopStatus { Time = time, LoopId = "loop-1", Noise = 0.25 });
         await service.SendEventsAsync([new VeloTime.Agent.Model.Passing
         {
-            Id = "passing-1", Time = time, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1",
+            Id = "6f1c2d4e-0000-4000-8000-000000000001", Time = time, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1",
             LowBattery = true, LowStrength = true, LowHits = true
         }]);
         await service.SendEventsAsync([segment]);
@@ -95,12 +97,36 @@ public sealed class WorkerHandlerTests
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopConfigEvent>(recorder.Published[1].Payload);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent>(recorder.Published[2].Payload);
         var sentPassing = Assert.IsType<PassingObservedV1>(recorder.Published[3].Payload);
-        Assert.Equal("passing-1", sentPassing.SourcePassingId);
+        Assert.Equal(Guid.Parse("6f1c2d4e-0000-4000-8000-000000000001"), sentPassing.SourcePassingId);
         Assert.True(sentPassing.LowBattery && sentPassing.LowStrength && sentPassing.LowHits);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.SegmentConfigEvent>(recorder.Published[4].Payload);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.SystemConfigEvent>(recorder.Published[5].Payload);
         var storedPassing = await storage.Set<VeloTime.Agent.Model.Passing>().SingleAsync();
         Assert.True(storedPassing.LowBattery && storedPassing.LowStrength && storedPassing.LowHits);
+    }
+
+    [Fact]
+    public async Task AgentMessagingService_RejectsBatchesWithNonUuidPassingIds()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<AgentDbContext>().UseSqlite(connection).Options;
+        await using var storage = new AgentDbContext(options);
+        await storage.Database.EnsureCreatedAsync();
+        var (messageBus, recorder) = RecordingMessageBus.Create();
+        using var serviceProvider = new ServiceCollection().AddMetrics().BuildServiceProvider();
+        var service = new MessagingService(messageBus, storage,
+            new VeloTime.Agent.Metrics(serviceProvider.GetRequiredService<IMeterFactory>()), NullLogger<MessagingService>.Instance);
+        VeloTime.Agent.Model.Passing Passing(string id) => new()
+        {
+            Id = id, Time = DateTime.UtcNow, TransponderType = "X2", TransponderId = "106187718", LoopId = "loop-1"
+        };
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.SendEventsAsync([Passing(Guid.NewGuid().ToString()), Passing("hardware-42")]));
+
+        Assert.Empty(recorder.Published);
+        Assert.Empty(await storage.Set<VeloTime.Agent.Model.Passing>().ToListAsync());
     }
 
     [Fact]
@@ -250,10 +276,10 @@ public sealed class WorkerHandlerTests
         };
         var time = DateTime.UtcNow;
 
-        await handler.OnHandle(new PassingObservedV1("p-42", time, "X2", "106187718", "loop-1")
+        await handler.OnHandle(new PassingObservedV1(SourceId, time, "X2", "106187718", "loop-1")
             { LowBattery = true, LowStrength = true, LowHits = true }, CancellationToken.None);
 
-        Assert.Equal(new PassingObservation("agent-test", "p-42", "106187718", "X2", "loop-1", time, true, true, true),
+        Assert.Equal(new PassingObservation("agent-test", SourceId, "106187718", "X2", "loop-1", time, true, true, true),
             agentProxy.Observation);
     }
 
@@ -268,7 +294,7 @@ public sealed class WorkerHandlerTests
         };
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => handler.OnHandle(
-            new PassingObservedV1("p-1", DateTime.UtcNow, "X2", "106187718", "loop-1"), CancellationToken.None));
+            new PassingObservedV1(SourceId, DateTime.UtcNow, "X2", "106187718", "loop-1"), CancellationToken.None));
         Assert.Null(((RecordingAgentService)(object)agentService).Observation);
     }
 

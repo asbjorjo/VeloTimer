@@ -16,7 +16,7 @@ public class PassingConflict
 {
     public Guid Id { get; init; }
     public Guid InstallationId { get; init; }
-    public required string SourcePassingId { get; init; }
+    public required Guid SourcePassingId { get; init; }
     public PassingConflictReason Reason { get; init; }
     /// <summary>The recorded passing the observation conflicts with.</summary>
     public Guid ExistingPassingId { get; init; }
