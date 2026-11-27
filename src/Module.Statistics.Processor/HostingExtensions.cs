@@ -3,6 +3,7 @@ using OpenTelemetry.Trace;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
+using VeloTime.Module.Common.Operations;
 using VeloTime.Module.Facilities.Interface.Messages;
 using VeloTime.Module.Statistics;
 using VeloTime.Module.Statistics.Handlers;
@@ -90,12 +91,20 @@ internal static class StartupExtensions
         services.AddScoped<StatisticsConfigurationHistory>();
         services.AddScoped<StatisticsRecomputeService>();
         services.AddHostedService<StatisticsRecomputeWorker>();
+        services.AddOptions<StatisticsBacklogMonitorOptions>()
+            .Bind(configuration.GetSection(StatisticsBacklogMonitorOptions.Section))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddHostedService<StatisticsBacklogMonitor>();
 
         services.AddFacilitiesClient()
             .AddDefaultAccessTokenResiliency()
             .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("velotime.statistics.processor"));
 
         builder.AddModuleStatistics();
+        builder.AddDeadLetterMonitor(
+            new DeadLetterSubscription("velotime-timing", "statistics"),
+            new DeadLetterSubscription("velotime-facilities", "statistics"));
 
         return builder;
     }

@@ -37,6 +37,20 @@ public class StatisticsDbContext : BaseDbContext
             e.Property(r => r.LastError).HasMaxLength(2000);
             e.HasIndex(r => new { r.TransponderId, r.Id }).HasDatabaseName("ix_recompute_request_transponder_id");
             e.HasIndex(r => new { r.NotBeforeUtc, r.Id }).HasDatabaseName("ix_recompute_request_not_before_id");
+            // Recompute job progress counts the job's remaining requests.
+            e.HasIndex(r => r.CausationId).HasDatabaseName("ix_recompute_request_causation");
+        });
+        modelBuilder.Entity<RecomputeJob>(e =>
+        {
+            e.Property(j => j.Note).HasMaxLength(500);
+            e.HasIndex(j => new { j.CreatedAtUtc, j.Id }).HasDatabaseName("ix_recompute_job_created_id");
+        });
+        modelBuilder.Entity<UnresolvedPassing>(e =>
+        {
+            e.HasKey(p => p.PassingId);
+            e.Property(p => p.Reason).HasConversion<string>().HasMaxLength(32);
+            // The worker replaces one transponder's rows over a cluster's time span.
+            e.HasIndex(p => new { p.TransponderId, p.Time }).HasDatabaseName("ix_unresolved_passing_transponder_time");
         });
         modelBuilder.Entity<ManualDecisionReview>(e =>
         {

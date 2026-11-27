@@ -153,6 +153,59 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.ToTable("passing_fact", "statistics");
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.RecomputeJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at_utc");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateTime?>("FromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("from_utc");
+
+                    b.Property<Guid?>("InstallationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("installation_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<DateTime?>("ToUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("to_utc");
+
+                    b.Property<int?>("TotalTransponders")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_transponders");
+
+                    b.Property<Guid?>("TransponderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transponder_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_recompute_job");
+
+                    b.HasIndex("CreatedAtUtc", "Id")
+                        .HasDatabaseName("ix_recompute_job_created_id");
+
+                    b.ToTable("recompute_job", "statistics");
+                });
+
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.RecomputeRequest", b =>
                 {
                     b.Property<long>("Id")
@@ -207,6 +260,9 @@ namespace VeloTime.Module.Statistics.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_recompute_request");
+
+                    b.HasIndex("CausationId")
+                        .HasDatabaseName("ix_recompute_request_causation");
 
                     b.HasIndex("NotBeforeUtc", "Id")
                         .HasDatabaseName("ix_recompute_request_not_before_id");
@@ -618,6 +674,52 @@ namespace VeloTime.Module.Statistics.Migrations
                     NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("ProfileName"), new[] { "gin_trgm_ops" });
 
                     b.ToTable("stats_profile", "statistics");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.UnresolvedPassing", b =>
+                {
+                    b.Property<Guid>("PassingId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("passing_id");
+
+                    b.Property<DateTime>("DetectedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("detected_at_utc");
+
+                    b.Property<Guid?>("FacilityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("facility_id");
+
+                    b.Property<Guid>("InstallationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("installation_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTime>("Time")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("time");
+
+                    b.Property<Guid>("TimingPointId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("timing_point_id");
+
+                    b.Property<Guid>("TransponderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transponder_id");
+
+                    b.HasKey("PassingId")
+                        .HasName("pk_unresolved_passing");
+
+                    b.HasIndex("TransponderId", "Time")
+                        .HasDatabaseName("ix_unresolved_passing_transponder_time");
+
+                    b.ToTable("unresolved_passing", "statistics");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.MultiStatisticsItemConfig", b =>
