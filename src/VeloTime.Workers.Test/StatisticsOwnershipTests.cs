@@ -158,13 +158,10 @@ public sealed class StatisticsOwnershipTests
         await database.Storage.SaveChangesAsync();
         database.Reader.Failure = new HttpRequestException("Timing unavailable");
         await Assert.ThrowsAsync<HttpRequestException>(() => database.Service.ReconcileAsync(database.Change(null, owner), CancellationToken.None));
-        var created = false;
-        await Assert.ThrowsAsync<HttpRequestException>(() => database.Service.CreateEntriesAsync(database.TransponderId, _ =>
-        {
-            created = true;
-            return Task.FromResult<IEnumerable<StatisticsEntry>>([]);
-        }, CancellationToken.None));
-        Assert.False(created);
+        var derived = database.Entry(6, 8);
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            database.Service.ApplyOwnersAsync(database.TransponderId, [derived], CancellationToken.None));
+        Assert.Null(derived.StatsProfileUserId);
         database.Reader.Failure = null;
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
@@ -190,19 +187,15 @@ public sealed class StatisticsOwnershipTests
     }
 
     [Fact]
-    public async Task AssignmentFailureRollsBackEntriesAlreadySavedByCreation()
+    public async Task ConflictingOwnersFailRecomputeOwnershipBeforeAnythingIsSaved()
     {
         await using var database = await Database.CreateAsync();
         var owner = database.Owner(0, null);
         database.Reader.Owners = [owner, owner with { Id = Guid.NewGuid(), OwnerId = Guid.NewGuid() }];
+        var entry = database.Entry(1, 5);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => database.Service.CreateEntriesAsync(database.TransponderId, async cancel =>
-        {
-            var entry = database.Entry(1, 5);
-            database.Storage.Add(entry);
-            await database.Storage.SaveChangesAsync(cancel);
-            return new[] { entry };
-        }, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            database.Service.ApplyOwnersAsync(database.TransponderId, [entry], CancellationToken.None));
 
         database.Storage.ChangeTracker.Clear();
         Assert.Empty(await database.Storage.Set<StatisticsEntry>().ToListAsync());
@@ -210,55 +203,22 @@ public sealed class StatisticsOwnershipTests
     }
 
     [Fact]
-    public async Task CreationHandlersAssignSimpleAndMultiProfilesAfterEarlierOwnershipEvent()
+    public async Task RecomputeOwnershipAssignsEveryDerivedEntryAfterEarlierOwnershipEvent()
     {
         await using var database = await Database.CreateAsync();
         var owner = database.Owner(-100, null);
         database.Reader.Owners = [owner];
         Assert.Equal(0, await database.Service.ReconcileAsync(database.Change(null, owner), CancellationToken.None));
-        var startPoint = Guid.NewGuid();
-        var endPoint = Guid.NewGuid();
-        database.Config.CoursePointStart = startPoint;
-        database.Config.CoursePointEnd = endPoint;
-        var multi = new MultiStatisticsItemConfig
-        {
-            Id = Guid.NewGuid(), ParentConfigId = database.Config.Id, ParentConfig = database.Config, Repetitions = 1,
-            StatisticsItem = new StatisticsItem { Id = Guid.NewGuid(), Name = "Aggregate", Distance = 100 }
-        };
-        database.Storage.AddRange(database.Config, multi, new Sample
-        {
-            Id = Guid.NewGuid(), TransponderId = database.TransponderId,
-            TimeStart = Start, TimeEnd = Start.AddSeconds(1), CoursePointStartId = startPoint,
-            CoursePointEndId = Guid.NewGuid(), FacilityId = Guid.NewGuid()
-        });
+        var entries = new[] { database.Entry(1, 5), database.Entry(6, 10) };
+        database.Storage.AddRange(entries);
+
+        await database.Service.ApplyOwnersAsync(database.TransponderId, entries, CancellationToken.None);
         await database.Storage.SaveChangesAsync();
-        var serviceCollection = new ServiceCollection().AddMetrics();
-        serviceCollection.AddHybridCache();
-        var services = serviceCollection.BuildServiceProvider();
-        using (services)
-        {
-            var statistics = new StatisticsService(database.Storage, services.GetRequiredService<HybridCache>());
-            var (bus, recorder) = WorkerHandlerTests.RecordingMessageBus.Create();
-            var sampleHandler = new SampleCompleteHandler(statistics, database.Service,
-                new Metrics(services.GetRequiredService<System.Diagnostics.Metrics.IMeterFactory>()), bus, NullLogger<SampleCompleteHandler>.Instance);
-            await sampleHandler.OnHandle(new SampleComplete(database.TransponderId, Start.AddSeconds(2), Start.AddSeconds(10),
-                startPoint, endPoint, 100), CancellationToken.None);
-            var emitted = Assert.Single((IEnumerable<EntryCreated>)Assert.Single(recorder.Published).Payload!);
-            var entryHandler = new EntryCreatedHandler(statistics, database.Service, bus, NullLogger<EntryCreatedHandler>.Instance);
-            await entryHandler.OnHandle(emitted, CancellationToken.None);
-            Assert.Equal(2, recorder.Published.Count);
-            var aggregate = Assert.Single((IEnumerable<EntryCreated>)recorder.Published[1].Payload!);
-            Assert.Equal(multi.Id, aggregate.ConfigItemId);
-        }
+
         database.Storage.ChangeTracker.Clear();
-        var entries = await database.Storage.Set<StatisticsEntry>().ToListAsync();
-        Assert.Equal(2, entries.Count);
-        Assert.All(entries, entry =>
-        {
-            Assert.Equal(owner.OwnerId, entry.StatsProfileUserId);
-            Assert.Equal(TimeSpan.FromSeconds(10), entry.Duration);
-            Assert.Equal(10, entry.Speed);
-        });
+        var stored = await database.Storage.Set<StatisticsEntry>().ToListAsync();
+        Assert.Equal(2, stored.Count);
+        Assert.All(stored, e => Assert.Equal(owner.OwnerId, e.StatsProfileUserId));
         Assert.Single(await database.Storage.Set<StatsProfile>().ToListAsync());
     }
 

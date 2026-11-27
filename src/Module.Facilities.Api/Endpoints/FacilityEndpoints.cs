@@ -21,11 +21,20 @@ internal static class FacilityEndpoints
         facilities.MapGet("", ListFacilities);
         facilities.MapGet("{id}", GetFacilityById);
         facilities.MapGet("{id}/layouts", GetLayoutsForFacility);
+        // Effective-time consumers resolve each instant locally from this whole history, so it is never
+        // output-cached; consumers cache it per facility and evict on change events.
+        facilities.MapGet("{id:guid}/course-history", GetFacilityCourseHistory).WithName("GetFacilityCourseHistory");
         facilities.MapPost("", CreateFacility).WithName("CreateFacility").RequireAuthorization(AdministrationAuthorization.FacilitiesPolicy);
         facilities.MapPut("{id:guid}", UpdateFacility).WithName("UpdateFacility").RequireAuthorization(AdministrationAuthorization.FacilitiesPolicy);
         facilities.MapDelete("{id:guid}", DeleteFacility).WithName("DeleteFacility").RequireAuthorization(AdministrationAuthorization.FacilitiesPolicy)
             .AddEndpointFilter<AdministrationDependencyFilter>();
     }
+
+    private static async Task<Results<Ok<FacilityCourseHistoryDTO>, NotFound>> GetFacilityCourseHistory(
+        Guid id, FacilityDbContext storage, CancellationToken cancellationToken) =>
+        await new FacilityCourseHistoryReader(storage).ReadAsync(id, cancellationToken) is { } history
+            ? TypedResults.Ok(history)
+            : TypedResults.NotFound();
 
     private static async Task<Results<Ok<List<CourseLayoutDTO>>, NotFound>> GetLayoutsForFacility(
         Guid id, [FromQuery] DateTimeOffset? at, FacilityDbContext storage,

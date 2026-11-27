@@ -28,6 +28,7 @@
             "name": "statistics",
             "requiresSession": true,
             "rules": [
+              { "name": "PassingRecordedV1", "sqlFilter": "MessageName = 'PassingRecordedV1'" },
               { "name": "TransponderOwnershipChanged", "sqlFilter": "MessageName = 'TransponderOwnershipChanged'" }
             ]
           }
@@ -36,14 +37,6 @@
       {
         "name": "velotime-statistics",
         "subscriptions": [
-          {
-            "name": "statistics",
-            "requiresSession": true,
-            "rules": [
-              { "name": "EntryCreated", "sqlFilter": "MessageName = 'EntryCreated'" },
-              { "name": "SampleComplete", "sqlFilter": "MessageName = 'SampleComplete'" }
-            ]
-          },
           {
             "name": "statistics-validity",
             "requiresSession": false,

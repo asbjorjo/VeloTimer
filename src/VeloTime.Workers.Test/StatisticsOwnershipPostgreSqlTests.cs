@@ -215,14 +215,20 @@ public sealed class StatisticsOwnershipPostgreSqlTests : IAsyncLifetime
         Assert.False(storage.Database.HasPendingModelChanges());
     }
 
-    private Task<IReadOnlyList<StatisticsEntry>> CreateAsync(StatisticsDbContext storage,
-        ITransponderOwnershipReader reader, Guid transponderId, CancellationToken cancellationToken) =>
-        new StatisticsOwnershipService(storage, reader).CreateEntriesAsync(transponderId, _ =>
-        {
-            var entry = Entry(transponderId);
-            storage.Add(entry);
-            return Task.FromResult<IEnumerable<StatisticsEntry>>([entry]);
-        }, cancellationToken);
+    private async Task<IReadOnlyList<StatisticsEntry>> CreateAsync(StatisticsDbContext storage,
+        ITransponderOwnershipReader reader, Guid transponderId, CancellationToken cancellationToken)
+    {
+        // The recompute's shape: transponder lock, derive, assign owners, save, commit.
+        var service = new StatisticsOwnershipService(storage, reader);
+        await using var transaction = await storage.Database.BeginTransactionAsync(cancellationToken);
+        await service.LockTransponderAsync(transponderId, cancellationToken);
+        var entry = Entry(transponderId);
+        storage.Add(entry);
+        await service.ApplyOwnersAsync(transponderId, [entry], cancellationToken);
+        await storage.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return [entry];
+    }
 
     private StatisticsEntry Entry(Guid transponderId) => new()
     {

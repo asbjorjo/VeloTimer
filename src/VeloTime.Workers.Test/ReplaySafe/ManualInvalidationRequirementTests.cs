@@ -8,7 +8,7 @@ namespace VeloTime.Workers.Test.ReplaySafe;
 /// </summary>
 public sealed class ManualInvalidationRequirementTests
 {
-    [RequirementFact(PendingPhase = "Phase 2 (S1, S2)")]
+    [RequirementFact]
     public async Task ManualInvalidation_SurvivesReplayRedeliveryAndALatePassingInTheSameSession()
     {
         await using var world = await PipelineWorlds.CreateAsync();
@@ -36,7 +36,7 @@ public sealed class ManualInvalidationRequirementTests
         Assert.Equal(before.Entries.Count(e => e.Item == Lap), after.Entries.Count(e => e.Item == Lap));
     }
 
-    [RequirementFact(PendingPhase = "Phase 2 (§5.4 manual decision review)")]
+    [RequirementFact]
     public async Task ManualInvalidationOnAnEntryALatePassingReplaces_IsSurfacedForReview()
     {
         await using var world = await PipelineWorlds.CreateAsync();

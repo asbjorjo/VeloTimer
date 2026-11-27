@@ -24,6 +24,195 @@ namespace VeloTime.Module.Statistics.Migrations
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "public", "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.ManualDecisionReview", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ChangedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at_utc");
+
+                    b.Property<Guid?>("ChangedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("changed_by_user_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<double?>("DistanceMetres")
+                        .HasColumnType("double precision")
+                        .HasColumnName("distance_metres");
+
+                    b.Property<TimeSpan>("Duration")
+                        .HasColumnType("interval")
+                        .HasColumnName("duration");
+
+                    b.Property<Guid>("EntryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("entry_id");
+
+                    b.Property<Guid>("FacilityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("facility_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("outcome");
+
+                    b.Property<Guid>("StatisticsItemConfigId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("statistics_item_config_id");
+
+                    b.Property<Guid>("StatisticsItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("statistics_item_id");
+
+                    b.Property<DateTime>("TimeEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("time_end");
+
+                    b.Property<DateTime>("TimeStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("time_start");
+
+                    b.Property<Guid>("TransponderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transponder_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_manual_decision_review");
+
+                    b.HasIndex("EntryId")
+                        .HasDatabaseName("ix_manual_decision_review_entry");
+
+                    b.HasIndex("CreatedAtUtc", "Id")
+                        .HasDatabaseName("ix_manual_decision_review_created_id");
+
+                    b.ToTable("manual_decision_review", "statistics");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.PassingFact", b =>
+                {
+                    b.Property<Guid>("PassingId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("passing_id");
+
+                    b.Property<Guid>("InstallationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("installation_id");
+
+                    b.Property<bool>("LowBattery")
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_battery");
+
+                    b.Property<bool>("LowHits")
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_hits");
+
+                    b.Property<bool>("LowStrength")
+                        .HasColumnType("boolean")
+                        .HasColumnName("low_strength");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recorded_at_utc");
+
+                    b.Property<DateTime>("Time")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("time");
+
+                    b.Property<Guid>("TimingPointId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("timing_point_id");
+
+                    b.Property<Guid>("TransponderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transponder_id");
+
+                    b.HasKey("PassingId")
+                        .HasName("pk_passing_fact");
+
+                    b.HasIndex("Time", "TransponderId")
+                        .HasDatabaseName("ix_passing_fact_time_transponder");
+
+                    b.HasIndex("TransponderId", "Time", "PassingId")
+                        .HasDatabaseName("ix_passing_fact_transponder_time");
+
+                    b.ToTable("passing_fact", "statistics");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.RecomputeRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
+
+                    b.Property<Guid?>("CausationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("causation_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<DateTime?>("FromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("from_utc");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime?>("NotBeforeUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("not_before_utc");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTime?>("ToUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("to_utc");
+
+                    b.Property<Guid?>("TransponderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("transponder_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_recompute_request");
+
+                    b.HasIndex("NotBeforeUtc", "Id")
+                        .HasDatabaseName("ix_recompute_request_not_before_id");
+
+                    b.HasIndex("TransponderId", "Id")
+                        .HasDatabaseName("ix_recompute_request_transponder_id");
+
+                    b.ToTable("recompute_request", "statistics");
+                });
+
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.Sample", b =>
                 {
                     b.Property<Guid>("Id")
@@ -55,6 +244,10 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("interval")
                         .HasColumnName("duration");
 
+                    b.Property<Guid>("EndPassingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("end_passing_id");
+
                     b.Property<Guid>("FacilityId")
                         .HasColumnType("uuid")
                         .HasColumnName("facility_id");
@@ -62,6 +255,10 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.Property<double>("Speed")
                         .HasColumnType("double precision")
                         .HasColumnName("speed");
+
+                    b.Property<Guid>("StartPassingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("start_passing_id");
 
                     b.Property<DateTime>("TimeEnd")
                         .HasColumnType("timestamp with time zone")
@@ -78,21 +275,15 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.HasKey("Id")
                         .HasName("pk_sample");
 
+                    b.HasIndex("StartPassingId", "EndPassingId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_sample_passings");
+
                     b.HasIndex("TransponderId", "TimeStart", "TimeEnd")
-                        .HasDatabaseName("ix_sample_transponder_completion")
-                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
-
-                    b.HasIndex("TransponderId", "FacilityId", "CoursePointEndId", "TimeEnd")
-                        .HasDatabaseName("ix_sample_transponder_facility_end_time")
-                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
-
-                    b.HasIndex("TransponderId", "FacilityId", "CoursePointStartId", "TimeStart")
-                        .HasDatabaseName("ix_sample_transponder_facility_start_time")
-                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+                        .HasDatabaseName("ix_sample_transponder_time");
 
                     b.HasIndex("TransponderId", "FacilityId", "TimeEnd", "TimeStart")
-                        .HasDatabaseName("ix_sample_transponder_facility_attempt")
-                        .HasAnnotation("Npgsql:CreatedConcurrently", true);
+                        .HasDatabaseName("ix_sample_transponder_facility_attempt");
 
                     b.ToTable("sample", "statistics");
                 });

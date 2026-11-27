@@ -4,12 +4,12 @@ using System.Net.Http.Json;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Service;
+using VeloTime.Module.Statistics.Service.Recompute;
 using VeloTime.Module.Statistics.Storage;
 
 namespace VeloTime.Module.Statistics.Api.Test;
@@ -41,7 +41,7 @@ public sealed class StatisticsConfigurationLockPostgreSqlTests
             parentA, parentB, Child(Multi, parentA.Id), Child(Multi, parentB.Id),
             new Sample
             {
-                TransponderId = rider, FacilityId = PublicStatisticsTestHost.Facility,
+                StartPassingId = Guid.NewGuid(), EndPassingId = Guid.NewGuid(), TransponderId = rider, FacilityId = PublicStatisticsTestHost.Facility,
                 CoursePointStartId = parentB.CoursePointStart, CoursePointEndId = parentB.CoursePointEnd,
                 TimeStart = start, TimeEnd = start.AddSeconds(10), Duration = TimeSpan.FromSeconds(10),
                 Distance = 250, Speed = 25
@@ -97,12 +97,18 @@ public sealed class StatisticsConfigurationLockPostgreSqlTests
             if (completionTask is not null) { try { await completionTask; } catch { } }
         }
 
+        // The recompute's shape: share-lock every configured item, then read definitions and derive.
         async Task<StatisticsEntry[]> Complete()
         {
             await using var transaction = await worker.Database.BeginTransactionAsync(ct);
-            var service = new StatisticsService(worker, host.App.Services.GetRequiredService<HybridCache>());
-            var entries = (await service.ProcessCompletedAsync(rider, start, start.AddSeconds(10),
-                parentB.CoursePointStart, parentB.CoursePointEnd, ct)).ToArray();
+            var itemIds = await worker.Set<StatisticsItemConfig>().Select(c => c.StatisticsItemId).Distinct().ToListAsync(ct);
+            await new StatisticsValidityScheduler(worker).LockItemsAsync(itemIds, StatisticsItemLockMode.Shared, ct);
+            var configs = await worker.Set<SimpleStatisticsItemConfig>().AsNoTracking().Include(c => c.StatisticsItem).ToListAsync(ct);
+            var samples = await worker.Set<Sample>().AsNoTracking().Where(s => s.TransponderId == rider).ToListAsync(ct);
+            var entries = configs.SelectMany(config => EntryDerivation.Simple(config,
+                StatisticsDurationBounds.Effective(config.StatisticsItem, config), samples)).ToArray();
+            worker.AddRange(entries);
+            await worker.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             return entries;
         }

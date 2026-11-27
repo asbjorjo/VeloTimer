@@ -53,13 +53,14 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         db.ChangeTracker.Clear();
         var migrator = db.GetService<IMigrator>();
 
-        var refusal = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync());
+        var refusal = await Assert.ThrowsAsync<PostgresException>(() => migrator.MigrateAsync(LapDistanceActivationMigration));
         Assert.Contains("entry without a positive finite distance snapshot", refusal.MessageText);
         await AssertUnactivatedAsync(); // In particular, the null gap row was NOT partially backfilled.
 
         await db.Database.ExecuteSqlAsync($"UPDATE statistics.statistics_entry SET distance_metres = {400d} WHERE id = {snapshotted.Id}");
-        await migrator.MigrateAsync();
-        await migrator.MigrateAsync(); // Reapplication must not rewrite preserved snapshots.
+        // Stop at activation: the later replay-safe recompute migration deletes all derived entries.
+        await migrator.MigrateAsync(LapDistanceActivationMigration);
+        await migrator.MigrateAsync(LapDistanceActivationMigration); // Reapplication must not rewrite preserved snapshots.
         var persistedLap = await db.Set<StatisticsItem>().AsNoTracking().SingleAsync(i => i.Id == lap.StatisticsItemId);
         Assert.Equal(StatisticsDistanceMode.CourseLayout, persistedLap.DistanceMode);
         Assert.Equal(0, persistedLap.Distance);
