@@ -11,4 +11,11 @@ public class Passing : IModel
     public bool LowBattery { get; init; }
     public bool LowStrength { get; init; }
     public bool LowHits { get; init; }
+
+    /// <summary>
+    /// The passing ID as reported by the decoder or SDK (for example a P3 passing number or an X2 SDK passing ID), kept
+    /// for tracing a passing back to its source. Optional, not unique across decoders or counter resets, not the
+    /// passing key and not sent to Timing.
+    /// </summary>
+    public string? HardwarePassingId { get; init; }
 }
