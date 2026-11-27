@@ -1,23 +1,26 @@
-# VeloTimer Copilot Instructions
+# VeloTimer Agent Instructions
 
 ## Project Overview
 
-VeloTimer is a microservices architecture built with .NET 10 using Aspire for distributed application orchestration. It's a competitive cycling race timing system with three domain services (Timing, Facilities, Statistics), backend agents for hardware integration, a Blazor web frontend, and event-driven processors.
+VeloTimer is a competitive cycling race timing system built as .NET 10 microservices orchestrated with Aspire. It has five domain services (Timing, Facilities, Statistics, Profiles, Notifications), shared infrastructure for hardware timing agents, a Blazor web frontend with a backend-for-frontend, and event-driven processors.
 
 **Key Technologies:**
+
 - `.NET 10` (all projects)
 - **Aspire** for microservices orchestration
 - **Entity Framework Core** with PostgreSQL
 - **Blazor Server** for UI (with MudBlazor components)
-- **SlimMessageBus** for async messaging
+- **SlimMessageBus** over **Azure Service Bus** for async messaging, with a PostgreSQL outbox
+- **NSwag** clients generated from build-time OpenAPI documents
 - **Keycloak** for authentication (OIDC)
 - **OpenTelemetry** for observability
+- **Helm** charts for Kubernetes deployment
 
 ## Working In The Repository
 
 - Use the checked-in CI commands as the build and test baseline: `dotnet test --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov` and `dotnet build --configuration Release`. See [CI](.github/workflows/ci.yml) and [publish workflow](.github/workflows/publish.yml).
-- Test projects are in `src/VeloTime.Module.Timing.Test/`, `src/VeloTime.Module.Facilities.Test/`, `src/VeloTime.Module.Statistics.Test/`, `src/Module.Timing.Api.Test/`, `src/Module.Facilities.Api.Test/`, `src/Module.Statistics.Api.Test/`, `src/VeloTime.Platform.Test/`, and `src/VeloTime.Workers.Test/`. Start with targeted checks; use [TransponderTest.cs](src/VeloTime.Module.Timing.Test/TransponderTest.cs) for a domain-test example. The README JavaScript test is `node --test src/VeloTime.Platform.Test/RegistrationDates.test.mjs`. CI test runs need `OIDC_AUDIENCE=https://build.invalid`; PostgreSQL is required for tests that exercise database integration.
-- For concrete implementations, follow [TimingEndpoints.cs](src/Module.Timing.Api/Endpoints/TimingEndpoints.cs) for route grouping, [TransponderEndpoints.cs](src/Module.Timing.Api/Endpoints/TransponderEndpoints.cs) for typed results, [PassingObservedHandler.cs](src/Module.Timing.Processor/Handlers/PassingObservedHandler.cs) for message consumers, and [InstallationMapper.cs](src/Module.Timing/Mapping/InstallationMapper.cs) for entity-to-contract mapping.
+- Test projects: `src/VeloTime.Module.Timing.Test/`, `src/VeloTime.Module.Facilities.Test/`, `src/VeloTime.Module.Statistics.Test/`, `src/Module.Timing.Api.Test/`, `src/Module.Facilities.Api.Test/`, `src/Module.Statistics.Api.Test/`, `src/Module.Profiles.Api.Test/`, `src/Module.Notifications.Api.Test/`, `src/Module.Notifications.Processor.Test/`, `src/VeloTime.Platform.Test/`, and `src/VeloTime.Workers.Test/`. Start with targeted checks; use [TransponderTest.cs](src/VeloTime.Module.Timing.Test/TransponderTest.cs) for a domain-test example. The README JavaScript test is `node --test src/VeloTime.Platform.Test/RegistrationDates.test.mjs`. CI test runs need `OIDC_AUDIENCE=https://build.invalid`; PostgreSQL is required for tests that exercise database integration.
+- For concrete implementations, follow [TimingEndpoints.cs](src/Module.Timing.Api/Endpoints/TimingEndpoints.cs) for route grouping, [TransponderEndpoints.cs](src/Module.Timing.Api/Endpoints/TransponderEndpoints.cs) for typed results, [PassingObservedHandler.cs](src/Module.Timing.Processor/Handlers/PassingObservedHandler.cs) for message consumers, [InstallationMapper.cs](src/Module.Timing/Mapping/InstallationMapper.cs) for entity-to-contract mapping, and [Module.Timing/HostingExtensions.cs](src/Module.Timing/HostingExtensions.cs) for module registration.
 - Package versions are centrally managed in [Directory.Packages.props](Directory.Packages.props); avoid adding per-project versions unless a project has an established exception.
 
 ## Time and Unit Conventions
@@ -47,84 +50,70 @@ The shared architecture and conventions in this file remain the source of truth.
 
 ### Microservices Structure
 
-The system is organized as **independent domain services with vertical slices**:
+The system is organized as **independent domain services with vertical slices**. Timing, Facilities, Statistics, Profiles, and Notifications each follow the layout below; Profiles has no Processor.
 
 ```
 src/
-├── Module.Timing/              # Service: Timing domain core logic + EF models
-├── Module.Timing.Api/          # Service: REST endpoints (Minimal APIs)
-├── Module.Timing.Client/       # Client: HTTP client library for Timing API
-├── Module.Timing.Interface/    # Contracts: Shared DTOs, messages (consumed by other services)
-├── Module.Timing.Processor/    # Service: Background worker consuming events
-├── Module.Timing.Migration/    # Utility: EF migrations for Timing DB schema
+├── Module.{Domain}/             # Core: domain logic, EF model, DbContext, and Migrations/
+├── Module.{Domain}.Api/         # Service: Minimal API endpoints; emits api/VeloTime.Module.{Domain}.Api.json on build
+├── Module.{Domain}.Client/      # Client: NSwag client generated from the Api project
+├── Module.{Domain}.Interface/   # Contracts: shared DTOs and messages consumed by other services
+├── Module.{Domain}.Processor/   # Service: background worker consuming events
+├── Module.{Domain}.Migration/   # Runner: applies Module.{Domain}/Migrations at startup
 │
-├── Module.Facilities/          # Service: Facilities domain (repeats pattern)
-├── Module.Facilities.Api/
-├── Module.Facilities.Client/
-├── Module.Facilities.Interface/
-├── Module.Facilities.Processor/
-├── Module.Facilities.Migration/
+├── Agent/                       # Library: shared infrastructure for concrete agent implementations (external)
+├── Agent.Interface/             # Contracts: agent events/commands shared with processors
+├── Agent.Dummy/                 # Dev tool: local agent simulator for development/testing only
 │
-├── Module.Statistics/          # Service: Statistics domain (repeats pattern)
-├── [same as above...]
-│
-├── Agent/                      # Library: Shared infrastructure for concrete agent implementations (external)
-├── Agent.Interface/            # Contracts: Agent event/command definitions (shared with processors)
-├── Agent.Dummy/                # Dev tool: Local agent simulator for development/testing only
-│
-├── Bootstrap/                  # Utility: Seed data + initialization
-├── ServiceDefaults/            # Shared: Aspire defaults (health checks, OTEL)
-├── WebUI.Mud/                  # Service: Blazor Server frontend (ASP.NET Core host)
-├── WebUI.Mud.Client/           # Components: Blazor client-side code
-├── AppHost/                    # Orchestration: Aspire manifest defining all services
+├── Module.Common/               # Shared: module storage/cache registration, MigrationWorker, admin authorization
+├── ServiceDefaults/             # Shared: Aspire defaults (health checks, OTEL, discovery, resilience)
+├── MessageBus.Topology/         # Job: reconciles Azure Service Bus topics/subscriptions from topology.json
+├── Bootstrap/                   # Utility: seed data and initialization
+├── Users.Migration/             # Runner: one-off import of legacy VeloTimer riders into Keycloak, Timing, and Statistics
+├── WebUI.Mud/                   # Service: Blazor Server host and backend-for-frontend (BFF) endpoints
+├── WebUI.Mud.Client/            # Components: Blazor pages, components, and localization resources
+└── AppHost/                     # Orchestration: Aspire AppHost defining all resources
 ```
 
 ### Service Composition Pattern
 
-Each **domain service** (e.g., Timing, Facilities, Statistics) consists of:
+Each **domain service** consists of:
 
-1. **`Module.{Domain}` (Core Service)**: Business logic, EF models, services
-   - `Model/` - Entity classes (marked as `[Table("public.{entity}")]`)
-   - `Service/` - Domain logic (IServices with implementations)
-   - `Storage/` - `DbContext` with `DbSet<>` properties
-   - `Mapping/` - Entity → DTO mappers (extension methods like `.ToDto()`)
-   - `Instrumentation/` - Metrics and tracing sources
-   - `HostingExtensions.cs` - `AddModule{Domain}()` registration method
+1. **`Module.{Domain}` (Core)**: business logic, EF models, and storage
+   - `Model/` - entity classes
+   - `Service/` - domain services
+   - `Storage/` - `DbContext` (with an `IDesignTimeDbContextFactory` for EF tooling)
+   - `Migrations/` - EF Core migrations and model snapshot
+   - `Mapping/` - entity → DTO mappers (extension methods like `.ToDto()`)
+   - `HostingExtensions.cs` - `AddModule{Domain}()` registration
 
 2. **`Module.{Domain}.Api`**: REST service exposing domain operations
-   - Minimal APIs grouped by `MapGroup("/endpoint")`
-   - Endpoints use `static` methods returning `TypedResults.*` (e.g., `Ok<T>`, `NotFound`)
-   - Dependency injection via method parameters
-   - Service discovery-enabled via Aspire
+   - Minimal APIs grouped by `MapGroup(...)`, with `static` handlers returning `TypedResults.*`
+   - Dependency injection via handler parameters
+   - Build writes the OpenAPI document to `api/VeloTime.Module.{Domain}.Api.json`
 
-3. **`Module.{Domain}.Interface`**: Service contracts (published to consumers)
-   - DTOs, event messages, constants
-   - **No implementation dependencies** — consumed by other services via `.Client` package
-   - Enables loose coupling between services
+3. **`Module.{Domain}.Interface`**: service contracts published to consumers
+   - DTOs, event messages, constants; **no implementation dependencies**
 
-4. **`Module.{Domain}.Processor`**: Event subscription service
-   - Implements `IConsumer<TEvent>` handlers via `SlimMessageBus`
-   - Consumes domain events from other services
-   - May publish derived events downstream
-   - Runs as separate hosted service/container
+4. **`Module.{Domain}.Processor`**: event subscription service
+   - `IConsumer<TEvent>` handlers (usually also `IConsumerWithContext`) via SlimMessageBus
+   - May publish derived events downstream; runs as a separate hosted service/container
 
-5. **`Module.{Domain}.Client`**: Service client library
-   - Configured in consumer's `Program.cs` with service discovery
-   - Example: `.AddFacilitiesClient().AddDefaultAccessTokenResiliency()`
-   - Enables typed HTTP communication between services
+5. **`Module.{Domain}.Client`**: typed HTTP client
+   - Generated by NSwag from the Api project (`OpenApiProjectReference`)
+   - Registered by consumers with service discovery, for example `.AddFacilitiesClient().AddDefaultAccessTokenResiliency()`
 
-6. **`Module.{Domain}.Migration`**: Database schema management
-   - EF Core migrations for service's PostgreSQL database
-   - Auto-applied at startup via `Migrate()` extension in `ServiceDefaults`
+6. **`Module.{Domain}.Migration`**: migration runner host
+   - Runs [MigrationWorker](src/Module.Common/MigrationWorker.cs), which applies pending migrations through `MigrateAsync()` and exits
 
 ### Service Boundaries & Communication
 
-- **Each service owns its database** - no cross-service DB access
-- **Async messaging** via SlimMessageBus for inter-service events
-- **HTTP clients** (`.Client` packages) for synchronous calls
-- **API Gateway** pattern via Aspire service discovery
+- **Each service owns its database schema** - no cross-service DB access
+- **Async messaging** via SlimMessageBus on Azure Service Bus for inter-service events
+- **HTTP clients** (`.Client` packages) for synchronous calls, resolved through Aspire service discovery
 
 **Event Flow Example:**
+
 1. Agent (Worker Service) emits `PassingObservedV1` (with the agent's `SourcePassingId`) → SlimMessageBus
 2. Timing Processor service consumes `PassingObservedV1` → deduplicates on (installation, `SourcePassingId`), persists the passing fact and enqueues `PassingRecordedV1` through the Timing outbox in one transaction
 3. Statistics Processor service consumes `PassingRecordedV1` → computes aggregates in Statistics DB (see [docs/replay-safe-statistics-plan.md](docs/replay-safe-statistics-plan.md))
@@ -132,77 +121,26 @@ Each **domain service** (e.g., Timing, Facilities, Statistics) consists of:
 
 ### Cross-Cutting Concerns
 
-- **`ServiceDefaults`** - Shared library: OpenTelemetry, service discovery, health checks, resilience (Polly)
-- **`WebUI.Keycloak`** - OIDC authentication utilities (shared by frontend)
-- **Instrumentation** - Each service has `ActivitySource` named `"VeloTime.Module.{Domain}"` and meter `"VeloTime.Module.{Domain}"`
+- **`ServiceDefaults`** - OpenTelemetry, service discovery, health checks, resilience (Polly)
+- **`Module.Common`** - `AddModuleStorage<T>()`, `AddModuleCache()`, `MigrationWorker<T>`, administration authorization
+- **Keycloak clients** - the `VeloTime.WebUI.Keycloak` and `VeloTime.WebUI.KeycloakAdmin` namespaces are NSwag-generated in `WebUI.Mud` from `api/keycloak.yaml` and `api/keycloak-admin.yaml`
+- **Instrumentation** - name new `ActivitySource`s and meters `"VeloTime.Module.{Domain}"` (Timing, Facilities, and Statistics define meters today)
 
 ## Key Naming Conventions
 
 - **Projects**: `VeloTime.Module.{Domain}.{Layer}` (e.g., `VeloTime.Module.Timing.Api`)
-- **Classes**: `{Entity}Service`, `{Event}Handler`, `{Entity}DbContext`, `{Entity}Mapper`
-- **Endpoints**: `MapGroup("/resources")`, methods: `GetById()`, `List()`, `Create()`, `Update()`
-- **Migrations**: Named with date prefix: `20260222113831_timing_history_schema.cs`
-- **DTOs**: Suffix `DTO` or match entity name (e.g., `InstallationDTO`)
-- **Events**: Suffix `Event` or `Command` (e.g., `PassingObservedEvent`, `RegisterAgentCommand`)
-
-## Module Initialization Pattern
-
-**In `HostingExtensions.cs`:**
-```csharp
-public static IHostApplicationBuilder AddModule{Domain}(this IHostApplicationBuilder builder)
-{
-    var services = builder.Services;
-
-    services.ConfigureOpenTelemetryTracerProvider(tracer =>
-        tracer.AddSource("VeloTime.Module.{Domain}"));
-    services.ConfigureOpenTelemetryMeterProvider(metrics =>
-        metrics.AddMeter("VeloTime.Module.{Domain}"));
-
-    builder.AddModuleStorage<{Domain}DbContext>(connectionName: "velotimedb");
-    builder.AddModuleCache();
-    services.AddScoped<{Domain}Service>();
-    services.AddSingleton<Metrics>();
-
-    return builder;
-}
-
-public static void MapModule{Domain}Endpoints(this IEndpointRouteBuilder app)
-{
-    app.MapAgentEndpoints();
-    app.MapTransponderEndpoints();
-    // ... other endpoint groups
-}
-```
-
-## Minimal APIs Pattern
-
-**In API project endpoints:**
-```csharp
-internal static void MapAgentEndpoints(this IEndpointRouteBuilder builder)
-{
-    var group = builder.MapGroup("/agents");
-    group.MapGet("", ListAgents);
-    group.MapGet("{id}", GetAgentById);
-}
-
-static async Task<Ok<IEnumerable<InstallationDTO>>> ListAgents(
-    TimingDbContext storage, [FromQuery] Guid? FacilityId)
-{
-    // Method parameter injection handles DI
-    return TypedResults.Ok(data);
-}
-```
+- **Classes**: `{Entity}Service`, `{Event}Handler`, `{Domain}DbContext`, `{Entity}Mapper`
+- **Migrations**: EF timestamp prefix plus a descriptive name, e.g. `20261019105522_AddTransponderOwnerSurrogateKey.cs`
+- **DTOs**: suffix `DTO` or match the entity name (e.g., `InstallationDTO`)
+- **Events**: suffix `Event` or `Command` (e.g., `PassingEvent`, `InstallationLayoutEvent`)
 
 ## Database & Migrations
 
-- **Provider**: PostgreSQL with EF Core
-- **Connection**: `"velotimedb"` reference (resolved via service discovery)
-- **History Schema**: Each module tracks row changes in `public.{table}_history`
-- **Migrations Path**: `src/Module.{Domain}.Migration/`
-
-### Running Migrations
-
-Migration workers apply pending migrations at startup through `MigrateAsync()`; see [MigrationWorker.cs](src/Module.Common/MigrationWorker.cs).
+- **Provider**: PostgreSQL with EF Core, snake_case naming convention
+- **Connection**: every module uses the `"velotimedb"` connection, registered with `builder.AddModuleStorage<TContext>(connectionName: "velotimedb")`
+- **Schemas**: each module owns a default schema (`timing`, `facility`, `statistics`, `profiles`, `notifications`, `agent`); EF history is kept in `ef.__ef_migrations_history`
+- **Migrations path**: `src/Module.{Domain}/Migrations/`. The `src/Module.{Domain}.Migration/` projects only run them.
+- Migration runners apply pending migrations at startup through `MigrateAsync()`; see [MigrationWorker.cs](src/Module.Common/MigrationWorker.cs).
 
 ## Agent Infrastructure
 
@@ -219,6 +157,7 @@ Migration workers apply pending migrations at startup through `MigrateAsync()`; 
 **`src/Agent.Dummy/`** is a local in-solution agent simulator used for development and testing only.
 
 **Building a concrete agent (outside this solution):**
+
 ```csharp
 var builder = Host.CreateApplicationBuilder(args);
 builder.ConfigureAgent();  // registers all agent infrastructure
