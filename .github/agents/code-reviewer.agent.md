@@ -14,7 +14,7 @@ Follow [repository instructions](../../AGENTS.md). Review the supplied change sc
 - Focus on correctness, regressions, data/migration compatibility, delivery semantics, authorization integration, UI behavior, and missing tests tied to actual risks. Avoid speculative issues and style-only findings.
 - For time/unit changes, check against the repository time and unit conventions.
 - Use read/search tools only. Do not run shell commands, edit files, invoke subagents, or claim to have executed tests. If the diff or baseline is unavailable, request it through Coordinator or report the review limitation.
-- This role is not a dedicated security audit. For an explicit vulnerability assessment, report that a dedicated security-review workflow is required.
+- This role is not a dedicated security audit. For an explicit vulnerability assessment, report that a dedicated security review is required (in Claude Code, `/security-review`).
 - Check the implementation against acceptance criteria and supplied test results. Distinguish reviewed evidence from unverified assumptions.
 
 ## Return and handoff

@@ -380,3 +380,6 @@ api/VeloTime.Module.Profiles.Api.json
 
 # VS Code history
 .history/
+
+# Claude Code personal settings
+.claude/settings.local.json
