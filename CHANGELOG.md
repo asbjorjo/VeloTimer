@@ -21,6 +21,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.53"></a>
+## [2.1.0-alpha.53](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.53) (2026-11-27)
+
+### Bug Fixes
+
+* **timing:** resolve transponders by ProChip transponder type ([#146](https://www.github.com/asbjorjo/VeloTimer/issues/146)) ([fd7965a](https://www.github.com/asbjorjo/VeloTimer/commit/fd7965aff6724768976e437f56e830a02c0c3b0f))
+
 <a name="2.1.0-alpha.52"></a>
 ## [2.1.0-alpha.52](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.52) (2026-11-27)
 
