@@ -55,7 +55,7 @@ That plan is a sound process framework: stable IDs, inbox/outbox, a split contro
 Agent ─PassingObservedV1(id)─▶ Timing ─PassingRecordedV1(id)──────────────▶ Statistics
                                store fact idempotently,                     store fact idempotently
                                outbox in same tx                            mark session dirty
-Facilities ─CourseConfigChangedV1(interval)──▶ Statistics: config replica + mark range dirty
+Facilities ─CourseConfigChangedV1(interval)──▶ Statistics: evict cached config history + mark range dirty
 Timing ─InstallationFacilityChangedV1 / TransponderOwnershipChanged──▶ same
 Statistics API (definition edits) ──────────▶ same, in-process
                                               │
@@ -83,10 +83,10 @@ A **session** is a maximal run of one transponder's passings at one facility in 
 
 ### 3.3 Dirty ranges and the recompute worker
 
-- A `RecomputeRequest(Scope, From, To, Reason, CausationId)` row is inserted in the same transaction as the fact or config replica change. Scope is a transponder plus facility, or a facility, or an item. The worker reuses the durable checkpoint pattern of `StatisticsValidityRevalidation`.
+- A `RecomputeRequest(Scope, From, To, Reason, CausationId)` row is inserted in the same transaction as the fact insert, or by the change-event handler after cache eviction (§4.3). Scope is a transponder plus facility, or a facility, or an item. The worker reuses the durable checkpoint pattern of `StatisticsValidityRevalidation`.
 - The worker coalesces overlapping requests, expands each one to whole sessions, and takes the per-transponder advisory lock (the existing `StatisticsOwnershipService` pattern). In one transaction it then:
   1. loads the session's `PassingFact`s ordered by `(Time, PassingId)`, a deterministic tie-breaker (see §6);
-  2. resolves each passing's timing point → course point at its **own** time, and each sample's layout/segment distance at its time, from the local config replica (§4.3);
+  2. resolves each passing's timing point → course point at its **own** time, and each sample's layout/segment distance at its time, from the cached config history (§4.3), read once at the start of the session recompute;
   3. derives samples, then Simple entries per active config version, then Multi entries, then validity, then ownership;
   4. **diffs** the result against stored rows by deterministic identity (§3.4): unchanged rows are left alone, changed rows are updated, missing rows are deleted, and new rows are inserted. It also enqueues any outgoing integration events into the outbox, which is only needed if something external consumes results.
 - Bulk config-change recompute runs in the background with throttling and progress. Readers see each session switch atomically from old to new (eventual consistency, the same as the accepted threshold-revalidation behaviour).
@@ -128,13 +128,16 @@ Every result-affecting config item gets **effective-dated versions** over a half
 | Statistics item/config existence (when a definition starts counting) | Statistics | none | A version's `ValidFrom` gives this for free. |
 | Manual invalidations | Statistics | per entry | Not config. They stay attached to the entry by deterministic ID (§5.4). |
 
-### 4.3 Statistics keeps a local, time-bound config replica
+### 4.3 Config history is read through the shared cache
 
-Recompute must not call Facilities over HTTP per sample (S3). Doing so is slow for bulk replays, and it is non-deterministic if Facilities changes mid-recompute. Instead:
+Statistics does not copy config into its own tables. It reads each owner's time-bound history through HybridCache (FusionCache with the Redis L2 and backplane), so every replica shares one copy and eviction reaches all of them. The owning service stays the single source of truth, and there is no replica schema or bootstrap snapshot to maintain. This replaces the per-sample `Distance2Async` call (S3) with a cached read. The rules below make that safe for recompute:
 
-- Statistics stores a read-only replica of the time-bound Facilities data (associations, layout assignments, layout revisions with segments) and Timing data (installation ↔ facility, ownership). It is updated by those services' change events. Each event carries the full new versions for the affected key, so applying it is an idempotent upsert keyed by version ID, and order does not matter.
-- On a fresh deployment, or when the replica is suspected stale, a bootstrap snapshot endpoint per owner lets Statistics rebuild the replica, after which it recomputes everything.
-- Distance and closed-loop logic moves from `FacilitiesService.CalculateCoursePointDistance` into a shared pure library (e.g. `Module.Facilities.Interface` or a new `Module.Course` package) that both Facilities and Statistics use. The rules then live in one place.
+- **Cache whole histories, not point-in-time answers.** One entry holds all versions for a scope: per facility, the associations, layout assignments and layout revisions with segments; per installation, its facility assignments; per transponder, its ownership periods. The recompute resolves each instant locally. A backdated edit then evicts exactly one known key instead of an unknown set of instant-keyed entries, and a bulk recompute costs one fetch per scope, not one per sample. Owners expose matching "full history" read endpoints. The per-coursepoint association history endpoint is the existing precedent.
+- **Evict before enqueueing.** The Statistics handler for an owner's change event first evicts the affected key strictly, using `ICacheInvalidationOperations` with its circuit-breaker check, and only then inserts the `RecomputeRequest`. If eviction fails, the message is not acknowledged and is retried. So no recompute triggered by a change can read the history from before that change.
+- **No fail-safe stale values for these keys.** FusionCache's fail-safe would serve the old history when the owner is down. That would silently compute with the wrong config. For config history a miss that can't be fetched fails the recompute, and the worker retries it later. That makes recompute availability depend on Facilities and Timing being up. This is acceptable, because recompute is asynchronous and live reads don't depend on it.
+- **Pin one history per recompute.** Each history carries the owner's latest change ID. The worker reads it once per session recompute and uses it throughout. A change that lands mid-recompute queues its own request, so results converge.
+- **A cold or flushed cache is harmless.** It only costs refetches. A full recompute after a deployment needs no special bootstrap.
+- Distance and closed-loop logic moves from `FacilitiesService.CalculateCoursePointDistance` into a shared pure library (e.g. `Module.Facilities.Interface` or a new `Module.Course` package) used by both Facilities and Statistics, so the rules live in one place.
 
 ## 5. Behaviour details
 
@@ -142,7 +145,7 @@ Recompute must not call Facilities over HTTP per sample (S3). Doing so is slow f
 2. **Equal timestamps**: order by `(Time, PassingId)`. Two passings at the same instant at the same loop for the same transponder count as one passing. Equal times at different loops keep both, and the zero-duration sample is dropped as invalid.
 3. **Missing config at an event's time** (for example, no association yet): the passing stays a fact but produces no sample. It is counted in a per-session "unresolved" metric. When the config is later added or backdated, the change event makes the recompute pick it up.
 4. **Manual invalidations** survive a recompute when the entry's deterministic ID still exists. If a manually marked entry disappears or its values change, the worker keeps the decision in a `ManualDecisionReview` row and shows it on the existing admin entries page. It never silently drops or transfers a decision.
-5. **Ownership** is applied in the recompute step from the replica, so `TransponderOwnershipChanged` simply becomes another dirty-range trigger.
+5. **Ownership** is applied in the recompute step from the cached ownership history, so `TransponderOwnershipChanged` simply becomes another dirty-range trigger.
 6. **Caching**: Statistics read caches are invalidated per affected facility/item after each recompute commit (existing `StatisticsCache` tags).
 
 ## 6. Open decisions (recommendation in bold)
@@ -161,9 +164,9 @@ Each phase deletes derived Statistics data and lets the recompute worker rebuild
 
 **Phase 1: Facts and identity.** Add `PassingObservedV1` with `SourcePassingId`, plus Timing dedupe and conflict flagging. Add the Timing outbox and `PassingRecordedV1`. Delete `TimingSampleComplete`, Timing `Sample`, and the last-passing cache. Make `SampleEndpoint` window-based. Update the dummy agent and topology. Reset the Timing derived tables.
 
-**Phase 2: Statistics recompute core.** Add `PassingFact`, `RecomputeRequest`, the session builder, the worker, deterministic IDs and diff-apply. Port the Simple, required-point, course-layout and Multi derivation into pure functions over an ordered session, so the existing reader rules are kept and their tests reused. Remove the `SampleComplete`/`EntryCreated` chain and handlers. Use the current (non-versioned) config at first, with a local replica of associations only. Reset `statistics.sample`/`statistics_entry`.
+**Phase 2: Statistics recompute core.** Add `PassingFact`, `RecomputeRequest`, the session builder, the worker, deterministic IDs and diff-apply. Port the Simple, required-point, course-layout and Multi derivation into pure functions over an ordered session, so the existing reader rules are kept and their tests reused. Remove the `SampleComplete`/`EntryCreated` chain and handlers. Use the current (non-versioned) config at first, reading association history through the cache (§4.3). Reset `statistics.sample`/`statistics_entry`.
 
-**Phase 3: Time-bound Facilities config.** Add `FacilityLayoutAssignment`, `CourseLayoutRevision`, the shared distance library, `CourseConfigChangedV1` (covering association, assignment and revision changes), the snapshot endpoint, and admin UI effective-date editing that reuses the association editor's interval and conflict-confirmation pattern. Add the Statistics replica and dirty-range triggers. Delete existing layouts and seed them again as unbounded revisions; Bootstrap reseeds.
+**Phase 3: Time-bound Facilities config.** Add `FacilityLayoutAssignment`, `CourseLayoutRevision`, the shared distance library, `CourseConfigChangedV1` (covering association, assignment and revision changes), per-facility history read endpoints, and admin UI effective-date editing that reuses the association editor's interval and conflict-confirmation pattern. Add the Statistics cached-history readers, evict-then-enqueue handlers and dirty-range triggers. Delete existing layouts and seed them again as unbounded revisions; Bootstrap reseeds.
 
 **Phase 4: Time-bound Timing and Statistics config.** Add `InstallationFacilityAssignment` with its event. Add `StatisticsConfigVersion` (required points, layout, distance, repetitions, and thresholds if decision 1 says so). Drop the structural edit block. Fold threshold revalidation and ownership reconcile into the worker.
 
@@ -178,4 +181,4 @@ Phases 1 and 2 must land together, or 2 directly after 1, since Statistics consu
 - Backdating any versioned config item to time X changes only results with events at or after X within the affected scope, and those results match a fresh in-order run with the new config.
 - A result never uses a config version whose interval excludes the time of the event it was derived from. For a sample, the start and end are each resolved at their own time.
 - Manual invalidations are preserved or surfaced for review, never lost.
-- No synchronous cross-service HTTP calls on the recompute path.
+- The recompute path makes at most one cross-service fetch per scope on a cache miss, never one per sample, and never computes with stale config history.
