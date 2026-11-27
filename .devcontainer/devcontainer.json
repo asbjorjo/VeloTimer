@@ -8,19 +8,20 @@
 		"ghcr.io/daniellindemann/dev-container-features/dotnet-usersecrets-persistence:0": {},
 		"ghcr.io/devcontainers/features/docker-in-docker:4": {},
 		"ghcr.io/devcontainers/features/github-cli:1": {},
-		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {
+		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1.3.2": {
 			"version": "1.35",
-			"minikube": "none",
-			"helm": "latest"
+			"helm": "latest",
+			"minikube": "none"
 		},
 		"ghcr.io/devcontainers-extra/features/yamllint:2": {},
 		"ghcr.io/helpers4/devcontainer/playwright-dev:1": {},
 		"ghcr.io/jsburckhardt/devcontainer-features/actionlint:1": {},
 		"ghcr.io/microsoft/aspire-devcontainer-feature/aspire:3": {},
-		"ghcr.io/cjcrobin/devcontainer-features/playwright-cli:1": {},
 		"ghcr.io/helpers4/devcontainer/claude-dev:1": {
-			"installCli": "true"
-		}
+			"installCli": true
+		},
+		"./playwright-cli": {}
+		// "ghcr.io/cjcrobin/devcontainer-features/playwright-cli:1": {}
 	},
 	"customizations": {
 		"vscode": {

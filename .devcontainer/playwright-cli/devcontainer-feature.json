@@ -1,0 +1,28 @@
+{
+    "name": "Playwright CLI",
+    "id": "playwright-cli",
+    "version": "1.0.0",
+    "description": "Installs Playwright CLI (@playwright/cli) globally via npm. Supports Ubuntu/Debian, Alpine, RHEL/Fedora/CentOS and other Linux distributions.",
+    "options": {
+        "version": {
+            "type": "string",
+            "default": "latest",
+            "description": "Version of @playwright/cli to install (e.g. 'latest', '0.1.17'). Passed directly to 'npm install -g'."
+        },
+        "installSkills": {
+            "type": "boolean",
+            "default": true,
+            "description": "Run 'playwright-cli install --skills' after installation to install Playwright skills for coding agents."
+        }
+    },
+    "documentationURL": "https://github.com/cjcrobin/devcontainer-features/tree/master/src/playwright-cli",
+    "licenseURL": "https://github.com/cjcrobin/devcontainer-features/blob/master/LICENSE",
+    "customizations": {
+        "vscode": {
+            "extensions": []
+        }
+    },
+    "installsAfter": [
+        "ghcr.io/devcontainers/features/node"
+    ]
+}
