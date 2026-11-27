@@ -725,4 +725,41 @@
   <data name="SaveLayoutInUse" xml:space="preserve"><value>Save in-use interval</value></data>
   <data name="LayoutInUseSaved" xml:space="preserve"><value>In-use interval saved</value></data>
   <data name="LayoutHistoryLoadFailed" xml:space="preserve"><value>The layout history could not be loaded.</value></data>
+  <data name="StatisticsRecompute" xml:space="preserve"><value>Recompute statistics</value></data>
+  <data name="StatisticsRecomputeHelp" xml:space="preserve"><value>Statistics are rebuilt from recorded passings and the configuration that held at each passing's time. Recompute a range after fixing configuration, a code change or a data problem. Recomputing unchanged data changes nothing. Live passings are always processed before queued recomputes.</value></data>
+  <data name="StatisticsRecomputeBacklog" xml:space="preserve"><value>Backlog</value></data>
+  <data name="StatisticsRecomputePendingTransponders" xml:space="preserve"><value>Transponder recomputes waiting</value></data>
+  <data name="StatisticsRecomputePendingRanges" xml:space="preserve"><value>Ranges waiting to be split</value></data>
+  <data name="StatisticsRecomputeOldestPending" xml:space="preserve"><value>Oldest waiting since</value></data>
+  <data name="StatisticsRecomputeFailing" xml:space="preserve"><value>Retrying after an error</value></data>
+  <data name="StatisticsRecomputeUnresolvedPassings" xml:space="preserve"><value>Passings without a facility or course point</value></data>
+  <data name="StatisticsRecomputeManualReviews" xml:space="preserve"><value>Manual invalidations awaiting review</value></data>
+  <data name="StatisticsRecomputeOldest" xml:space="preserve"><value>Oldest: {0}</value></data>
+  <data name="StatisticsRecomputeStart" xml:space="preserve"><value>Start a recompute</value></data>
+  <data name="StatisticsRecomputeTo" xml:space="preserve"><value>To</value></data>
+  <data name="StatisticsRecomputeScope" xml:space="preserve"><value>Scope</value></data>
+  <data name="StatisticsRecomputeScopeAll" xml:space="preserve"><value>All transponders</value></data>
+  <data name="StatisticsRecomputeScopeTransponder" xml:space="preserve"><value>One transponder</value></data>
+  <data name="StatisticsRecomputeScopeInstallation" xml:space="preserve"><value>Transponders seen at one installation</value></data>
+  <data name="StatisticsRecomputeInstallationId" xml:space="preserve"><value>Installation ID</value></data>
+  <data name="StatisticsRecomputeNote" xml:space="preserve"><value>Note</value></data>
+  <data name="StatisticsRecomputeSessionsHelp" xml:space="preserve"><value>The range is widened to whole riding sessions, so results just outside it can change too.</value></data>
+  <data name="StatisticsRecomputeAllHistoryWarning" xml:space="preserve"><value>Without bounds or a scope this recomputes all statistics history. It runs in the background and can take a long time.</value></data>
+  <data name="StatisticsRecomputeConfirmAllHistory" xml:space="preserve"><value>I want to recompute all history</value></data>
+  <data name="StatisticsRecomputeSubmit" xml:space="preserve"><value>Queue recompute</value></data>
+  <data name="StatisticsRecomputeQueued" xml:space="preserve"><value>Recompute queued</value></data>
+  <data name="StatisticsRecomputeQueueFailed" xml:space="preserve"><value>The recompute could not be queued.</value></data>
+  <data name="StatisticsRecomputeLoadFailed" xml:space="preserve"><value>The recompute status could not be loaded.</value></data>
+  <data name="StatisticsRecomputeInvalidId" xml:space="preserve"><value>Enter a valid ID.</value></data>
+  <data name="StatisticsRecomputeInvalidRange" xml:space="preserve"><value>The end must be after the start.</value></data>
+  <data name="StatisticsRecomputeJobs" xml:space="preserve"><value>Recent recomputes</value></data>
+  <data name="StatisticsRecomputeNoJobs" xml:space="preserve"><value>No recomputes have been requested.</value></data>
+  <data name="StatisticsRecomputeRequested" xml:space="preserve"><value>Requested</value></data>
+  <data name="StatisticsRecomputeRange" xml:space="preserve"><value>Range</value></data>
+  <data name="StatisticsRecomputeProgress" xml:space="preserve"><value>Progress</value></data>
+  <data name="StatisticsRecomputeStatusQueued" xml:space="preserve"><value>Queued</value></data>
+  <data name="StatisticsRecomputeStatusRunning" xml:space="preserve"><value>Running</value></data>
+  <data name="StatisticsRecomputeStatusCompleted" xml:space="preserve"><value>Completed</value></data>
+  <data name="StatisticsRecomputeTransponders" xml:space="preserve"><value>{0} of {1} transponders</value></data>
+  <data name="StatisticsRecomputeRetrying" xml:space="preserve"><value>{0} retrying</value></data>
 </root>

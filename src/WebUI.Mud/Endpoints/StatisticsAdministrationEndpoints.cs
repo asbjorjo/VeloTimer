@@ -27,6 +27,13 @@ internal static class StatisticsAdministrationEndpoints
         statistics.MapPut("/entries/{id:guid}/manual-invalidation", async (Guid id, StatisticsEntryManualInvalidationRequest request,
             IStatisticsAdministrationService service, CancellationToken cancellationToken) =>
             Results.Ok(await service.SetManualInvalidationAsync(id, request, cancellationToken)));
+        statistics.MapGet("/recompute", async (HttpContext http, IStatisticsAdministrationService service, CancellationToken cancellationToken) =>
+        {
+            http.Response.Headers.CacheControl = "no-store";
+            return Results.Ok(await service.GetRecomputeOverviewAsync(cancellationToken));
+        });
+        statistics.MapPost("/recompute/jobs", async (CreateRecomputeJobRequest request, IStatisticsAdministrationService service, CancellationToken cancellationToken) =>
+            Results.Ok(await service.CreateRecomputeJobAsync(request, cancellationToken)));
         statistics.MapGet("/items", async (IStatisticsAdministrationService service, CancellationToken cancellationToken) =>
             Results.Ok(await service.GetItemsAsync(cancellationToken)));
         statistics.MapGet("/configurations", async (IStatisticsAdministrationService service, CancellationToken cancellationToken) =>
