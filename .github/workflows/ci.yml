@@ -1,8 +1,8 @@
 name: CI
 
-# Fast unit tests run for v2 work; the PostgreSQL-backed integration suite runs only
-# for master (PRs into master and pushes to master) or on manual dispatch.
-# PostgreSQL tests skip when their connection variables are unset, so the unit job
+# Fast unit tests run for v2 work; the integration suite (PostgreSQL-backed tests and the
+# Release WebUI publish test) runs only for master (PRs into master and pushes to master)
+# or on manual dispatch. Those tests skip when their variables are unset, so the unit job
 # runs the same command without the database service.
 
 on:
@@ -63,6 +63,8 @@ jobs:
       OIDC_AUDIENCE: https://build.invalid
       # Makes the guard tests fail if any PostgreSQL connection is missing, so gated tests cannot silently skip.
       VELOTIME_TEST_REQUIRE_POSTGRES: 'true'
+      # Runs the Release WebUI publish test, which takes over ten minutes.
+      VELOTIME_TEST_RELEASE_PUBLISH: 'true'
       NOTIFICATIONS_WORKER_TEST_ADMIN_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
       NOTIFICATIONS_API_TEST_ADMIN_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
       VELOTIME_TEST_OUTBOX_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests

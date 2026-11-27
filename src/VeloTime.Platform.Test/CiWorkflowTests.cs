@@ -48,6 +48,7 @@ public sealed class CiWorkflowTests
         var environment = Mapping(integration, "env");
         Assert.Equal("https://build.invalid", Scalar(environment, "OIDC_AUDIENCE"));
         Assert.Equal("true", Scalar(environment, RequirePostgresKey));
+        Assert.Equal("true", Scalar(environment, ReleasePublishTheoryAttribute.ConfigurationKey));
         var postgres = Mapping(Mapping(integration, "services"), "postgres");
         Assert.Equal("postgres:17-alpine", Scalar(postgres, "image"));
 

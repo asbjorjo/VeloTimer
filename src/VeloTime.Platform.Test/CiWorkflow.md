@@ -7,7 +7,9 @@ draft handling and the test command, and the split into two jobs:
 - `unit` runs for pushes to v2 and non-draft PRs into v2 (any base except master). It has
   no PostgreSQL service or connection variables, so the PostgreSQL-gated tests skip.
 - `integration` runs for pushes to master, non-draft PRs into master and manual
-  `workflow_dispatch` runs. It starts the PostgreSQL 17 service, and the test checks that
+  `workflow_dispatch` runs. It sets `VELOTIME_TEST_RELEASE_PUBLISH=true`, which enables
+  `NotificationsPublishedAssetTests` (a Release WebUI publish that keeps the Platform tests
+  waiting for over ten minutes). It starts the PostgreSQL 17 service, and the test checks that
   Facilities, outbox, statistics and notification connections match the service's published
   port and ephemeral credentials.
 
