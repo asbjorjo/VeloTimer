@@ -22,6 +22,31 @@ VeloTimer is a competitive cycling race timing system built as .NET 10 microserv
 - Test projects: `src/VeloTime.Module.Timing.Test/`, `src/VeloTime.Module.Facilities.Test/`, `src/VeloTime.Module.Statistics.Test/`, `src/Module.Timing.Api.Test/`, `src/Module.Facilities.Api.Test/`, `src/Module.Statistics.Api.Test/`, `src/Module.Profiles.Api.Test/`, `src/Module.Notifications.Api.Test/`, `src/Module.Notifications.Processor.Test/`, `src/VeloTime.Platform.Test/`, and `src/VeloTime.Workers.Test/`. Start with targeted checks; use [TransponderTest.cs](src/VeloTime.Module.Timing.Test/TransponderTest.cs) for a domain-test example. The README JavaScript test is `node --test src/VeloTime.Platform.Test/RegistrationDates.test.mjs`. CI test runs need `OIDC_AUDIENCE=https://build.invalid`; PostgreSQL is required for tests that exercise database integration.
 - For concrete implementations, follow [TimingEndpoints.cs](src/Module.Timing.Api/Endpoints/TimingEndpoints.cs) for route grouping, [TransponderEndpoints.cs](src/Module.Timing.Api/Endpoints/TransponderEndpoints.cs) for typed results, [PassingObservedHandler.cs](src/Module.Timing.Processor/Handlers/PassingObservedHandler.cs) for message consumers, [InstallationMapper.cs](src/Module.Timing/Mapping/InstallationMapper.cs) for entity-to-contract mapping, and [Module.Timing/HostingExtensions.cs](src/Module.Timing/HostingExtensions.cs) for module registration.
 - Package versions are centrally managed in [Directory.Packages.props](Directory.Packages.props); avoid adding per-project versions unless a project has an established exception.
+- Design and contract records live in [api/](api/) (`*-contract.md`, OpenAPI documents), [docs/](docs/) (`*-plan.md`), and [docs/research/](docs/research/). Read the relevant record before changing a feature it covers, and update it in the same change when behavior or contracts move.
+- [README.md](README.md) is the operations reference. Read the relevant section rather than guessing: [WebUI BFF](README.md#webui-backend-for-frontend), [agent messaging and outage recovery](README.md#agent-messaging-and-outage-recovery), [access-token audience](README.md#access-token-audience-configuration), [Helm schema migrations](README.md#helm-schema-migrations), [message bus topology](README.md#message-bus-topology-deployment), [backend cache consistency](README.md#backend-cache-consistency), and [publishing](README.md#publishing).
+
+### Generated and coupled artifacts
+
+These files change together; keep them in one commit.
+
+| When you change | Also update |
+|---|---|
+| Endpoints, request/response DTOs, or OpenAPI metadata in `Module.{Domain}.Api` | Build the Api project and commit the regenerated `api/VeloTime.Module.{Domain}.Api.json`. The NSwag `Module.{Domain}.Client` regenerates from it on build; fix its consumers. Update any matching `api/*-contract.md`. |
+| A message published on Azure Service Bus (new event, subscription, or filter) | Add the subscription rule to [topology.json](src/MessageBus.Topology/topology.json) **and** `messageBusTopology` in [values.yaml](charts/velotime/values.yaml); a chart test keeps them identical. |
+| An EF entity or `DbContext` | Add a migration in `src/Module.{Domain}/Migrations/` with `dotnet ef migrations add` and commit the updated model snapshot. |
+| User-visible strings in `WebUI.Mud.Client` | Add the key to both [SharedResource.resx](src/WebUI.Mud.Client/Resources/SharedResource.resx) and [SharedResource.nb-NO.resx](src/WebUI.Mud.Client/Resources/SharedResource.nb-NO.resx). |
+| Helm charts or `topology.json` | Run the chart checks below. |
+
+### Local validation
+
+- **PostgreSQL integration tests** skip silently unless their connection variables are set. Start a disposable server (`docker run --rm -d -p 5432:5432 -e POSTGRES_PASSWORD=outbox-tests postgres:17-alpine`) and export the same variables as [CI](.github/workflows/ci.yml): `VELOTIME_TEST_OUTBOX_POSTGRES`, `VELOTIME_TEST_STATISTICS_POSTGRES`, `FACILITIES_TEST_POSTGRES_ADMIN_CONNECTION`, `NOTIFICATIONS_API_TEST_ADMIN_CONNECTION`, and `NOTIFICATIONS_WORKER_TEST_ADMIN_CONNECTION`, each `Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests`. A skipped test is not a pass.
+- **Charts** (CI runs these only for `master`): `helm dependency update` for each chart and subchart, `helm lint` and `helm template` for `velotime-library`, `velotime-bootstrap`, `velotime-migration`, and `velotime`, then `python3 -m unittest discover -s charts/tests -v`. See [charts-ci.yml](.github/workflows/charts-ci.yml).
+- **Workflows and YAML**: `actionlint` and `yamllint` are installed in the devcontainer.
+- **UI**: `playwright-cli` is installed in the devcontainer for browser checks against a running AppHost.
+
+### Releases
+
+Releases are cut by the [publish workflow](.github/workflows/publish.yml), which runs Versionize to bump `<Version>` and write [CHANGELOG.md](CHANGELOG.md) from Conventional Commits. Pushes to `v2` publish development prereleases. Do not run Versionize, edit `CHANGELOG.md`, or bump versions by hand.
 
 ## Time and Unit Conventions
 
@@ -40,11 +65,12 @@ The shared architecture and conventions in this file remain the source of truth.
 
 ## Git Workflow
 
+- `v2` is the development branch and the default base for new work; `master` is the release branch. Base on `master` only when explicitly asked.
 - Before making changes, start each independent session in a separate Git worktree on a dedicated branch based on the appropriate up-to-date base branch, for example `git worktree add -b <branch> <separate-path> <base-ref>`. Run edits, builds, tests, and commits from that worktree so multiple sessions can work in parallel without sharing working files or an index. Do not make changes directly on the default branch.
 - Reuse the session's assigned worktree for sequential specialist handoffs. Parallel editing specialists must use separate worktrees and branches; the Coordinator integrates their commits explicitly. Read-only reviews do not require a new worktree.
 - Preserve existing worktrees and uncommitted changes belonging to users or other sessions. Do not switch their branches, stage their files, or remove their worktrees.
 - Make atomic commits as work progresses, after each focused, self-contained change passes its relevant checks; do not defer all commits until the end. Stage only the files or hunks belonging to that change, and never commit unrelated work or known-broken intermediate states.
-- Use Conventional Commit messages in the format `<type>(<scope>): <imperative summary>`, for example `fix(timing): validate passing timestamps`.
+- Use Conventional Commit messages in the format `<type>(<scope>): <imperative summary>`, for example `fix(timing): validate passing timestamps`. Always include a scope: a domain (`timing`, `facilities`, `statistics`, `profiles`, `notifications`), an area (`webui`, `agent`, `messaging`, `cache`, `users-migration`, `platform`, `charts`, `ci`, `devcontainer`, `agents`), or `deps`. `release` is reserved for the publish workflow. Versionize builds the changelog from these messages.
 
 ## Architecture
 
