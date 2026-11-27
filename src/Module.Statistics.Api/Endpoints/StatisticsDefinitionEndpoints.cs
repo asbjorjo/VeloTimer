@@ -24,6 +24,7 @@ internal static class StatisticsDefinitionEndpoints
         definitions.MapPost("/configurations", CreateConfiguration).WithName("CreateStatisticsConfiguration");
         definitions.MapPut("/configurations/{id:guid}", UpdateConfiguration).WithName("UpdateStatisticsConfiguration");
         definitions.MapDelete("/configurations/{id:guid}", DeleteConfiguration).WithName("DeleteStatisticsConfiguration");
+        definitions.MapGet("/configurations/{id:guid}/versions", ListConfigurationVersions).WithName("ListStatisticsConfigurationVersions");
     }
 
     private static async Task<Ok<List<StatisticsItemDTO>>> ListItems(StatisticsDbContext storage, CancellationToken cancellationToken) =>
@@ -51,7 +52,7 @@ internal static class StatisticsDefinitionEndpoints
     }
 
     private static async Task<Results<Created<StatisticsItemDTO>, ProblemHttpResult>> CreateItem(
-        SaveStatisticsItemRequest request, StatisticsDbContext storage, StatisticsValidityScheduler scheduler, CancellationToken cancellationToken)
+        SaveStatisticsItemRequest request, StatisticsDbContext storage, CancellationToken cancellationToken)
         => await StatisticsDefinitionTransaction.RunAsync<Results<Created<StatisticsItemDTO>, ProblemHttpResult>>(storage, async () =>
     {
         if (ValidateItem(request, request.DistanceMode ?? StatisticsDistanceMode.Fixed) is { } error)
@@ -71,19 +72,18 @@ internal static class StatisticsDefinitionEndpoints
         };
         storage.Add(item);
         await storage.SaveChangesAsync(cancellationToken);
-        await scheduler.LockThresholdScopeAsync(item.Id, true, cancellationToken);
         await storage.Database.CurrentTransaction!.CommitAsync(cancellationToken);
         return TypedResults.Created($"/api/statistics/admin/items/{item.Id}", ToDto(item));
     }, cancellationToken);
 
     private static async Task<Results<Ok<StatisticsItemDTO>, NotFound, ProblemHttpResult>> UpdateItem(
         Guid id, SaveStatisticsItemRequest request, StatisticsDbContext storage, HybridCache cache, ICacheInvalidationOperations invalidation,
-        ILogger<StatisticsDbContext> logger, StatisticsValidityScheduler scheduler, IServiceProvider services, CancellationToken cancellationToken)
+        ILogger<StatisticsDbContext> logger, CancellationToken cancellationToken)
     {
         var cacheKeys = Array.Empty<string>();
         var result = await StatisticsDefinitionTransaction.RunAsync<Results<Ok<StatisticsItemDTO>, NotFound, ProblemHttpResult>>(storage, async () =>
         {
-            await scheduler.LockThresholdScopeAsync(id, true, cancellationToken);
+            await LockItemAsync(storage, id, cancellationToken);
             var item = await storage.Set<StatisticsItem>().FindAsync([id], cancellationToken);
             if (item is null) return TypedResults.NotFound();
             var mode = request.DistanceMode ?? item.DistanceMode;
@@ -103,31 +103,20 @@ internal static class StatisticsDefinitionEndpoints
                 if (await storage.Set<MultiStatisticsItemConfig>().AnyAsync(config => simpleIds.Contains(config.ParentConfigId), cancellationToken))
                     return Conflict("CourseLayout configurations cannot have Multi dependents.");
             }
-            var configIds = configs.Select(config => config.Id).ToArray();
-            if ((item.Distance != request.Distance || item.DistanceMode != mode) && await storage.Set<StatisticsEntry>()
-                .AnyAsync(entry => entry.StatisticsItemId == id || configIds.Contains(entry.StatisticsItemConfigId), cancellationToken))
-            {
-                return Conflict("Recorded results depend on this distance. Create a new definition instead.");
-            }
 
-            var thresholdsChanged = item.MinDuration != request.MinDuration || item.MaxDuration != request.MaxDuration;
-            // Entries are derived from all passing facts, so a definition counts history from the start.
-            if (configs.Count > 0 && (item.Distance != request.Distance || item.DistanceMode != mode))
-                StatisticsRecomputeScheduler.All(storage, RecomputeReason.Definition, id);
+            // Result-affecting values are dated (plan §4.2, decision §6.1): the edit applies from its effective
+            // instant, and the recompute worker rebuilds the results from there.
+            var before = StatisticsConfigVersioning.Detach(item);
             item.MinDuration = request.MinDuration;
             item.MaxDuration = request.MaxDuration;
             item.Name = request.Name.Trim();
             item.Description = request.Description ?? "";
             item.Distance = request.Distance;
             item.DistanceMode = mode;
+            await StatisticsConfigVersioning.ApplyItemFromAsync(storage, before, item, EffectiveFrom(request.EffectiveFromUtc),
+                DateTime.UtcNow, cancellationToken);
             cacheKeys = configs.SelectMany(CacheKeysFor).ToArray();
             await storage.SaveChangesAsync(cancellationToken);
-            if (thresholdsChanged)
-            {
-                await scheduler.ScheduleThresholdChangeAsync(id, true, cancellationToken);
-                // Resolve on this request scope only for real changes. No-op/metadata writes need no producer.
-                await services.GetRequiredService<IStatisticsThresholdEnqueue>().EnqueueAsync(new(Guid.NewGuid(), id, null), cancellationToken);
-            }
             await storage.Database.CurrentTransaction!.CommitAsync(cancellationToken);
             return TypedResults.Ok(ToDto(item));
         }, cancellationToken);
@@ -226,14 +215,14 @@ internal static class StatisticsDefinitionEndpoints
 
     private static async Task<Results<Created<StatisticsConfigurationDTO>, ProblemHttpResult>> CreateConfiguration(
         SaveStatisticsConfigurationRequest request, StatisticsDbContext storage, ICoursePointReferences points, ICourseLayoutReferences layouts, HybridCache cache,
-        ICacheInvalidationOperations invalidation,
-        ILogger<StatisticsDbContext> logger, StatisticsValidityScheduler scheduler, IServiceProvider services, CancellationToken cancellationToken)
+        ICacheInvalidationOperations invalidation, ILogger<StatisticsDbContext> logger, CancellationToken cancellationToken)
     {
         var cacheKeys = Array.Empty<string>();
         var result = await StatisticsDefinitionTransaction.RunAsync<Results<Created<StatisticsConfigurationDTO>, ProblemHttpResult>>(storage, async () =>
         {
-            await LockConfigurationScope(request, null, storage, scheduler, cancellationToken);
+            await LockItemAsync(storage, request.StatisticsItemId, cancellationToken);
             if (await ValidateConfiguration(request, storage, points, layouts, cancellationToken) is { } error) return Invalid(error);
+            var item = await storage.Set<StatisticsItem>().SingleAsync(value => value.Id == request.StatisticsItemId, cancellationToken);
             StatisticsItemConfig config = request.Type == StatisticsConfigurationType.Simple
                 ? new SimpleStatisticsItemConfig { StatisticsItem = null!, CoursePointStart = request.CoursePointStart!.Value, CoursePointEnd = request.CoursePointEnd!.Value,
                     RequiredCourseLayoutId = request.RequiredCoursePoints?.CourseLayoutId,
@@ -245,14 +234,9 @@ internal static class StatisticsDefinitionEndpoints
             config.MaxDuration = request.MaxDuration;
             cacheKeys = CacheKeysFor(config).ToArray();
             storage.Add(config);
-            // A new definition counts every recorded passing, not only those arriving after it was saved.
-            StatisticsRecomputeScheduler.All(storage, RecomputeReason.Definition, config.Id);
+            // A new definition counts every recorded passing from ValidFromUtc (all of them when omitted).
+            StatisticsConfigVersioning.Create(storage, item, config, request.ValidFromUtc, DateTime.UtcNow);
             await storage.SaveChangesAsync(cancellationToken);
-            if (config.MinDuration is not null || config.MaxDuration is not null)
-            {
-                await scheduler.ScheduleThresholdChangeAsync(config.StatisticsItemId, true, cancellationToken);
-                await services.GetRequiredService<IStatisticsThresholdEnqueue>().EnqueueAsync(new(Guid.NewGuid(), config.StatisticsItemId, config.Id), cancellationToken);
-            }
             await storage.Database.CurrentTransaction!.CommitAsync(cancellationToken);
             return TypedResults.Created($"/api/statistics/admin/configurations/{config.Id}", ToDto(config));
         }, cancellationToken);
@@ -263,8 +247,7 @@ internal static class StatisticsDefinitionEndpoints
 
     private static async Task<Results<Ok<StatisticsConfigurationDTO>, NotFound, ProblemHttpResult>> UpdateConfiguration(
         Guid id, SaveStatisticsConfigurationRequest request, StatisticsDbContext storage, ICoursePointReferences points, ICourseLayoutReferences layouts, HybridCache cache,
-        ICacheInvalidationOperations invalidation,
-        ILogger<StatisticsDbContext> logger, StatisticsValidityScheduler scheduler, IServiceProvider services, CancellationToken cancellationToken)
+        ICacheInvalidationOperations invalidation, ILogger<StatisticsDbContext> logger, CancellationToken cancellationToken)
     {
         var cacheKeys = Array.Empty<string>();
         var result = await StatisticsDefinitionTransaction.RunAsync<Results<Ok<StatisticsConfigurationDTO>, NotFound, ProblemHttpResult>>(storage, async () =>
@@ -272,34 +255,30 @@ internal static class StatisticsDefinitionEndpoints
             var existingItemId = await storage.Set<StatisticsItemConfig>().AsNoTracking()
                 .Where(config => config.Id == id).Select(config => (Guid?)config.StatisticsItemId).SingleOrDefaultAsync(cancellationToken);
             if (existingItemId is null) return TypedResults.NotFound();
-            await LockConfigurationScope(request, existingItemId, storage, scheduler, cancellationToken);
-            var config = await storage.Set<StatisticsItemConfig>().FindAsync([id], cancellationToken);
+            await LockItemAsync(storage, existingItemId.Value, cancellationToken);
+            var config = await storage.Set<StatisticsItemConfig>().Include(value => value.StatisticsItem)
+                .SingleOrDefaultAsync(value => value.Id == id, cancellationToken);
             if (config is null) return TypedResults.NotFound();
             if (config.StatisticsItemId != existingItemId)
                 return Conflict("The configuration moved to another item. Retry with current state.");
             if (ToDto(config).Type != request.Type) return Invalid("Configuration type cannot be changed.");
-            // Resolve preserve semantics before validating against proposed endpoints and detecting structural changes.
+            // Results are identified by their configuration and item, so moving one is a new definition.
+            if (request.StatisticsItemId != config.StatisticsItemId)
+                return Conflict("A configuration cannot move to another item. Create a new configuration instead.");
+            // Resolve preserve semantics before validating against proposed endpoints.
             // Keep the original request unchanged: transaction retries must preserve the newly loaded snapshot,
             // not turn a prior attempt's preserved value into an explicit replacement.
             var proposedRequest = config is SimpleStatisticsItemConfig existingSimple && request.RequiredCoursePoints is null
                 ? request with { RequiredCoursePoints = new(existingSimple.RequiredCourseLayoutId, existingSimple.RequiredCoursePointIds.ToArray()) }
                 : request;
             if (await ValidateConfiguration(proposedRequest, storage, points, layouts, cancellationToken, id) is { } error) return Invalid(error);
-            var proposed = new StatisticsConfigurationDTO(id, request.StatisticsItemId, request.Type, request.CoursePointStart, request.CoursePointEnd, request.ParentConfigId, request.Repetitions)
-            { RequiredCoursePoints = proposedRequest.RequiredCoursePoints };
-            var childIds = storage.Set<MultiStatisticsItemConfig>().Where(child => child.ParentConfigId == id).Select(child => child.Id);
-            var structural = ToDto(config) with { MinDuration = null, MaxDuration = null };
-            if (!SameStructure(structural, proposed) && await storage.Set<StatisticsEntry>()
-                .AnyAsync(entry => entry.StatisticsItemConfigId == id || childIds.Contains(entry.StatisticsItemConfigId), cancellationToken))
-            {
-                return Conflict("Recorded results depend on this configuration. Create a new definition instead.");
-            }
 
+            // Every value is dated (plan §4.2): the edit applies from its effective instant and the recompute
+            // worker rebuilds results from there, so recorded results no longer block structural edits.
+            var before = StatisticsConfigVersioning.Snapshot(config.StatisticsItem, config);
             var oldCacheKeys = CacheKeysFor(config).ToArray();
-            var thresholdsChanged = config.MinDuration != request.MinDuration || config.MaxDuration != request.MaxDuration;
             config.MinDuration = request.MinDuration;
             config.MaxDuration = request.MaxDuration;
-            config.StatisticsItemId = request.StatisticsItemId;
             if (config is SimpleStatisticsItemConfig simple)
             {
                 simple.CoursePointStart = request.CoursePointStart!.Value;
@@ -313,14 +292,9 @@ internal static class StatisticsDefinitionEndpoints
                 multi.Repetitions = request.Repetitions!.Value;
             }
             cacheKeys = oldCacheKeys.Concat(CacheKeysFor(config)).ToArray();
-            if (!SameStructure(structural, proposed with { MinDuration = null, MaxDuration = null }))
-                StatisticsRecomputeScheduler.All(storage, RecomputeReason.Definition, config.Id);
+            await StatisticsConfigVersioning.ApplyFromAsync(storage, before, StatisticsConfigVersioning.Snapshot(config.StatisticsItem, config),
+                EffectiveFrom(request.EffectiveFromUtc), DateTime.UtcNow, cancellationToken);
             await storage.SaveChangesAsync(cancellationToken);
-            if (thresholdsChanged)
-            {
-                await scheduler.ScheduleThresholdChangeAsync(config.StatisticsItemId, true, cancellationToken);
-                await services.GetRequiredService<IStatisticsThresholdEnqueue>().EnqueueAsync(new(Guid.NewGuid(), config.StatisticsItemId, config.Id), cancellationToken);
-            }
             await storage.Database.CurrentTransaction!.CommitAsync(cancellationToken);
             return TypedResults.Ok(ToDto(config));
         }, cancellationToken);
@@ -330,42 +304,28 @@ internal static class StatisticsDefinitionEndpoints
         return result;
     }
 
-    private static async Task LockConfigurationScope(SaveStatisticsConfigurationRequest request, Guid? previousItemId,
-        StatisticsDbContext storage, StatisticsValidityScheduler scheduler, CancellationToken cancellationToken)
-    {
-        var transaction = storage.Database.CurrentTransaction!;
-        const string savepoint = "statistics_configuration_scope";
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await transaction.CreateSavepointAsync(savepoint, cancellationToken);
-            var itemIds = new HashSet<Guid> { request.StatisticsItemId };
-            if (previousItemId is { } previous) itemIds.Add(previous);
-            // Dependency writers serialize with the proposed Simple parent's owner as well.
-            var parentItemId = await ReadParentItemId();
-            if (parentItemId is { } parent) itemIds.Add(parent);
-            // Expand ALL direct owners before locking. Separate ordered scopes can still acquire
-            // A,M then B, inverting completion's single globally ordered B,M acquisition.
-            await scheduler.LockThresholdScopeAsync(itemIds, true, cancellationToken);
-            var currentParentItemId = await ReadParentItemId();
-            if (currentParentItemId == parentItemId)
-            {
-                await transaction.ReleaseSavepointAsync(savepoint, cancellationToken);
-                return;
-            }
-            // The proposed parent's owner moved while we waited. Release this entire scope
-            // before rediscovering, including that owner's dependencies. The scheduler likewise
-            // retries moving dependencies without ever extending locks out of global order.
-            await transaction.RollbackToSavepointAsync(savepoint, cancellationToken);
-            await transaction.ReleaseSavepointAsync(savepoint, cancellationToken);
-        }
+    private static async Task<Ok<List<StatisticsConfigurationVersionDTO>>> ListConfigurationVersions(Guid id,
+        StatisticsDbContext storage, CancellationToken cancellationToken) =>
+        TypedResults.Ok((await storage.Set<StatisticsConfigVersion>().AsNoTracking().Where(version => version.StatisticsItemConfigId == id)
+                .OrderBy(version => version.ValidFromUtc ?? DateTime.MinValue).ToListAsync(cancellationToken))
+            .Select(version => new StatisticsConfigurationVersionDTO(version.Id, version.StatisticsItemConfigId, version.StatisticsItemId,
+                Utc(version.ValidFromUtc), Utc(version.ValidToUtc), version.Distance, version.DistanceMode, version.ItemMinDuration,
+                version.ItemMaxDuration, version.MinDuration, version.MaxDuration,
+                version.CoursePointStart == Guid.Empty ? null : version.CoursePointStart,
+                version.CoursePointEnd == Guid.Empty ? null : version.CoursePointEnd,
+                version.RequiredCoursePointIds.Length == 0 ? null : new(version.RequiredCourseLayoutId, version.RequiredCoursePointIds.ToArray()),
+                version.ParentConfigId, version.Repetitions))
+            .ToList());
 
-        Task<Guid?> ReadParentItemId() => request.ParentConfigId is { } parentId
-            ? storage.Set<SimpleStatisticsItemConfig>().AsNoTracking()
-                .Where(parent => parent.Id == parentId).Select(parent => (Guid?)parent.StatisticsItemId)
-                .SingleOrDefaultAsync(cancellationToken)
-            : Task.FromResult<Guid?>(null);
-    }
+    /// <summary>Serializes definition edits of one item (and its configurations' version histories).</summary>
+    private static Task LockItemAsync(StatisticsDbContext storage, Guid itemId, CancellationToken cancellationToken) =>
+        StatisticsLocks.AdvisoryLockAsync(storage, $"statistics-item:{itemId:D}", cancellationToken);
+
+    /// <summary>An edit without an effective instant applies from now (decision §6.1: never silently to history).</summary>
+    private static DateTime EffectiveFrom(DateTime? requested) =>
+        requested is { } value ? DateTime.SpecifyKind(value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : value, DateTimeKind.Utc) : DateTime.UtcNow;
+
+    private static DateTime? Utc(DateTime? value) => value is { } time ? DateTime.SpecifyKind(time, DateTimeKind.Utc) : null;
 
     private static async Task<Results<NoContent, NotFound, ProblemHttpResult>> DeleteConfiguration(
         Guid id, StatisticsDbContext storage, HybridCache cache, ICacheInvalidationOperations invalidation,
@@ -405,11 +365,6 @@ internal static class StatisticsDefinitionEndpoints
         MultiStatisticsItemConfig multi => new(multi.Id, multi.StatisticsItemId, StatisticsConfigurationType.Multi, null, null, multi.ParentConfigId, multi.Repetitions, multi.MinDuration, multi.MaxDuration),
         _ => throw new InvalidOperationException("Unknown configuration type.")
     };
-    private static bool SameStructure(StatisticsConfigurationDTO current, StatisticsConfigurationDTO proposed) =>
-        (current with { RequiredCoursePoints = null }) == (proposed with { RequiredCoursePoints = null }) &&
-        current.RequiredCoursePoints?.CourseLayoutId == proposed.RequiredCoursePoints?.CourseLayoutId &&
-        (current.RequiredCoursePoints?.CoursePointIds ?? []).SequenceEqual(proposed.RequiredCoursePoints?.CoursePointIds ?? []);
-
     private static ProblemHttpResult Invalid(string detail) => TypedResults.Problem(detail: detail, statusCode: StatusCodes.Status400BadRequest);
     private static ProblemHttpResult Conflict(string detail) => TypedResults.Problem(detail: detail, statusCode: StatusCodes.Status409Conflict);
 }

@@ -30,8 +30,10 @@ public sealed class StatisticsProcessorRegistrationTests
         Assert.Single(timingConsumers, consumer => consumer.MessageType == typeof(PassingRecordedV1) &&
             consumer.ConsumerType == typeof(PassingRecordedHandler));
         // Statistics no longer messages itself (SampleComplete/EntryCreated were removed).
-        Assert.DoesNotContain(bus.Settings.Consumers, consumer => consumer.Path == "velotime-statistics"
-            && consumer.MessageType != typeof(VeloTime.Module.Statistics.Interface.Messages.StatisticsValidityThresholdsChangedV1));
+        // Threshold revalidation folded into the recompute worker (Phase 4), so nothing consumes the Statistics topic.
+        Assert.DoesNotContain(bus.Settings.Consumers, consumer => consumer.Path == "velotime-statistics");
+        Assert.Single(timingConsumers, consumer => consumer.MessageType == typeof(InstallationFacilityChangedV1) &&
+            consumer.ConsumerType == typeof(InstallationFacilityChangedHandler));
         Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(StatisticsRecomputeService));
         Assert.Single(timingConsumers, consumer => consumer.MessageType == typeof(TransponderOwnershipChanged) &&
             consumer.ConsumerType == typeof(TransponderOwnershipChangedHandler));

@@ -1,18 +1,14 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Storage;
 using VeloTime.Module.Timing.Interface.Data;
-using VeloTime.Module.Timing.Interface.Messages;
 
 namespace VeloTime.Module.Statistics.Service;
 
 public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITransponderOwnershipReader ownershipReader)
 {
-    private const int BatchSize = 500;
-
     /// <summary>
-    /// Assigns owners to derived entries inside the recompute's transaction, which already holds the
+    /// The only writer of entry owners (plan §5.5): assigns owners to derived entries inside the recompute's transaction, which already holds the
     /// transponder lock (see <see cref="LockTransponderAsync"/>). Owner profiles are locked in UUID order.
     /// </summary>
     public async Task ApplyOwnersAsync(Guid transponderId, IReadOnlyList<StatisticsEntry> entries, CancellationToken cancellationToken)
@@ -25,40 +21,7 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
 
     /// <summary>Serializes recomputes and ownership reconciliation for one transponder across replicas.</summary>
     public Task LockTransponderAsync(Guid transponderId, CancellationToken cancellationToken) =>
-        AdvisoryLockAsync($"statistics-transponder:{transponderId:D}", cancellationToken);
-
-    public async Task<int> ReconcileAsync(TransponderOwnershipChanged message, CancellationToken cancellationToken)
-    {
-        var ranges = message.Changes.SelectMany(change => new[] { change.Before, change.After })
-            .OfType<TransponderOwnershipDTO>().Distinct().ToList();
-        foreach (var range in ranges) Validate(range, message.TransponderId);
-        if (ranges.Count == 0) throw new ArgumentException("Ownership changes must contain at least one period.", nameof(message));
-
-        await using var transaction = await LockAsync(message.TransponderId, cancellationToken);
-        var owners = await ReadOwnersAsync(message.TransponderId, cancellationToken);
-        await LockOwnersAsync(owners, cancellationToken);
-        var transponderEntries = storage.Set<StatisticsEntry>().Where(entry => entry.TransponderId == message.TransponderId);
-        var affected = transponderEntries.Where(_ => false);
-        foreach (var range in ranges)
-        {
-            var start = range.OwnedFrom.UtcDateTime;
-            var end = range.OwnedTo?.UtcDateTime;
-            affected = affected.Union(transponderEntries.Where(entry =>
-                entry.TimeEnd >= start && (!end.HasValue || entry.TimeStart < end.Value)));
-        }
-
-        var updated = 0;
-        for (var offset = 0; ; offset += BatchSize)
-        {
-            var batch = await affected.OrderBy(entry => entry.Id).Skip(offset).Take(BatchSize).ToListAsync(cancellationToken);
-            if (batch.Count == 0) break;
-            updated += await AssignAsync(batch, owners, cancellationToken);
-            await storage.SaveChangesAsync(cancellationToken);
-            foreach (var entry in batch) storage.Entry(entry).State = EntityState.Detached;
-        }
-        await transaction.CommitAsync(cancellationToken);
-        return updated;
-    }
+        StatisticsLocks.LockTransponderAsync(storage, transponderId, cancellationToken);
 
     private async Task<IReadOnlyList<TransponderOwnershipDTO>> ReadOwnersAsync(Guid transponderId, CancellationToken cancellationToken)
     {
@@ -96,31 +59,12 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
         return updated;
     }
 
-    private async Task<IDbContextTransaction> LockAsync(Guid transponderId, CancellationToken cancellationToken)
-    {
-        var transaction = await storage.Database.BeginTransactionAsync(cancellationToken);
-        try
-        {
-            // Recomputes and reconciliation must serialize per transponder across processor replicas.
-            await LockTransponderAsync(transponderId, cancellationToken);
-            return transaction;
-        }
-        catch
-        {
-            await transaction.DisposeAsync();
-            throw;
-        }
-    }
-
     private async Task LockOwnersAsync(IReadOnlyList<TransponderOwnershipDTO> owners, CancellationToken cancellationToken)
     {
         foreach (var ownerId in owners.Select(owner => owner.OwnerId).Distinct().Order())
             await AdvisoryLockAsync($"statistics-profile:{ownerId:D}", cancellationToken);
     }
 
-    private async Task AdvisoryLockAsync(string key, CancellationToken cancellationToken)
-    {
-        if (storage.Database.IsNpgsql())
-            await storage.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))", cancellationToken);
-    }
+    private Task AdvisoryLockAsync(string key, CancellationToken cancellationToken) =>
+        StatisticsLocks.AdvisoryLockAsync(storage, key, cancellationToken);
 }

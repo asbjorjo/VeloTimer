@@ -1,9 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using VeloTime.Module.Facilities.Model;
 using VeloTime.Module.Facilities.Storage;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Storage;
+using VeloTime.Module.Statistics.Service;
 using VeloTime.Module.Timing.Model;
 using VeloTime.Module.Timing.Storage;
 
@@ -59,7 +60,10 @@ internal class Worker(IServiceProvider serviceProvider, IHostApplicationLifetime
         }
         if (sola.Facility != facility.Id)
         {
+            // Seeded before any passing exists, so the assignment covers all history and needs no change event.
+            await timingContext.Set<InstallationFacilityAssignment>().Where(a => a.InstallationId == sola.Id).ExecuteDeleteAsync();
             sola.Facility = facility.Id;
+            timingContext.Add(new InstallationFacilityAssignment { Id = Guid.NewGuid(), InstallationId = sola.Id, FacilityId = facility.Id });
             await timingContext.SaveChangesAsync();
         }
         if (facility.Layouts.Count == 0)
@@ -174,6 +178,14 @@ internal class Worker(IServiceProvider serviceProvider, IHostApplicationLifetime
             };
             await statisticsContext.AddRangeAsync(s4000msola);
         }
+        await statisticsContext.SaveChangesAsync();
+
+        // Results are derived from dated configuration versions; seeded definitions count all recorded history.
+        var unversioned = await statisticsContext.Set<StatisticsItemConfig>().Include(c => c.StatisticsItem)
+            .Where(c => !statisticsContext.Set<StatisticsConfigVersion>().Any(v => v.StatisticsItemConfigId == c.Id))
+            .ToListAsync();
+        foreach (var config in unversioned)
+            StatisticsConfigVersioning.Create(statisticsContext, config.StatisticsItem, config, null, DateTime.UtcNow);
         await statisticsContext.SaveChangesAsync();
 
         hostApplicationLifetime.StopApplication();

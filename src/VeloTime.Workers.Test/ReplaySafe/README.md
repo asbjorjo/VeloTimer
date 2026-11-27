@@ -9,12 +9,11 @@ entries, on real PostgreSQL databases.
 - **`IPipelineWorld`** (`PipelineWorld.cs`) is the only surface the tests use. It speaks in names (riders, loops,
   course points, items) and exposes configuration, passing delivery, draining, redelivery, manual invalidation
   and a snapshot of stored rows. Each world gets fresh Timing, Facilities and Statistics databases.
-- **`CurrentPipelineWorld`** wires the code as of Phase 2: the Timing passing handler records
+- **`CurrentPipelineWorld`** wires the code as of Phase 4: the Timing passing handler records
   `PassingObservedV1` facts and publishes `PassingRecordedV1`; Statistics stores each as a passing fact and marks
   its transponder dirty, and draining runs the recompute worker until no request is due. Configuration is read
   from the Timing and Facilities databases through the same cache production uses. Messages go through an in-memory FIFO bus with retries and
-  dead-lettering. Configuration that cannot be expressed yet (dated layout revisions, installation assignments,
-  statistics config versions, manual decision reviews) throws `NotSupportedException` naming the plan problem ID.
+  dead-lettering. Configuration that cannot be expressed yet (manual decision reviews) throws `NotSupportedException` naming the plan problem ID.
 - **`PipelineWorlds.CreateAsync`** picks the implementation. Each phase rewires the driver (or replaces it) and
   leaves the tests alone.
 - **`Velodrome`** is the scenario: a 250 m closed loop (Finish → A 100 m → B 50 m → Finish 100 m) with loops
@@ -50,7 +49,7 @@ VELOTIME_RUN_PENDING_REQUIREMENTS=1 dotnet test src/VeloTime.Workers.Test --filt
 | `MissingAssociationAddedLater_...` | – (passes on Phase 3) | the association change is not consumed (C4) |
 | `LoopsSwappedFromX_RecomputeOnlyResultsFromX` | – (passes on Phase 3) | the association change is not consumed (C4) |
 | `SegmentLengthsRevisedFromX_...` | – (passes on Phase 3) | layouts have no dated revisions (C1) |
-| `InstallationMovedToAnotherFacilityFromX_...` | Phase 4 | installation facility is not time-bound (C2) |
-| `LapThresholdTightenedFromX_InvalidatesOnlyLaterLaps` | Phase 4 | thresholds are not versioned (C3) |
+| `InstallationMovedToAnotherFacilityFromX_...` | – (passes on Phase 4) | installation facility is not time-bound (C2) |
+| `LapThresholdTightenedFromX_InvalidatesOnlyLaterLaps` | – (passes on Phase 4) | thresholds are not versioned (C3) |
 | `ManualInvalidation_SurvivesReplayRedelivery...` | – (passes on Phase 2) | replays duplicate the invalidated lap |
 | `ManualInvalidationOnAnEntryALatePassingReplaces_IsSurfacedForReview` | – (passes on Phase 2) | the merged lap is never replaced; there is no review |

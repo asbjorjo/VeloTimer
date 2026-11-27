@@ -16,6 +16,9 @@ public class StatisticsEntry
     public Guid StatisticsItemId { get; init; }
     public StatisticsItemConfig StatisticsItemConfig { get; init; } = default!;
     public Guid StatisticsItemConfigId { get; init; }
+    /// <summary>The configuration version the entry was derived with (the one holding at <see cref="TimeEnd"/>).
+    /// Not part of the identity, so a new version only updates the entries it changes.</summary>
+    public Guid StatisticsConfigVersionId { get; set; }
     public Guid TransponderId { get; init; }
     public StatsProfile? StatsProfile { get; set; }
     public Guid? StatsProfileUserId { get; set; }

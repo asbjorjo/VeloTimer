@@ -1,5 +1,7 @@
 # Statistics item validity thresholds
 
+> **Superseded.** Phase 4 of the [replay-safe statistics plan](replay-safe-statistics-plan.md) replaced threshold revalidation and its `StatisticsValidityThresholdsChangedV1` message with dated statistics config versions that the recompute worker applies. This page describes the removed design.
+
 ## Status and approach
 
 Implementation is in progress on `feature/statistics-validity-thresholds`. Current

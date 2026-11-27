@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Microsoft.Extensions.Options;
 
 namespace VeloTime.Module.Statistics.Service;
@@ -5,9 +6,26 @@ namespace VeloTime.Module.Statistics.Service;
 /// <summary>In-process wake-up hint for the recompute worker. Coalesces; losing a signal only delays work.</summary>
 public sealed class StatisticsRecomputeSignal
 {
-    private readonly StatisticsRevalidationSignal inner = new();
-    public void Notify() => inner.Notify();
-    public Task WaitAsync(TimeSpan timeout, CancellationToken cancellationToken) => inner.WaitAsync(timeout, cancellationToken);
+    private readonly Channel<bool> channel = Channel.CreateBounded<bool>(
+        new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
+
+    public void Notify() => channel.Writer.TryWrite(true);
+
+    /// <summary>Waits for a wake-up or the timeout, whichever comes first.</summary>
+    public async Task WaitAsync(TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutSource.CancelAfter(timeout);
+        try
+        {
+            await channel.Reader.WaitToReadAsync(timeoutSource.Token);
+            channel.Reader.TryRead(out _);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Poll interval elapsed without a wake-up.
+        }
+    }
 }
 
 /// <summary>

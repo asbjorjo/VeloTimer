@@ -100,6 +100,23 @@ public class StatisticsDbContext : BaseDbContext
                 .OnDelete(DeleteBehavior.ClientNoAction);
             e.HasIndex(m => new { m.StatisticsItemId, m.ParentConfigId });
         });
+        modelBuilder.Entity<StatisticsConfigVersion>(e =>
+        {
+            e.HasOne(v => v.StatisticsItemConfig)
+                .WithMany()
+                .HasForeignKey(v => v.StatisticsItemConfigId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.Property(v => v.DistanceMode).HasDefaultValue(StatisticsDistanceMode.Fixed);
+            e.Property(v => v.RequiredCoursePointIds).IsRequired();
+            e.HasIndex(v => new { v.StatisticsItemConfigId, v.ValidFromUtc }).IsUnique()
+                .HasDatabaseName("ux_statistics_config_version_config_from");
+            e.HasIndex(v => v.StatisticsItemId).HasDatabaseName("ix_statistics_config_version_item");
+            if (Database.IsNpgsql())
+            {
+                e.ToTable(t => t.HasCheckConstraint("ck_statistics_config_version_interval",
+                    "valid_from_utc IS NULL OR valid_to_utc IS NULL OR valid_from_utc < valid_to_utc"));
+            }
+        });
         modelBuilder.Entity<StatisticsEntry>(e =>
         {
             e.Property(s => s.IsValid).HasDefaultValue(true);
@@ -149,22 +166,6 @@ public class StatisticsDbContext : BaseDbContext
                 .IsDescending(false, false, false, true, true)
                 .IsCreatedConcurrently()
                 .HasDatabaseName("ix_statistics_entry_facility_item_config_time_end_id");
-        });
-        modelBuilder.Entity<StatisticsValidityRevalidation>(e =>
-        {
-            e.HasKey(r => r.StatisticsItemId);
-            e.HasOne(r => r.StatisticsItem)
-                .WithMany()
-                .HasForeignKey(r => r.StatisticsItemId)
-                .OnDelete(DeleteBehavior.Cascade);
-            e.Property(r => r.Generation).IsConcurrencyToken();
-            e.Property(r => r.MultiRescanPending).HasDefaultValue(false);
-            e.HasIndex(r => new { r.IsPending, r.StatisticsItemId });
-            if (Database.IsNpgsql())
-            {
-                e.ToTable(t => t.HasCheckConstraint("ck_statistics_validity_revalidation",
-                    "generation > 0 AND phase IN (0, 1)"));
-            }
         });
         modelBuilder.Entity<StatsProfile>(p =>
         {

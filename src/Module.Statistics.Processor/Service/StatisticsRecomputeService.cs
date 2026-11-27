@@ -53,7 +53,6 @@ public sealed class StatisticsRecomputeService(
     StatisticsDbContext storage,
     StatisticsConfigurationHistory configuration,
     StatisticsOwnershipService ownership,
-    StatisticsValidityScheduler scheduler,
     IOptions<StatisticsRecomputeOptions> options,
     Metrics metrics,
     ILogger<StatisticsRecomputeService> logger,
@@ -145,6 +144,7 @@ public sealed class StatisticsRecomputeService(
             return false;
         }
         var facts = storage.Set<PassingFact>().AsQueryable();
+        if (request.InstallationId is { } installation) facts = facts.Where(f => f.InstallationId == installation);
         if (request.FromUtc is { } from) facts = facts.Where(f => f.Time >= from);
         if (request.ToUtc is { } to) facts = facts.Where(f => f.Time <= to);
         var transponders = await facts.Select(f => f.TransponderId).Distinct().ToListAsync(cancellationToken);
@@ -205,15 +205,18 @@ public sealed class StatisticsRecomputeService(
             resolved.Add(new(fact.PassingId, fact.TransponderId, fact.TimingPointId, fact.Time, facilityId, coursePointId));
         }
 
-        // Definitions are read after share-locking their items, as every entry writer does, so a concurrent
-        // threshold revalidation or definition edit cannot interleave with this classification.
-        var itemIds = await storage.Set<StatisticsItemConfig>().Select(c => c.StatisticsItemId).Distinct().ToListAsync(cancellationToken);
-        await scheduler.LockItemsAsync(itemIds, StatisticsItemLockMode.Shared, cancellationToken);
-        var simpleConfigs = await storage.Set<SimpleStatisticsItemConfig>().AsNoTracking().Include(c => c.StatisticsItem)
-            .OrderBy(c => c.Id).ToListAsync(cancellationToken);
-        var multiConfigs = await storage.Set<MultiStatisticsItemConfig>().AsNoTracking().Include(c => c.StatisticsItem)
-            .OrderBy(c => c.Id).ToListAsync(cancellationToken);
-        var parentsWithMulti = multiConfigs.Select(m => m.ParentConfigId).ToHashSet();
+        // Every configuration version that holds anywhere in the cluster; each entry uses the version holding at
+        // its end time (plan §4.2). A definition edit committed after this read queues its own request.
+        var versions = await storage.Set<StatisticsConfigVersion>().AsNoTracking()
+            .Where(v => (v.ValidToUtc == null || v.ValidToUtc > clusterStart) && (v.ValidFromUtc == null || v.ValidFromUtc <= clusterEnd))
+            .ToListAsync(cancellationToken);
+        var configTypes = await storage.Set<StatisticsItemConfig>().AsNoTracking()
+            .Select(c => new { c.Id, Multi = c is MultiStatisticsItemConfig }).ToDictionaryAsync(c => c.Id, c => c.Multi, cancellationToken);
+        var simpleVersions = versions.Where(v => configTypes.TryGetValue(v.StatisticsItemConfigId, out var multi) && !multi)
+            .OrderBy(v => v.StatisticsItemConfigId).ThenBy(v => v.ValidFromUtc ?? DateTime.MinValue).ToList();
+        var multiVersions = versions.Where(v => configTypes.TryGetValue(v.StatisticsItemConfigId, out var multi) && multi)
+            .OrderBy(v => v.StatisticsItemConfigId).ThenBy(v => v.ValidFromUtc ?? DateTime.MinValue).ToList();
+        var parentsWithMulti = multiVersions.Select(m => m.ParentConfigId).OfType<Guid>().ToHashSet();
 
         var storedSamples = await storage.Set<Sample>()
             .Where(s => s.TransponderId == transponderId && s.TimeStart >= clusterStart && s.TimeEnd <= clusterEnd)
@@ -232,19 +235,20 @@ public sealed class StatisticsRecomputeService(
         {
             var sessionSamples = SessionBuilder.Samples(session, courses[session.FacilityId], rejections);
             samples.AddRange(sessionSamples);
+            var (sessionStart, sessionEnd) = (session.Start, session.End);
             var simple = new List<StatisticsEntry>();
-            foreach (var config in simpleConfigs)
-                simple.AddRange(EntryDerivation.Simple(config, StatisticsDurationBounds.Effective(config.StatisticsItem, config),
-                    sessionSamples, parentsWithMulti.Contains(config.Id), rejections));
+            foreach (var version in simpleVersions.Where(v => v.Overlaps(sessionStart, sessionEnd)))
+                simple.AddRange(Versioned(version, EntryDerivation.Simple(version.ToSimpleConfig(), version.Bounds(),
+                    sessionSamples, parentsWithMulti.Contains(version.StatisticsItemConfigId), rejections)));
             reviews.AddRange(RecomputeDiff.CarryManualDecisions(storedById, simple, now));
             var multi = new List<StatisticsEntry>();
-            foreach (var config in multiConfigs)
+            foreach (var version in multiVersions.Where(v => v.Overlaps(sessionStart, sessionEnd)))
             {
-                if (config.StatisticsItem.DistanceMode == Interface.Data.StatisticsDistanceMode.CourseLayout
-                    || simpleConfigs.FirstOrDefault(c => c.Id == config.ParentConfigId)?.StatisticsItem.DistanceMode
-                        == Interface.Data.StatisticsDistanceMode.CourseLayout)
+                if (version.DistanceMode == Interface.Data.StatisticsDistanceMode.CourseLayout
+                    || simpleVersions.Any(p => p.StatisticsItemConfigId == version.ParentConfigId
+                        && p.DistanceMode == Interface.Data.StatisticsDistanceMode.CourseLayout))
                     continue;
-                multi.AddRange(EntryDerivation.Multi(config, StatisticsDurationBounds.Effective(config.StatisticsItem, config), simple));
+                multi.AddRange(Versioned(version, EntryDerivation.Multi(version.ToMultiConfig(), version.Bounds(), simple)));
             }
             reviews.AddRange(RecomputeDiff.CarryManualDecisions(storedById, multi, now));
             entries.AddRange(simple);
@@ -277,5 +281,16 @@ public sealed class StatisticsRecomputeService(
         logger.LogDebug("Recomputed transponder {TransponderId} over {Start:o}..{End:o}: {Passings} passings ({Unresolved} unresolved), " +
             "{Samples} samples, {Entries} entries, {Changed} rows changed, {Rejected} rejected candidates",
             transponderId, clusterStart, clusterEnd, loaded.Count, unresolved, samples.Count, entries.Count, changed, rejections.Count);
+    }
+
+    /// <summary>The entries the version holds for (by end time), stamped with it.</summary>
+    private static IEnumerable<StatisticsEntry> Versioned(StatisticsConfigVersion version, IEnumerable<StatisticsEntry> entries)
+    {
+        foreach (var entry in entries)
+        {
+            if (!version.Contains(entry.TimeEnd)) continue;
+            entry.StatisticsConfigVersionId = version.Id;
+            yield return entry;
+        }
     }
 }

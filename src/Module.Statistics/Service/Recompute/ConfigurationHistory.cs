@@ -100,11 +100,33 @@ public sealed class FacilityCourseHistory
         CourseDistanceRules.Resolve(Layouts.Select(layout => layout.GeometryAt(instant)).OfType<CourseLayoutGeometry>(), start, end);
 }
 
-/// <summary>An installation's facility. Phase 4 makes this a dated assignment history.</summary>
+/// <summary>An installation's facility over [ValidFromUtc, ValidToUtc); null is unbounded.</summary>
+public sealed class InstallationFacilityVersion
+{
+    public Guid FacilityId { get; init; }
+    public DateTime? ValidFromUtc { get; init; }
+    public DateTime? ValidToUtc { get; init; }
+
+    public bool Contains(DateTime instant) =>
+        (ValidFromUtc is not { } from || from <= instant) && (ValidToUtc is not { } to || instant < to);
+}
+
+/// <summary>An installation's whole facility assignment history (plan §4.2, C2), resolved per instant.</summary>
 public sealed class InstallationFacilityHistory
 {
     public Guid InstallationId { get; init; }
-    public Guid? FacilityId { get; init; }
+    public List<InstallationFacilityVersion> Assignments { get; init; } = [];
 
-    public Guid? ResolveFacility(DateTime instant) => FacilityId;
+    /// <summary>The facility the installation served at <paramref name="instant"/>, if exactly one.</summary>
+    public Guid? ResolveFacility(DateTime instant)
+    {
+        Guid? found = null;
+        foreach (var assignment in Assignments)
+        {
+            if (assignment.FacilityId == Guid.Empty || !assignment.Contains(instant)) continue;
+            if (found.HasValue && found != assignment.FacilityId) return null;
+            found = assignment.FacilityId;
+        }
+        return found;
+    }
 }

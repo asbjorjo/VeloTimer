@@ -1,5 +1,7 @@
 # Statistics validity-threshold messaging rollout
 
+> **Superseded.** Phase 4 of the [replay-safe statistics plan](replay-safe-statistics-plan.md) replaced threshold revalidation and its `StatisticsValidityThresholdsChangedV1` message with dated statistics config versions that the recompute worker applies. This page describes the removed design.
+
 ## Producer registration / API owner
 
 `builder.AddStatisticsValidityThresholdsMessaging()` in

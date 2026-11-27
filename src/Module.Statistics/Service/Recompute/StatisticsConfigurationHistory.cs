@@ -21,7 +21,8 @@ public interface IStatisticsConfigurationSource
 public static class StatisticsConfigurationCacheKeys
 {
     public const string Tag = "Statistics.ConfigurationHistory";
-    public static string Installation(Guid installationId) => $"velotime:statistics:config-history:installation:v1:{installationId:D}";
+    public static string Installation(Guid installationId) => $"velotime:statistics:config-history:installation:v2:{installationId:D}";
+    public static string Ownership(Guid transponderId) => $"velotime:statistics:config-history:ownership:v1:{transponderId:D}";
     public static string FacilityCourse(Guid facilityId) => $"velotime:statistics:config-history:facility-course:v2:{facilityId:D}";
 }
 
@@ -34,7 +35,7 @@ public static class StatisticsConfigurationCacheKeys
 public sealed class StatisticsConfigurationHistory(HybridCache cache, IStatisticsConfigurationSource source,
     ICacheInvalidationOperations? invalidation = null, ILogger<StatisticsConfigurationHistory>? logger = null)
 {
-    // Bounded staleness until Phase 4 delivers change events for installation assignments.
+    // Bounded staleness is only a backstop: every history is evicted by its change event before the recompute it triggers.
     private static readonly HybridCacheEntryOptions EntryOptions = new()
     {
         Expiration = TimeSpan.FromMinutes(5),
@@ -60,6 +61,21 @@ public sealed class StatisticsConfigurationHistory(HybridCache cache, IStatistic
             (source, facilityId), static (state, cancel) => new ValueTask<FacilityCourseHistory>(
                 state.source.GetFacilityCourseAsync(state.facilityId, cancel)),
             FacilityCourseEntryOptions, [StatisticsConfigurationCacheKeys.Tag], cancellationToken);
+
+    /// <summary>
+    /// A transponder's ownership periods, cached like the other histories. <paramref name="read"/> fetches them from
+    /// Timing on a miss; <see cref="EvictOwnershipAsync"/> must run before an ownership change enqueues a recompute.
+    /// </summary>
+    public ValueTask<List<TOwner>> GetOwnershipAsync<TOwner>(Guid transponderId,
+        Func<Guid, CancellationToken, Task<List<TOwner>>> read, CancellationToken cancellationToken) =>
+        cache.GetOrCreateAsync(StatisticsConfigurationCacheKeys.Ownership(transponderId),
+            (read, transponderId), static (state, cancel) => new ValueTask<List<TOwner>>(state.read(state.transponderId, cancel)),
+            EntryOptions, [StatisticsConfigurationCacheKeys.Tag], cancellationToken);
+
+    /// <summary>Strictly evicts a transponder's cached ownership history; throws when eviction cannot be confirmed.</summary>
+    public Task EvictOwnershipAsync(Guid transponderId) =>
+        StatisticsCacheInvalidation.InvalidateAsync(cache, logger ?? (ILogger)NullLogger.Instance,
+            [StatisticsConfigurationCacheKeys.Ownership(transponderId)], [], invalidation);
 
     /// <summary>Strictly evicts the given scopes; throws when eviction cannot be confirmed.</summary>
     public Task EvictAsync(IEnumerable<Guid> installationIds, IEnumerable<Guid> facilityIds) =>

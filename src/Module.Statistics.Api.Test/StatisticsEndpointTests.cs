@@ -170,7 +170,7 @@ public sealed class StatisticsEndpointTests(StatisticsApiFactory factory) : ICla
     }
 
     [Fact]
-    public async Task DefinitionEndpoints_PreserveRecordedResults()
+    public async Task DefinitionEndpoints_VersionEditsAndPreserveRecordedResults()
     {
         var itemId = Guid.NewGuid();
         var configId = Guid.NewGuid();
@@ -191,10 +191,11 @@ public sealed class StatisticsEndpointTests(StatisticsApiFactory factory) : ICla
 
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Test-Role", "statistics-admin");
-        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync($"/api/statistics/admin/items/{itemId}", new SaveStatisticsItemRequest("Lap", "", 500))).StatusCode);
+        // Definitions are dated versions: edits with results start a new version from now instead of conflicting.
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"/api/statistics/admin/items/{itemId}", new SaveStatisticsItemRequest("Lap", "", 500))).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"/api/statistics/admin/items/{itemId}", new SaveStatisticsItemRequest("Renamed", "", 250))).StatusCode);
         var update = new SaveStatisticsConfigurationRequest(itemId, StatisticsConfigurationType.Simple, Guid.NewGuid(), pointId, null, null);
-        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync($"/api/statistics/admin/configurations/{configId}", update)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"/api/statistics/admin/configurations/{configId}", update)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.DeleteAsync($"/api/statistics/admin/configurations/{Guid.NewGuid()}")).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync($"/api/statistics/admin/configurations/{configId}")).StatusCode);
         await using var verification = factory.Services.CreateAsyncScope();

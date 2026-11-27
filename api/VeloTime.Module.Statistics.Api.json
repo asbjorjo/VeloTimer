@@ -910,6 +910,40 @@
         }
       }
     },
+    "/api/statistics/admin/configurations/{id}/versions": {
+      "get": {
+        "tags": [
+          "Statistics"
+        ],
+        "operationId": "ListStatisticsConfigurationVersions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StatisticsConfigurationVersionDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/statistics/admin/entries": {
       "get": {
         "tags": [
@@ -2182,6 +2216,20 @@
                 "$ref": "#/components/schemas/StatisticsRequiredCoursePoints"
               }
             ]
+          },
+          "validFromUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "effectiveFromUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -2226,6 +2274,13 @@
                 "$ref": "#/components/schemas/StatisticsDistanceMode"
               }
             ]
+          },
+          "effectiveFromUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -2308,6 +2363,128 @@
       },
       "StatisticsConfigurationType": {
         "type": "integer"
+      },
+      "StatisticsConfigurationVersionDTO": {
+        "required": [
+          "id",
+          "statisticsItemConfigId",
+          "statisticsItemId",
+          "validFromUtc",
+          "validToUtc",
+          "distance",
+          "distanceMode",
+          "itemMinDuration",
+          "itemMaxDuration",
+          "minDuration",
+          "maxDuration",
+          "coursePointStart",
+          "coursePointEnd",
+          "requiredCoursePoints",
+          "parentConfigId",
+          "repetitions"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "statisticsItemConfigId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "statisticsItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "validFromUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "validToUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "distance": {
+            "type": "number",
+            "format": "float"
+          },
+          "distanceMode": {
+            "$ref": "#/components/schemas/StatisticsDistanceMode"
+          },
+          "itemMinDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "itemMaxDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "minDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "maxDuration": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "coursePointStart": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "coursePointEnd": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "requiredCoursePoints": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StatisticsRequiredCoursePoints"
+              }
+            ]
+          },
+          "parentConfigId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "repetitions": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
       },
       "StatisticsDistanceMode": {
         "type": "integer"
