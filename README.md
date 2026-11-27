@@ -780,9 +780,9 @@ Delivery is **at least once**: consumers must be idempotent or deduplicate by
 processor reconciles profile links against current ownership, making repeated
 deliveries and replayed snapshots safe without a processed-event table. The outbox
 preserves its sequence across API instances and dispatches one event at a time
-to prevent later ownership events overtaking a failed event. A blocked event can
-therefore delay all ownership events. This does not order ownership events
-relative to independently published passing/sample events. Idle polling is every
+to prevent later events overtaking a failed event. Timing.Processor enqueues
+`PassingRecordedV1` into the same `timing.smb_outbox`, so both hosts register every
+Timing producer, and a blocked event delays all Timing events. Idle polling is every
 five seconds; the Service Bus client's retry policy applies to transport sends.
 The library delivery-attempt limit is set to `int.MaxValue` rather than the
 three-attempt default so ordinary outages do not exhaust retries.
@@ -790,9 +790,10 @@ three-attempt default so ordinary outages do not exhaust retries.
 #### Statistics profile assignment
 
 The Statistics processor consumes ownership changes on `velotime-timing-test`,
-subscription `statistics`, alongside `TimingSampleComplete`. If subscription
-filters are managed externally, allow both message types (`MessageName`) and
-retain session support. Before/after periods identify impacted entries, including
+subscription `statistics`. If subscription filters are managed externally, allow
+its message type (`MessageName`) and retain session support. (`TimingSampleComplete`
+was removed in Phase 1 of the replay-safe statistics plan; Statistics consumes
+`PassingRecordedV1` from Phase 2.) Before/after periods identify impacted entries, including
 entries losing coverage after an ownership is shortened, moved, or deleted.
 The processor reads all current ownership periods from
 `GET /api/timing/ownerships/{transponderId}`; it does not apply stale event
@@ -1149,11 +1150,11 @@ messageBusTopology:
           maxDeliveryCount: 10           # optional; omitted values are not reconciled
           lockDuration: "00:01:00"       # .NET TimeSpan format
           rules:
-            - name: PassingEvent
-              sqlFilter: MessageName = 'PassingEvent'
+            - name: PassingObservedV1
+              sqlFilter: MessageName = 'PassingObservedV1'
             - name: ByHeader
               correlationFilter:
-                properties: { MessageName: PassingEvent }
+                properties: { MessageName: PassingObservedV1 }
 ```
 
 The [values schema](charts/velotime/values.schema.json) and the job both validate
