@@ -119,8 +119,11 @@ class NotificationsPlatformTests(unittest.TestCase):
     def test_processor_is_enabled_by_default_and_receives_runtime_dependencies(self):
         documents = render()
         processor = self.named(documents, "Deployment", "module-notifications-processor")
+        global_image = yaml.safe_load(
+            (ROOT / "charts/velotime/values.yaml").read_text()
+        )["global"]["image"]
         self.assertEqual(
-            "ghcr.io/asbjorjo/velotime-module-notifications-processor:2.1.0-alpha.33",
+            f"{global_image['repository']}velotime-module-notifications-processor:{global_image['tag']}",
             container(processor)["image"],
         )
         self.assertIn(
