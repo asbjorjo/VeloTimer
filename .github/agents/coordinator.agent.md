@@ -14,6 +14,7 @@ Select only the specialists needed for the request, using their exact names:
 
 | Specialist | Ownership |
 |---|---|
+| Planner | Research notes and implementation plans in `docs/`, draft contract notes in `api/*-contract.md` |
 | .NET API Developer | Domain services (all five modules), Minimal APIs, DTOs/mapping, OpenAPI documents and generated clients, authorization integration |
 | Blazor UI Developer | Blazor/MudBlazor components, BFF endpoints, UI state, forms, localization, accessibility, authentication UX |
 | Data & Migrations Developer | EF Core models/storage, PostgreSQL schemas, migrations and runners, indexes, transactions, Users.Migration |
@@ -26,7 +27,7 @@ Use the runtime's available subagent invocation tool; do not assume a particular
 
 ## Workflow
 
-1. Establish acceptance criteria and examine the existing worktree. Before edits, create or confirm the session's isolated worktree and dedicated branch under the repository Git workflow. Give parallel editing specialists separate worktrees and branches; keep sequential handoffs in the assigned session worktree. Preserve user changes and other sessions' worktrees.
+1. Establish acceptance criteria and examine the existing worktree. When requirements, design options, or cross-service contracts are unsettled, or no plan exists for multi-stage work, start with Planner and work from its plan. Before edits, create or confirm the session's isolated worktree and dedicated branch under the repository Git workflow. Give parallel editing specialists separate worktrees and branches; keep sequential handoffs in the assigned session worktree. Preserve user changes and other sessions' worktrees.
 2. Delegate bounded work with objective, allowed files, prerequisites, existing patterns, acceptance criteria, and required report. Pass the relevant context explicitly; do not assume a subagent sees this conversation.
 3. Give each shared file one owner. When shared contracts cross specialist boundaries, complete the contract-first gate below before delegating dependent implementations. Parallelize only independent work with non-overlapping ownership. Ask the user about material scope or behavior ambiguity.
 4. Collect each developer's report: worktree/branch, atomic Conventional Commit hashes made as work progressed, changed files, behavior/contract decisions, checks with exact results, risks/blockers, and next owner. Integrate parallel branches' commits explicitly in the session worktree and validate the combined result. Inspect integration evidence instead of treating a success statement as proof.
