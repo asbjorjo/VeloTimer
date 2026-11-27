@@ -46,7 +46,7 @@ public static class PipelineWorlds
 }
 
 /// <summary>
-/// The pipeline as of Phase 3: Timing records each <see cref="PassingObservedV1"/> as an idempotent
+/// The pipeline as of Phase 4: Timing records each <see cref="PassingObservedV1"/> as an idempotent
 /// fact and publishes <see cref="PassingRecordedV1"/>; Statistics stores its own fact copy, marks the
 /// range dirty, and the recompute worker derives samples and entries per riding session from the facts
 /// and the configuration history (read through the shared cache from the Facilities and Timing
@@ -54,7 +54,8 @@ public static class PipelineWorlds
 /// services, which publish <see cref="CourseConfigChangedV1"/>; Statistics' handler evicts the cached
 /// history and marks the range dirty. Messages go through an in-memory FIFO bus; a failing message is
 /// retried a few times and then dead-lettered, as the broker would. A recompute that fails is reported as
-/// a dead letter too. Installation edits still evict the cache directly until Phase 4 adds their event.
+/// a dead letter too. Installation facility assignments and statistics config versions are dated too;
+/// their edits go through the production services and change-event handlers.
 /// </summary>
 internal sealed class CurrentPipelineWorld : IPipelineWorld
 {
@@ -74,6 +75,7 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
     private readonly IDataProtectionProvider protection = new EphemeralDataProtectionProvider();
     private readonly Dictionary<Guid, string> facilityNames = new();
     private readonly Dictionary<string, SimpleStatisticsItemConfig> simpleItems = new();
+    private readonly Dictionary<string, string> pointFacilities = new();
     private readonly Dictionary<Guid, string> itemNames = new();
     // MYLAPS X2 transponder IDs are numeric; riders are named in the tests.
     private readonly Dictionary<string, string> transponderIds = new();
@@ -139,6 +141,7 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
         facilities[name] = created.Id;
         facilityNames[created.Id] = name;
         layouts[name] = await db.Set<CourseLayout>().Where(l => l.FacilityId == created.Id).Select(l => l.Id).SingleAsync();
+        foreach (var segment in segments) pointFacilities[segment.From] = pointFacilities[segment.To] = name;
     }
 
     /// <summary>The request shape of a chain of named segments; new names become new course points.</summary>
@@ -163,14 +166,15 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
 
     public async Task AssignInstallationAsync(string agent, string facilityName, DateTime? validFrom = null)
     {
-        if (validFrom is not null)
-            throw new NotSupportedException("C2: Installation.Facility is still a mutable field; it has no effective date.");
+        // As TimingAdministrationService does: a dated assignment plus InstallationFacilityChangedV1 in one transaction.
         await using var db = TimingDb();
         var installation = await EnsureInstallationAsync(db, agent);
+        await using var transaction = await db.Database.BeginTransactionAsync();
         var writable = await db.Set<Installation>().SingleAsync(i => i.Id == installation.Id);
-        writable.Facility = facilities[facilityName];
+        await InstallationFacilityService.AssignAsync(db, QueueBus.Create(this), writable, facilities[facilityName], validFrom,
+            CancellationToken.None);
         await db.SaveChangesAsync();
-        await History().EvictAsync([installation.Id], []);
+        await transaction.CommitAsync();
     }
 
     public async Task AssociateLoopAsync(string agent, string loop, string coursePoint, DateTime? from = null, DateTime? to = null)
@@ -211,8 +215,6 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
     public async Task DefineSimpleItemAsync(string name, string start, string end, double distance,
         DateTime? validFrom = null, TimeSpan? maxDuration = null)
     {
-        if (validFrom is not null)
-            throw new NotSupportedException("C3: statistics definitions have no effective date yet.");
         var item = new StatisticsItem { Id = Guid.NewGuid(), Name = name, Distance = (float)distance, MaxDuration = maxDuration };
         var config = new SimpleStatisticsItemConfig
         {
@@ -221,8 +223,8 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
         };
         await using var db = StatisticsDb();
         db.Add(config);
-        // As StatisticsDefinitionEndpoints does: a new definition counts all recorded history.
-        StatisticsRecomputeScheduler.All(db, RecomputeReason.Definition, config.Id);
+        // As StatisticsDefinitionEndpoints does: the first version counts history from validFrom (all of it when null).
+        StatisticsConfigVersioning.Create(db, item, config, validFrom, DateTime.UtcNow);
         await db.SaveChangesAsync();
         simpleItems[name] = config;
         itemNames[item.Id] = name;
@@ -233,12 +235,13 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
         var item = new StatisticsItem { Id = Guid.NewGuid(), Name = name, Distance = (float)distance };
         await using var db = StatisticsDb();
         var parentConfig = await db.Set<SimpleStatisticsItemConfig>().SingleAsync(c => c.Id == simpleItems[parent].Id);
-        db.Add(new MultiStatisticsItemConfig
+        var config = new MultiStatisticsItemConfig
         {
             Id = Guid.NewGuid(), StatisticsItem = item, StatisticsItemId = item.Id,
             ParentConfig = parentConfig, ParentConfigId = parentConfig.Id, Repetitions = repetitions
-        });
-        StatisticsRecomputeScheduler.All(db, RecomputeReason.Definition);
+        };
+        db.Add(config);
+        StatisticsConfigVersioning.Create(db, item, config, null, DateTime.UtcNow);
         await db.SaveChangesAsync();
         itemNames[item.Id] = name;
     }
@@ -261,8 +264,30 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
         throw new InvalidOperationException("The layout revision was not confirmed.");
     }
 
-    public Task ChangeItemAsync(string name, ItemChange change, DateTime validFrom) =>
-        throw new NotSupportedException("C3: statistics definitions (thresholds, required points) are not versioned yet.");
+    public async Task ChangeItemAsync(string name, ItemChange change, DateTime validFrom)
+    {
+        // As StatisticsDefinitionEndpoints does: item values (thresholds) on the item, the rest on its configuration,
+        // each applied to the version history from validFrom, which marks results from validFrom dirty.
+        await using var db = StatisticsDb();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var config = await db.Set<SimpleStatisticsItemConfig>().Include(c => c.StatisticsItem).SingleAsync(c => c.Id == simpleItems[name].Id);
+        if (change.MaxDuration is { } maxDuration)
+        {
+            var before = StatisticsConfigVersioning.Detach(config.StatisticsItem);
+            config.StatisticsItem.MaxDuration = maxDuration;
+            await StatisticsConfigVersioning.ApplyItemFromAsync(db, before, config.StatisticsItem, validFrom, DateTime.UtcNow, CancellationToken.None);
+        }
+        if (change.RequiredCoursePoints is { } required)
+        {
+            var before = StatisticsConfigVersioning.Snapshot(config.StatisticsItem, config);
+            config.RequiredCoursePointIds = required.Select(point => coursePoints[point]).ToArray();
+            config.RequiredCourseLayoutId = config.RequiredCoursePointIds.Length == 0 ? null : layouts[pointFacilities[required[0]]];
+            await StatisticsConfigVersioning.ApplyFromAsync(db, before, StatisticsConfigVersioning.Snapshot(config.StatisticsItem, config),
+                validFrom, DateTime.UtcNow, CancellationToken.None);
+        }
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+    }
 
     // ---- Input ------------------------------------------------------------------------------
 
@@ -421,6 +446,13 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
                     NullLogger<PassingRecordedHandler>.Instance).OnHandle(recorded, CancellationToken.None);
                 break;
             }
+            case InstallationFacilityChangedV1 changed:
+            {
+                await using var db = StatisticsDb();
+                await new InstallationFacilityChangedHandler(db, History(), new StatisticsRecomputeSignal(),
+                    NullLogger<InstallationFacilityChangedHandler>.Instance).OnHandle(changed, CancellationToken.None);
+                break;
+            }
             default:
                 throw new NotSupportedException($"No consumer for {envelope.Message.GetType().Name}.");
         }
@@ -448,7 +480,7 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
     private StatisticsConfigurationHistory History() => new(Cache, new DatabaseConfigurationSource(this));
 
     private StatisticsRecomputeService RecomputeService(StatisticsDbContext db) => new(db, History(),
-        new StatisticsOwnershipService(db, new NoOwners()), new StatisticsValidityScheduler(db),
+        new StatisticsOwnershipService(db, new NoOwners()),
         Microsoft.Extensions.Options.Options.Create(new StatisticsRecomputeOptions()), new StatisticsMetrics(Meters),
         NullLogger<StatisticsRecomputeService>.Instance);
 
@@ -458,9 +490,18 @@ internal sealed class CurrentPipelineWorld : IPipelineWorld
         public async Task<InstallationFacilityHistory> GetInstallationAsync(Guid installationId, CancellationToken cancellationToken)
         {
             await using var db = world.TimingDb();
-            var facility = await db.Set<Installation>().AsNoTracking().Where(i => i.Id == installationId)
-                .Select(i => (Guid?)i.Facility).SingleOrDefaultAsync(cancellationToken);
-            return new() { InstallationId = installationId, FacilityId = facility == Guid.Empty ? null : facility };
+            var assignments = await db.Set<InstallationFacilityAssignment>().AsNoTracking()
+                .Where(a => a.InstallationId == installationId).ToListAsync(cancellationToken);
+            return new()
+            {
+                InstallationId = installationId,
+                Assignments = assignments.Select(a => new InstallationFacilityVersion
+                {
+                    FacilityId = a.FacilityId,
+                    ValidFromUtc = a.ValidFromUtc is { } from ? Utc(from) : null,
+                    ValidToUtc = a.ValidToUtc is { } to ? Utc(to) : null
+                }).ToList()
+            };
         }
 
         public async Task<FacilityCourseHistory> GetFacilityCourseAsync(Guid facilityId, CancellationToken cancellationToken)

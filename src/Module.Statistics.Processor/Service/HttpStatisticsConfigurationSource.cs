@@ -14,8 +14,17 @@ public sealed class HttpStatisticsConfigurationSource(ITimingClient timing, IFac
     {
         try
         {
-            var installation = await timing.InstallationsGETAsync(installationId, cancellationToken);
-            return new() { InstallationId = installationId, FacilityId = installation.FacilityId == Guid.Empty ? null : installation.FacilityId };
+            var assignments = await timing.GetInstallationFacilityAssignmentsAsync(installationId, cancellationToken);
+            return new()
+            {
+                InstallationId = installationId,
+                Assignments = assignments.Select(assignment => new InstallationFacilityVersion
+                {
+                    FacilityId = assignment.FacilityId,
+                    ValidFromUtc = Utc(assignment.ValidFromUtc),
+                    ValidToUtc = Utc(assignment.ValidToUtc)
+                }).ToList()
+            };
         }
         catch (Timing.Client.ApiException exception) when (exception.StatusCode == 404)
         {
@@ -64,4 +73,8 @@ public sealed class HttpStatisticsConfigurationSource(ITimingClient timing, IFac
             return new() { FacilityId = facilityId };
         }
     }
+
+    private static DateTime? Utc(DateTimeOffset? value) => value?.UtcDateTime;
+    private static DateTime? Utc(DateTime? value) =>
+        value is { } time ? DateTime.SpecifyKind(time.Kind == DateTimeKind.Local ? time.ToUniversalTime() : time, DateTimeKind.Utc) : null;
 }

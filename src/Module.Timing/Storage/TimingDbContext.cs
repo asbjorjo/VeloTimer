@@ -72,7 +72,20 @@ public class TimingDbContext : BaseDbContext
             e.HasMany(i => i.TimingPoints)
                 .WithOne(tp => tp.Installation)
                 .IsRequired();
-
+            e.HasMany(i => i.FacilityAssignments)
+                .WithOne(a => a.Installation)
+                .HasForeignKey(a => a.InstallationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<InstallationFacilityAssignment>(e =>
+        {
+            e.HasIndex(a => new { a.InstallationId, a.ValidFromUtc }).IsUnique();
+            e.HasIndex(a => a.FacilityId);
+            if (Database.IsNpgsql())
+            {
+                e.ToTable(t => t.HasCheckConstraint("ck_installation_facility_assignment_interval",
+                    "valid_from_utc IS NULL OR valid_to_utc IS NULL OR valid_from_utc < valid_to_utc"));
+            }
         });
         modelBuilder.Entity<TransponderOwner>(e =>
         {

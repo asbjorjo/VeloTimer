@@ -6,7 +6,6 @@ using SlimMessageBus.Host.Serialization.SystemTextJson;
 using VeloTime.Module.Facilities.Interface.Messages;
 using VeloTime.Module.Statistics;
 using VeloTime.Module.Statistics.Handlers;
-using VeloTime.Module.Statistics.Interface.Messages;
 using VeloTime.Module.Statistics.Service;
 using VeloTime.Module.Statistics.Service.Recompute;
 using VeloTime.Module.Timing.Interface.Messages;
@@ -41,8 +40,8 @@ internal static class StartupExtensions
             {
                 headers["MessageName"] = message.GetType().Name;
             });
-            // Passing facts and ownership changes share the session-enabled "statistics" subscription on the
-            // Timing topic; both are keyed by transponder. Statistics no longer messages itself (plan §3.3).
+            // Passing facts, ownership changes and installation facility changes share the session-enabled "statistics" subscription on the
+            // Timing topic; passings and ownership are keyed by transponder, facility changes by installation. Statistics no longer messages itself (plan §3.3).
             mbb.Consume<PassingRecordedV1>(x => x
                 .Topic("velotime-timing")
                 .SubscriptionName("statistics")
@@ -65,13 +64,13 @@ internal static class StartupExtensions
                 .WithConsumer<CourseConfigChangedHandler>()
                 .Instances(1)
                 .EnableSession());
-            // Wake-up only: durable job rows are the source of work.
-            mbb.Consume<StatisticsValidityThresholdsChangedV1>(x => x
-                .Topic("velotime-statistics")
-                .SubscriptionName("statistics-validity")
-                .SubscriptionSqlFilter($"MessageName = '{nameof(StatisticsValidityThresholdsChangedV1)}'")
-                .WithConsumer<StatisticsValidityThresholdsChangedHandler>()
-                .Instances(1));
+            mbb.Consume<InstallationFacilityChangedV1>(x => x
+                .Topic("velotime-timing")
+                .SubscriptionName("statistics")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(InstallationFacilityChangedV1)}'")
+                .WithConsumer<InstallationFacilityChangedHandler>()
+                .Instances(1)
+                .EnableSession());
             mbb.AddServicesFromAssemblyContaining<TransponderOwnershipChangedHandler>();
         });
 
@@ -82,13 +81,6 @@ internal static class StartupExtensions
             .AddClientCredentialsTokenHandler(ClientCredentialsClientName.Parse("velotime.statistics.processor"));
         services.AddScoped<ITransponderOwnershipReader, TransponderOwnershipReader>();
         services.AddScoped<StatisticsOwnershipService>();
-        services.AddOptions<StatisticsRevalidationOptions>()
-            .Bind(configuration.GetSection(StatisticsRevalidationOptions.Section))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-        services.AddSingleton<StatisticsRevalidationSignal>();
-        services.AddScoped<StatisticsRevalidationService>();
-        services.AddHostedService<StatisticsRevalidationWorker>();
         services.AddOptions<StatisticsRecomputeOptions>()
             .Bind(configuration.GetSection(StatisticsRecomputeOptions.Section))
             .ValidateDataAnnotations()

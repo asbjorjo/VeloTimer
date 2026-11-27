@@ -154,13 +154,15 @@ public sealed class PassingListingTests(TimingApiFactory factory) : IClassFixtur
             Id = key, SystemId = Random.Shared.NextInt64(100000000, 999999999).ToString(CultureInfo.InvariantCulture)
         });
         var installation = new Installation { Id = Guid.NewGuid(), AgentId = Guid.NewGuid().ToString("N"),
-            Description = "Installation " + description, Facility = Guid.NewGuid() };
+            Description = "Installation " + description };
+        var facility = Guid.NewGuid();
+        installation.FacilityAssignments.Add(new() { Id = Guid.NewGuid(), FacilityId = facility });
         var point = new TimingPoint { Id = Guid.NewGuid(), SystemId = Guid.NewGuid().ToString("N"),
             Description = description, InstallationId = installation.Id, Installation = installation };
         var passing = new Passing { Id = id, Time = time.UtcDateTime, Transponder = transponder,
             TransponderId = transponderId, TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid(), TimingPointId = point.Id,
             LowBattery = lowBattery, LowStrength = lowStrength, LowHits = lowHits };
-        return new(transponder, installation, point, passing, installation.Facility);
+        return new(transponder, installation, point, passing, facility);
     }
     private sealed record RowSeed(MylapsProChipTransponder Transponder, Installation Installation, TimingPoint Point, Passing Passing, Guid Facility);
 }

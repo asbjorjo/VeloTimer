@@ -29,9 +29,6 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 builder.AddModuleStatistics();
-// OpenAPI extraction must not initialize the outbox or start live messaging.
-if (Assembly.GetEntryAssembly()?.GetName().Name != "GetDocument.Insider")
-    builder.AddStatisticsValidityThresholdsMessaging();
 
 var app = builder.Build();
 

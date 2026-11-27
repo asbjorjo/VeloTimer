@@ -14,7 +14,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
     {
         const string previousMigration = "20261104085927_statistics_remove_contributor_lineage";
         await RecreateAtMigrationAsync(previousMigration);
-        await using var db = Db();
+        await using var db = PreVersionDb();
         var migrator = db.GetService<IMigrator>();
         await migrator.MigrateAsync(previousMigration);
 

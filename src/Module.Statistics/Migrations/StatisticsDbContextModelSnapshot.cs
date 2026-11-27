@@ -178,6 +178,10 @@ namespace VeloTime.Module.Statistics.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("from_utc");
 
+                    b.Property<Guid?>("InstallationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("installation_id");
+
                     b.Property<string>("LastError")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
@@ -288,6 +292,100 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.ToTable("sample", "statistics");
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsConfigVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("CoursePointEnd")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_point_end");
+
+                    b.Property<Guid>("CoursePointStart")
+                        .HasColumnType("uuid")
+                        .HasColumnName("course_point_start");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<float>("Distance")
+                        .HasColumnType("real")
+                        .HasColumnName("distance");
+
+                    b.Property<int>("DistanceMode")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("distance_mode");
+
+                    b.Property<TimeSpan?>("ItemMaxDuration")
+                        .HasColumnType("interval")
+                        .HasColumnName("item_max_duration");
+
+                    b.Property<TimeSpan?>("ItemMinDuration")
+                        .HasColumnType("interval")
+                        .HasColumnName("item_min_duration");
+
+                    b.Property<TimeSpan?>("MaxDuration")
+                        .HasColumnType("interval")
+                        .HasColumnName("max_duration");
+
+                    b.Property<TimeSpan?>("MinDuration")
+                        .HasColumnType("interval")
+                        .HasColumnName("min_duration");
+
+                    b.Property<Guid?>("ParentConfigId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_config_id");
+
+                    b.Property<int?>("Repetitions")
+                        .HasColumnType("integer")
+                        .HasColumnName("repetitions");
+
+                    b.Property<Guid?>("RequiredCourseLayoutId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("required_course_layout_id");
+
+                    b.PrimitiveCollection<Guid[]>("RequiredCoursePointIds")
+                        .IsRequired()
+                        .HasColumnType("uuid[]")
+                        .HasColumnName("required_course_point_ids");
+
+                    b.Property<Guid>("StatisticsItemConfigId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("statistics_item_config_id");
+
+                    b.Property<Guid>("StatisticsItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("statistics_item_id");
+
+                    b.Property<DateTime?>("ValidFromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_from_utc");
+
+                    b.Property<DateTime?>("ValidToUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_to_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_statistics_config_version");
+
+                    b.HasIndex("StatisticsItemId")
+                        .HasDatabaseName("ix_statistics_config_version_item");
+
+                    b.HasIndex("StatisticsItemConfigId", "ValidFromUtc")
+                        .IsUnique()
+                        .HasDatabaseName("ux_statistics_config_version_config_from");
+
+                    b.ToTable("statistics_config_version", "statistics", t =>
+                        {
+                            t.HasCheckConstraint("ck_statistics_config_version_interval", "valid_from_utc IS NULL OR valid_to_utc IS NULL OR valid_from_utc < valid_to_utc");
+                        });
+                });
+
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -339,6 +437,10 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.Property<double>("Speed")
                         .HasColumnType("double precision")
                         .HasColumnName("speed");
+
+                    b.Property<Guid>("StatisticsConfigVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("statistics_config_version_id");
 
                     b.Property<Guid>("StatisticsItemConfigId")
                         .HasColumnType("uuid")
@@ -488,47 +590,6 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.UseTphMappingStrategy();
                 });
 
-            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsValidityRevalidation", b =>
-                {
-                    b.Property<Guid>("StatisticsItemId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("statistics_item_id");
-
-                    b.Property<long>("Generation")
-                        .IsConcurrencyToken()
-                        .HasColumnType("bigint")
-                        .HasColumnName("generation");
-
-                    b.Property<bool>("IsPending")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_pending");
-
-                    b.Property<Guid?>("LastEntryId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("last_entry_id");
-
-                    b.Property<bool>("MultiRescanPending")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("multi_rescan_pending");
-
-                    b.Property<int>("Phase")
-                        .HasColumnType("integer")
-                        .HasColumnName("phase");
-
-                    b.HasKey("StatisticsItemId")
-                        .HasName("pk_statistics_validity_revalidation");
-
-                    b.HasIndex("IsPending", "StatisticsItemId")
-                        .HasDatabaseName("ix_statistics_validity_revalidation_is_pending_statistics_item");
-
-                    b.ToTable("statistics_validity_revalidation", "statistics", t =>
-                        {
-                            t.HasCheckConstraint("ck_statistics_validity_revalidation", "generation > 0 AND phase IN (0, 1)");
-                        });
-                });
-
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatsProfile", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -619,6 +680,18 @@ namespace VeloTime.Module.Statistics.Migrations
                     b.HasDiscriminator().HasValue("SimpleStatisticsItemConfig");
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsConfigVersion", b =>
+                {
+                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItemConfig", "StatisticsItemConfig")
+                        .WithMany()
+                        .HasForeignKey("StatisticsItemConfigId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_statistics_config_version_statistics_item_config_statistics");
+
+                    b.Navigation("StatisticsItemConfig");
+                });
+
             modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsEntry", b =>
                 {
                     b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItemConfig", "StatisticsItemConfig")
@@ -656,18 +729,6 @@ namespace VeloTime.Module.Statistics.Migrations
                         .OnDelete(DeleteBehavior.ClientNoAction)
                         .IsRequired()
                         .HasConstraintName("fk_statistics_item_config_statistics_item_statistics_item_id");
-
-                    b.Navigation("StatisticsItem");
-                });
-
-            modelBuilder.Entity("VeloTime.Module.Statistics.Model.StatisticsValidityRevalidation", b =>
-                {
-                    b.HasOne("VeloTime.Module.Statistics.Model.StatisticsItem", "StatisticsItem")
-                        .WithMany()
-                        .HasForeignKey("StatisticsItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_statistics_validity_revalidation_statistics_item_statistics");
 
                     b.Navigation("StatisticsItem");
                 });

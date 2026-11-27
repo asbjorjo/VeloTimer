@@ -92,13 +92,8 @@ messageBusTopology:
               sqlFilter: MessageName = 'PassingRecordedV1'
             - name: TransponderOwnershipChanged
               sqlFilter: MessageName = 'TransponderOwnershipChanged'
-    - name: velotime-statistics
-      subscriptions:
-        - name: statistics-validity
-          requiresSession: false
-          rules:
-            - name: StatisticsValidityThresholdsChangedV1
-              sqlFilter: MessageName = 'StatisticsValidityThresholdsChangedV1'
+            - name: InstallationFacilityChangedV1
+              sqlFilter: MessageName = 'InstallationFacilityChangedV1'
     - name: velotime-facilities
       subscriptions:
         - name: statistics

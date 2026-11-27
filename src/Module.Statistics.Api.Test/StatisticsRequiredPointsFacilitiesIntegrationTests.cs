@@ -13,7 +13,6 @@ using VeloTime.Module.Facilities.Model;
 using VeloTime.Module.Facilities.Storage;
 using VeloTime.Module.Statistics.Api.Endpoints;
 using VeloTime.Module.Statistics.Interface.Data;
-using VeloTime.Module.Statistics.Interface.Messages;
 using FacilitiesApiFactory = FacilitiesApiTest::VeloTime.Module.Facilities.Api.Test.FacilitiesApiFactory;
 
 namespace VeloTime.Module.Statistics.Api.Test;
@@ -47,7 +46,6 @@ public sealed class StatisticsRequiredPointsFacilitiesIntegrationTests : IAsyncL
                     .ConfigurePrimaryHttpMessageHandler(() => facilities.Server.CreateHandler());
                 services.AddTransient<ICoursePointReferences>(provider => (ICoursePointReferences)CreateFacilitiesResolver(provider, typeof(ICoursePointReferences)));
                 services.AddSingleton<ICourseLayoutReferences>(layouts);
-                services.AddSingleton<IStatisticsThresholdEnqueue, NoopEnqueue>();
             }
         };
     }
@@ -224,10 +222,6 @@ public sealed class StatisticsRequiredPointsFacilitiesIntegrationTests : IAsyncL
             Task.FromResult(values.GetValueOrDefault(layoutId));
     }
 
-    private sealed class NoopEnqueue : IStatisticsThresholdEnqueue
-    {
-        public Task EnqueueAsync(StatisticsValidityThresholdsChangedV1 message, CancellationToken cancellationToken = default) => Task.CompletedTask;
-    }
 
     private sealed class DistanceFailureStartupFilter(HashSet<Guid> unavailableStarts) : IStartupFilter
     {

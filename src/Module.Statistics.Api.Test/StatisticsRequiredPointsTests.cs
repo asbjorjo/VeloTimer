@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using VeloTime.Module.Facilities.Interface.Data;
 using VeloTime.Module.Statistics.Api.Endpoints;
 using VeloTime.Module.Statistics.Interface.Data;
-using VeloTime.Module.Statistics.Interface.Messages;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Service;
 using VeloTime.Module.Statistics.Storage;
@@ -25,7 +24,6 @@ public sealed class StatisticsRequiredPointsTests : IAsyncLifetime
         factory = new StatisticsApiFactory { ConfigureAdditionalServices = services =>
         {
             services.AddSingleton<ICourseLayoutReferences>(layouts);
-            services.AddSingleton<IStatisticsThresholdEnqueue, NoopEnqueue>();
         }};
     }
 
@@ -126,7 +124,7 @@ public sealed class StatisticsRequiredPointsTests : IAsyncLifetime
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Results_BlockStructuralRequirements_ButAllowValueEqualAndThresholdUpdates(bool dependentMulti)
+    public async Task Results_NoLongerBlockStructuralRequirements_EachEditStartsANewVersion(bool dependentMulti)
     {
         var request = Request(points[1], points[3]);
         var config = await Create(request);
@@ -147,10 +145,18 @@ public sealed class StatisticsRequiredPointsTests : IAsyncLifetime
         }
         foreach (var allowed in new[] { request, request with { RequiredCoursePoints = null, MinDuration = TimeSpan.FromSeconds(1) } })
             Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"{Root}/{config.Id}", allowed)).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync($"{Root}/{config.Id}", request with { RequiredCoursePoints = new(null, []) })).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync($"{Root}/{config.Id}", Request(points[2]))).StatusCode);
+        // Replay-safe plan Phase 4: requirements are dated, so recorded results no longer block a change;
+        // each one applies from its effective instant (now when omitted) and leaves earlier versions alone.
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"{Root}/{config.Id}", request with { RequiredCoursePoints = new(null, []) })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"{Root}/{config.Id}", Request(points[2]))).StatusCode);
         layouts.Id = Guid.NewGuid(); SetLayout(points);
-        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync($"{Root}/{config.Id}", Request(points[1], points[3]))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"{Root}/{config.Id}", Request(points[1], points[3]))).StatusCode);
+        var versions = (await client.GetFromJsonAsync<List<StatisticsConfigurationVersionDTO>>($"{Root}/{config.Id}/versions"))!;
+        Assert.Null(versions[0].ValidFromUtc);
+        Assert.Equal([points[1], points[3]], versions[0].RequiredCoursePoints!.CoursePointIds!);
+        Assert.Null(versions[^1].ValidToUtc);
+        Assert.Equal(layouts.Id, versions[^1].RequiredCoursePoints!.CourseLayoutId);
+        for (var i = 1; i < versions.Count; i++) Assert.Equal(versions[i - 1].ValidToUtc, versions[i].ValidFromUtc);
     }
 
     [Fact]
@@ -215,9 +221,5 @@ public sealed class StatisticsRequiredPointsTests : IAsyncLifetime
         public Guid Id { get; set; } = Guid.NewGuid();
         public CourseLayoutDTO? Layout { get; set; }
         public Task<CourseLayoutDTO?> GetLayoutAsync(Guid layoutId, CancellationToken cancellationToken) => Task.FromResult(Layout);
-    }
-    private sealed class NoopEnqueue : IStatisticsThresholdEnqueue
-    {
-        public Task EnqueueAsync(StatisticsValidityThresholdsChangedV1 message, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

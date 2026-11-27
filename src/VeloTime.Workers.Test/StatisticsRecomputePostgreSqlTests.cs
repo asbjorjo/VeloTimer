@@ -155,6 +155,7 @@ public sealed class StatisticsRecomputePostgreSqlTests : IAsyncLifetime
             Id = Guid.NewGuid(), StatisticsItem = item, StatisticsItemId = item.Id, CoursePointStart = Finish, CoursePointEnd = Finish
         };
         db.Add(config);
+        db.Add(StatisticsConfigVersioning.Initial(item, config, null, DateTime.UtcNow));
         await db.SaveChangesAsync();
         return config;
     }
@@ -176,7 +177,7 @@ public sealed class StatisticsRecomputePostgreSqlTests : IAsyncLifetime
         var history = new StatisticsConfigurationHistory(services.GetRequiredService<HybridCache>(), source);
         await history.EvictAsync([Installation], [Facility]);
         return await new StatisticsRecomputeService(db, history, new StatisticsOwnershipService(db, new NoOwners()),
-            new StatisticsValidityScheduler(db), Microsoft.Extensions.Options.Options.Create(new StatisticsRecomputeOptions()),
+            Microsoft.Extensions.Options.Options.Create(new StatisticsRecomputeOptions()),
             Metrics(), NullLogger<StatisticsRecomputeService>.Instance, time).ProcessNextAsync(CancellationToken.None);
     }
 
@@ -209,7 +210,7 @@ public sealed class StatisticsRecomputePostgreSqlTests : IAsyncLifetime
 
         public Task<InstallationFacilityHistory> GetInstallationAsync(Guid installationId, CancellationToken cancellationToken) =>
             Failure is { } failure ? Task.FromException<InstallationFacilityHistory>(failure)
-                : Task.FromResult(new InstallationFacilityHistory { InstallationId = installationId, FacilityId = Facility });
+                : Task.FromResult(new InstallationFacilityHistory { InstallationId = installationId, Assignments = [new() { FacilityId = Facility }] });
 
         public Task<FacilityCourseHistory> GetFacilityCourseAsync(Guid facilityId, CancellationToken cancellationToken) =>
             Task.FromResult(new FacilityCourseHistory

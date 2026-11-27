@@ -140,7 +140,8 @@ public sealed class TransponderStatusTests(TimingApiFactory factory) : IClassFix
         {
             var storage = scope.ServiceProvider.GetRequiredService<TimingDbContext>();
             var point = new TimingPoint { Id = Guid.NewGuid(), SystemId = "second",
-                Description = "Second finish", Installation = new Installation { AgentId = "second-agent", Facility = facilityId, Description = "Second installation" } };
+                Description = "Second finish", Installation = new Installation { AgentId = "second-agent", Facility = facilityId, Description = "Second installation",
+                    FacilityAssignments = { new() { Id = Guid.NewGuid(), FacilityId = facilityId } } } };
             storage.Add(new Passing { Id = passingId, Time = Now.UtcDateTime, TransponderId = id,
                 TimingPoint = point, Installation = point.Installation, SourcePassingId = Guid.NewGuid(), LowHits = true });
             storage.Add(new TransponderOwner { Id = Guid.NewGuid(), OwnerId = OwnerId, TransponderId = id,
@@ -242,7 +243,8 @@ public sealed class TransponderStatusTests(TimingApiFactory factory) : IClassFix
         transponder.Owners.Add(new() { OwnerId = OwnerId, OwnedFrom = Now.UtcDateTime.AddDays(-6), OwnedTo = Now.UtcDateTime.AddDays(-5) });
         transponder.Owners.Add(new() { OwnerId = OtherOwnerId, OwnedFrom = Now.UtcDateTime.AddDays(-5), OwnedTo = Now.UtcDateTime.AddDays(-2) });
         transponder.Owners.Add(new() { OwnerId = OwnerId, OwnedFrom = Now.UtcDateTime.AddDays(-2) });
-        var installation = new Installation { Id = Guid.NewGuid(), AgentId = "status-test", Description = "Track installation", Facility = Guid.NewGuid() };
+        var installation = new Installation { Id = Guid.NewGuid(), AgentId = "status-test", Description = "Track installation" };
+        installation.FacilityAssignments.Add(new() { Id = Guid.NewGuid(), FacilityId = Guid.NewGuid() });
         var point = new TimingPoint { Id = Guid.NewGuid(), Installation = installation, Description = "Finish", SystemId = "finish" };
         storage.AddRange(transponder, point);
         foreach (var (days, battery, strength, hits) in new[]

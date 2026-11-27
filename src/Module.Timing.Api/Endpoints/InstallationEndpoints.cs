@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -9,6 +9,7 @@ using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.Module.Timing.Mapping;
 using VeloTime.Module.Common;
 using VeloTime.Module.Timing.Service;
+using SlimMessageBus;
 
 namespace VeloTime.Module.Timing.Api.Endpoints;
 
@@ -20,6 +21,7 @@ internal static class InstallationEndpoints
 
         installations.MapGet("", ListInstallations);
         installations.MapGet("{id}", GetInstallationById);
+        installations.MapGet("{id}/facility-assignments", GetFacilityAssignments).WithName("GetInstallationFacilityAssignments");
         installations.MapPost("", CreateInstallation).RequireAuthorization(AdministrationAuthorization.TimingPolicy).AddEndpointFilter<AdministrationDependencyFilter>();
         installations.MapPut("{id}", UpdateInstallation).RequireAuthorization(AdministrationAuthorization.TimingPolicy).AddEndpointFilter<AdministrationDependencyFilter>();
         
@@ -52,9 +54,19 @@ internal static class InstallationEndpoints
         return TypedResults.Ok(installationData);
     }
 
+    /// <summary>The installation's whole facility assignment history, oldest first (plan §4.3).</summary>
+    static async Task<Results<Ok<List<InstallationFacilityAssignmentDTO>>, NotFound>> GetFacilityAssignments(Guid id,
+        TimingDbContext storage, CancellationToken cancellationToken)
+    {
+        if (!await storage.Set<Installation>().AnyAsync(i => i.Id == id, cancellationToken)) return TypedResults.NotFound();
+        var assignments = await storage.Set<InstallationFacilityAssignment>().AsNoTracking()
+            .Where(a => a.InstallationId == id).OrderBy(a => a.ValidFromUtc ?? DateTime.MinValue).ThenBy(a => a.Id).ToListAsync(cancellationToken);
+        return TypedResults.Ok(assignments.Select(a => a.ToDto()).ToList());
+    }
+
     static async Task<Results<Created<InstallationDTO>, NotFound>> CreateInstallation(InstallationDTO installationData, TimingDbContext storage,
         TimingAdministrationService administration, HybridCache cache, ICacheInvalidationOperations invalidation,
-        ILogger<TimingDbContext> logger, CancellationToken cancellationToken)
+        ILogger<TimingDbContext> logger, IServiceProvider services, CancellationToken cancellationToken)
     {
         var system = await administration.ValidateInstallationAsync(null, new(installationData.FacilityId == Guid.Empty ? null : installationData.FacilityId,
             installationData.AgentId, installationData.TimingSystem?.Name ?? "", installationData.Description), cancellationToken);
@@ -64,7 +76,6 @@ internal static class InstallationEndpoints
         Installation installation = new()
         {
             Id = installationData.Id,
-            Facility = installationData.FacilityId,
             AgentId = installationData.AgentId,
             Description = installationData.Description,
             TimingSystem = system
@@ -77,10 +88,15 @@ internal static class InstallationEndpoints
             Description = tp.Description,
         }).ToList();
         installation.TimingPoints.AddRange(timingPoints);
-        var identity = TimingInstallationCacheIdentity.Capture(installation);
+        await using var transaction = await storage.Database.BeginTransactionAsync(cancellationToken);
         await storage.AddAsync(installation);
+        // A new installation's facility covers its whole history, including passings an agent replays later.
+        if (installationData.FacilityId != Guid.Empty)
+            await InstallationFacilityService.AssignAsync(storage, services.GetRequiredService<IMessageBus>(), installation, installationData.FacilityId, null, cancellationToken);
+        var identity = TimingInstallationCacheIdentity.Capture(installation);
 
         await storage.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         await TimingCacheInvalidation.InvalidateAsync(cache, logger, identity.Keys, identity.Tags, invalidation);
 
         return TypedResults.Created($"/api/timing/installations/{installationData.Id}", installation.ToDto());

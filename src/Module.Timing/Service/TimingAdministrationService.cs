@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using SlimMessageBus;
 using VeloTime.Module.Common;
 using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.Module.Timing.Model;
@@ -10,7 +11,8 @@ using VeloTime.Module.Timing.Storage;
 namespace VeloTime.Module.Timing.Service;
 
 public sealed class TimingAdministrationService(TimingDbContext storage, IAdministrationReferences references, HybridCache cache,
-    ILogger<TimingAdministrationService>? logger = null, ICacheInvalidationOperations? evictionOperations = null)
+    ILogger<TimingAdministrationService>? logger = null, ICacheInvalidationOperations? evictionOperations = null,
+    IMessageBus? messageBus = null)
 {
     private readonly ILogger _logger = logger ?? NullLogger<TimingAdministrationService>.Instance;
 
@@ -27,6 +29,8 @@ public sealed class TimingAdministrationService(TimingDbContext storage, IAdmini
 
     public async Task<Installation> SaveInstallationAsync(Guid? id, SaveInstallationRequest request, CancellationToken cancellationToken)
     {
+        // The facility edit and its InstallationFacilityChangedV1 outbox row commit together.
+        await using var transaction = await storage.Database.BeginTransactionAsync(cancellationToken);
         var installation = id.HasValue ? await storage.Set<Installation>().Include(installation => installation.TimingPoints)
             .SingleOrDefaultAsync(installation => installation.Id == id.Value, cancellationToken) ?? throw new KeyNotFoundException() : null;
         var oldIdentity = installation is null ? null : TimingInstallationCacheIdentity.Capture(installation);
@@ -36,16 +40,6 @@ public sealed class TimingAdministrationService(TimingDbContext storage, IAdmini
         {
             if (installation.LastSeen.HasValue && (installation.AgentId != request.AgentId.Trim() || installation.TimingSystem != system))
                 throw new AdministrationConflictException("The identity of an installation already observed by an agent cannot be changed.");
-            if (installation.Facility != facilityId)
-            {
-                if (await storage.Set<Passing>().AnyAsync(passing => passing.TimingPoint.InstallationId == installation.Id, cancellationToken))
-                    throw new AdministrationConflictException("Recorded passings depend on this installation's facility. Create a new installation instead.");
-                foreach (var point in installation.TimingPoints)
-                {
-                    var dependencies = await references.GetDependenciesAsync("facilities", "timingpoints", point.Id, cancellationToken);
-                    if (dependencies.Count > 0) throw new AdministrationConflictException(dependencies.Description);
-                }
-            }
         }
         else
         {
@@ -54,10 +48,18 @@ public sealed class TimingAdministrationService(TimingDbContext storage, IAdmini
         }
         installation.AgentId = request.AgentId.Trim();
         installation.TimingSystem = system;
-        installation.Facility = facilityId;
         installation.Description = request.Description?.Trim() ?? "";
+        if (installation.Facility != facilityId || request.FacilityValidFromUtc is not null)
+        {
+            // A facility change is dated, so recorded passings keep the facility they were made at.
+            var assigned = await storage.Set<InstallationFacilityAssignment>()
+                .AnyAsync(assignment => assignment.InstallationId == installation.Id, cancellationToken);
+            var from = request.FacilityValidFromUtc ?? (assigned ? DateTime.UtcNow : null);
+            await InstallationFacilityService.AssignAsync(storage, messageBus, installation, facilityId, from, cancellationToken);
+        }
         var newIdentity = TimingInstallationCacheIdentity.Capture(installation);
         await storage.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         await TimingCacheInvalidation.InvalidateAsync(cache, _logger,
             (oldIdentity?.Keys ?? []).Concat(newIdentity.Keys),
             (oldIdentity?.Tags ?? []).Concat(newIdentity.Tags), evictionOperations);

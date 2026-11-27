@@ -6,6 +6,7 @@ using VeloTime.Module.Common;
 using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Service;
+using VeloTime.Module.Statistics.Service.Recompute;
 using VeloTime.Module.Statistics.Storage;
 
 namespace VeloTime.Module.Statistics.Api.Endpoints;
@@ -223,7 +224,7 @@ internal static class AdminStatisticsEntryEndpoints
 
     private static async Task<Results<Ok<AdminStatisticsEntryDTO>, NotFound, ValidationProblem, ForbidHttpResult, ProblemHttpResult>> SetManualInvalidation(
         Guid id, StatisticsEntryManualInvalidationRequest request, ClaimsPrincipal user, HttpContext http,
-        StatisticsDbContext storage, StatisticsValidityScheduler scheduler, CancellationToken cancellationToken)
+        StatisticsDbContext storage, CancellationToken cancellationToken)
     {
         http.Response.Headers.CacheControl = "no-store";
         if (request is null)
@@ -241,20 +242,12 @@ internal static class AdminStatisticsEntryEndpoints
             {
                 var target = await storage.Set<StatisticsEntry>().AsNoTracking()
                     .Where(entry => entry.Id == id)
-                    .Select(entry => new { entry.StatisticsItemId, entry.StatisticsItemConfigId })
+                    .Select(entry => new { entry.StatisticsItemId, entry.StatisticsItemConfigId, entry.TransponderId })
                     .SingleOrDefaultAsync(cancellationToken);
                 if (target is null) return TypedResults.NotFound();
 
-                // A Multi classification depends on its parent Simple item. Lock both owners and all
-                // dependent Multi owners together, in UUID order, before evaluating or writing validity.
-                var parentItemId = await storage.Set<MultiStatisticsItemConfig>().AsNoTracking()
-                    .Where(config => config.Id == target.StatisticsItemConfigId)
-                    .Select(config => (Guid?)config.ParentConfig.StatisticsItemId)
-                    .SingleOrDefaultAsync(cancellationToken);
-                var lockItems = parentItemId.HasValue
-                    ? new[] { target.StatisticsItemId, parentItemId.Value }
-                    : [target.StatisticsItemId];
-                await scheduler.LockThresholdScopeAsync(lockItems, true, cancellationToken);
+                // The recompute worker is the other writer of this transponder's entries; serialize with it.
+                await StatisticsLocks.LockTransponderAsync(storage, target.TransponderId, cancellationToken);
 
                 var entry = await storage.Set<StatisticsEntry>()
                     .Include(value => value.StatisticsItem)
@@ -263,7 +256,7 @@ internal static class AdminStatisticsEntryEndpoints
                     .SingleOrDefaultAsync(value => value.Id == id, cancellationToken);
                 if (entry is null) return TypedResults.NotFound();
                 if (entry.StatisticsItemId != target.StatisticsItemId || entry.StatisticsItemConfigId != target.StatisticsItemConfigId)
-                    throw new InvalidOperationException($"Statistics entry {id} changed identity while acquiring its item lock.");
+                    throw new InvalidOperationException($"Statistics entry {id} changed identity while acquiring its transponder lock.");
 
                 if (!request.IsManuallyInvalidated &&
                     entry.InvalidReason != StatisticsEntryInvalidReason.ManuallyInvalidated)
@@ -286,8 +279,11 @@ internal static class AdminStatisticsEntryEndpoints
                             storage, [entry.Id], cancellationToken);
                         contributorsValid = contributorValidity[entry.Id];
                     }
-                    var reason = StatisticsValidityEvaluator.Evaluate(entry.Duration, contributorsValid,
-                        StatisticsDurationBounds.Effective(entry.StatisticsItem, entry.StatisticsItemConfig),
+                    // Bounds of the configuration version the entry was derived with (dated limits, plan §6.1).
+                    var version = await storage.Set<StatisticsConfigVersion>().AsNoTracking()
+                        .SingleOrDefaultAsync(value => value.Id == entry.StatisticsConfigVersionId, cancellationToken);
+                    var bounds = version?.Bounds() ?? StatisticsDurationBounds.Effective(entry.StatisticsItem, entry.StatisticsItemConfig);
+                    var reason = StatisticsValidityEvaluator.Evaluate(entry.Duration, contributorsValid, bounds,
                         entry.RequiredCoursePointsSatisfied);
                     StatisticsValidityEvaluator.Apply(entry, reason, allowManualInvalidationOverride: true);
                 }
@@ -295,14 +291,11 @@ internal static class AdminStatisticsEntryEndpoints
                 entry.ManualInvalidationChangedByUserId = actorId;
                 entry.ManualInvalidationChangedAtUtc = DateTimeOffset.UtcNow;
                 entry.ManualInvalidationNote = request.Note;
-                await storage.SaveChangesAsync(cancellationToken);
-
+                // Multi entries built on this one re-derive their contributor validity in the recompute worker.
                 if (wasValid != entry.IsValid && entry.StatisticsItemConfig is SimpleStatisticsItemConfig)
-                {
-                    var dependents = await scheduler.GetDependentMultiItemIdsByParentConfigAsync(
-                        [entry.StatisticsItemConfigId], cancellationToken);
-                    await scheduler.ScheduleDependentMultiRevalidationAsync(dependents, cancellationToken);
-                }
+                    StatisticsRecomputeScheduler.Transponder(storage, entry.TransponderId, entry.TimeStart, entry.TimeEnd,
+                        RecomputeReason.Manual, entry.Id);
+                await storage.SaveChangesAsync(cancellationToken);
 
                 await storage.Database.CurrentTransaction!.CommitAsync(cancellationToken);
                 return TypedResults.Ok(ToDto(entry));

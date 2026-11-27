@@ -2,7 +2,8 @@ namespace VeloTime.Module.Statistics.Model;
 
 /// <summary>
 /// A dirty range to recompute (plan §3.3). A null <see cref="TransponderId"/> means every transponder
-/// with facts in the range; the worker splits it into one request per transponder. Null bounds are
+/// with facts in the range (only those recorded at <see cref="InstallationId"/> when set); the worker splits it
+/// into one request per transponder. Null bounds are
 /// unbounded. The worker coalesces requests per transponder, expands them to whole sessions and deletes
 /// them in the same transaction as the recomputed rows.
 /// </summary>
@@ -10,6 +11,8 @@ public class RecomputeRequest
 {
     public long Id { get; init; }
     public Guid? TransponderId { get; init; }
+    /// <summary>Narrows a range-wide request to transponders with facts recorded at this installation.</summary>
+    public Guid? InstallationId { get; init; }
     public DateTime? FromUtc { get; init; }
     public DateTime? ToUtc { get; init; }
     public RecomputeReason Reason { get; init; }

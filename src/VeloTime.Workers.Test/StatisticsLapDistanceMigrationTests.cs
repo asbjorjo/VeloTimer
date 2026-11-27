@@ -47,7 +47,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         var gap = MigrationEntry(lap, 1, null, 91);
         var snapshotted = MigrationEntry(lap, 2, -1, 17);
         var untouched = MigrationEntry(other, 3, null, 43);
-        await using var db = Db();
+        await using var db = PreVersionDb();
         db.AddRange(lap, other, gap, snapshotted, untouched);
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();

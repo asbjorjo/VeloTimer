@@ -51,7 +51,7 @@ public sealed class BackdatedConfigRequirementTests
             unaffectedBefore: X);
     }
 
-    [RequirementFact(PendingPhase = "Phase 4 (C2)")]
+    [RequirementFact]
     public async Task InstallationMovedToAnotherFacilityFromX_AttributesOnlyLaterResultsToIt()
     {
         const string indoor = "Indoor";
@@ -74,7 +74,7 @@ public sealed class BackdatedConfigRequirementTests
             check: snapshot => Assert.Contains(snapshot.Samples, s => s.Facility == indoor));
     }
 
-    [RequirementFact(PendingPhase = "Phase 4 (C3, decision §6.1: dated limits)")]
+    [RequirementFact]
     public async Task LapThresholdTightenedFromX_InvalidatesOnlyLaterLaps()
     {
         await AssertBackdatedEditMatchesFreshRun(

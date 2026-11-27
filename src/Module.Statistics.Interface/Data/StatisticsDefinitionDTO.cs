@@ -38,6 +38,12 @@ public sealed record SaveStatisticsItemRequest(
 {
     /// <summary>POST omission/null means Fixed; PUT omission/null preserves the stored mode. An explicit value changes it.</summary>
     public StatisticsDistanceMode? DistanceMode { get; init; }
+
+    /// <summary>
+    /// PUT only: UTC instant from which changed distance, mode and bounds apply to results. Omitted means now.
+    /// Results before it keep the values that held then; backdating recomputes results from that instant.
+    /// </summary>
+    public DateTime? EffectiveFromUtc { get; init; }
 }
 
 public enum StatisticsConfigurationType
@@ -84,4 +90,35 @@ public sealed record SaveStatisticsConfigurationRequest(
     /// omit this property or set it to null; Multi inherits its parent.
     /// </summary>
     public StatisticsRequiredCoursePoints? RequiredCoursePoints { get; init; }
+
+    /// <summary>POST only: UTC instant from which the new configuration counts results. Omitted means all recorded history.</summary>
+    public DateTime? ValidFromUtc { get; init; }
+
+    /// <summary>
+    /// PUT only: UTC instant from which changed values apply to results. Omitted means now. Results before it keep
+    /// the values that held then; backdating recomputes results from that instant.
+    /// </summary>
+    public DateTime? EffectiveFromUtc { get; init; }
 }
+
+/// <summary>
+/// One dated version of a configuration over [ValidFromUtc, ValidToUtc) (null bounds are unbounded): every value
+/// its results were derived with, including the item's distance, mode and bounds at the time.
+/// </summary>
+public sealed record StatisticsConfigurationVersionDTO(
+    Guid Id,
+    Guid StatisticsItemConfigId,
+    Guid StatisticsItemId,
+    DateTime? ValidFromUtc,
+    DateTime? ValidToUtc,
+    float Distance,
+    StatisticsDistanceMode DistanceMode,
+    TimeSpan? ItemMinDuration,
+    TimeSpan? ItemMaxDuration,
+    TimeSpan? MinDuration,
+    TimeSpan? MaxDuration,
+    Guid? CoursePointStart,
+    Guid? CoursePointEnd,
+    StatisticsRequiredCoursePoints? RequiredCoursePoints,
+    Guid? ParentConfigId,
+    int? Repetitions);

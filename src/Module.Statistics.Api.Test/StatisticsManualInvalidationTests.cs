@@ -68,7 +68,7 @@ public sealed partial class StatisticsManualInvalidationTests
     }
 
     [PublicStatisticsPostgreSqlFact]
-    public async Task MarkRestorePersistsLatestAuditUtcSiAndSchedulesDependentMulti()
+    public async Task MarkRestorePersistsLatestAuditUtcSiAndRecomputesDependentMulti()
     {
         await using var host = await PublicStatisticsTestHost.CreateAsync(postgres: true);
         var config = Config();
@@ -96,8 +96,9 @@ public sealed partial class StatisticsManualInvalidationTests
         Assert.Equal(TimeSpan.Zero, marked.TimeEnd.Offset);
         Assert.Equal(TimeSpan.FromSeconds(10), marked.Duration);
         Assert.Equal(25d, marked.SpeedMetresPerSecond);
-        var firstGeneration = await Generation(host, multiItem.Id);
-        Assert.True(firstGeneration > 0);
+        // A validity change marks the entry's range dirty so the worker re-derives Multi contributor validity.
+        var firstRequests = await Requests(host, entry.TransponderId);
+        Assert.Equal(1, firstRequests);
         AssertPersisted(marked, Assert.Single((await Page(client)).Items));
         AssertMeasurements(original, marked);
         var otherActor = Guid.NewGuid();
@@ -107,7 +108,7 @@ public sealed partial class StatisticsManualInvalidationTests
         Assert.Equal(otherActor, remarked.ManualInvalidationChangedByUserId);
         Assert.Equal("Reviewed again", remarked.ManualInvalidationNote);
         Assert.True(remarked.ManualInvalidationChangedAtUtc >= marked.ManualInvalidationChangedAtUtc);
-        Assert.Equal(firstGeneration, await Generation(host, multiItem.Id));
+        Assert.Equal(firstRequests, await Requests(host, entry.TransponderId));
         var restored = await Set(client, entry.Id, false, "Restored after review");
         Assert.True(restored.IsValid);
         Assert.False(restored.IsManuallyInvalidated);
@@ -117,7 +118,7 @@ public sealed partial class StatisticsManualInvalidationTests
         Assert.True(restored.ManualInvalidationChangedAtUtc >= remarked.ManualInvalidationChangedAtUtc);
         AssertPersisted(restored, Assert.Single((await Page(client)).Items));
         AssertMeasurements(original, restored);
-        Assert.True(await Generation(host, multiItem.Id) > firstGeneration);
+        Assert.Equal(2, await Requests(host, entry.TransponderId));
         Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync(Url(entry.Id), new StatisticsEntryManualInvalidationRequest(false, "Must not overwrite audit"))).StatusCode);
         AssertPersisted(restored, Assert.Single((await Page(client)).Items));
     }
@@ -334,13 +335,11 @@ public sealed partial class StatisticsManualInvalidationTests
     }
     private static string Cursor(AdminStatisticsEntryCursorDTO cursor, string direction, int pageSize = 2) =>
         $"pageSize={pageSize}&cursor={Uri.EscapeDataString(cursor.TimeEnd.ToString("O", System.Globalization.CultureInfo.InvariantCulture) + "|" + cursor.Id)}&direction={direction}";
-    private static async Task<long> Generation(PublicStatisticsTestHost host, Guid itemId)
+    private static async Task<int> Requests(PublicStatisticsTestHost host, Guid transponderId)
     {
         await using var scope = host.App.Services.CreateAsyncScope();
-        var job = await scope.ServiceProvider.GetRequiredService<StatisticsDbContext>()
-            .Set<StatisticsValidityRevalidation>().AsNoTracking().SingleAsync(row => row.StatisticsItemId == itemId);
-        Assert.True(job.IsPending);
-        return job.Generation;
+        return await scope.ServiceProvider.GetRequiredService<StatisticsDbContext>().Set<RecomputeRequest>()
+            .CountAsync(row => row.TransponderId == transponderId && row.Reason == RecomputeReason.Manual);
     }
     private static void AssertPersisted(AdminStatisticsEntryDTO response, AdminStatisticsEntryDTO persisted)
     {

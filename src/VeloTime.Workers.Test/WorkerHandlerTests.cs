@@ -19,7 +19,6 @@ using VeloTime.Module.Facilities.Client;
 using VeloTime.Module.Facilities.Interface.Data;
 using VeloTime.Module.Statistics;
 using VeloTime.Module.Statistics.Handlers;
-using VeloTime.Module.Statistics.Interface.Messages;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Service;
 using VeloTime.Module.Statistics.Storage;

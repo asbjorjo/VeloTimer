@@ -26,6 +26,15 @@ public static class StatisticsRecomputeScheduler
             FromUtc = from, ToUtc = to, Reason = reason, CausationId = causationId, CreatedAtUtc = DateTime.UtcNow
         });
 
+    /// <summary>Every transponder with facts recorded at the installation in [from, to].</summary>
+    public static RecomputeRequest Installation(StatisticsDbContext storage, Guid installationId, RecomputeReason reason,
+        Guid? causationId = null, DateTime? from = null, DateTime? to = null) =>
+        Add(storage, new RecomputeRequest
+        {
+            InstallationId = installationId, FromUtc = from, ToUtc = to, Reason = reason, CausationId = causationId,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+
     private static RecomputeRequest Add(StatisticsDbContext storage, RecomputeRequest request)
     {
         storage.Add(request);

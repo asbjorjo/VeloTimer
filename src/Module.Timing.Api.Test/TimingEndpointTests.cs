@@ -124,7 +124,18 @@ public sealed partial class TimingEndpointTests(TimingApiFactory factory) : ICla
         Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync(root)).StatusCode);
         factory.References.Dependencies = 1;
         Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync($"{root}/points/{point.Id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync(root, request with { FacilityId = Guid.NewGuid() })).StatusCode);
+        // Passings stay where they were recorded: moving the installation starts a new dated assignment instead of conflicting.
+        var moved = request with { FacilityId = Guid.NewGuid() };
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync(root, moved)).StatusCode);
+        var assignments = await client.GetFromJsonAsync<List<InstallationFacilityAssignmentDTO>>(
+            $"/api/timing/installations/{installation.Id}/facility-assignments");
+        Assert.Equal([request.FacilityId!.Value, moved.FacilityId!.Value], assignments!.Select(a => a.FacilityId));
+        Assert.Equal(assignments[0].ValidToUtc, assignments[1].ValidFromUtc);
+        Assert.Null(assignments[1].ValidToUtc);
+        Assert.Contains(factory.Messages.FacilityChanges, c => c.InstallationId == installation.Id && c.FromUtc == assignments[1].ValidFromUtc);
+        Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync(root, moved)).StatusCode); // No change, no new assignment.
+        Assert.Equal(2, (await client.GetFromJsonAsync<List<InstallationFacilityAssignmentDTO>>(
+            $"/api/timing/installations/{installation.Id}/facility-assignments"))!.Count);
         factory.References.Dependencies = 0;
         factory.References.Unavailable = true;
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await client.DeleteAsync($"{root}/points/{point.Id}")).StatusCode);

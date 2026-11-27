@@ -29,19 +29,8 @@
             "requiresSession": true,
             "rules": [
               { "name": "PassingRecordedV1", "sqlFilter": "MessageName = 'PassingRecordedV1'" },
-              { "name": "TransponderOwnershipChanged", "sqlFilter": "MessageName = 'TransponderOwnershipChanged'" }
-            ]
-          }
-        ]
-      },
-      {
-        "name": "velotime-statistics",
-        "subscriptions": [
-          {
-            "name": "statistics-validity",
-            "requiresSession": false,
-            "rules": [
-              { "name": "StatisticsValidityThresholdsChangedV1", "sqlFilter": "MessageName = 'StatisticsValidityThresholdsChangedV1'" }
+              { "name": "TransponderOwnershipChanged", "sqlFilter": "MessageName = 'TransponderOwnershipChanged'" },
+              { "name": "InstallationFacilityChangedV1", "sqlFilter": "MessageName = 'InstallationFacilityChangedV1'" }
             ]
           }
         ]

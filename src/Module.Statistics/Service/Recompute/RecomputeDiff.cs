@@ -147,6 +147,7 @@ public static class RecomputeDiff
         Set(to.ManualInvalidationChangedAtUtc, from.ManualInvalidationChangedAtUtc, v => to.ManualInvalidationChangedAtUtc = v);
         Set(to.ManualInvalidationNote, from.ManualInvalidationNote, v => to.ManualInvalidationNote = v);
         Set(to.StatsProfileUserId, from.StatsProfileUserId, v => to.StatsProfileUserId = v);
+        Set(to.StatisticsConfigVersionId, from.StatisticsConfigVersionId, v => to.StatisticsConfigVersionId = v);
         return changed;
 
         void Set<T>(T current, T value, Action<T> assign)

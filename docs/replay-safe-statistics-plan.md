@@ -1,6 +1,6 @@
 # Replay-safe, order-independent statistics: refactoring plan
 
-Status: decisions confirmed 2026-11-27. Phases 1 (#138) and 2 are merged; Phase 3 is implemented. Phase 4 remains.
+Status: decisions confirmed 2026-11-27. Phases 1 (#138), 2 and 3 are merged. Phase 4 (dated installation assignments and statistics config versions) is implemented.
 Base: `v2` at `53ba7b9a`. Builds on, and partly supersedes, [PR #132](https://github.com/asbjorjo/VeloTimer/pull/132) and [`docs/research/agent-timing-statistics-messaging-plan.md`](./research/agent-timing-statistics-messaging-plan.md).
 
 ## 1. Requirements
@@ -168,7 +168,7 @@ Each phase deletes derived Statistics data and lets the recompute worker rebuild
 
 **Phase 3: Time-bound Facilities config.** Add `FacilityLayoutAssignment`, `CourseLayoutRevision`, the shared distance library, `CourseConfigChangedV1` (covering association, assignment and revision changes), per-facility history read endpoints, and admin UI effective-date editing that reuses the association editor's interval and conflict-confirmation pattern. Add the Statistics cached-history readers, evict-then-enqueue handlers and dirty-range triggers. Delete existing layouts and seed them again as unbounded revisions; Bootstrap reseeds.
 
-**Phase 4: Time-bound Timing and Statistics config.** Add `InstallationFacilityAssignment` with its event. Add `StatisticsConfigVersion` (required points, layout, distance, repetitions, thresholds). Drop the structural edit block. Fold threshold revalidation and ownership reconcile into the worker.
+**Phase 4: Time-bound Timing and Statistics config.** Add `InstallationFacilityAssignment` with its event. Add `StatisticsConfigVersion` (required points, layout, distance, repetitions, thresholds). Drop the structural edit block. Fold threshold revalidation and ownership reconcile into the worker. Implemented: entry identity stays (config, start passing, end passing) and `StatisticsConfigVersionId` is a plain column, so a threshold edit never sends a manual decision to review; each entry uses the version that holds at its end time.
 
 **Phase 5: Operations.** Add an admin "recompute range" action and a progress view. Add metrics (dirty backlog, oldest dirty age, unresolved passings, review backlog, outbox age) and DLQ alerts. Document the runbook.
 

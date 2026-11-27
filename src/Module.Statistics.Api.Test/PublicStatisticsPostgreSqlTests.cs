@@ -319,11 +319,11 @@ public sealed class PublicStatisticsPostgreSqlTests
         PublicStatisticsDiscoveryTests.Simple(new StatisticsItem { Id = Guid.NewGuid(), Name = "Lap", Distance = 250 });
 
     [PublicStatisticsPostgreSqlFact]
-    public async Task StoredValidityAloneFiltersPagingLookaheadCursorExistenceAndWinnersWhileJobPending()
+    public async Task StoredValidityAloneFiltersPagingLookaheadCursorExistenceAndWinnersWhileRecomputePending()
     {
         await using var host = await PublicStatisticsTestHost.CreateAsync(postgres: true);
         var config = Config();
-        // These current bounds reject the measurements, but pending revalidation must not hide
+        // These current bounds reject the measurements, but a pending recompute must not hide
         // their old stored classification. No query-time bound/generation/revision gate.
         config.StatisticsItem.MinDuration = TimeSpan.FromSeconds(100);
         var valid = Enumerable.Range(1, 26).Select(i => Entry(config, i, Profile("Visible"))).ToArray();
@@ -334,10 +334,9 @@ public sealed class PublicStatisticsPostgreSqlTests
             row.IsValid = false;
             row.InvalidReason = StatisticsEntryInvalidReason.BelowMinimumDuration;
         }
-        await host.SeedAsync(valid.Cast<object>().Concat(invalid).Append(new StatisticsValidityRevalidation
+        await host.SeedAsync(valid.Cast<object>().Concat(invalid).Append(new RecomputeRequest
         {
-            StatisticsItemId = config.StatisticsItem.Id, StatisticsItem = config.StatisticsItem, Generation = 99, IsPending = true,
-            Phase = StatisticsValidityRevalidationPhase.Simple
+            Reason = RecomputeReason.Definition, CausationId = config.Id, CreatedAtUtc = DateTime.UtcNow
         }).ToArray());
         using var client = PublicStatisticsDiscoveryTests.Anonymous(host);
         host.Sql.Commands.Clear();
