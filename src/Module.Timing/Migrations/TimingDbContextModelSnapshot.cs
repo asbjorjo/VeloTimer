@@ -58,6 +58,45 @@ namespace VeloTime.Module.Timing.Migrations
                     b.ToTable("installation", "timing");
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.InstallationFacilityAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("FacilityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("facility_id");
+
+                    b.Property<Guid>("InstallationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("installation_id");
+
+                    b.Property<DateTime?>("ValidFromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_from_utc");
+
+                    b.Property<DateTime?>("ValidToUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("valid_to_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_installation_facility_assignment");
+
+                    b.HasIndex("FacilityId")
+                        .HasDatabaseName("ix_installation_facility_assignment_facility_id");
+
+                    b.HasIndex("InstallationId", "ValidFromUtc")
+                        .IsUnique()
+                        .HasDatabaseName("ix_installation_facility_assignment_installation_id_valid_from");
+
+                    b.ToTable("installation_facility_assignment", "timing", t =>
+                        {
+                            t.HasCheckConstraint("ck_installation_facility_assignment_interval", "valid_from_utc IS NULL OR valid_to_utc IS NULL OR valid_from_utc < valid_to_utc");
+                        });
+                });
+
             modelBuilder.Entity("VeloTime.Module.Timing.Model.Passing", b =>
                 {
                     b.Property<Guid>("Id")
@@ -375,6 +414,18 @@ namespace VeloTime.Module.Timing.Migrations
                     b.HasDiscriminator().HasValue(1);
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.InstallationFacilityAssignment", b =>
+                {
+                    b.HasOne("VeloTime.Module.Timing.Model.Installation", "Installation")
+                        .WithMany("FacilityAssignments")
+                        .HasForeignKey("InstallationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_installation_facility_assignment_installation_installation_");
+
+                    b.Navigation("Installation");
+                });
+
             modelBuilder.Entity("VeloTime.Module.Timing.Model.Passing", b =>
                 {
                     b.HasOne("VeloTime.Module.Timing.Model.Installation", "Installation")
@@ -431,6 +482,8 @@ namespace VeloTime.Module.Timing.Migrations
 
             modelBuilder.Entity("VeloTime.Module.Timing.Model.Installation", b =>
                 {
+                    b.Navigation("FacilityAssignments");
+
                     b.Navigation("TimingPoints");
                 });
 

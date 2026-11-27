@@ -32,6 +32,13 @@ public static class TimingOutboxExtensions
                 transportMessage.SessionId = message.TransponderId.ToString();
                 transportMessage.MessageId = message.PassingId.ToString();
             }));
+        mbb.Produce<InstallationFacilityChangedV1>(producer => producer
+            .DefaultTopic(Topic)
+            .WithModifier((message, transportMessage) =>
+            {
+                transportMessage.SessionId = message.InstallationId.ToString();
+                transportMessage.MessageId = message.EventId.ToString();
+            }));
         mbb.UseOutbox();
         mbb.AddOutboxUsingDbContext<TimingDbContext>(options =>
         {

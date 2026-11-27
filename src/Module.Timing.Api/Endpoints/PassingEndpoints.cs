@@ -90,7 +90,10 @@ internal static class PassingEndpoints
                 new DateTimeOffset(DateTime.SpecifyKind(passing.Time, DateTimeKind.Utc)),
                 passing.TimingPointId, passing.TimingPoint.Description,
                 passing.TimingPoint.InstallationId, passing.TimingPoint.Installation.Description,
-                passing.TimingPoint.Installation.Facility, passing.LowBattery, passing.LowStrength, passing.LowHits))
+                // The facility the installation served when the passing happened.
+                passing.TimingPoint.Installation.FacilityAssignments
+                    .Where(a => (a.ValidFromUtc == null || a.ValidFromUtc <= passing.Time) && (a.ValidToUtc == null || passing.Time < a.ValidToUtc))
+                    .Select(a => (Guid?)a.FacilityId).FirstOrDefault() ?? Guid.Empty, passing.LowBattery, passing.LowStrength, passing.LowHits))
             .ToListAsync(cancellationToken);
         var truncated = rows.Count > limit;
         if (truncated) rows.RemoveAt(limit);

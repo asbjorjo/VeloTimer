@@ -158,6 +158,43 @@
         }
       }
     },
+    "/api/timing/installations/{id}/facility-assignments": {
+      "get": {
+        "tags": [
+          "Timing"
+        ],
+        "operationId": "GetInstallationFacilityAssignments",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InstallationFacilityAssignmentDTO"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/timing/agents": {
       "get": {
         "tags": [
@@ -1757,6 +1794,44 @@
           }
         }
       },
+      "InstallationFacilityAssignmentDTO": {
+        "required": [
+          "id",
+          "installationId",
+          "facilityId",
+          "validFromUtc",
+          "validToUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "installationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "facilityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "validFromUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "validToUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "PassingDTO": {
         "required": [
           "id",
@@ -2081,6 +2156,13 @@
           },
           "description": {
             "type": "string"
+          },
+          "facilityValidFromUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },

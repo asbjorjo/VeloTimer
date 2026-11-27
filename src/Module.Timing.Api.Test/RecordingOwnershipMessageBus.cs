@@ -10,6 +10,7 @@ public class RecordingOwnershipMessageBus : DispatchProxy
     public IMessageBus Bus { get; private set; } = null!;
     public ConcurrentQueue<TransponderOwnershipChanged> Enqueued { get; } = new();
     public ConcurrentQueue<PassingRecordedV1> Passings { get; } = new();
+    public ConcurrentQueue<InstallationFacilityChangedV1> FacilityChanges { get; } = new();
     public bool FailEnqueue { get; set; }
 
     public static RecordingOwnershipMessageBus Create()
@@ -24,6 +25,7 @@ public class RecordingOwnershipMessageBus : DispatchProxy
     {
         Enqueued.Clear();
         Passings.Clear();
+        FacilityChanges.Clear();
         FailEnqueue = false;
     }
 
@@ -33,6 +35,11 @@ public class RecordingOwnershipMessageBus : DispatchProxy
         if (args?.FirstOrDefault() is PassingRecordedV1 passing)
         {
             Passings.Enqueue(passing);
+            return Task.CompletedTask;
+        }
+        if (args?.FirstOrDefault() is InstallationFacilityChangedV1 facilityChange)
+        {
+            FacilityChanges.Enqueue(facilityChange);
             return Task.CompletedTask;
         }
         if (args?.FirstOrDefault() is not TransponderOwnershipChanged message) throw new NotSupportedException(targetMethod.Name);

@@ -53,7 +53,10 @@ public static class TransponderStatusQuery
     private static IQueryable<TransponderSighting> Sightings(IQueryable<Passing> query) =>
         query.Select(passing => new TransponderSighting(passing.Id,
             new DateTimeOffset(passing.Time, TimeSpan.Zero),
-            passing.TimingPoint.Installation.Facility, passing.TimingPoint.InstallationId,
+            // The facility the installation served when the passing happened.
+                passing.TimingPoint.Installation.FacilityAssignments
+                    .Where(a => (a.ValidFromUtc == null || a.ValidFromUtc <= passing.Time) && (a.ValidToUtc == null || passing.Time < a.ValidToUtc))
+                    .Select(a => (Guid?)a.FacilityId).FirstOrDefault() ?? Guid.Empty, passing.TimingPoint.InstallationId,
             passing.TimingPoint.Installation.Description, passing.TimingPointId, passing.TimingPoint.Description,
             passing.LowBattery, passing.LowStrength, passing.LowHits));
 }
