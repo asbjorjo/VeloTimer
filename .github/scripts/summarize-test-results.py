@@ -18,6 +18,7 @@ counts = defaultdict(Counter)
 failed_tests = []
 durations = []
 class_spans = {}
+timed_tests = defaultdict(list)
 SLOWEST_TEST_COUNT = 15
 
 
@@ -56,6 +57,7 @@ for result_file in result_files:
         if start and end:
             # Wall-clock span of a test class, from its first test's start to its last test's end.
             # Unlike test durations, this includes class fixture setup and waits between tests.
+            timed_tests[project].append((start, end, name))
             key = (project, name.split("(", 1)[0].rsplit(".", 1)[0])
             first, last = class_spans.get(key, (start, end))
             class_spans[key] = (min(first, start), max(last, end))
@@ -104,6 +106,25 @@ lines.extend(["", f"### Longest test class spans (top {SLOWEST_TEST_COUNT})", ""
 spans = sorted(((last - first).total_seconds(), project, name) for (project, name), (first, last) in class_spans.items())
 lines.extend(f"| {elapsed:.1f} | {markdown_cell(project)} | {markdown_cell(name)} |"
              for elapsed, project, name in reversed(spans[-SLOWEST_TEST_COUNT:]))
+
+# Idle gaps: periods in which no test of a project was running, e.g. fixture setup or a slow host.
+gaps = []
+for project, tests in timed_tests.items():
+    tests.sort()
+    busy_until, previous = tests[0][1], tests[0][2]
+    for start, end, name in tests[1:]:
+        if start > busy_until:
+            gaps.append(((start - busy_until).total_seconds(), project, previous, name))
+        if end > busy_until:
+            busy_until, previous = end, name
+lines.extend(["", "### Longest idle gaps between tests (top 5)", "",
+              "| Seconds | Project | Last test before | First test after |", "| ---: | --- | --- | --- |"])
+lines.extend(f"| {elapsed:.1f} | {markdown_cell(project)} | {markdown_cell(before)} | {markdown_cell(after)} |"
+             for elapsed, project, before, after in sorted(gaps, reverse=True)[:5])
+lines.extend(["", "| Project | First start | Last end | Wall seconds |", "| --- | --- | --- | ---: |"])
+for project, tests in sorted(timed_tests.items()):
+    first, last = min(t[0] for t in tests), max(t[1] for t in tests)
+    lines.append(f"| {markdown_cell(project)} | {first:%H:%M:%S} | {last:%H:%M:%S} | {(last - first).total_seconds():.0f} |")
 
 summary = "\n".join(lines) + "\n"
 summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
