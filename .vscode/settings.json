@@ -8,12 +8,14 @@
     },
     "chat.tools.terminal.autoApprove": {
         "dotnet build": true,
-        "dotnet ef": true,
+        "dotnet ef migrations add": true,
+        "dotnet ef migrations list": true,
+        "dotnet ef migrations has-pending-model-changes": true,
+        "dotnet ef database": false,
         "dotnet restore": true,
         "dotnet test": true,
         "git diff": true,
         "git status": true,
-        "git switch": true,
         "git fetch": true,
         "git worktree": true
     },
