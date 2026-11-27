@@ -29,7 +29,7 @@ Use the runtime's available subagent invocation tool; do not assume a particular
 ## Workflow
 
 1. Establish acceptance criteria and examine the existing worktree. Before edits, create or confirm the session's isolated worktree and dedicated branch under the repository Git workflow. Give parallel editing specialists separate worktrees and branches; keep sequential handoffs in the assigned session worktree. Preserve user changes and other sessions' worktrees.
-2. Delegate bounded work with objective, allowed files, prerequisites, existing patterns, acceptance criteria, and required report. Pass the relevant context explicitly; do not assume a subagent sees this conversation. For time/unit work, include the shared convention: backend and database values are UTC and base SI units; user-facing presentation follows browser locale or explicit preferences.
+2. Delegate bounded work with objective, allowed files, prerequisites, existing patterns, acceptance criteria, and required report. Pass the relevant context explicitly; do not assume a subagent sees this conversation.
 3. Give each shared file one owner. When shared contracts cross specialist boundaries, complete the contract-first gate below before delegating dependent implementations. Parallelize only independent work with non-overlapping ownership. Ask the user about material scope or behavior ambiguity.
 4. Collect each developer's report: worktree/branch, atomic Conventional Commit hashes made as work progressed, changed files, behavior/contract decisions, checks with exact results, risks/blockers, and next owner. Integrate parallel branches' commits explicitly in the session worktree and validate the combined result. Inspect integration evidence instead of treating a success statement as proof.
 5. Hand completed implementation to Tester with acceptance criteria and changed surfaces. Tester adds/updates tests and runs the smallest relevant validation. Return production defects to the original developer, then ask Tester to rerun affected checks.
@@ -40,6 +40,8 @@ Specialists must not delegate further. When directly selected specialists return
 
 ## Contract-first gate
 
+The gate applies when a change touches a shared contract surface consumed by another specialist: a `*.Interface` or `Agent.Interface` project, `api/*.json` or `api/*-contract.md`, or [topology.json](../../src/MessageBus.Topology/topology.json). Single-owner changes skip it.
+
 1. Identify the shared contract surfaces and affected producers/consumers: DTOs, API request/response shapes, event messages, or shared interfaces. Assign one relevant specialist to own the contract phase; do not edit production contracts yourself.
 2. Have that owner create or update the actual shared contract artifacts first, define their semantics and compatibility expectations, and perform focused applicable validation. If an existing contract already fits, have the owner confirm compatibility instead of introducing unnecessary artifacts.
 3. Wait for the owner's completed report with artifact paths, agreed shapes/semantics, compatibility decisions, exact checks/results, and any blockers. Inspect this evidence before releasing dependent implementation tasks. Failed, blocked, or missing required validation keeps affected dependents blocked; unrelated work may continue.
@@ -48,8 +50,6 @@ Specialists must not delegate further. When directly selected specialists return
 
 Contract validation is an early prerequisite, not a substitute for subsequent Tester and Code Reviewer stages. This gate does not require a separate commit or user approval for every contract; existing approval rules still apply to material ambiguity and breaking changes.
 
-## Runtime and handoffs
+## Handoffs
 
-All eight agents can be selected independently. Automatic handoffs are explicit subagent calls followed by reports in this workflow. For a manual transition, select the next agent and provide the objective, changed files, decisions, checks/results, blockers, and requested next action. Do not claim that a handoff button or autonomous pipeline ran.
-
-This portable configuration intentionally omits Local-only `agents` and `handoffs` frontmatter. Routing and no-nesting are instruction-level constraints, not a runtime allowlist. Keep the current model defaults.
+Handoffs are explicit subagent calls, or manual selection of the next agent with the previous report (objective, changed files, decisions, checks/results, blockers, requested next action). Do not claim that a handoff button or autonomous pipeline ran.
