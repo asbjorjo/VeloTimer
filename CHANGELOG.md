@@ -21,6 +21,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.54"></a>
+## [2.1.0-alpha.54](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.54) (2026-11-27)
+
+### Features
+
+* **facilities:** time-bound course layouts and config change recompute (replay-safe Phase 3) ([#149](https://www.github.com/asbjorjo/VeloTimer/issues/149)) ([f2198e3](https://www.github.com/asbjorjo/VeloTimer/commit/f2198e3d46069a6fdb4ed75a18d23865071f924e))
+
 <a name="2.1.0-alpha.53"></a>
 ## [2.1.0-alpha.53](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.53) (2026-11-27)
 
