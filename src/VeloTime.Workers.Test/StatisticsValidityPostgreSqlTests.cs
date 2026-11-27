@@ -13,6 +13,7 @@ using VeloTime.Module.Statistics.Interface.Data;
 using VeloTime.Module.Statistics.Interface.Messages;
 using VeloTime.Module.Statistics.Model;
 using VeloTime.Module.Statistics.Service;
+using VeloTime.Module.Statistics.Service.Recompute;
 using VeloTime.Module.Statistics.Storage;
 
 namespace VeloTime.Workers.Test;
@@ -40,116 +41,6 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         using var pool = new NpgsqlConnection(connection);
         NpgsqlConnection.ClearPool(pool);
         await Sql(admin, $"DROP DATABASE \"{database}\" WITH (FORCE)");
-    }
-
-    [PostgreSqlStatisticsFact]
-    public async Task CreationPrecisionSimpleBoundariesMatchReloadAndRemainStableAfterRevalidation()
-    {
-        var config = Simple();
-        config.StatisticsItem.MaxDuration = TimeSpan.FromSeconds(10);
-        await using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
-        var created = new List<StatisticsEntry>();
-        await using (var db = Db())
-        {
-            db.Add(config);
-            await db.SaveChangesAsync();
-            foreach (var ticks in new long[] { 100_000_001, 100_000_009, 100_000_010, 1, 9, -1, -9 })
-            {
-                var rider = Guid.NewGuid();
-                db.Add(new Sample
-                {
-                    Id = Guid.NewGuid(), TransponderId = rider, FacilityId = Guid.NewGuid(),
-                    CoursePointStartId = config.CoursePointStart, CoursePointEndId = Guid.NewGuid(),
-                    TimeStart = Start, TimeEnd = Start.AddSeconds(1), Duration = TimeSpan.FromSeconds(1),
-                    Distance = 250, Speed = 250
-                });
-                await db.SaveChangesAsync();
-                await using var tx = await db.Database.BeginTransactionAsync();
-                var entry = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                    .ProcessCompletedAsync(rider, Start.AddSeconds(2), Start.AddTicks(ticks),
-                        config.CoursePointStart, config.CoursePointEnd));
-                // Modern timestamps truncate their positive offset from the 2000 epoch.
-                // An end just before Start therefore persists one microsecond before it;
-                // this differs from truncating the negative elapsed interval toward zero.
-                var expectedTicks = ticks < 0 ? -10 : ticks / 10 * 10;
-                var expectedReason = expectedTicks <= 0 ? StatisticsEntryInvalidReason.NonPositiveDuration
-                    : expectedTicks > 100_000_000 ? StatisticsEntryInvalidReason.AboveMaximumDuration
-                    : (StatisticsEntryInvalidReason?)null;
-                Assert.Equal(Start, entry.TimeStart);
-                Assert.Equal(Start.AddTicks(expectedTicks), entry.TimeEnd);
-                Assert.Equal(TimeSpan.FromTicks(expectedTicks), entry.Duration);
-                Assert.Equal(250 / entry.Duration.TotalSeconds, entry.Speed);
-                Assert.Equal(expectedReason, entry.InvalidReason);
-                Assert.Equal(expectedReason is null, entry.IsValid);
-                await tx.CommitAsync();
-                created.Add(entry);
-            }
-        }
-        await AssertReloadMatches(created);
-        await Change(config.StatisticsItemId, null);
-        Assert.All(await Drain(config.StatisticsItemId, 2), batch => Assert.Equal(0, batch.Reclassified));
-        await AssertReloadMatches(created);
-    }
-
-    [PostgreSqlStatisticsFact]
-    public async Task CreationPrecisionMultiAtExactMaximumUsesCurrentParentsAndStableMeasurements()
-    {
-        var parent = Simple();
-        parent.StatisticsItem.MaxDuration = TimeSpan.FromSeconds(10);
-        var item = new StatisticsItem { Id = Guid.NewGuid(), Name = "Double", Distance = 500,
-            MaxDuration = TimeSpan.FromSeconds(20) };
-        var multi = new MultiStatisticsItemConfig
-        {
-            Id = Guid.NewGuid(), StatisticsItem = item, StatisticsItemId = item.Id,
-            ParentConfig = parent, ParentConfigId = parent.Id, Repetitions = 2
-        };
-        var rider = Guid.NewGuid();
-        var facility = Guid.NewGuid();
-        var created = new List<StatisticsEntry>();
-        await using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
-        await using (var db = Db())
-        {
-            db.AddRange(parent, multi);
-            await db.SaveChangesAsync();
-            for (var lap = 0; lap < 2; lap++)
-            {
-                var start = Start.AddSeconds(lap * 10);
-                db.Add(new Sample
-                {
-                    Id = Guid.NewGuid(), TransponderId = rider, FacilityId = facility,
-                    CoursePointStartId = parent.CoursePointStart, CoursePointEndId = Guid.NewGuid(),
-                    TimeStart = start, TimeEnd = start.AddSeconds(1), Duration = TimeSpan.FromSeconds(1),
-                    Distance = 250, Speed = 250
-                });
-                await db.SaveChangesAsync();
-                await using var tx = await db.Database.BeginTransactionAsync();
-                var entry = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                    .ProcessCompletedAsync(rider, start.AddSeconds(2), start.AddSeconds(10).AddTicks(9),
-                        parent.CoursePointStart, parent.CoursePointEnd));
-                Assert.True(entry.IsValid);
-                Assert.Equal(TimeSpan.FromSeconds(10), entry.Duration);
-                created.Add(entry);
-                await tx.CommitAsync();
-            }
-            await using var aggregateTx = await db.Database.BeginTransactionAsync();
-            var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, Start, Start.AddSeconds(20).AddTicks(9)));
-            Assert.True(aggregate.IsValid);
-            Assert.Null(aggregate.InvalidReason);
-            Assert.Equal(Start, aggregate.TimeStart);
-            Assert.Equal(Start.AddSeconds(20), aggregate.TimeEnd);
-            Assert.Equal(TimeSpan.FromSeconds(20), aggregate.Duration);
-            Assert.Equal(25, aggregate.Speed);
-            Assert.True(aggregate.IsValid);
-            created.Add(aggregate);
-            await aggregateTx.CommitAsync();
-        }
-        await AssertReloadMatches(created);
-        await Change(parent.StatisticsItemId, null);
-        await Change(item.Id, null);
-        Assert.All(await Drain(parent.StatisticsItemId, 2), batch => Assert.Equal(0, batch.Reclassified));
-        await AssertReloadMatches(created);
-        Assert.All(await Drain(item.Id, 2), batch => Assert.Equal(0, batch.Reclassified));
     }
 
     [PostgreSqlStatisticsFact]
@@ -268,9 +159,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
             db.AddRange(parent, multi, first, second);
             await db.SaveChangesAsync();
             await using var tx = await db.Database.BeginTransactionAsync();
-            var service = new StatisticsService(db, services.GetRequiredService<HybridCache>());
-            var aggregate = Assert.Single(await service.ProcessEntryAsync(second.TransponderId, parent.StatisticsItemId,
-                parent.Id, first.TimeStart, second.TimeEnd));
+            var aggregate = await DeriveMultiAsync(db, multi, second);
             Assert.True(aggregate.IsValid);
             await tx.CommitAsync();
         }
@@ -314,8 +203,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         db.AddRange(parent, multi, older, rejected, newest);
         await db.SaveChangesAsync();
         await using var tx = await db.Database.BeginTransactionAsync();
-        var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-            .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, rejected.TimeStart, newest.TimeEnd));
+        var aggregate = await DeriveMultiAsync(db, multi, newest);
         Assert.False(aggregate.IsValid);
         Assert.Equal(StatisticsEntryInvalidReason.InvalidContributor, aggregate.InvalidReason);
         Assert.False((await StatisticsService.ReadMultiContributorValidityAsync(db, [aggregate.Id]))[aggregate.Id]);
@@ -371,8 +259,7 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
             db.AddRange(parent, otherConfig, multi, unrelatedItem, a, b);
             await db.SaveChangesAsync();
             await using var tx = await db.Database.BeginTransactionAsync();
-            var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, a.TimeStart, b.TimeEnd));
+            var aggregate = await DeriveMultiAsync(db, multi, b);
             Assert.True(aggregate.IsValid);
             // Simulate a previously stored result so the historical worker must reach the same
             // answer as current creation after the unrelated matching-window rows arrive.
@@ -395,74 +282,6 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
         Assert.Equal(5, await verify.Set<StatisticsEntry>().CountAsync(e => e.StatisticsItemId == parent.StatisticsItemId));
         Assert.Equal(1, await verify.Set<StatisticsEntry>().CountAsync(e => e.StatisticsItemId == item.Id));
         Assert.Equal(1, await verify.Set<StatisticsEntry>().CountAsync(e => e.StatisticsItemId == unrelatedItem.Id));
-    }
-
-    [PostgreSqlStatisticsFact]
-    public async Task LateContainedSimpleCreationRestartsCompletedMultiAndInvalidatesItsExistingTotal()
-    {
-        var parent = Simple();
-        var item = new StatisticsItem { Id = Guid.NewGuid(), Name = "Double", Distance = 500 };
-        var multi = new MultiStatisticsItemConfig
-        {
-            Id = Guid.NewGuid(), StatisticsItem = item, StatisticsItemId = item.Id,
-            ParentConfig = parent, ParentConfigId = parent.Id, Repetitions = 2
-        };
-        var rider = Guid.NewGuid();
-        var facility = Guid.NewGuid();
-        var first = Entry(parent, 1, rider, facility);
-        var second = Entry(parent, 2, rider, facility);
-        await using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
-        Guid aggregateId;
-        await using (var db = Db())
-        {
-            db.AddRange(parent, multi, first, second);
-            await db.SaveChangesAsync();
-            await using var tx = await db.Database.BeginTransactionAsync();
-            var aggregate = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                .ProcessEntryAsync(rider, parent.StatisticsItemId, parent.Id, first.TimeStart, second.TimeEnd));
-            Assert.True(aggregate.IsValid);
-            aggregateId = aggregate.Id;
-            await tx.CommitAsync();
-        }
-
-        await Change(item.Id, TimeSpan.FromSeconds(1));
-        Assert.All(await Drain(item.Id, 1), result => Assert.Equal(0, result.Reclassified));
-        var completed = await Job(item.Id);
-        Assert.False(completed.IsPending);
-
-        await using (var db = Db())
-        {
-            db.Add(new Sample
-            {
-                Id = Guid.NewGuid(), TransponderId = rider, FacilityId = facility,
-                CoursePointStartId = parent.CoursePointStart, CoursePointEndId = Guid.NewGuid(),
-                TimeStart = Start.AddSeconds(15), TimeEnd = Start.AddSeconds(16),
-                Duration = TimeSpan.FromSeconds(1), Distance = 250, Speed = 250
-            });
-            await db.SaveChangesAsync();
-            await using var tx = await db.Database.BeginTransactionAsync();
-            var added = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                .ProcessCompletedAsync(rider, Start.AddSeconds(17), Start.AddSeconds(25),
-                    parent.CoursePointStart, parent.CoursePointEnd));
-            Assert.True(added.IsValid);
-            Assert.Equal(Start.AddSeconds(15), added.TimeStart);
-            Assert.Equal(Start.AddSeconds(25), added.TimeEnd);
-            await tx.CommitAsync();
-        }
-
-        var restarted = await Job(item.Id);
-        Assert.True(restarted.IsPending);
-        Assert.True(restarted.Generation > completed.Generation);
-        Assert.Equal(StatisticsValidityRevalidationPhase.Multi, restarted.Phase);
-        Assert.Null(restarted.LastEntryId);
-        var batches = await Drain(item.Id, 1);
-        Assert.Contains(batches, batch => batch.Reclassified == 1);
-        await using var verify = Db();
-        var persisted = await verify.Set<StatisticsEntry>().SingleAsync(e => e.Id == aggregateId);
-        Assert.False(persisted.IsValid);
-        Assert.Equal(StatisticsEntryInvalidReason.InvalidContributor, persisted.InvalidReason);
-        Assert.Equal(1, await verify.Set<StatisticsEntry>().CountAsync(e => e.StatisticsItemId == item.Id));
-        Assert.Equal(3, await verify.Set<StatisticsEntry>().CountAsync(e => e.StatisticsItemId == parent.StatisticsItemId));
     }
 
     [PostgreSqlStatisticsFact]
@@ -651,45 +470,6 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
     }
 
     [PostgreSqlStatisticsFact]
-    public async Task LateSimpleCreationBehindCompletedCursorUsesLiveBoundsDespiteCachedDefinition()
-    {
-        var config = Simple();
-        var rider = Guid.NewGuid();
-        await using var services = new ServiceCollection().AddHybridCache().Services.BuildServiceProvider();
-        await using (var db = Db())
-        {
-            db.Add(config);
-            db.Add(new Sample
-            {
-                Id = Guid.NewGuid(), TimeStart = Start, TimeEnd = Start.AddSeconds(1), Duration = TimeSpan.FromSeconds(1),
-                Distance = 25, Speed = 25, CoursePointStartId = config.CoursePointStart, CoursePointEndId = Guid.NewGuid(),
-                FacilityId = Guid.NewGuid(), TransponderId = rider
-            });
-            await db.SaveChangesAsync();
-            await new StatisticsService(db, services.GetRequiredService<HybridCache>()).GetStatisticsItemConfigByEndCoursePoint(config.CoursePointEnd);
-        }
-        await Change(config.StatisticsItemId, TimeSpan.FromSeconds(11));
-        await Drain(config.StatisticsItemId, 1);
-        await using (var db = Db())
-        {
-            await using var tx = await db.Database.BeginTransactionAsync();
-            var entry = Assert.Single(await new StatisticsService(db, services.GetRequiredService<HybridCache>())
-                .ProcessCompletedAsync(rider, Start.AddSeconds(2), Start.AddSeconds(10), config.CoursePointStart, config.CoursePointEnd));
-            Assert.False(entry.IsValid);
-            Assert.Equal(StatisticsEntryInvalidReason.BelowMinimumDuration, entry.InvalidReason);
-            Assert.Equal(TimeSpan.FromSeconds(10), entry.Duration);
-            Assert.Equal(25, entry.Speed);
-            await tx.CommitAsync();
-        }
-        await using var verify = Db();
-        var persisted = await verify.Set<StatisticsEntry>().SingleAsync();
-        Assert.False(persisted.IsValid);
-        Assert.Equal(DateTimeKind.Utc, persisted.TimeStart.Kind);
-        Assert.Equal(DateTimeKind.Utc, persisted.TimeEnd.Kind);
-        Assert.False((await Job(config.StatisticsItemId)).IsPending);
-    }
-
-    [PostgreSqlStatisticsFact]
     public async Task UpgradeRetainsLegacyNonpositiveMeasurementsAndDefaultsWithoutHistoricalReclassification()
     {
         var upgradeDatabase = $"threshold_upgrade_{Guid.NewGuid():N}";
@@ -728,7 +508,8 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
                 (statistics_item_id, generation, is_pending, phase, last_entry_id)
                 VALUES ({item}, 7, FALSE, 1, {entry});
                 """);
-            await db.Database.MigrateAsync();
+            // Stop before the replay-safe recompute migration, which deletes every derived entry.
+            await db.GetService<IMigrator>().MigrateAsync(LapDistanceActivationMigration);
             var persisted = await db.Set<StatisticsEntry>().SingleAsync(e => e.Id == entry);
             Assert.Equal(entry, persisted.Id);
             Assert.True(persisted.IsValid); // Migration is metadata only; worker classifies later.
@@ -765,7 +546,11 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
                 WHERE table_schema = 'statistics' AND table_name = 'statistics_entry_contributor') AS "Value"
                 """).SingleAsync());
             Assert.False(db.Database.HasPendingModelChanges());
+
+            await db.Database.MigrateAsync();
             Assert.Empty(await db.Database.GetPendingMigrationsAsync());
+            Assert.Empty(await db.Set<StatisticsEntry>().ToListAsync()); // Derived data is rebuilt from passing facts.
+            Assert.Equal(2, await db.Set<StatisticsValidityRevalidation>().CountAsync());
         }
         finally
         {
@@ -860,6 +645,24 @@ public sealed partial class StatisticsValidityPostgreSqlTests : IAsyncLifetime
     private StatisticsDbContext Db() => new(new DbContextOptionsBuilder<StatisticsDbContext>()
         .UseNpgsql(connection, options => options.MigrationsHistoryTable("__ef_migrations_history", "ef"))
         .UseSnakeCaseNamingConvention().AddInterceptors(capture).Options);
+    /// <summary>
+    /// Derives and stores the Multi window that the trigger parent closes, from the stored parents and
+    /// live bounds, as the recompute worker does (EntryDerivation.Multi).
+    /// </summary>
+    private static async Task<StatisticsEntry> DeriveMultiAsync(StatisticsDbContext db, MultiStatisticsItemConfig multi, StatisticsEntry trigger)
+    {
+        var parents = await db.Set<StatisticsEntry>().AsNoTracking()
+            .Where(e => e.StatisticsItemConfigId == multi.ParentConfigId && e.TransponderId == trigger.TransponderId)
+            .ToListAsync();
+        var config = await db.Set<MultiStatisticsItemConfig>().AsNoTracking().Include(c => c.StatisticsItem)
+            .SingleAsync(c => c.Id == multi.Id);
+        var bounds = await new StatisticsService(db, new ServiceCollection().AddHybridCache().Services.BuildServiceProvider()
+            .GetRequiredService<HybridCache>()).ReadCurrentBoundsAsync([multi.Id]);
+        var aggregate = Assert.Single(EntryDerivation.Multi(config, bounds[multi.Id], parents), e => e.TimeEnd == trigger.TimeEnd);
+        db.Add(aggregate);
+        await db.SaveChangesAsync();
+        return aggregate;
+    }
     private static SimpleStatisticsItemConfig Simple()
     {
         var item = new StatisticsItem { Id = Guid.NewGuid(), Name = "Lap", Distance = 250 };

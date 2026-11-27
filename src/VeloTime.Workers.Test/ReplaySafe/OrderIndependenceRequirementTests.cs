@@ -10,7 +10,7 @@ namespace VeloTime.Workers.Test.ReplaySafe;
 public sealed class OrderIndependenceRequirementTests
 {
     /// <summary>Checks the pipeline driver and the scenario before the stricter requirements. Passed on v2.</summary>
-    [RequirementFact(PendingPhase = "Phase 2 (Statistics does not consume PassingRecordedV1 yet)")]
+    [RequirementFact]
     public async Task InOrderArrival_OneSession_ProducesEveryLapAndSplit()
     {
         await using var world = await PipelineWorlds.CreateAsync();
@@ -29,7 +29,7 @@ public sealed class OrderIndependenceRequirementTests
         Assert.All(snapshot.Samples, s => Assert.Equal(Facility, s.Facility));
     }
 
-    [RequirementFact(PendingPhase = "Phase 2 (§3.2: nothing is derived across the session gap)")]
+    [RequirementFact]
     public async Task InOrderArrival_TwoSessions_NoSampleOrLapSpansTheGap()
     {
         await using var world = await PipelineWorlds.CreateAsync();
@@ -46,7 +46,7 @@ public sealed class OrderIndependenceRequirementTests
         Assert.All(snapshot.Entries.Where(e => e.Item == Lap), e => Assert.InRange(e.Duration.TotalSeconds, 17, 19));
     }
 
-    [RequirementFact(PendingPhase = "Phase 2 (decision §6.3: Multi windows stay within one session)")]
+    [RequirementFact]
     public async Task MultiWindows_NeverSpanTwoSessions()
     {
         await using var world = await PipelineWorlds.CreateAsync();
@@ -60,7 +60,7 @@ public sealed class OrderIndependenceRequirementTests
             $"{e.Content()} chains laps from two sessions."));
     }
 
-    [RequirementFact(PendingPhase = "Phase 2 (T2, T4, S2)")]
+    [RequirementFact]
     public async Task LatePassing_P1P3P2_MatchesInOrderArrival()
     {
         await using var world = await PipelineWorlds.CreateAsync();
@@ -88,7 +88,7 @@ public sealed class OrderIndependenceRequirementTests
     }
 
     /// <summary>Property test: a fixed sample of permutations, so failures are reproducible by seed.</summary>
-    [RequirementFact(PendingPhase = "Phase 2 (T2, T4, S2)")]
+    [RequirementFact]
     public async Task ShuffledArrival_MatchesInOrderArrival_ForEveryPermutation()
     {
         await using var world = await PipelineWorlds.CreateAsync();

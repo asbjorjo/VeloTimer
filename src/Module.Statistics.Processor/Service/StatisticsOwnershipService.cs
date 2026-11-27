@@ -11,18 +11,21 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
 {
     private const int BatchSize = 500;
 
-    public async Task<IReadOnlyList<StatisticsEntry>> CreateEntriesAsync(Guid transponderId,
-        Func<CancellationToken, Task<IEnumerable<StatisticsEntry>>> create, CancellationToken cancellationToken)
+    /// <summary>
+    /// Assigns owners to derived entries inside the recompute's transaction, which already holds the
+    /// transponder lock (see <see cref="LockTransponderAsync"/>). Owner profiles are locked in UUID order.
+    /// </summary>
+    public async Task ApplyOwnersAsync(Guid transponderId, IReadOnlyList<StatisticsEntry> entries, CancellationToken cancellationToken)
     {
-        await using var transaction = await LockAsync(transponderId, cancellationToken);
+        if (entries.Count == 0) return;
         var owners = await ReadOwnersAsync(transponderId, cancellationToken);
-        var entries = (await create(cancellationToken)).ToList();
         await LockOwnersAsync(owners, cancellationToken);
         await AssignAsync(entries, owners, cancellationToken);
-        await storage.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return entries;
     }
+
+    /// <summary>Serializes recomputes and ownership reconciliation for one transponder across replicas.</summary>
+    public Task LockTransponderAsync(Guid transponderId, CancellationToken cancellationToken) =>
+        AdvisoryLockAsync($"statistics-transponder:{transponderId:D}", cancellationToken);
 
     public async Task<int> ReconcileAsync(TransponderOwnershipChanged message, CancellationToken cancellationToken)
     {
@@ -98,8 +101,8 @@ public sealed class StatisticsOwnershipService(StatisticsDbContext storage, ITra
         var transaction = await storage.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            // Both subscriptions must serialize creation and reconciliation across processor replicas.
-            await AdvisoryLockAsync($"statistics-transponder:{transponderId:D}", cancellationToken);
+            // Recomputes and reconciliation must serialize per transponder across processor replicas.
+            await LockTransponderAsync(transponderId, cancellationToken);
             return transaction;
         }
         catch

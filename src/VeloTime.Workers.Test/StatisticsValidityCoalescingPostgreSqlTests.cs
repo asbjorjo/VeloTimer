@@ -400,23 +400,28 @@ public sealed partial class StatisticsValidityPostgreSqlTests
         await tx.CommitAsync();
     }
 
+    /// <summary>
+    /// A writer adding a parent entry inside an existing Multi window: insert it classified by live bounds
+    /// and durably schedule dependent Multi revalidation in the same transaction.
+    /// </summary>
     private static async Task InsertContainedSimple(StatisticsDbContext db, HybridCache cache,
         SimpleStatisticsItemConfig parent, StatisticsEntry aggregate)
     {
         var start = aggregate.TimeStart.AddSeconds(2);
-        db.Add(new Sample
+        var scheduler = new StatisticsValidityScheduler(db);
+        var dependents = await scheduler.GetDependentMultiItemIdsByParentConfigAsync([parent.Id]);
+        await scheduler.LockItemsAsync(dependents.Append(parent.StatisticsItemId), StatisticsItemLockMode.Exclusive);
+        var bounds = (await new StatisticsService(db, cache).ReadCurrentBoundsAsync([parent.Id]))[parent.Id];
+        var entry = new StatisticsEntry
         {
             Id = Guid.NewGuid(), TransponderId = aggregate.TransponderId, FacilityId = aggregate.FacilityId,
-            CoursePointStartId = parent.CoursePointStart, CoursePointEndId = Guid.NewGuid(),
-            TimeStart = start, TimeEnd = start.AddSeconds(1), Duration = TimeSpan.FromSeconds(1),
-            Distance = 250, Speed = 250
-        });
+            StatisticsItemId = parent.StatisticsItemId, StatisticsItemConfigId = parent.Id,
+            TimeStart = start, TimeEnd = start.AddSeconds(10), Duration = TimeSpan.FromSeconds(10), Speed = 25
+        };
+        StatisticsValidityEvaluator.Apply(entry, StatisticsValidityEvaluator.Evaluate(entry.Duration, true, bounds));
+        db.Add(entry);
         await db.SaveChangesAsync();
-        var entry = Assert.Single(await new StatisticsService(db, cache).ProcessCompletedAsync(
-            aggregate.TransponderId, start.AddSeconds(2), start.AddSeconds(10),
-            parent.CoursePointStart, parent.CoursePointEnd));
+        await scheduler.ScheduleDependentMultiRevalidationAsync(dependents);
         Assert.True(entry.IsValid);
-        Assert.Equal(start, entry.TimeStart);
-        Assert.Equal(start.AddSeconds(10), entry.TimeEnd);
     }
 }

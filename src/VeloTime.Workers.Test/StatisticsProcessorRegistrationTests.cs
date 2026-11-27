@@ -26,7 +26,13 @@ public sealed class StatisticsProcessorRegistrationTests
         await using var provider = builder.Services.BuildServiceProvider();
         var bus = Assert.IsAssignableFrom<MessageBusBase>(provider.GetRequiredService<IMasterMessageBus>());
         var timingConsumers = bus.Settings.Consumers.Where(consumer => consumer.Path == "velotime-timing").ToList();
-        // TimingSampleComplete is gone (replay-safe plan, Phase 1); PassingRecordedV1 is consumed from Phase 2.
+        // Phase 2 of the replay-safe plan: passing facts and ownership changes share the Timing subscription.
+        Assert.Single(timingConsumers, consumer => consumer.MessageType == typeof(PassingRecordedV1) &&
+            consumer.ConsumerType == typeof(PassingRecordedHandler));
+        // Statistics no longer messages itself (SampleComplete/EntryCreated were removed).
+        Assert.DoesNotContain(bus.Settings.Consumers, consumer => consumer.Path == "velotime-statistics"
+            && consumer.MessageType != typeof(VeloTime.Module.Statistics.Interface.Messages.StatisticsValidityThresholdsChangedV1));
+        Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(StatisticsRecomputeService));
         Assert.Single(timingConsumers, consumer => consumer.MessageType == typeof(TransponderOwnershipChanged) &&
             consumer.ConsumerType == typeof(TransponderOwnershipChangedHandler));
         Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(ITransponderOwnershipReader) &&

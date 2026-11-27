@@ -88,7 +88,7 @@ public sealed class BackdatedConfigRequirementTests
             });
     }
 
-    [RequirementFact(PendingPhase = "Phase 2 (S2: definitions count from their start, not from when they were saved)")]
+    [RequirementFact]
     public async Task ItemDefinedAfterTheData_CountsHistoryLikeAFreshRun()
     {
         await AssertBackdatedEditMatchesFreshRun(
