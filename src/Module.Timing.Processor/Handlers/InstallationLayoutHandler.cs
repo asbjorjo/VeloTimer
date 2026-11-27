@@ -67,12 +67,6 @@ public class InstallationLayoutHandler(InstallationService installationService, 
             storage.Entry(installation).State = EntityState.Modified;
         }
 
-        if (installation.TimingSystem == TimingSystem.Unknown)
-        {
-            installation.TimingSystem = TimingSystem.MyLaps_X2;
-            storage.Entry(installation).State = EntityState.Modified;
-        }
-
         // Reuse one writable instance per point and retain message order so the
         // first nonblank description still wins for duplicate loop entries.
         foreach (var (timingPoint, loop) in layoutPoints)

@@ -199,7 +199,8 @@ public sealed class WorkerHandlerTests
         var refreshedInstallation = await database.InstallationService.GetInstallationForAgent("layout-agent");
         Assert.NotNull(refreshedInstallation);
         Assert.Equal("Installed system", refreshedInstallation.Description);
-        Assert.Equal(TimingSystem.MyLaps_X2, refreshedInstallation.TimingSystem);
+        // The decoder system is descriptive and admin-set; a layout never guesses it.
+        Assert.Equal(TimingSystem.Unknown, refreshedInstallation.TimingSystem);
         Assert.Equal("Existing loop description",
             (await database.InstallationService.GetTimingPoint(refreshedInstallation, "existing-loop"))?.Description);
         Assert.Equal("New loop description",

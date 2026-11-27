@@ -80,7 +80,7 @@ public sealed class InstallationLayoutHandlerCacheTests
 
         persisted = await fixture.PersistedAsync();
         Assert.Equal("Installed system", persisted.Installation.Description);
-        Assert.Equal(TimingSystem.MyLaps_X2, persisted.Installation.TimingSystem);
+        Assert.Equal(TimingSystem.Unknown, persisted.Installation.TimingSystem);
         Assert.Equal(["Existing loop", "New loop"], persisted.Points.OrderBy(point => point.SystemId).Select(point => point.Description));
         var retried = fixture.NewService();
         readInstallation = (await retried.GetInstallationForAgent(AgentId))!;
