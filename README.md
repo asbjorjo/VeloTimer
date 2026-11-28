@@ -770,7 +770,7 @@ OIDC_AUDIENCE=https://build.invalid dotnet test src/VeloTime.Workers.Test --filt
 ### Agent Control and Capability Reports
 
 Commands to agents (`PauseAgentCommand`, `ResumeAgentCommand`,
-`ReportCapabilitiesCommandV1`, and the passing replay commands that follow) travel on
+`ReportCapabilitiesCommandV1`, and `ReplayPassingsCommandV1`) travel on
 the `velotime-agent-control` topic, separate from the hardware traffic on
 `velotime-agent`. The topology job declares the topic only. Each agent provisions its
 own subscription at startup, named after `VELOTIME_AGENT`, with a correlation filter
@@ -790,6 +790,15 @@ ask for a new one. Pass the agent type to `ConfigureAgent("P3")` (or set
 `control.pause-resume` only when it registers an `IControlService`; without one the
 pause and resume commands are logged and acknowledged. See
 [passing-replay-plan.md](docs/passing-replay-plan.md) for the replay capabilities.
+
+Every agent that sends passings through `MessagingService` advertises `AgentStore`
+passing replays: on `ReplayPassingsCommandV1` it re-sends the stored passings of a
+range with the `ReplayRequestId` header and reports progress with
+`PassingReplayStatusV1`. Set `Agent:Replay:AgentStoreEnabled=false` for an agent that
+publishes passings some other way, since its store is empty. Replays go through the
+same outbox in chunks and wait for it to drain, so live passings stay ahead. The
+operator procedure is in the
+[operations runbook](docs/statistics-operations-runbook.md#replay-passings).
 
 ### Transponder Ownership Events
 

@@ -1,17 +1,19 @@
 using System.Globalization;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using SlimMessageBus;
+using Microsoft.Extensions.DependencyInjection;
 using VeloTime.Agent.Identity;
 using VeloTime.Agent.Interface;
-using VeloTime.Agent.Interface.Messages.Events;
+using VeloTime.Agent.Model;
+using VeloTime.Agent.Service;
 
 namespace VeloTime.Agent.Dummy
 {
     /// <summary>
     /// Simulates a small group of riders circulating over a fixed set of loops. Every passing carries a stable
-    /// SourcePassingId from PassingId.Create, and the worker occasionally redelivers an earlier passing so Timing's
-    /// deduplication is exercised. Passings carry a numeric strength and hit count (occasionally flagged low), and
+    /// SourcePassingId from PassingId.Create. Everything goes through <see cref="MessagingService"/>, so passings land in
+    /// the agent store and the dummy advertises and serves <c>AgentStore</c> replays (which exercise Timing's
+    /// deduplication). Passings carry a numeric strength and hit count (occasionally flagged low), and
     /// every loop sends a status sample every <see cref="StatusInterval"/> with random-walk noise, so the loop health
     /// pages have data to graph in development.
     /// </summary>
@@ -20,7 +22,6 @@ namespace VeloTime.Agent.Dummy
         private static readonly string[] Loops = ["dummy-loop-1", "dummy-loop-2", "dummy-loop-3"];
         // Valid ProChip IDs (106187718 is printed HT-24422).
         private static readonly string[] Transponders = ["106187718", "106187719", "106187720", "106187721", "106187722"];
-        private const double RedeliveryProbability = 0.1;
         private const double WeakReadProbability = 0.08;
         private const double NominalStrength = 120;
         private const double LowStrengthThreshold = 70;
@@ -32,15 +33,22 @@ namespace VeloTime.Agent.Dummy
         private const double NominalTemperature = 308.15;
 
         private readonly ILogger<DummyWorker> logger;
-        private readonly IMessageBus messagingService;
+        private readonly IServiceScopeFactory scopes;
         private CancellationTokenSource? stopping;
         private Task? running;
         private Task? status;
 
-        public DummyWorker(ILogger<DummyWorker> logger, IMessageBus messagingService)
+        public DummyWorker(ILogger<DummyWorker> logger, IServiceScopeFactory scopes)
         {
             this.logger = logger;
-            this.messagingService = messagingService;
+            this.scopes = scopes;
+        }
+
+        // MessagingService is scoped; use one scope per operation.
+        private async Task SendAsync(Func<MessagingService, Task> send)
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            await send(scope.ServiceProvider.GetRequiredService<MessagingService>());
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -56,7 +64,6 @@ namespace VeloTime.Agent.Dummy
         {
             var random = new Random();
             var nextLoop = Transponders.ToDictionary(t => t, _ => random.Next(Loops.Length));
-            PassingObservedV1? previous = null;
 
             try
             {
@@ -67,19 +74,15 @@ namespace VeloTime.Agent.Dummy
                     nextLoop[transponder] = (loop + 1) % Loops.Length;
 
                     var time = DateTime.UtcNow;
-                    var passing = new PassingObservedV1(
-                        SourcePassingId: PassingId.Create("Dummy", transponder, Loops[loop],
-                            time.ToString("O", CultureInfo.InvariantCulture)),
-                        Time: time,
-                        TransponderType: TransponderTypes.MylapsProChip,
-                        TransponderId: transponder,
-                        LoopId: Loops[loop]);
-                    passing = WithSignal(passing, random);
-                    await messagingService.Publish(passing, cancellationToken: cancellationToken);
-
-                    if (previous is not null && random.NextDouble() < RedeliveryProbability)
-                        await messagingService.Publish(previous, cancellationToken: cancellationToken);
-                    previous = passing;
+                    var passing = WithSignal(new Passing
+                    {
+                        Id = PassingId.Create("Dummy", transponder, Loops[loop], time.ToString("O", CultureInfo.InvariantCulture)),
+                        Time = time,
+                        TransponderType = TransponderTypes.MylapsProChip,
+                        TransponderId = transponder,
+                        LoopId = Loops[loop]
+                    }, random);
+                    await SendAsync(service => service.SendEventsAsync([passing], cancellationToken));
 
                     await Task.Delay(TimeSpan.FromSeconds(random.Next(1, 6)), cancellationToken);
                 }
@@ -89,7 +92,7 @@ namespace VeloTime.Agent.Dummy
             }
         }
 
-        private static PassingObservedV1 WithSignal(PassingObservedV1 passing, Random random)
+        private static Passing WithSignal(Passing passing, Random random)
         {
             var weak = random.NextDouble() < WeakReadProbability;
             var strength = weak
@@ -98,8 +101,13 @@ namespace VeloTime.Agent.Dummy
             var hits = weak && random.NextDouble() < 0.5
                 ? random.Next(4, LowHitsThreshold)
                 : NominalHits + random.Next(-8, 9);
-            return passing with
+            return new Passing
             {
+                Id = passing.Id,
+                Time = passing.Time,
+                TransponderType = passing.TransponderType,
+                TransponderId = passing.TransponderId,
+                LoopId = passing.LoopId,
                 Strength = Math.Round(strength, 1),
                 Hits = hits,
                 LowStrength = strength < LowStrengthThreshold,
@@ -126,8 +134,11 @@ namespace VeloTime.Agent.Dummy
                         var next = noise[loop] + (random.NextDouble() - 0.5) * 4 + (NominalNoise - noise[loop]) * 0.05;
                         if (random.NextDouble() < 0.01) next += 30;
                         noise[loop] = Math.Clamp(next, 0, 100);
-                        var sample = new LoopStatusEvent(time, loop, Math.Round(noise[loop], 1))
+                        var sample = new LoopStatus
                         {
+                            Time = time,
+                            LoopId = loop,
+                            Noise = Math.Round(noise[loop], 1),
                             LoopTriggers = random.Next(0, 3),
                             DecoderTemperature = Math.Round(temperature, 2),
                             InputVoltage = Math.Round(12 + (random.NextDouble() - 0.5) * 0.4, 2),
@@ -136,7 +147,7 @@ namespace VeloTime.Agent.Dummy
                             DecoderId = "dummy-decoder",
                             NoiseSharesStrengthScale = true
                         };
-                        await messagingService.Publish(sample, cancellationToken: cancellationToken);
+                        await SendAsync(service => service.SendEventAsync(sample, cancellationToken));
                     }
                 } while (await timer.WaitForNextTickAsync(cancellationToken));
             }

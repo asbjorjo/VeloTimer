@@ -33,6 +33,7 @@ public static class StartupExtensions
         services.AddScoped<InstallationService>();
         services.AddScoped<LoopStatusService>();
         services.AddScoped<TransponderService>();
+        services.AddScoped<PassingReplayRequestService>();
         
         services.AddSingleton<Metrics>();
 

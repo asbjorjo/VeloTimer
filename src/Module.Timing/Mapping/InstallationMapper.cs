@@ -56,3 +56,32 @@ public static class InstallationMapper
         };
     }
 }
+
+public static class PassingReplayRequestMapper
+{
+    public static PassingReplayRequestDTO ToDto(this PassingReplayRequest replay) => new()
+    {
+        RequestId = replay.Id,
+        InstallationId = replay.InstallationId,
+        AgentId = replay.AgentId,
+        Mode = replay.Mode,
+        FromUtc = replay.FromUtc,
+        ToUtc = replay.ToUtc,
+        LoopIds = [.. replay.LoopIds],
+        RequestedByUserId = replay.RequestedByUserId,
+        Note = replay.Note,
+        CreatedAt = replay.CreatedAt,
+        ExpiresAt = replay.ExpiresAt,
+        State = replay.State.ToString(),
+        Reason = replay.Reason,
+        StatusReportedAt = replay.StatusReportedAt,
+        UpdatedAt = replay.UpdatedAt,
+        Read = replay.Read,
+        Published = replay.Published,
+        NewInAgentStore = replay.NewInAgentStore,
+        Recorded = replay.Recorded,
+        Duplicate = replay.Duplicate,
+        Conflict = replay.Conflict,
+        Rejected = replay.Rejected
+    };
+}

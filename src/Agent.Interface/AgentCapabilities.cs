@@ -45,6 +45,10 @@ public static class PassingReplayRejectionReasons
     public const string SourceUnavailable = "SourceUnavailable";
     public const string Expired = "Expired";
     public const string Busy = "Busy";
+    /// <summary><c>FromUtc</c> is not before <c>ToUtc</c>.</summary>
+    public const string InvalidRange = "InvalidRange";
+    /// <summary>Loop IDs were given but the mode does not support a loop filter.</summary>
+    public const string LoopFilterUnsupported = "LoopFilterUnsupported";
 }
 
 /// <summary>Topic, header and protocol constants shared by agents and the platform for the agent control plane.</summary>

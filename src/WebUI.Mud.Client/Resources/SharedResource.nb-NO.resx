@@ -786,4 +786,40 @@
   <data name="DurationHours" xml:space="preserve"><value>{0} timer</value></data>
   <data name="CapabilityReportRequested" xml:space="preserve"><value>Rapport bedt om. Den vises her når agenten svarer; last siden på nytt om litt.</value></data>
   <data name="CapabilityReportRequestFailed" xml:space="preserve"><value>Forespørselen om rapport kunne ikke sendes.</value></data>
+  <data name="PassingReplays" xml:space="preserve"><value>Ny sending av passeringer</value></data>
+  <data name="ReplayPassings" xml:space="preserve"><value>Send passeringer på nytt</value></data>
+  <data name="ReplayNotAdvertised" xml:space="preserve"><value>Agenten har ikke meldt at den kan sende passeringer på nytt.</value></data>
+  <data name="ReplayMode" xml:space="preserve"><value>Kilde</value></data>
+  <data name="ReplayLoops" xml:space="preserve"><value>Sløyfer</value></data>
+  <data name="ReplayLoopsHelp" xml:space="preserve"><value>La stå tomt for alle sløyfer.</value></data>
+  <data name="ReplayNote" xml:space="preserve"><value>Merknad</value></data>
+  <data name="RequestReplay" xml:space="preserve"><value>Be om ny sending</value></data>
+  <data name="ReplayRequested" xml:space="preserve"><value>Bedt om</value></data>
+  <data name="ReplayRange" xml:space="preserve"><value>Passeringstid</value></data>
+  <data name="ReplayState" xml:space="preserve"><value>Status</value></data>
+  <data name="ReplayCounts" xml:space="preserve"><value>Resultat</value></data>
+  <data name="NoReplays" xml:space="preserve"><value>Ingen nye sendinger er bedt om ennå.</value></data>
+  <data name="ReplayHistoryLoadFailed" xml:space="preserve"><value>Historikken kunne ikke lastes.</value></data>
+  <data name="ReplayReportStaleWarning" xml:space="preserve"><value>Funksjonsrapporten er over ett døgn gammel, så begrensningene kan være utdaterte.</value></data>
+  <data name="ReplayAgentNotSeenWarning" xml:space="preserve"><value>Agenten er ikke sett de siste 15 minuttene. Sendingen kjøres bare hvis agenten henter forespørselen innen 15 minutter.</value></data>
+  <data name="ReplayRequestedMessage" xml:space="preserve"><value>Ny sending bedt om. Fremdriften vises i listen under.</value></data>
+  <data name="ReplayRequestFailed" xml:space="preserve"><value>Forespørselen kunne ikke sendes.</value></data>
+  <data name="ReplayCountsSummary" xml:space="preserve"><value>{0} lest, {1} registrert, {2} duplikater, {3} konflikter, {4} avvist</value></data>
+  <data name="ReplayReasonNoCapabilityReport" xml:space="preserve"><value>Agenten har ikke sendt en funksjonsrapport ennå.</value></data>
+  <data name="ReplayReasonUnsupportedMode" xml:space="preserve"><value>Agenten kan ikke sende på nytt fra denne kilden.</value></data>
+  <data name="ReplayReasonInvalidRange" xml:space="preserve"><value>Starten må være før slutten.</value></data>
+  <data name="ReplayReasonRangeTooLong" xml:space="preserve"><value>Perioden er lengre enn agenten tillater i én forespørsel.</value></data>
+  <data name="ReplayReasonOutOfRetention" xml:space="preserve"><value>Agenten har ikke lenger så gamle passeringer.</value></data>
+  <data name="ReplayReasonLoopFilterUnsupported" xml:space="preserve"><value>Denne kilden kan ikke filtrere på sløyfe.</value></data>
+  <data name="ReplayReasonBusy" xml:space="preserve"><value>En ny sending kjører allerede for denne agenten.</value></data>
+  <data name="ReplayReasonExpired" xml:space="preserve"><value>Agenten mottok forespørselen etter at den var utløpt.</value></data>
+  <data name="ReplayReasonSourceUnavailable" xml:space="preserve"><value>Tidtakingskilden er ikke tilgjengelig for agenten.</value></data>
+  <data name="ReplayReasonNoteTooLong" xml:space="preserve"><value>Merknaden er for lang.</value></data>
+  <data name="ReplayStatePending" xml:space="preserve"><value>Venter på agenten</value></data>
+  <data name="ReplayStateAccepted" xml:space="preserve"><value>Godtatt</value></data>
+  <data name="ReplayStateRunning" xml:space="preserve"><value>Kjører</value></data>
+  <data name="ReplayStateCompleted" xml:space="preserve"><value>Fullført</value></data>
+  <data name="ReplayStateFailed" xml:space="preserve"><value>Feilet</value></data>
+  <data name="ReplayStateRejected" xml:space="preserve"><value>Avvist</value></data>
+  <data name="ReplayStateExpired" xml:space="preserve"><value>Utløpt, agenten svarte ikke</value></data>
 </root>

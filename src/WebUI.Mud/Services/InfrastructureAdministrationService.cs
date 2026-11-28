@@ -285,6 +285,21 @@ public sealed class InfrastructureAdministrationService(IFacilitiesClient facili
     });
     public Task DeleteInstallationAsync(Guid id, CancellationToken cancellationToken = default) => Execute(async () => { await cache.RequirePolicyAsync(AdministrationAuthorization.TimingPolicy, cancellationToken); await ExecuteNoContent(() => timing.DeleteManagedInstallationAsync(id, cancellationToken)); return true; });
     public Task RefreshInstallationCapabilitiesAsync(Guid id, CancellationToken cancellationToken = default) => Execute(async () => { await cache.RequirePolicyAsync(AdministrationAuthorization.TimingPolicy, cancellationToken); await ExecuteNoContent(() => timing.RefreshInstallationCapabilitiesAsync(id, cancellationToken)); return true; });
+    public Task<IReadOnlyList<Timing.PassingReplayRequestDTO>> GetPassingReplaysAsync(Guid installationId, CancellationToken cancellationToken = default) => Execute<IReadOnlyList<Timing.PassingReplayRequestDTO>>(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.TimingPolicy, cancellationToken);
+        return (await timing.ListPassingReplaysAsync(installationId, null, cancellationToken)).Select(ToDto).ToList();
+    });
+    public Task<Timing.PassingReplayRequestDTO> RequestPassingReplayAsync(Guid installationId, Timing.CreatePassingReplayRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.TimingPolicy, cancellationToken);
+        var body = new VeloTime.Module.Timing.Client.CreatePassingReplayRequest
+        {
+            Mode = request.Mode, FromUtc = new DateTimeOffset(DateTime.SpecifyKind(request.FromUtc, DateTimeKind.Utc)),
+            ToUtc = new DateTimeOffset(DateTime.SpecifyKind(request.ToUtc, DateTimeKind.Utc)), LoopIds = request.LoopIds, Note = request.Note
+        };
+        return ToDto(await timing.CreatePassingReplayAsync(installationId, body, cancellationToken));
+    });
     public Task<Timing.TimingPointDTO> SaveTimingPointAsync(Guid installationId, Guid? id, Timing.SaveTimingPointRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
     {
         await cache.RequirePolicyAsync(AdministrationAuthorization.TimingPolicy, cancellationToken);
@@ -312,6 +327,20 @@ public sealed class InfrastructureAdministrationService(IFacilitiesClient facili
             LastSeen = installation.LastSeen?.UtcDateTime, TimingSystem = new Timing.TimingSystemDTO { Name = installation.TimingSystem.Name },
             TimingPoints = installation.TimingPoints.Select(ToDto).ToList(),
             Capabilities = ToDto(installation.Capabilities)
+        };
+    }
+    private static Timing.PassingReplayRequestDTO ToDto(VeloTime.Module.Timing.Client.PassingReplayRequestDTO replay)
+    {
+        if (replay is null || replay.RequestId == Guid.Empty) throw new InvalidDataException("The passing replay response is invalid.");
+        return new()
+        {
+            RequestId = replay.RequestId, InstallationId = replay.InstallationId, AgentId = replay.AgentId ?? "", Mode = replay.Mode ?? "",
+            FromUtc = replay.FromUtc.UtcDateTime, ToUtc = replay.ToUtc.UtcDateTime, LoopIds = (replay.LoopIds ?? []).ToList(),
+            RequestedByUserId = replay.RequestedByUserId, Note = replay.Note, CreatedAt = replay.CreatedAt.UtcDateTime,
+            ExpiresAt = replay.ExpiresAt.UtcDateTime, State = replay.State ?? "", Reason = replay.Reason,
+            StatusReportedAt = replay.StatusReportedAt?.UtcDateTime, UpdatedAt = replay.UpdatedAt.UtcDateTime,
+            Read = replay.Read, Published = replay.Published, NewInAgentStore = replay.NewInAgentStore,
+            Recorded = replay.Recorded, Duplicate = replay.Duplicate, Conflict = replay.Conflict, Rejected = replay.Rejected
         };
     }
     private static Timing.AgentCapabilitiesDTO? ToDto(VeloTime.Module.Timing.Client.AgentCapabilitiesDTO? report) => report is null ? null : new()

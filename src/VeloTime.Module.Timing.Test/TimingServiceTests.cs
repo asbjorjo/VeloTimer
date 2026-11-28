@@ -485,6 +485,94 @@ public sealed class TimingServiceTests
         public void Dispose() => listener.Dispose();
     }
 
+    private static async Task<PassingReplayRequest> SeedReplayAsync(TestDatabase database, string agentId)
+    {
+        var installation = await database.InstallationService.CreateInstallationForAgent(agentId);
+        var replay = new PassingReplayRequest
+        {
+            Id = Guid.NewGuid(), InstallationId = installation.Id, AgentId = agentId, Mode = "AgentStore",
+            FromUtc = DateTime.UtcNow.AddHours(-1), ToUtc = DateTime.UtcNow, CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(15), UpdatedAt = DateTime.UtcNow
+        };
+        database.Storage.Add(replay);
+        await database.Storage.SaveChangesAsync();
+        database.Storage.ChangeTracker.Clear();
+        return replay;
+    }
+
+    [Fact]
+    public async Task ReplayedPassings_CountEachOutcomeOnTheirReplayRequest()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var replay = await SeedReplayAsync(database, "replay-agent");
+        var time = new DateTime(2026, 11, 20, 12, 0, 0, DateTimeKind.Utc);
+        var live = Observation("replay-agent", "r-1", "106187718", "loop-1", time);
+        await database.AgentService.RegisterPassingAsync(live);
+        database.Bus.Published.Clear();
+
+        // Replays of: a passing Timing has, one it lacks, a contradicting one, and an unreadable transponder.
+        await database.AgentService.RegisterPassingAsync(live with { ReplayRequestId = replay.Id });
+        await database.AgentService.RegisterPassingAsync(Observation("replay-agent", "r-2", "106187718", "loop-1", time.AddMinutes(1)) with { ReplayRequestId = replay.Id });
+        await database.AgentService.RegisterPassingAsync(Observation("replay-agent", "r-1", "106187718", "loop-1", time, lowBattery: true) with { ReplayRequestId = replay.Id });
+        await database.AgentService.RegisterPassingAsync(Observation("replay-agent", "r-3", "not-a-chip", "loop-1", time) with { ReplayRequestId = replay.Id });
+        // A replay header naming another agent's request, or an unknown one, counts nothing.
+        await database.AgentService.RegisterPassingAsync(Observation("other-agent", "o-1", "106187719", "loop-1", time) with { ReplayRequestId = replay.Id });
+        await database.AgentService.RegisterPassingAsync(Observation("replay-agent", "r-4", "106187718", "loop-1", time.AddMinutes(2)) with { ReplayRequestId = Guid.NewGuid() });
+
+        var stored = await database.Storage.Set<PassingReplayRequest>().AsNoTracking().SingleAsync();
+        Assert.Equal((1, 1, 1, 1), (stored.Recorded, stored.Duplicate, stored.Conflict, stored.Rejected));
+        // Only the passing Timing lacked (plus the unrelated ones) is recorded downstream.
+        Assert.Equal(3, database.Bus.Published.OfType<PassingRecordedV1>().Count());
+    }
+
+    [Fact]
+    public async Task ReplayStatus_IgnoresOlderAndUnknownReportsAndNeverReopensAFinishedReplay()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var replay = await SeedReplayAsync(database, "status-agent");
+        var service = new PassingReplayRequestService(database.Storage);
+        var t = DateTime.UtcNow;
+        VeloTime.Agent.Interface.Messages.Events.PassingReplayStatusV1 Status(string state, DateTime at, int published, string? reason = null) =>
+            new(replay.Id, at, state, published, published, 0, reason);
+
+        Assert.True(await service.ApplyStatusAsync("status-agent", Status("Running", t, 200), default));
+        Assert.False(await service.ApplyStatusAsync("status-agent", Status("Accepted", t.AddSeconds(-1), 0), default));
+        Assert.False(await service.ApplyStatusAsync("other-agent", Status("Completed", t.AddSeconds(5), 400), default));
+        Assert.False(await service.ApplyStatusAsync("status-agent", Status("Completed", t, 400) with { RequestId = Guid.NewGuid() }, default));
+        Assert.True(await service.ApplyStatusAsync("status-agent", Status("Completed", t.AddSeconds(2), 412), default));
+        Assert.False(await service.ApplyStatusAsync("status-agent", Status("Running", t.AddSeconds(3), 300), default));
+
+        database.Storage.ChangeTracker.Clear();
+        var stored = await database.Storage.Set<PassingReplayRequest>().AsNoTracking().SingleAsync();
+        Assert.Equal((PassingReplayRequestState.Completed, 412, 412), (stored.State, stored.Read, stored.Published));
+    }
+
+    [Fact]
+    public async Task ReplayExpiry_MarksOnlyUnansweredExpiredRequests()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var installation = await database.InstallationService.CreateInstallationForAgent("expiry-agent");
+        PassingReplayRequest Request(PassingReplayRequestState state, DateTime expires) => new()
+        {
+            Id = Guid.NewGuid(), InstallationId = installation.Id, AgentId = "expiry-agent", Mode = "AgentStore",
+            FromUtc = DateTime.UtcNow.AddHours(-1), ToUtc = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, ExpiresAt = expires,
+            UpdatedAt = DateTime.UtcNow, State = state
+        };
+        var unanswered = Request(PassingReplayRequestState.Pending, DateTime.UtcNow.AddMinutes(-1));
+        var waiting = Request(PassingReplayRequestState.Pending, DateTime.UtcNow.AddMinutes(5));
+        var running = Request(PassingReplayRequestState.Running, DateTime.UtcNow.AddMinutes(-1));
+        database.Storage.AddRange(unanswered, waiting, running);
+        await database.Storage.SaveChangesAsync();
+        database.Storage.ChangeTracker.Clear();
+
+        Assert.Equal(1, await new PassingReplayRequestService(database.Storage).ExpireUnansweredAsync(default));
+
+        var states = await database.Storage.Set<PassingReplayRequest>().AsNoTracking().ToDictionaryAsync(r => r.Id, r => r.State);
+        Assert.Equal(PassingReplayRequestState.Expired, states[unanswered.Id]);
+        Assert.Equal(PassingReplayRequestState.Pending, states[waiting.Id]);
+        Assert.Equal(PassingReplayRequestState.Running, states[running.Id]);
+    }
+
     private static PassingObservation Observation(string agentId, string sourcePassingId, string transponderId, string loopId,
         DateTime time, bool lowBattery = false, bool lowStrength = false, bool lowHits = false) =>
         new(agentId, Id(sourcePassingId), transponderId, "ProChip", loopId, time, lowBattery, lowStrength, lowHits);

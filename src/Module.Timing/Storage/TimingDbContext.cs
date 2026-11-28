@@ -107,6 +107,20 @@ public class TimingDbContext : BaseDbContext
                 .HasForeignKey(a => a.InstallationId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+        modelBuilder.Entity<PassingReplayRequest>(e =>
+        {
+            e.HasOne<Installation>().WithMany().HasForeignKey(r => r.InstallationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(r => new { r.InstallationId, r.CreatedAt });
+            e.HasIndex(r => new { r.State, r.ExpiresAt });
+            e.Property(r => r.State).HasConversion<string>().HasMaxLength(32);
+            e.Property(r => r.Mode).HasMaxLength(32);
+            e.Property(r => r.AgentId);
+            e.Property(r => r.Note).HasMaxLength(500);
+            var loops = e.Property(r => r.LoopIds)
+                .HasConversion(StringListJson.Converter, StringListJson.Comparer)
+                .IsRequired();
+            if (Database.IsNpgsql()) loops.HasColumnType("jsonb");
+        });
         modelBuilder.Entity<InstallationFacilityAssignment>(e =>
         {
             e.HasIndex(a => new { a.InstallationId, a.ValidFromUtc }).IsUnique();

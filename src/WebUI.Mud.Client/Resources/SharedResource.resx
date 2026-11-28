@@ -786,4 +786,40 @@
   <data name="DurationHours" xml:space="preserve"><value>{0} hours</value></data>
   <data name="CapabilityReportRequested" xml:space="preserve"><value>Report requested. It shows here once the agent answers; refresh the page in a moment.</value></data>
   <data name="CapabilityReportRequestFailed" xml:space="preserve"><value>The report request could not be sent.</value></data>
+  <data name="PassingReplays" xml:space="preserve"><value>Passing replays</value></data>
+  <data name="ReplayPassings" xml:space="preserve"><value>Replay passings</value></data>
+  <data name="ReplayNotAdvertised" xml:space="preserve"><value>The agent has not said it can replay passings.</value></data>
+  <data name="ReplayMode" xml:space="preserve"><value>Source</value></data>
+  <data name="ReplayLoops" xml:space="preserve"><value>Loops</value></data>
+  <data name="ReplayLoopsHelp" xml:space="preserve"><value>Leave empty for all loops.</value></data>
+  <data name="ReplayNote" xml:space="preserve"><value>Note</value></data>
+  <data name="RequestReplay" xml:space="preserve"><value>Request replay</value></data>
+  <data name="ReplayRequested" xml:space="preserve"><value>Requested</value></data>
+  <data name="ReplayRange" xml:space="preserve"><value>Passing time</value></data>
+  <data name="ReplayState" xml:space="preserve"><value>State</value></data>
+  <data name="ReplayCounts" xml:space="preserve"><value>Result</value></data>
+  <data name="NoReplays" xml:space="preserve"><value>No replays requested yet.</value></data>
+  <data name="ReplayHistoryLoadFailed" xml:space="preserve"><value>The replay history could not be loaded.</value></data>
+  <data name="ReplayReportStaleWarning" xml:space="preserve"><value>The capability report is more than a day old, so these limits may be out of date.</value></data>
+  <data name="ReplayAgentNotSeenWarning" xml:space="preserve"><value>The agent has not been seen in the last 15 minutes. A replay only runs if the agent picks up the request within 15 minutes.</value></data>
+  <data name="ReplayRequestedMessage" xml:space="preserve"><value>Replay requested. Progress shows in the list below.</value></data>
+  <data name="ReplayRequestFailed" xml:space="preserve"><value>The replay could not be requested.</value></data>
+  <data name="ReplayCountsSummary" xml:space="preserve"><value>{0} read, {1} recorded, {2} duplicates, {3} conflicts, {4} rejected</value></data>
+  <data name="ReplayReasonNoCapabilityReport" xml:space="preserve"><value>The agent has not sent a capability report yet.</value></data>
+  <data name="ReplayReasonUnsupportedMode" xml:space="preserve"><value>The agent cannot replay from this source.</value></data>
+  <data name="ReplayReasonInvalidRange" xml:space="preserve"><value>The start must be before the end.</value></data>
+  <data name="ReplayReasonRangeTooLong" xml:space="preserve"><value>The range is longer than the agent allows in one request.</value></data>
+  <data name="ReplayReasonOutOfRetention" xml:space="preserve"><value>The agent no longer has passings that old.</value></data>
+  <data name="ReplayReasonLoopFilterUnsupported" xml:space="preserve"><value>This source cannot filter by loop.</value></data>
+  <data name="ReplayReasonBusy" xml:space="preserve"><value>A replay is already running for this agent.</value></data>
+  <data name="ReplayReasonExpired" xml:space="preserve"><value>The agent received the request after it expired.</value></data>
+  <data name="ReplayReasonSourceUnavailable" xml:space="preserve"><value>The timing source is not available to the agent.</value></data>
+  <data name="ReplayReasonNoteTooLong" xml:space="preserve"><value>The note is too long.</value></data>
+  <data name="ReplayStatePending" xml:space="preserve"><value>Waiting for the agent</value></data>
+  <data name="ReplayStateAccepted" xml:space="preserve"><value>Accepted</value></data>
+  <data name="ReplayStateRunning" xml:space="preserve"><value>Running</value></data>
+  <data name="ReplayStateCompleted" xml:space="preserve"><value>Completed</value></data>
+  <data name="ReplayStateFailed" xml:space="preserve"><value>Failed</value></data>
+  <data name="ReplayStateRejected" xml:space="preserve"><value>Rejected</value></data>
+  <data name="ReplayStateExpired" xml:space="preserve"><value>Expired, the agent did not answer</value></data>
 </root>
