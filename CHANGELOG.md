@@ -21,6 +21,20 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.57"></a>
+## [2.1.0-alpha.57](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.57) (2026-11-28)
+
+### Features
+
+* **agents:** add add-ef-migration skill ([1882089](https://www.github.com/asbjorjo/VeloTimer/commit/188208930f2860f7070cf5e7d678160ffcc35e35))
+* **agents:** add add-message-event skill ([3df5740](https://www.github.com/asbjorjo/VeloTimer/commit/3df5740c6acb0412902b13fb5ab5fdaed21aafb4))
+* **agents:** add Planner agent for research notes and plans ([40fa9d8](https://www.github.com/asbjorjo/VeloTimer/commit/40fa9d8e900c901041a073080cc72df075cd07c1))
+* **agents:** add run-and-verify-ui skill ([b10d541](https://www.github.com/asbjorjo/VeloTimer/commit/b10d5419dc722657b220fc7ddd0c580121f141b2))
+* **agents:** add run-tests-locally skill with PostgreSQL helper ([8d7f8e1](https://www.github.com/asbjorjo/VeloTimer/commit/8d7f8e19d0e46cb46e8cc2defc5b1429b8cf5be5))
+* **agents:** add update-api-contract skill ([552be90](https://www.github.com/asbjorjo/VeloTimer/commit/552be90f5c1c7a8ff6683100bf622b727e0d7ade))
+* **agents:** add validate-charts skill ([df3c955](https://www.github.com/asbjorjo/VeloTimer/commit/df3c955ee9603851a857f98fa28080d7e04d7ce4))
+* **agents:** load repository instructions and specialists in Claude Code ([6c2dac2](https://www.github.com/asbjorjo/VeloTimer/commit/6c2dac2fcd3416b2971fc9f339cc36c423eb3c24))
+
 <a name="2.1.0-alpha.56"></a>
 ## [2.1.0-alpha.56](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.56) (2026-11-28)
 
