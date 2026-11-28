@@ -39,7 +39,7 @@ public sealed class PassingOutboxTests : IAsyncLifetime
         if (string.IsNullOrWhiteSpace(adminConnectionString)) return;
         await ExecuteSql(adminConnectionString, $"CREATE DATABASE \"{databaseName}\"");
         connectionString = new NpgsqlConnectionStringBuilder(adminConnectionString) { Database = databaseName }.ConnectionString;
-        await using var storage = new TimingDbContext(new DbContextOptionsBuilder<TimingDbContext>().UseNpgsql(connectionString).Options);
+        await using var storage = new TimingDbContext(new DbContextOptionsBuilder<TimingDbContext>().UseNpgsql(connectionString).UseSnakeCaseNamingConvention().Options);
         await storage.Database.EnsureCreatedAsync();
     }
 
@@ -91,7 +91,7 @@ public sealed class PassingOutboxTests : IAsyncLifetime
         await Assert.ThrowsAsync<InvalidOperationException>(() => Register(host, observation));
         commitFailure.Enabled = false;
 
-        Assert.Equal(0, await Scalar($"SELECT count(*)::int FROM timing.\"Passing\" WHERE \"SourcePassingId\" = '{observation.SourcePassingId}'"));
+        Assert.Equal(0, await Scalar($"SELECT count(*)::int FROM timing.passing WHERE source_passing_id = '{observation.SourcePassingId}'"));
         Assert.Equal(outboxBefore, await Scalar("SELECT count(*)::int FROM timing.smb_outbox"));
 
         Assert.Equal(PassingRegistrationOutcome.Recorded, (await Register(host, observation)).Outcome);
@@ -109,7 +109,7 @@ public sealed class PassingOutboxTests : IAsyncLifetime
         var conflict = await Register(host, new PassingObservation("conflict-agent", id, "106187718", "ProChip", "finish", time.AddSeconds(5)));
 
         Assert.Equal(PassingRegistrationOutcome.Conflict, conflict.Outcome);
-        Assert.Equal(1, await Scalar("SELECT count(*)::int FROM timing.\"PassingConflict\""));
+        Assert.Equal(1, await Scalar("SELECT count(*)::int FROM timing.passing_conflict"));
         Assert.Equal(1, await Scalar("SELECT count(*)::int FROM timing.smb_outbox"));
     }
 
@@ -127,7 +127,7 @@ public sealed class PassingOutboxTests : IAsyncLifetime
         {
             ["ConnectionStrings:MessageBus"] = "Endpoint=sb://localhost/;SharedAccessKeyName=test;SharedAccessKey=dGVzdA=="
         });
-        builder.Services.AddDbContext<TimingDbContext>(options => options.UseNpgsql(connectionString).AddInterceptors(commitFailure));
+        builder.Services.AddDbContext<TimingDbContext>(options => options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention().AddInterceptors(commitFailure));
         builder.Services.AddHybridCache();
         builder.Services.AddMetrics();
         builder.Services.AddSingleton<Metrics>();
