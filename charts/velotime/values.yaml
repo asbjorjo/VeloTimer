@@ -85,6 +85,8 @@ messageBusTopology:
               sqlFilter: MessageName = 'LoopStatusEvent'
             - name: AgentCapabilitiesV1
               sqlFilter: MessageName = 'AgentCapabilitiesV1'
+            - name: PassingReplayStatusV1
+              sqlFilter: MessageName = 'PassingReplayStatusV1'
     # Commands to agents. Each agent provisions its own subscription at runtime, named
     # after its agent ID with a correlation filter on AgentId, so none is declared here.
     - name: velotime-agent-control

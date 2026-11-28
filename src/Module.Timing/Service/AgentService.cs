@@ -68,6 +68,8 @@ public class AgentService(InstallationService installationService, TimingDbConte
         try
         {
             var result = await RegisterAsync(received, cancellationToken);
+            if (observation.ReplayRequestId is { } replayId)
+                await PassingReplayRequestService.CountOutcomeAsync(storage, replayId, observation.AgentId, result.Outcome, cancellationToken);
             // A resolved observation supersedes an earlier rejection of the same passing.
             await storage.Set<RejectedPassing>()
                 .Where(r => r.AgentId == observation.AgentId && r.SourcePassingId == observation.SourcePassingId)
@@ -129,9 +131,16 @@ public class AgentService(InstallationService installationService, TimingDbConte
         rejection.LowHits = observation.LowHits;
         rejection.Reason = reason;
         rejection.LastSeenAt = now;
+        // A replayed rejection is counted in the same transaction as the rejection row.
+        var ownsTransaction = observation.ReplayRequestId is not null && storage.Database.CurrentTransaction is null;
+        await using var transaction = ownsTransaction ? await storage.Database.BeginTransactionAsync(cancellationToken) : null;
         try
         {
             await storage.SaveChangesAsync(cancellationToken);
+            if (observation.ReplayRequestId is { } replayId)
+                await PassingReplayRequestService.CountOutcomeAsync(storage, replayId, observation.AgentId,
+                    PassingRegistrationOutcome.Rejected, cancellationToken);
+            if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         }
         finally
         {

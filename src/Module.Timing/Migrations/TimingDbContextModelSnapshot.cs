@@ -252,6 +252,116 @@ namespace VeloTime.Module.Timing.Migrations
                     b.ToTable("passing_conflict", "timing");
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.PassingReplayRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AgentId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("agent_id");
+
+                    b.Property<int>("Conflict")
+                        .HasColumnType("integer")
+                        .HasColumnName("conflict");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("Duplicate")
+                        .HasColumnType("integer")
+                        .HasColumnName("duplicate");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<DateTime>("FromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("from_utc");
+
+                    b.Property<Guid>("InstallationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("installation_id");
+
+                    b.Property<string>("LoopIds")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("loop_ids");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("mode");
+
+                    b.Property<int>("NewInAgentStore")
+                        .HasColumnType("integer")
+                        .HasColumnName("new_in_agent_store");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<int>("Published")
+                        .HasColumnType("integer")
+                        .HasColumnName("published");
+
+                    b.Property<int>("Read")
+                        .HasColumnType("integer")
+                        .HasColumnName("read");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<int>("Recorded")
+                        .HasColumnType("integer")
+                        .HasColumnName("recorded");
+
+                    b.Property<int>("Rejected")
+                        .HasColumnType("integer")
+                        .HasColumnName("rejected");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by_user_id");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("state");
+
+                    b.Property<DateTime?>("StatusReportedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("status_reported_at");
+
+                    b.Property<DateTime>("ToUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("to_utc");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_passing_replay_request");
+
+                    b.HasIndex("InstallationId", "CreatedAt")
+                        .HasDatabaseName("ix_passing_replay_request_installation_id_created_at");
+
+                    b.HasIndex("State", "ExpiresAt")
+                        .HasDatabaseName("ix_passing_replay_request_state_expires_at");
+
+                    b.ToTable("passing_replay_request", "timing");
+                });
+
             modelBuilder.Entity("VeloTime.Module.Timing.Model.RejectedPassing", b =>
                 {
                     b.Property<Guid>("Id")
@@ -475,6 +585,16 @@ namespace VeloTime.Module.Timing.Migrations
                     b.Navigation("TimingPoint");
 
                     b.Navigation("Transponder");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.PassingReplayRequest", b =>
+                {
+                    b.HasOne("VeloTime.Module.Timing.Model.Installation", null)
+                        .WithMany()
+                        .HasForeignKey("InstallationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_passing_replay_request_installation_installation_id");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Timing.Model.TimingPoint", b =>

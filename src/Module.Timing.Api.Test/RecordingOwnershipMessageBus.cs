@@ -13,6 +13,7 @@ public class RecordingOwnershipMessageBus : DispatchProxy
     public ConcurrentQueue<PassingRecordedV1> Passings { get; } = new();
     public ConcurrentQueue<InstallationFacilityChangedV1> FacilityChanges { get; } = new();
     public ConcurrentQueue<ReportCapabilitiesCommandV1> AgentCommands { get; } = new();
+    public ConcurrentQueue<ReplayPassingsCommandV1> ReplayCommands { get; } = new();
     public bool FailEnqueue { get; set; }
 
     public static RecordingOwnershipMessageBus Create()
@@ -29,6 +30,7 @@ public class RecordingOwnershipMessageBus : DispatchProxy
         Passings.Clear();
         FacilityChanges.Clear();
         AgentCommands.Clear();
+        ReplayCommands.Clear();
         FailEnqueue = false;
     }
 
@@ -48,6 +50,11 @@ public class RecordingOwnershipMessageBus : DispatchProxy
         if (args?.FirstOrDefault() is ReportCapabilitiesCommandV1 command)
         {
             AgentCommands.Enqueue(command);
+            return Task.CompletedTask;
+        }
+        if (args?.FirstOrDefault() is ReplayPassingsCommandV1 replay)
+        {
+            ReplayCommands.Enqueue(replay);
             return Task.CompletedTask;
         }
         if (args?.FirstOrDefault() is not TransponderOwnershipChanged message) throw new NotSupportedException(targetMethod.Name);
