@@ -1,7 +1,7 @@
 # Plan: loop status history and loop health graphs for admins
 
 Base: `v2` at `15f82de5` (2.1.0-alpha.56, after replay-safe Phase 5 #152). Branch from and target `v2`.
-Status: approved plan (owner, 2026-11-28). Nothing here is implemented yet.
+Status: approved plan (owner, 2026-11-28). Phase 1 (contract and agent library) is implemented; later phases are not.
 
 ## Goal
 
@@ -65,6 +65,7 @@ public record LoopStatusEvent(DateTime Time, string LoopId, double Noise)
     public bool? TimeSynchronised { get; init; }       // GPS/time sync locked
     public int? SatellitesInUse { get; init; }
     public string? DecoderId { get; init; }            // for tracing only
+    public bool? NoiseSharesStrengthScale { get; init; } // agent declares noise and strength share a scale (enables SNR)
 }
 
 public record PassingObservedV1(...)

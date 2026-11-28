@@ -673,8 +673,18 @@ timestamp and loop, so warning locations are exact. Apply the new agent
 The Timing database already contains all three flags and needs no new migration.
 The additive event properties preserve the existing passing constructor and
 deconstruction; older event payloads remain readable with absent flags false.
-Previously dropped warnings cannot be backfilled, and the separate
-`TransponderStatusEvent` is not used because it lacks an exact loop and hit warning.
+Previously dropped warnings cannot be backfilled. The unused
+`TransponderStatusEvent` has been removed; warnings travel only on passings.
+
+Agents may also send the numeric `Strength` and `Hits` of each passing and, on
+`LoopStatusEvent`, the optional `LoopTriggers`, `DecoderTemperature` (kelvin),
+`InputVoltage` (volt), `TimeSynchronised`, `SatellitesInUse`, `DecoderId`, and
+`NoiseSharesStrengthScale`. All are optional and absent values stay null; which
+ones an agent fills, its status cadence, and whether its noise and strength share a
+scale are for each agent implementer to settle. Noise and strength are in the
+decoder's own units. Apply the agent `AddPassingStrengthAndHits` EF migration
+before storing strength and hits in the agent passing store. See
+[docs/loop-health-plan.md](docs/loop-health-plan.md).
 
 The `velotime-web` client scope is a default scope in the checked-in realm import. It
 adds the application URL audience and user subject required by the domain APIs, as

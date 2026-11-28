@@ -34,6 +34,10 @@ namespace VeloTime.Agent.Migrations
                         .HasColumnType("text")
                         .HasColumnName("hardware_passing_id");
 
+                    b.Property<int?>("Hits")
+                        .HasColumnType("integer")
+                        .HasColumnName("hits");
+
                     b.Property<string>("LoopId")
                         .IsRequired()
                         .HasColumnType("text")
@@ -50,6 +54,10 @@ namespace VeloTime.Agent.Migrations
                     b.Property<bool>("LowStrength")
                         .HasColumnType("boolean")
                         .HasColumnName("low_strength");
+
+                    b.Property<double?>("Strength")
+                        .HasColumnType("double precision")
+                        .HasColumnName("strength");
 
                     b.Property<DateTime>("Time")
                         .HasColumnType("timestamp with time zone")

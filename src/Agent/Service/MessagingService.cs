@@ -44,7 +44,7 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
     public Task SendEventsAsync(IEnumerable<SystemConfig> config, CancellationToken cancellationToken) =>
         EnqueueAsync(config, m => m.ToMessage(), "System Config", cancellationToken);
 
-    // Keeps each multi-row insert well below provider parameter limits (9 parameters per passing).
+    // Keeps each multi-row insert well below provider parameter limits (11 parameters per passing).
     private const int PassingInsertChunkSize = 1000;
 
     private async Task<Passing[]> PreparePassingsAsync(Passing[] batch, CancellationToken cancellationToken)
@@ -81,7 +81,8 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
         [
             Column(nameof(Passing.Id)), Column(nameof(Passing.Time)), Column(nameof(Passing.TransponderType)),
             Column(nameof(Passing.TransponderId)), Column(nameof(Passing.LoopId)), Column(nameof(Passing.LowBattery)),
-            Column(nameof(Passing.LowStrength)), Column(nameof(Passing.LowHits)), Column(nameof(Passing.HardwarePassingId))
+            Column(nameof(Passing.LowStrength)), Column(nameof(Passing.LowHits)), Column(nameof(Passing.HardwarePassingId)),
+            Column(nameof(Passing.Strength)), Column(nameof(Passing.Hits))
         ];
 
         var connection = dbContext.Database.GetDbConnection();
@@ -97,7 +98,8 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
             object[] values =
             [
                 passing.Id, passing.Time, passing.TransponderType, passing.TransponderId, passing.LoopId,
-                passing.LowBattery, passing.LowStrength, passing.LowHits, (object?)passing.HardwarePassingId ?? DBNull.Value
+                passing.LowBattery, passing.LowStrength, passing.LowHits, (object?)passing.HardwarePassingId ?? DBNull.Value,
+                (object?)passing.Strength ?? DBNull.Value, (object?)passing.Hits ?? DBNull.Value
             ];
             var names = new string[values.Length];
             for (var i = 0; i < values.Length; i++)

@@ -17,7 +17,9 @@ public static class EventMappers
         {
             LowBattery = passing.LowBattery,
             LowStrength = passing.LowStrength,
-            LowHits = passing.LowHits
+            LowHits = passing.LowHits,
+            Strength = passing.Strength,
+            Hits = passing.Hits
         };
     }
 
@@ -28,7 +30,16 @@ public static class EventMappers
             Time: loopStatus.Time,
             LoopId: loopStatus.LoopId,
             Noise: loopStatus.Noise
-        );
+        )
+        {
+            LoopTriggers = loopStatus.LoopTriggers,
+            DecoderTemperature = loopStatus.DecoderTemperature,
+            InputVoltage = loopStatus.InputVoltage,
+            TimeSynchronised = loopStatus.TimeSynchronised,
+            SatellitesInUse = loopStatus.SatellitesInUse,
+            DecoderId = loopStatus.DecoderId,
+            NoiseSharesStrengthScale = loopStatus.NoiseSharesStrengthScale
+        };
     }
 
     public static SystemConfigEvent ToMessage(this SystemConfig config)

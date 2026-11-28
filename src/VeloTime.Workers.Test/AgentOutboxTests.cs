@@ -161,6 +161,23 @@ public sealed class AgentOutboxTests : IAsyncLifetime
     }
 
     [PostgreSqlOutboxFact]
+    public async Task PassingStrengthAndHitsAreStoredOptionalAndSent()
+    {
+        var host = await StartHost(new TestSender());
+        await using var scope = host.Services.CreateAsyncScope();
+        var service = scope.ServiceProvider.GetRequiredService<MessagingService>();
+        var measured = Passing("measured");
+        await service.SendEventsAsync([new Passing
+        {
+            Id = measured.Id, Time = measured.Time, TransponderType = measured.TransponderType, TransponderId = measured.TransponderId,
+            LoopId = measured.LoopId, Strength = 87.5, Hits = 31
+        }, Passing("unmeasured")]);
+        Assert.Equal(1, await Scalar($"SELECT count(*)::int FROM agent.passing WHERE id = '{PassingId("measured")}' AND strength = 87.5 AND hits = 31"));
+        Assert.Equal(1, await Scalar($"SELECT count(*)::int FROM agent.passing WHERE id = '{PassingId("unmeasured")}' AND strength IS NULL AND hits IS NULL"));
+        Assert.Equal(2, await Scalar("SELECT count(*)::int FROM agent.smb_outbox"));
+    }
+
+    [PostgreSqlOutboxFact]
     public async Task PassingInsertRejectsNonUtcDateTimeKinds()
     {
         var host = await StartHost(new TestSender());

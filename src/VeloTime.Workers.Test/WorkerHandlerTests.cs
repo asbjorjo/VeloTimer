@@ -81,11 +81,15 @@ public sealed class WorkerHandlerTests
 
         await service.SendEventAsync(new VeloTime.Agent.Model.InstallationConfig { Systems = [system] });
         await service.SendEventsAsync([loop]);
-        await service.SendEventAsync(new VeloTime.Agent.Model.LoopStatus { Time = time, LoopId = "loop-1", Noise = 0.25 });
+        await service.SendEventAsync(new VeloTime.Agent.Model.LoopStatus
+        {
+            Time = time, LoopId = "loop-1", Noise = 0.25, LoopTriggers = 3, DecoderTemperature = 308.15, InputVoltage = 12.1,
+            TimeSynchronised = false, SatellitesInUse = 7, DecoderId = "decoder-1", NoiseSharesStrengthScale = true
+        });
         await service.SendEventsAsync([new VeloTime.Agent.Model.Passing
         {
             Id = Guid.Parse("6f1c2d4e-0000-4000-8000-000000000001"), Time = time, TransponderType = "ProChip", TransponderId = "106187718", LoopId = "loop-1",
-            LowBattery = true, LowStrength = true, LowHits = true
+            LowBattery = true, LowStrength = true, LowHits = true, Strength = 61.5, Hits = 9
         }]);
         await service.SendEventsAsync([segment]);
         await service.SendEventsAsync([system]);
@@ -94,14 +98,79 @@ public sealed class WorkerHandlerTests
         Assert.All(recorder.Published, message => Assert.False(message.Payload is System.Collections.IEnumerable));
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.InstallationLayoutEvent>(recorder.Published[0].Payload);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopConfigEvent>(recorder.Published[1].Payload);
-        Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent>(recorder.Published[2].Payload);
+        var sentStatus = Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent>(recorder.Published[2].Payload);
+        Assert.Equal(new VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent(time, "loop-1", 0.25)
+        {
+            LoopTriggers = 3, DecoderTemperature = 308.15, InputVoltage = 12.1, TimeSynchronised = false, SatellitesInUse = 7,
+            DecoderId = "decoder-1", NoiseSharesStrengthScale = true
+        }, sentStatus);
         var sentPassing = Assert.IsType<PassingObservedV1>(recorder.Published[3].Payload);
         Assert.Equal(Guid.Parse("6f1c2d4e-0000-4000-8000-000000000001"), sentPassing.SourcePassingId);
         Assert.True(sentPassing.LowBattery && sentPassing.LowStrength && sentPassing.LowHits);
+        Assert.Equal(61.5, sentPassing.Strength);
+        Assert.Equal(9, sentPassing.Hits);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.SegmentConfigEvent>(recorder.Published[4].Payload);
         Assert.IsType<VeloTime.Agent.Interface.Messages.Events.SystemConfigEvent>(recorder.Published[5].Payload);
         var storedPassing = await storage.Set<VeloTime.Agent.Model.Passing>().SingleAsync();
         Assert.True(storedPassing.LowBattery && storedPassing.LowStrength && storedPassing.LowHits);
+        Assert.Equal(61.5, storedPassing.Strength);
+        Assert.Equal(9, storedPassing.Hits);
+    }
+
+    [Fact]
+    public async Task AgentMessagingService_SendsAbsentSignalValuesAsNull()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<AgentDbContext>().UseSqlite(connection).Options;
+        await using var storage = new AgentDbContext(options);
+        await storage.Database.EnsureCreatedAsync();
+        var (messageBus, recorder) = RecordingMessageBus.Create();
+        using var serviceProvider = new ServiceCollection().AddMetrics().BuildServiceProvider();
+        var service = new MessagingService(messageBus, storage,
+            new VeloTime.Agent.Metrics(serviceProvider.GetRequiredService<IMeterFactory>()), NullLogger<MessagingService>.Instance);
+        var time = DateTime.UtcNow;
+
+        await service.SendEventAsync(new VeloTime.Agent.Model.LoopStatus { Time = time, LoopId = "loop-1", Noise = 4 });
+        await service.SendEventsAsync([new VeloTime.Agent.Model.Passing
+        {
+            Id = Guid.Parse("6f1c2d4e-0000-4000-8000-000000000002"), Time = time, TransponderType = "ProChip", TransponderId = "106187718", LoopId = "loop-1"
+        }]);
+
+        Assert.Equal(new VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent(time, "loop-1", 4), recorder.Published[0].Payload);
+        var sentPassing = Assert.IsType<PassingObservedV1>(recorder.Published[1].Payload);
+        Assert.Null(sentPassing.Strength);
+        Assert.Null(sentPassing.Hits);
+        var storedPassing = await storage.Set<VeloTime.Agent.Model.Passing>().SingleAsync();
+        Assert.Null(storedPassing.Strength);
+        Assert.Null(storedPassing.Hits);
+    }
+
+    [Fact]
+    public void AgentEventContracts_ReadPayloadsWithoutOptionalSignalFields()
+    {
+        // Payloads from agents built before the optional fields existed must stay readable.
+        var status = JsonSerializer.Deserialize<VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent>(
+            """{"Time":"2026-11-28T10:00:00Z","LoopId":"loop-1","Noise":12.5}""")!;
+        Assert.Equal(12.5, status.Noise);
+        Assert.Null(status.LoopTriggers);
+        Assert.Null(status.DecoderTemperature);
+        Assert.Null(status.InputVoltage);
+        Assert.Null(status.TimeSynchronised);
+        Assert.Null(status.SatellitesInUse);
+        Assert.Null(status.DecoderId);
+        Assert.Null(status.NoiseSharesStrengthScale);
+
+        var passing = JsonSerializer.Deserialize<PassingObservedV1>(
+            """{"SourcePassingId":"6f1c2d4e-0000-4000-8000-000000000003","Time":"2026-11-28T10:00:00Z","TransponderType":"ProChip","TransponderId":"106187718","LoopId":"loop-1","LowStrength":true}""")!;
+        Assert.True(passing.LowStrength);
+        Assert.Null(passing.Strength);
+        Assert.Null(passing.Hits);
+
+        var roundTrip = JsonSerializer.Deserialize<VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent>(
+            JsonSerializer.Serialize(status with { DecoderTemperature = 300.5, TimeSynchronised = true }))!;
+        Assert.Equal(300.5, roundTrip.DecoderTemperature);
+        Assert.True(roundTrip.TimeSynchronised);
     }
 
     [Fact]
