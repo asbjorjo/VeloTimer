@@ -69,6 +69,10 @@ public class TimingDbContext : BaseDbContext
 
         modelBuilder.Entity<Installation>(e =>
         {
+            var capabilities = e.Property(i => i.AgentCapabilities)
+                .HasConversion(AgentCapabilityJson.Converter, AgentCapabilityJson.Comparer)
+                .IsRequired();
+            if (Database.IsNpgsql()) capabilities.HasColumnType("jsonb");
             e.HasMany(i => i.TimingPoints)
                 .WithOne(tp => tp.Installation)
                 .IsRequired();

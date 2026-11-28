@@ -67,6 +67,11 @@ public static class StartupExtensions
                 .SubscriptionName("infrastructure")
                 .SubscriptionSqlFilter($"MessageName = '{nameof(LoopStatusEvent)}'")
                 .WithConsumer<LoopStatusEventHandler>());
+            mbb.Consume<AgentCapabilitiesV1>(x => x
+                .Topic("velotime-agent")
+                .SubscriptionName("infrastructure")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(AgentCapabilitiesV1)}'")
+                .WithConsumer<AgentCapabilitiesHandler>());
             mbb.AddServicesFromAssemblyContaining<PassingObservedHandler>();
         });
 

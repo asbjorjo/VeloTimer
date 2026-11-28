@@ -762,4 +762,28 @@
   <data name="StatisticsRecomputeStatusCompleted" xml:space="preserve"><value>Fullført</value></data>
   <data name="StatisticsRecomputeTransponders" xml:space="preserve"><value>{0} av {1} transpondere</value></data>
   <data name="StatisticsRecomputeRetrying" xml:space="preserve"><value>{0} prøver igjen</value></data>
+  <data name="AgentCapabilities" xml:space="preserve"><value>Agentfunksjoner</value></data>
+  <data name="RequestCapabilityReport" xml:space="preserve"><value>Be agenten om en ny rapport</value></data>
+  <data name="NoCapabilityReport" xml:space="preserve"><value>Ingen rapport ennå. Agenten har ikke meldt hva den kan.</value></data>
+  <data name="AgentTypeAndVersion" xml:space="preserve"><value>Agent {0}, versjon {1}</value></data>
+  <data name="CapabilitiesReportedAt" xml:space="preserve"><value>rapportert {0}</value></data>
+  <data name="CapabilityReportStale" xml:space="preserve"><value>Denne rapporten er over ett døgn gammel. Be agenten om en ny før du stoler på den.</value></data>
+  <data name="Capability" xml:space="preserve"><value>Funksjon</value></data>
+  <data name="CapabilityLimits" xml:space="preserve"><value>Begrensninger</value></data>
+  <data name="NoCapabilitiesAdvertised" xml:space="preserve"><value>Agenten melder ingen funksjoner.</value></data>
+  <data name="CapabilityPassingReplay" xml:space="preserve"><value>Ny sending av passeringer</value></data>
+  <data name="CapabilityPauseResume" xml:space="preserve"><value>Pause og gjenoppta</value></data>
+  <data name="CapabilityUnknown" xml:space="preserve"><value>{0} (ukjent for denne versjonen)</value></data>
+  <data name="ReplayModeAgentStore" xml:space="preserve"><value>Fra agentens lager</value></data>
+  <data name="ReplayModeSource" xml:space="preserve"><value>Fra tidtakingskilden</value></data>
+  <data name="ReplayOldestAvailable" xml:space="preserve"><value>tilbake til {0}</value></data>
+  <data name="ReplayOldestUnknown" xml:space="preserve"><value>eldste passering ukjent</value></data>
+  <data name="ReplayMaxRange" xml:space="preserve"><value>opptil {0} per forespørsel</value></data>
+  <data name="ReplayMaxRangeUnlimited" xml:space="preserve"><value>ingen grense for periode</value></data>
+  <data name="ReplayLoopFilter" xml:space="preserve"><value>kan filtrere på sløyfe</value></data>
+  <data name="ReplayNoLoopFilter" xml:space="preserve"><value>bare alle sløyfer</value></data>
+  <data name="DurationDays" xml:space="preserve"><value>{0} dager</value></data>
+  <data name="DurationHours" xml:space="preserve"><value>{0} timer</value></data>
+  <data name="CapabilityReportRequested" xml:space="preserve"><value>Rapport bedt om. Den vises her når agenten svarer; last siden på nytt om litt.</value></data>
+  <data name="CapabilityReportRequestFailed" xml:space="preserve"><value>Forespørselen om rapport kunne ikke sendes.</value></data>
 </root>

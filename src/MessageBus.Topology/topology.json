@@ -16,10 +16,15 @@
             "requiresSession": false,
             "rules": [
               { "name": "InstallationLayoutEvent", "sqlFilter": "MessageName = 'InstallationLayoutEvent'" },
-              { "name": "LoopStatusEvent", "sqlFilter": "MessageName = 'LoopStatusEvent'" }
+              { "name": "LoopStatusEvent", "sqlFilter": "MessageName = 'LoopStatusEvent'" },
+              { "name": "AgentCapabilitiesV1", "sqlFilter": "MessageName = 'AgentCapabilitiesV1'" }
             ]
           }
         ]
+      },
+      {
+        "name": "velotime-agent-control",
+        "subscriptions": []
       },
       {
         "name": "velotime-timing",

@@ -1,7 +1,25 @@
 # Plan: passing replays from the source system, with per-agent capabilities
 
 Base: `v2` at `02b9fe7` (after #153 and #154). Branch from and target `v2`.
-Status: approved plan (owner, 2026-11-28). Nothing here is implemented yet.
+Status: approved plan (owner, 2026-11-28). Phase 1 implemented; Phases 2 to 4 not started.
+
+### Phase 1 as built
+
+- Contracts and constants are in `Agent.Interface` (`AgentCapabilities`, `PassingReplayModes`, `PassingReplayStates`,
+  `PassingReplayRejectionReasons`, `AgentControl`). `AgentStartedEvent` is deleted.
+- `IPassingReplaySource` (with `PassingReplayRange`) is defined in `VeloTime.Agent.Replay` so X2 and P3 work can
+  start. `Describe()` returns `null` while the source cannot replay. Nothing calls it until Phase 3.
+- Capability entries come from registered `IAgentCapabilityProvider`s. Phase 1 ships only the pause/resume provider,
+  so no agent advertises `passing-replay` yet; the `AgentStore` provider lands with its handler in Phase 2.
+- Pause and resume consumers are always registered (`ConfigureAgent` runs before the agent registers its services),
+  but the handlers resolve `IControlService` optionally and log and acknowledge when there is none. This removes the
+  DI failure; the capability is advertised only when an `IControlService` exists.
+- The `infrastructure` subscription gains the `AgentCapabilitiesV1` rule only. The `PassingReplayStatusV1` rule lands
+  with its consumer in Phase 2.
+- Timing also stores `installation.control_protocol_version`. The HTTP DTO gives `MaxRange` as `MaxRangeSeconds`
+  (SI seconds); the message keeps `TimeSpan`.
+- `POST /api/timing/admin/installations/{id}/capabilities/refresh` (`202`, `404`) sends `ReportCapabilitiesCommandV1`.
+
 
 ## Goal
 

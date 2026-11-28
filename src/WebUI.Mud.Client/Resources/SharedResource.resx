@@ -762,4 +762,28 @@
   <data name="StatisticsRecomputeStatusCompleted" xml:space="preserve"><value>Completed</value></data>
   <data name="StatisticsRecomputeTransponders" xml:space="preserve"><value>{0} of {1} transponders</value></data>
   <data name="StatisticsRecomputeRetrying" xml:space="preserve"><value>{0} retrying</value></data>
+  <data name="AgentCapabilities" xml:space="preserve"><value>Agent capabilities</value></data>
+  <data name="RequestCapabilityReport" xml:space="preserve"><value>Ask agent for a new report</value></data>
+  <data name="NoCapabilityReport" xml:space="preserve"><value>No report yet. The agent has not said what it can do.</value></data>
+  <data name="AgentTypeAndVersion" xml:space="preserve"><value>Agent {0}, version {1}</value></data>
+  <data name="CapabilitiesReportedAt" xml:space="preserve"><value>reported {0}</value></data>
+  <data name="CapabilityReportStale" xml:space="preserve"><value>This report is more than a day old. Ask the agent for a new one before relying on it.</value></data>
+  <data name="Capability" xml:space="preserve"><value>Capability</value></data>
+  <data name="CapabilityLimits" xml:space="preserve"><value>Limits</value></data>
+  <data name="NoCapabilitiesAdvertised" xml:space="preserve"><value>The agent advertises no capabilities.</value></data>
+  <data name="CapabilityPassingReplay" xml:space="preserve"><value>Passing replay</value></data>
+  <data name="CapabilityPauseResume" xml:space="preserve"><value>Pause and resume</value></data>
+  <data name="CapabilityUnknown" xml:space="preserve"><value>{0} (not known to this version)</value></data>
+  <data name="ReplayModeAgentStore" xml:space="preserve"><value>From the agent's store</value></data>
+  <data name="ReplayModeSource" xml:space="preserve"><value>From the timing source</value></data>
+  <data name="ReplayOldestAvailable" xml:space="preserve"><value>back to {0}</value></data>
+  <data name="ReplayOldestUnknown" xml:space="preserve"><value>oldest passing unknown</value></data>
+  <data name="ReplayMaxRange" xml:space="preserve"><value>up to {0} per request</value></data>
+  <data name="ReplayMaxRangeUnlimited" xml:space="preserve"><value>no range limit</value></data>
+  <data name="ReplayLoopFilter" xml:space="preserve"><value>can filter by loop</value></data>
+  <data name="ReplayNoLoopFilter" xml:space="preserve"><value>all loops only</value></data>
+  <data name="DurationDays" xml:space="preserve"><value>{0} days</value></data>
+  <data name="DurationHours" xml:space="preserve"><value>{0} hours</value></data>
+  <data name="CapabilityReportRequested" xml:space="preserve"><value>Report requested. It shows here once the agent answers; refresh the page in a moment.</value></data>
+  <data name="CapabilityReportRequestFailed" xml:space="preserve"><value>The report request could not be sent.</value></data>
 </root>

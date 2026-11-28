@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 using SlimMessageBus;
+using VeloTime.Agent.Interface.Messages.Control;
 using VeloTime.Module.Timing.Interface.Messages;
 
 namespace VeloTime.Module.Timing.Api.Test;
@@ -11,6 +12,7 @@ public class RecordingOwnershipMessageBus : DispatchProxy
     public ConcurrentQueue<TransponderOwnershipChanged> Enqueued { get; } = new();
     public ConcurrentQueue<PassingRecordedV1> Passings { get; } = new();
     public ConcurrentQueue<InstallationFacilityChangedV1> FacilityChanges { get; } = new();
+    public ConcurrentQueue<ReportCapabilitiesCommandV1> AgentCommands { get; } = new();
     public bool FailEnqueue { get; set; }
 
     public static RecordingOwnershipMessageBus Create()
@@ -26,6 +28,7 @@ public class RecordingOwnershipMessageBus : DispatchProxy
         Enqueued.Clear();
         Passings.Clear();
         FacilityChanges.Clear();
+        AgentCommands.Clear();
         FailEnqueue = false;
     }
 
@@ -40,6 +43,11 @@ public class RecordingOwnershipMessageBus : DispatchProxy
         if (args?.FirstOrDefault() is InstallationFacilityChangedV1 facilityChange)
         {
             FacilityChanges.Enqueue(facilityChange);
+            return Task.CompletedTask;
+        }
+        if (args?.FirstOrDefault() is ReportCapabilitiesCommandV1 command)
+        {
+            AgentCommands.Enqueue(command);
             return Task.CompletedTask;
         }
         if (args?.FirstOrDefault() is not TransponderOwnershipChanged message) throw new NotSupportedException(targetMethod.Name);

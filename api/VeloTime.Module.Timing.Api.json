@@ -1355,6 +1355,40 @@
         }
       }
     },
+    "/api/timing/admin/installations/{id}/capabilities/refresh": {
+      "post": {
+        "tags": [
+          "Timing"
+        ],
+        "operationId": "RefreshInstallationCapabilities",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilityReportRequestedDTO"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/timing/admin/installations/{installationId}/points": {
       "post": {
         "tags": [
@@ -1661,6 +1695,62 @@
   },
   "components": {
     "schemas": {
+      "AgentCapabilitiesDTO": {
+        "type": "object",
+        "properties": {
+          "reportedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "agentType": {
+            "type": "string"
+          },
+          "agentVersion": {
+            "type": "string"
+          },
+          "controlProtocolVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentCapabilityDTO"
+            }
+          }
+        }
+      },
+      "AgentCapabilityDTO": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "passingReplay": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PassingReplayCapabilityDTO"
+              }
+            ]
+          }
+        }
+      },
+      "CapabilityReportRequestedDTO": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "ClaimTransponderRequest": {
         "required": [
           "code"
@@ -1791,6 +1881,16 @@
           },
           "description": {
             "type": "string"
+          },
+          "capabilities": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AgentCapabilitiesDTO"
+              }
+            ]
           }
         }
       },
@@ -1880,6 +1980,33 @@
             "type": "boolean"
           },
           "lowHits": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PassingReplayCapabilityDTO": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "oldestAvailableUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "maxRangeSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "supportsLoopFilter": {
             "type": "boolean"
           }
         }

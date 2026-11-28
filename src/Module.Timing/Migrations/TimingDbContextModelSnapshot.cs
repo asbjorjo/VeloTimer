@@ -30,10 +30,31 @@ namespace VeloTime.Module.Timing.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("AgentCapabilities")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("agent_capabilities");
+
                     b.Property<string>("AgentId")
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("agent_id");
+
+                    b.Property<string>("AgentType")
+                        .HasColumnType("text")
+                        .HasColumnName("agent_type");
+
+                    b.Property<string>("AgentVersion")
+                        .HasColumnType("text")
+                        .HasColumnName("agent_version");
+
+                    b.Property<DateTime?>("CapabilitiesReportedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("capabilities_reported_at");
+
+                    b.Property<int?>("ControlProtocolVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("control_protocol_version");
 
                     b.Property<string>("Description")
                         .IsRequired()

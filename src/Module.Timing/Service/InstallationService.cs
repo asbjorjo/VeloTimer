@@ -246,6 +246,49 @@ public class InstallationService(TimingDbContext storage, HybridCache cache, ILo
     }
 
     /// <summary>
+    /// Stores the agent's capability report on the installation unless a report made at the same time or later is
+    /// already stored (reports can arrive out of order). Only the latest report is kept. Returns whether it was stored.
+    /// </summary>
+    public async Task<bool> UpdateAgentCapabilitiesAsync(Installation installation, DateTime reportedAtUtc, string agentType,
+        string agentVersion, int controlProtocolVersion, List<AgentCapabilityEntry> capabilities,
+        CancellationToken cancellationToken = default)
+    {
+        reportedAtUtc = AsUtc(reportedAtUtc);
+        var installationToUpdate = await GetWritableInstallationByIdAsync(installation.Id, cancellationToken);
+        if (installationToUpdate.CapabilitiesReportedAt >= reportedAtUtc)
+            return false;
+        var pointIdentities = await storage.Set<TimingPoint>()
+            .Where(point => point.InstallationId == installationToUpdate.Id)
+            .Select(point => new TimingPointCacheIdentity(point.InstallationId, point.Id, point.SystemId))
+            .ToListAsync(cancellationToken);
+        foreach (var replay in capabilities.Select(capability => capability.PassingReplay).OfType<PassingReplayCapabilityEntry>())
+            if (replay.OldestAvailableUtc is { } oldest) replay.OldestAvailableUtc = AsUtc(oldest);
+        installationToUpdate.CapabilitiesReportedAt = reportedAtUtc;
+        installationToUpdate.AgentType = agentType;
+        installationToUpdate.AgentVersion = agentVersion;
+        installationToUpdate.ControlProtocolVersion = controlProtocolVersion;
+        installationToUpdate.AgentCapabilities = capabilities;
+        storage.Attach(installationToUpdate);
+        var entry = storage.Entry(installationToUpdate);
+        entry.Property(item => item.CapabilitiesReportedAt).IsModified = true;
+        entry.Property(item => item.AgentType).IsModified = true;
+        entry.Property(item => item.AgentVersion).IsModified = true;
+        entry.Property(item => item.ControlProtocolVersion).IsModified = true;
+        entry.Property(item => item.AgentCapabilities).IsModified = true;
+        var identity = new TimingInstallationCacheIdentity(installationToUpdate.Id, installationToUpdate.AgentId, pointIdentities.ToImmutableArray());
+        await storage.SaveChangesAsync(cancellationToken);
+        await TimingCacheInvalidation.InvalidateAsync(cache, _logger, identity.Keys, identity.Tags, evictionOperations);
+        return true;
+    }
+
+    private static DateTime AsUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+    };
+
+    /// <summary>
     /// Loads a detached writable Installation snapshot from persisted state, replacing
     /// any currently tracked instance with that ID (which may be a cache-owned entity).
     /// The caller can attach it explicitly for persistence; it has no loaded navigations.

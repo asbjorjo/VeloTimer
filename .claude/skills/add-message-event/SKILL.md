@@ -12,6 +12,7 @@ Current topics and subscriptions (from [topology.json](../../../src/MessageBus.T
 | Topic | Subscriptions |
 | --- | --- |
 | `velotime-agent` | `timing` (sessions), `infrastructure` |
+| `velotime-agent-control` | none declared; each agent provisions its own, named after the agent, filtered on `AgentId` |
 | `velotime-timing` | `statistics` |
 | `velotime-statistics` | `statistics`, `statistics-validity` |
 | `velotime-facilities` | none yet |

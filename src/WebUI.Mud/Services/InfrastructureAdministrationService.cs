@@ -284,6 +284,7 @@ public sealed class InfrastructureAdministrationService(IFacilitiesClient facili
         return ToDto(response);
     });
     public Task DeleteInstallationAsync(Guid id, CancellationToken cancellationToken = default) => Execute(async () => { await cache.RequirePolicyAsync(AdministrationAuthorization.TimingPolicy, cancellationToken); await ExecuteNoContent(() => timing.DeleteManagedInstallationAsync(id, cancellationToken)); return true; });
+    public Task RefreshInstallationCapabilitiesAsync(Guid id, CancellationToken cancellationToken = default) => Execute(async () => { await cache.RequirePolicyAsync(AdministrationAuthorization.TimingPolicy, cancellationToken); await ExecuteNoContent(() => timing.RefreshInstallationCapabilitiesAsync(id, cancellationToken)); return true; });
     public Task<Timing.TimingPointDTO> SaveTimingPointAsync(Guid installationId, Guid? id, Timing.SaveTimingPointRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
     {
         await cache.RequirePolicyAsync(AdministrationAuthorization.TimingPolicy, cancellationToken);
@@ -309,9 +310,24 @@ public sealed class InfrastructureAdministrationService(IFacilitiesClient facili
         {
             Id = installation.Id, AgentId = installation.AgentId, FacilityId = installation.FacilityId, Description = installation.Description,
             LastSeen = installation.LastSeen?.UtcDateTime, TimingSystem = new Timing.TimingSystemDTO { Name = installation.TimingSystem.Name },
-            TimingPoints = installation.TimingPoints.Select(ToDto).ToList()
+            TimingPoints = installation.TimingPoints.Select(ToDto).ToList(),
+            Capabilities = ToDto(installation.Capabilities)
         };
     }
+    private static Timing.AgentCapabilitiesDTO? ToDto(VeloTime.Module.Timing.Client.AgentCapabilitiesDTO? report) => report is null ? null : new()
+    {
+        ReportedAtUtc = report.ReportedAtUtc.UtcDateTime, AgentType = report.AgentType ?? "", AgentVersion = report.AgentVersion ?? "",
+        ControlProtocolVersion = report.ControlProtocolVersion,
+        Capabilities = (report.Capabilities ?? []).Select(capability => new Timing.AgentCapabilityDTO
+        {
+            Name = capability.Name ?? "",
+            PassingReplay = capability.PassingReplay is not { } replay ? null : new Timing.PassingReplayCapabilityDTO
+            {
+                Mode = replay.Mode ?? "", OldestAvailableUtc = replay.OldestAvailableUtc?.UtcDateTime,
+                MaxRangeSeconds = replay.MaxRangeSeconds, SupportsLoopFilter = replay.SupportsLoopFilter
+            }
+        }).ToList()
+    };
     private static Timing.TimingPointDTO ToDto(VeloTime.Module.Timing.Client.TimingPointDTO point)
     {
         if (point is null || point.Id == Guid.Empty)

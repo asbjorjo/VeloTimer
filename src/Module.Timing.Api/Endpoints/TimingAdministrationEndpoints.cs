@@ -26,6 +26,10 @@ internal static class TimingAdministrationEndpoints
             await service.DeleteInstallationAsync(id, cancellationToken);
             return Results.NoContent();
         }).WithName("DeleteManagedInstallation").Produces(StatusCodes.Status204NoContent);
+        admin.MapPost("/{id:guid}/capabilities/refresh", async (Guid id, TimingAdministrationService service, CancellationToken cancellationToken) =>
+            Results.Accepted(value: new CapabilityReportRequestedDTO { RequestId = await service.RequestCapabilityReportAsync(id, cancellationToken) }))
+            .WithName("RefreshInstallationCapabilities").Produces<CapabilityReportRequestedDTO>(StatusCodes.Status202Accepted)
+            .Produces(StatusCodes.Status404NotFound);
         admin.MapPost("/{installationId:guid}/points", async (Guid installationId, SaveTimingPointRequest request, TimingAdministrationService service, CancellationToken cancellationToken) =>
             Results.Ok((await service.SavePointAsync(installationId, null, request, cancellationToken)).ToDto())).WithName("CreateTimingPoint").Produces<TimingPointDTO>();
         admin.MapPut("/{installationId:guid}/points/{id:guid}", async (Guid installationId, Guid id, SaveTimingPointRequest request, TimingAdministrationService service, CancellationToken cancellationToken) =>
