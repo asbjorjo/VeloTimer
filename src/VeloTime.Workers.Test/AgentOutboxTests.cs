@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Data.Common;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -75,6 +75,22 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         await using var scope = host.Services.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<MessagingService>().SendEventsAsync([Loop("first")]);
         Assert.Equal(1, await Scalar("SELECT count(*)::int FROM agent.smb_outbox"));
+    }
+
+    [PostgreSqlOutboxFact]
+    public async Task StartupCapabilityReportIsDeliveredThroughTheOutbox()
+    {
+        var sender = new TestSender { Available = true };
+        await StartHost(sender, reportCapabilities: true);
+        await WaitUntil(() => Task.FromResult(sender.Delivered.Any(m =>
+            Equals(m.ApplicationProperties["MessageName"], nameof(AgentCapabilitiesV1)))));
+        var message = Assert.Single(sender.Delivered, m => Equals(m.ApplicationProperties["MessageName"], nameof(AgentCapabilitiesV1)));
+        Assert.Equal("test-agent", message.ApplicationProperties["AgentId"]);
+        Assert.Equal("test-agent", message.SessionId);
+        var report = JsonSerializer.Deserialize<AgentCapabilitiesV1>(message.Body, JsonOptions)!;
+        Assert.Equal(VeloTime.Agent.Interface.AgentControl.ProtocolVersion, report.ControlProtocolVersion);
+        // The test host registers an IControlService, so pause and resume are advertised.
+        Assert.Equal(VeloTime.Agent.Interface.AgentCapabilities.PauseResume, Assert.Single(report.Capabilities).Name);
     }
 
     [PostgreSqlOutboxFact]
@@ -452,7 +468,7 @@ public sealed class AgentOutboxTests : IAsyncLifetime
 
     private static LoopConfig Loop(string id) => new() { LoopId = id, Name = id, SystemId = "system", Order = 1 };
 
-    private async Task<IHost> StartHost(TestSender sender)
+    private async Task<IHost> StartHost(TestSender sender, bool reportCapabilities = false)
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Logging.ClearProviders();
@@ -462,7 +478,9 @@ public sealed class AgentOutboxTests : IAsyncLifetime
             ["VELOTIME_AGENT"] = "test-agent",
             ["ConnectionStrings:AgentDb"] = connectionString,
             ["ConnectionStrings:MessageBus"] = "Endpoint=sb://localhost/;SharedAccessKeyName=test;SharedAccessKey=dGVzdA==",
-            ["MessageBus:OutboxPollIdleSleep"] = "00:00:00.05"
+            ["MessageBus:OutboxPollIdleSleep"] = "00:00:00.05",
+            // Off by default so the startup capability report does not count as one of the tested events.
+            ["Agent:ReportCapabilities"] = reportCapabilities ? "true" : "false"
         });
         builder.Services.AddSingleton<IControlService, TestControl>();
         builder.ConfigureAgent();

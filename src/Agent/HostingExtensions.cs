@@ -5,25 +5,33 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using SlimMessageBus;
 using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Outbox;
 using SlimMessageBus.Host.Outbox.PostgreSql.DbContext;
 using SlimMessageBus.Host.Serialization.SystemTextJson;
+using VeloTime.Agent.Capabilities;
 using VeloTime.Agent.Handler;
+using VeloTime.Agent.Interface;
 using VeloTime.Agent.Interface.Messages.Control;
 using VeloTime.Agent.Interface.Messages.Events;
 using VeloTime.Agent.Messaging;
 using VeloTime.Agent.Service;
 using VeloTime.Agent.Storage;
-//using VeloTimer.PassingLoader.Services.Api;
 
 namespace VeloTime.Agent;
 
 public static class StartupExtensions
 {
     private static IHostEnvironment? _env;
-    public static IHostApplicationBuilder ConfigureAgent(this IHostApplicationBuilder builder)
+
+    /// <summary>
+    /// Registers the shared agent infrastructure. <paramref name="agentType"/> is the constant the agent passes to
+    /// <see cref="Identity.PassingId"/> (e.g. <c>P3</c>, <c>X2</c>); it is reported in <c>AgentCapabilitiesV1</c>.
+    /// When omitted, <c>Agent:AgentType</c> from configuration is used, else <c>Unknown</c>.
+    /// </summary>
+    public static IHostApplicationBuilder ConfigureAgent(this IHostApplicationBuilder builder, string? agentType = null)
     {
         var services = builder.Services;
         var configuration = builder.Configuration;
@@ -49,6 +57,14 @@ public static class StartupExtensions
         {
             throw new ArgumentException("VELOTIME_AGENT environment variable is not set");
         }
+
+        services.AddOptions<AgentOptions>()
+            .Bind(configuration.GetSection(AgentOptions.Section))
+            .Configure(options =>
+            {
+                options.AgentId = agentId;
+                if (!string.IsNullOrWhiteSpace(agentType)) options.AgentType = agentType;
+            });
 
         var mbconfig = configuration.GetSection(MessageBusOptions.Section);
         var settings = mbconfig.Get<MessageBusOptions>() ?? new MessageBusOptions();
@@ -76,7 +92,7 @@ public static class StartupExtensions
             });
             mbb.WithHeaderModifier((headers, message) =>
             {
-                headers["AgentId"] = agentId;
+                headers[AgentControl.AgentIdHeader] = agentId;
                 headers["MessageName"] = message.GetType().Name;
             });
             mbb.Produce<InstallationLayoutEvent>(x => x
@@ -116,18 +132,17 @@ public static class StartupExtensions
                 {
                     sbMessage.SessionId = agentId;
                 }));
-            mbb.Consume<PauseAgentCommand>(x => x
-                .Topic(settings.TopicName)
-                .WithConsumer<PauseAgentHandler>()
-                .SubscriptionName(agentId)
-                .SubscriptionSqlFilter($"agentId = '{agentId}'")
-                .Instances(1));
-            mbb.Consume<ResumeAgentCommand>(x => x
-                .Topic(settings.TopicName)
-                .WithConsumer<ResumeAgentHandler>()
-                .SubscriptionName(agentId)
-                .SubscriptionSqlFilter($"agentId = '{agentId}'")
-                .Instances(1));
+            mbb.Produce<AgentCapabilitiesV1>(x => x
+                .DefaultTopic(settings.TopicName)
+                .WithModifier((message, sbMessage) =>
+                {
+                    sbMessage.SessionId = agentId;
+                }));
+            // Commands arrive on the control topic. The agent provisions its own subscription, named after the agent,
+            // with a correlation filter on the AgentId application property, so onboarding an agent needs no deploy.
+            ConsumeControl<PauseAgentCommand, PauseAgentHandler>(mbb, settings.ControlTopicName, agentId);
+            ConsumeControl<ResumeAgentCommand, ResumeAgentHandler>(mbb, settings.ControlTopicName, agentId);
+            ConsumeControl<ReportCapabilitiesCommandV1, ReportCapabilitiesHandler>(mbb, settings.ControlTopicName, agentId);
             mbb.AddServicesFromAssemblyContaining<PauseAgentHandler>();
             mbb.AddJsonSerializer();
             mbb.UseOutbox();
@@ -161,10 +176,27 @@ public static class StartupExtensions
 
         services.AddScoped<MessagingService>();
         services.AddSingleton<Metrics>();
+        services.AddSingleton<IAgentCapabilityProvider, PauseResumeCapabilityProvider>();
+        services.AddSingleton<CapabilityReporter>();
+        services.AddHostedService(provider => provider.GetRequiredService<CapabilityReporter>());
 
         //services.ConfigureApiClient(configuration);
 
         return builder;
+    }
+
+    private static void ConsumeControl<TCommand, THandler>(MessageBusBuilder mbb, string topic, string agentId)
+        where THandler : class, IConsumer<TCommand>
+    {
+        mbb.Consume<TCommand>(x => x
+            .Topic(topic)
+            .WithConsumer<THandler>()
+            .SubscriptionName(agentId)
+            .SubscriptionCorrelationFilter(applicationProperties: new Dictionary<string, object>
+            {
+                [AgentControl.AgentIdHeader] = agentId
+            })
+            .Instances(1));
     }
 
     public static async Task RunAgent(this HostApplicationBuilder builder)

@@ -16,9 +16,31 @@ public static class InstallationMapper
             LastSeen = installation.LastSeen,
             TimingPoints = [.. installation.TimingPoints.Select(tp => tp.ToDto())],
             TimingSystem = installation.TimingSystem.ToDto(),
-            Description = installation.Description
+            Description = installation.Description,
+            Capabilities = installation.ToCapabilitiesDto()
         };
     }
+
+    /// <summary>The latest agent capability report, or null when the agent never sent one.</summary>
+    public static AgentCapabilitiesDTO? ToCapabilitiesDto(this Installation installation) =>
+        installation.CapabilitiesReportedAt is not { } reportedAt ? null : new AgentCapabilitiesDTO
+        {
+            ReportedAtUtc = reportedAt,
+            AgentType = installation.AgentType ?? string.Empty,
+            AgentVersion = installation.AgentVersion ?? string.Empty,
+            ControlProtocolVersion = installation.ControlProtocolVersion ?? 0,
+            Capabilities = [.. installation.AgentCapabilities.Select(capability => new AgentCapabilityDTO
+            {
+                Name = capability.Name,
+                PassingReplay = capability.PassingReplay is not { } replay ? null : new PassingReplayCapabilityDTO
+                {
+                    Mode = replay.Mode,
+                    OldestAvailableUtc = replay.OldestAvailableUtc,
+                    MaxRangeSeconds = replay.MaxRangeSeconds,
+                    SupportsLoopFilter = replay.SupportsLoopFilter
+                }
+            })]
+        };
 
     public static Installation ToModel(this InstallationDTO installationDto)
     {

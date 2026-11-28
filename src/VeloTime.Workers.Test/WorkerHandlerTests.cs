@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Diagnostics.Metrics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -11,6 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using SlimMessageBus;
 using SlimMessageBus.Host.AzureServiceBus;
+using Microsoft.Extensions.Options;
+using VeloTime.Agent.Capabilities;
 using VeloTime.Agent.Handler;
 using VeloTime.Agent.Interface.Messages.Control;
 using VeloTime.Agent.Service;
@@ -42,14 +44,81 @@ public sealed class WorkerHandlerTests
     public async Task AgentControlHandlers_DelegatePauseAndResumeCommands()
     {
         var control = new RecordingControlService();
-        var pause = new PauseAgentHandler(control, NullLogger<PauseAgentHandler>.Instance);
-        var resume = new ResumeAgentHandler(control, NullLogger<ResumeAgentHandler>.Instance);
+        var services = new ServiceCollection().AddSingleton<IControlService>(control).BuildServiceProvider();
+        var options = Options.Create(new AgentOptions { AgentId = "agent" });
+        var pause = new PauseAgentHandler(services, options, NullLogger<PauseAgentHandler>.Instance);
+        var resume = new ResumeAgentHandler(services, options, NullLogger<ResumeAgentHandler>.Instance);
 
         await pause.OnHandle(new PauseAgentCommand("agent"), CancellationToken.None);
         await resume.OnHandle(new ResumeAgentCommand("agent"), CancellationToken.None);
 
         Assert.Equal(1, control.PauseCalls);
         Assert.Equal(1, control.ResumeCalls);
+    }
+
+    [Fact]
+    public async Task AgentControlHandlers_AcknowledgeWithoutControlServiceAndIgnoreOtherAgents()
+    {
+        // No IControlService: the command is acknowledged instead of failing in DI on every delivery.
+        var none = new ServiceCollection().BuildServiceProvider();
+        var options = Options.Create(new AgentOptions { AgentId = "agent" });
+        await new PauseAgentHandler(none, options, NullLogger<PauseAgentHandler>.Instance)
+            .OnHandle(new PauseAgentCommand("agent"), CancellationToken.None);
+        await new ResumeAgentHandler(none, options, NullLogger<ResumeAgentHandler>.Instance)
+            .OnHandle(new ResumeAgentCommand("agent"), CancellationToken.None);
+
+        var control = new RecordingControlService();
+        var services = new ServiceCollection().AddSingleton<IControlService>(control).BuildServiceProvider();
+        await new PauseAgentHandler(services, options, NullLogger<PauseAgentHandler>.Instance)
+            .OnHandle(new PauseAgentCommand("another-agent"), CancellationToken.None);
+        Assert.Equal(0, control.PauseCalls);
+    }
+
+    [Fact]
+    public async Task AgentCapabilitiesHandler_StoresLatestReportCreatesInstallationAndIgnoresOlderReports()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        var handler = new AgentCapabilitiesHandler(database.InstallationService, NullLogger<AgentCapabilitiesHandler>.Instance)
+        {
+            Context = TestConsumerContext.Create(new Dictionary<string, object>())
+        };
+        var reportedAt = new DateTime(2026, 11, 28, 10, 0, 0, DateTimeKind.Utc);
+        AgentCapabilitiesV1 Report(DateTime at, string version, params AgentCapability[] capabilities) =>
+            new(at, "P3", version, 1, capabilities);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.OnHandle(Report(reportedAt, "1"), CancellationToken.None));
+
+        handler.Context = TestConsumerContext.Create(new Dictionary<string, object> { ["AgentId"] = "caps-agent" });
+        var oldest = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+        await handler.OnHandle(Report(reportedAt, "2",
+            new AgentCapability("passing-replay", new PassingReplayCapability("AgentStore", oldest, TimeSpan.FromDays(30), false)),
+            new AgentCapability("control.pause-resume"),
+            new AgentCapability("future.capability")), CancellationToken.None);
+
+        database.Storage.ChangeTracker.Clear();
+        var installation = await database.Storage.Set<Installation>().SingleAsync();
+        Assert.Equal("caps-agent", installation.AgentId);
+        Assert.Equal(reportedAt, installation.CapabilitiesReportedAt);
+        Assert.Equal(("P3", "2", 1), (installation.AgentType, installation.AgentVersion, installation.ControlProtocolVersion));
+        Assert.Equal(["passing-replay", "control.pause-resume", "future.capability"], installation.AgentCapabilities.Select(c => c.Name));
+        var replay = installation.AgentCapabilities[0].PassingReplay!;
+        Assert.Equal(("AgentStore", 30 * 86400d, false), (replay.Mode, replay.MaxRangeSeconds!.Value, replay.SupportsLoopFilter));
+        Assert.Equal(oldest, replay.OldestAvailableUtc);
+
+        // An older report delivered late, and a redelivery of the stored one, change nothing.
+        await handler.OnHandle(Report(reportedAt.AddMinutes(-5), "1"), CancellationToken.None);
+        await handler.OnHandle(Report(reportedAt, "2"), CancellationToken.None);
+        database.Storage.ChangeTracker.Clear();
+        installation = await database.Storage.Set<Installation>().SingleAsync();
+        Assert.Equal("2", installation.AgentVersion);
+        Assert.Equal(3, installation.AgentCapabilities.Count);
+
+        // A newer report replaces the stored one entirely.
+        await handler.OnHandle(Report(reportedAt.AddMinutes(1), "3"), CancellationToken.None);
+        database.Storage.ChangeTracker.Clear();
+        installation = await database.Storage.Set<Installation>().SingleAsync();
+        Assert.Equal("3", installation.AgentVersion);
+        Assert.Empty(installation.AgentCapabilities);
     }
 
     [Fact]

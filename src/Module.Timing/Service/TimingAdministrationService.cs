@@ -3,6 +3,7 @@ using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using SlimMessageBus;
+using VeloTime.Agent.Interface.Messages.Control;
 using VeloTime.Module.Common;
 using VeloTime.Module.Timing.Interface.Data;
 using VeloTime.Module.Timing.Model;
@@ -64,6 +65,25 @@ public sealed class TimingAdministrationService(TimingDbContext storage, IAdmini
             (oldIdentity?.Keys ?? []).Concat(newIdentity.Keys),
             (oldIdentity?.Tags ?? []).Concat(newIdentity.Tags), evictionOperations);
         return installation;
+    }
+
+    /// <summary>
+    /// Asks the installation's agent for a fresh capability report through the Timing outbox. The report arrives
+    /// asynchronously; the returned request ID is the command's <c>RequestId</c>.
+    /// </summary>
+    public async Task<Guid> RequestCapabilityReportAsync(Guid installationId, CancellationToken cancellationToken)
+    {
+        if (messageBus is null) throw new InvalidOperationException("Messaging is required to send agent commands.");
+        var agentId = await storage.Set<Installation>().AsNoTracking()
+            .Where(installation => installation.Id == installationId)
+            .Select(installation => installation.AgentId)
+            .SingleOrDefaultAsync(cancellationToken) ?? throw new KeyNotFoundException();
+        var requestId = Guid.NewGuid();
+        await using var transaction = await storage.Database.BeginTransactionAsync(cancellationToken);
+        await messageBus.Publish(new ReportCapabilitiesCommandV1(requestId, agentId), cancellationToken: cancellationToken);
+        await storage.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return requestId;
     }
 
     public async Task DeleteInstallationAsync(Guid id, CancellationToken cancellationToken)

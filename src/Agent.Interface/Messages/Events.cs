@@ -1,6 +1,50 @@
 namespace VeloTime.Agent.Interface.Messages.Events;
 
-public record AgentStartedEvent(DateTime Time, string AgentId);
+/// <summary>
+/// What an agent can do, sent on the agent topic on startup, whenever a capability changes, and when asked with
+/// <see cref="Control.ReportCapabilitiesCommandV1"/>. The platform keeps only the latest report per agent, ordered by
+/// <paramref name="ReportedAtUtc"/>. <paramref name="AgentType"/> is the constant the agent passes to
+/// <c>PassingId.Create</c>, e.g. <c>P3</c>, <c>X2</c> or <c>Dummy</c>. <paramref name="ControlProtocolVersion"/> is
+/// <see cref="AgentControl.ProtocolVersion"/>.
+/// </summary>
+public record AgentCapabilitiesV1(
+    DateTime ReportedAtUtc,
+    string AgentType,
+    string AgentVersion,
+    int ControlProtocolVersion,
+    IReadOnlyList<AgentCapability> Capabilities);
+
+/// <summary>
+/// One capability. <paramref name="Name"/> is one of <see cref="AgentCapabilities"/> (unknown names are allowed).
+/// <paramref name="PassingReplay"/> is set for <see cref="AgentCapabilities.PassingReplay"/>.
+/// </summary>
+public record AgentCapability(string Name, PassingReplayCapability? PassingReplay = null);
+
+/// <summary>
+/// The limits of one passing replay mode. <paramref name="Mode"/> is one of <see cref="PassingReplayModes"/>.
+/// <paramref name="OldestAvailableUtc"/> is null when unknown; <paramref name="MaxRange"/> is the longest range one
+/// request may cover, null when unlimited.
+/// </summary>
+public record PassingReplayCapability(
+    string Mode,
+    DateTime? OldestAvailableUtc,
+    TimeSpan? MaxRange,
+    bool SupportsLoopFilter);
+
+/// <summary>
+/// Progress of a <see cref="Control.ReplayPassingsCommandV1"/>. <paramref name="State"/> is one of
+/// <see cref="PassingReplayStates"/>; <paramref name="Reason"/> is set for <c>Rejected</c> (one of
+/// <see cref="PassingReplayRejectionReasons"/>) and <c>Failed</c>. <paramref name="NewInAgentStore"/> counts passings a
+/// <c>Source</c> replay added to the agent store and is 0 for <c>AgentStore</c> replays.
+/// </summary>
+public record PassingReplayStatusV1(
+    Guid RequestId,
+    DateTime ReportedAtUtc,
+    string State,
+    int Read,
+    int Published,
+    int NewInAgentStore,
+    string? Reason);
 
 /// <summary>
 /// A passing observed by an agent. <paramref name="SourcePassingId"/> is the agent's stable local passing ID and must

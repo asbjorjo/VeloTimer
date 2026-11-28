@@ -2,6 +2,8 @@ using SlimMessageBus.Host;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Outbox;
 using SlimMessageBus.Host.Outbox.PostgreSql.DbContext;
+using VeloTime.Agent.Interface;
+using VeloTime.Agent.Interface.Messages.Control;
 using VeloTime.Module.Timing.Interface.Messages;
 using VeloTime.Module.Timing.Storage;
 
@@ -10,6 +12,9 @@ namespace VeloTime.Module.Timing.Messaging;
 public static class TimingOutboxExtensions
 {
     public const string Topic = "velotime-timing";
+
+    /// <summary>How long a command to an agent stays deliverable; an offline agent must not act on stale commands.</summary>
+    public static readonly TimeSpan AgentCommandTimeToLive = TimeSpan.FromMinutes(15);
 
     /// <summary>
     /// Registers every Timing-owned event producer and the shared <c>timing.smb_outbox</c>.
@@ -38,6 +43,15 @@ public static class TimingOutboxExtensions
             {
                 transportMessage.SessionId = message.InstallationId.ToString();
                 transportMessage.MessageId = message.EventId.ToString();
+            }));
+        // Commands to agents go to the control topic. Each agent's subscription filters on the AgentId property.
+        mbb.Produce<ReportCapabilitiesCommandV1>(producer => producer
+            .DefaultTopic(AgentControl.Topic)
+            .WithModifier((message, transportMessage) =>
+            {
+                transportMessage.ApplicationProperties[AgentControl.AgentIdHeader] = message.AgentId;
+                transportMessage.MessageId = message.RequestId.ToString();
+                transportMessage.TimeToLive = AgentCommandTimeToLive;
             }));
         mbb.UseOutbox();
         mbb.AddOutboxUsingDbContext<TimingDbContext>(options =>
