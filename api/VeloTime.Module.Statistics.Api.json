@@ -1210,6 +1210,129 @@
         }
       }
     },
+    "/api/statistics/admin/recompute": {
+      "get": {
+        "tags": [
+          "StatisticsRecompute"
+        ],
+        "summary": "Get the recompute backlog and the most recent recompute jobs",
+        "description": "Jobs are newest first, at most 20. Times are UTC. Responses are no-store.",
+        "operationId": "GetStatisticsRecomputeOverview",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecomputeOverviewDTO"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/statistics/admin/recompute/jobs/{id}": {
+      "get": {
+        "tags": [
+          "StatisticsRecompute"
+        ],
+        "summary": "Get one recompute job and its progress",
+        "operationId": "GetStatisticsRecomputeJob",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecomputeJobDTO"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/statistics/admin/recompute/jobs": {
+      "post": {
+        "tags": [
+          "StatisticsRecompute"
+        ],
+        "summary": "Recompute Statistics over a time range",
+        "description": "Null bounds are unbounded, so leaving both out recomputes all history. TransponderId narrows the job to one transponder; InstallationId to transponders with passings recorded at that installation. Bounds are UTC and are widened to whole riding sessions.",
+        "operationId": "CreateStatisticsRecomputeJob",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateRecomputeJobRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecomputeJobDTO"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
     "/api/statistics/references/facilities/{id}/dependencies": {
       "get": {
         "tags": [
@@ -1633,6 +1756,52 @@
           "speed": {
             "type": "number",
             "format": "double"
+          }
+        }
+      },
+      "CreateRecomputeJobRequest": {
+        "required": [
+          "fromUtc",
+          "toUtc",
+          "transponderId",
+          "installationId",
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "fromUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "toUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "transponderId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "installationId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -2087,6 +2256,206 @@
                 "$ref": "#/components/schemas/PublicStatisticsCursorDTO"
               }
             ]
+          }
+        }
+      },
+      "RecomputeBacklogDTO": {
+        "required": [
+          "transponderRequests",
+          "rangeRequests",
+          "failingRequests",
+          "oldestRequestCreatedAtUtc",
+          "lastError",
+          "byReason",
+          "unresolvedPassings",
+          "manualDecisionReviews",
+          "oldestManualDecisionReviewAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "transponderRequests": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rangeRequests": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failingRequests": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "oldestRequestCreatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "byReason": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecomputeBacklogReasonDTO"
+            }
+          },
+          "unresolvedPassings": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "manualDecisionReviews": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "oldestManualDecisionReviewAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "RecomputeBacklogReasonDTO": {
+        "required": [
+          "reason",
+          "requests"
+        ],
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "requests": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "RecomputeJobDTO": {
+        "required": [
+          "id",
+          "fromUtc",
+          "toUtc",
+          "transponderId",
+          "installationId",
+          "note",
+          "requestedByUserId",
+          "createdAtUtc",
+          "status",
+          "totalTransponders",
+          "remainingTransponders",
+          "failingTransponders",
+          "lastError",
+          "completedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fromUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "toUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "transponderId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "installationId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requestedByUserId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RecomputeJobStatus"
+          },
+          "totalTransponders": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "remainingTransponders": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failingTransponders": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "completedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "RecomputeJobStatus": {
+        "type": "integer"
+      },
+      "RecomputeOverviewDTO": {
+        "required": [
+          "backlog",
+          "jobs"
+        ],
+        "type": "object",
+        "properties": {
+          "backlog": {
+            "$ref": "#/components/schemas/RecomputeBacklogDTO"
+          },
+          "jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecomputeJobDTO"
+            }
           }
         }
       },
@@ -2645,6 +3014,9 @@
     },
     {
       "name": "StatisticsEntries"
+    },
+    {
+      "name": "StatisticsRecompute"
     }
   ]
 }

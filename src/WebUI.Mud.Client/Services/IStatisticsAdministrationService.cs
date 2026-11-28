@@ -15,4 +15,8 @@ public interface IStatisticsAdministrationService
     Task DeleteItemAsync(Guid id, CancellationToken cancellationToken = default);
     Task SaveConfigurationAsync(Guid? id, SaveStatisticsConfigurationRequest request, CancellationToken cancellationToken = default);
     Task DeleteConfigurationAsync(Guid id, CancellationToken cancellationToken = default);
+    /// <summary>The recompute backlog and latest recompute jobs; never cached.</summary>
+    Task<RecomputeOverviewDTO> GetRecomputeOverviewAsync(CancellationToken cancellationToken = default);
+    /// <summary>Queues a recompute of the range; validation failures throw with the first error as message.</summary>
+    Task<RecomputeJobDTO> CreateRecomputeJobAsync(CreateRecomputeJobRequest request, CancellationToken cancellationToken = default);
 }

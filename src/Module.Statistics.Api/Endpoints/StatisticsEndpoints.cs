@@ -14,6 +14,7 @@ internal static class StatisticsEndpoints
         statistics.MapOwnerProfileEndpoints();
         statistics.MapStatisticsDefinitionEndpoints();
         statistics.MapAdminStatisticsEntryEndpoints();
+        statistics.MapAdminRecomputeEndpoints();
         statistics.MapStatisticsReferenceEndpoints();
     }
 }

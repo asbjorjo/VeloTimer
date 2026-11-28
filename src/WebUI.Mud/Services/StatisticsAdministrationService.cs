@@ -306,6 +306,64 @@ public sealed class StatisticsAdministrationService(IStatisticsClient client, We
         { RequiredCoursePoints = StatisticsRequiredPointsTransport.Map(config) };
     }
 
+    public Task<Contracts.RecomputeOverviewDTO> GetRecomputeOverviewAsync(CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        var overview = await client.GetStatisticsRecomputeOverviewAsync(cancellationToken)
+            ?? throw new InvalidDataException("The statistics recompute overview is missing.");
+        var backlog = overview.Backlog ?? throw new InvalidDataException("The statistics recompute backlog is missing.");
+        return new Contracts.RecomputeOverviewDTO(
+            new Contracts.RecomputeBacklogDTO(backlog.TransponderRequests, backlog.RangeRequests, backlog.FailingRequests,
+                backlog.OldestRequestCreatedAtUtc, backlog.LastError,
+                (backlog.ByReason ?? []).Select(r => new Contracts.RecomputeBacklogReasonDTO(r.Reason ?? "", r.Requests)).ToArray(),
+                backlog.UnresolvedPassings, backlog.ManualDecisionReviews, backlog.OldestManualDecisionReviewAtUtc),
+            (overview.Jobs ?? []).Select(MapJob).ToArray());
+    });
+
+    public Task<Contracts.RecomputeJobDTO> CreateRecomputeJobAsync(Contracts.CreateRecomputeJobRequest request, CancellationToken cancellationToken = default) => Execute(async () =>
+    {
+        await cache.RequirePolicyAsync(AdministrationAuthorization.StatisticsPolicy, cancellationToken);
+        try
+        {
+            return MapJob(await client.CreateStatisticsRecomputeJobAsync(new CreateRecomputeJobRequest
+            {
+                FromUtc = request.FromUtc?.ToUniversalTime(), ToUtc = request.ToUtc?.ToUniversalTime(),
+                TransponderId = request.TransponderId, InstallationId = request.InstallationId, Note = request.Note
+            }, cancellationToken));
+        }
+        catch (ApiException exception) when (exception.StatusCode == 400 && FirstValidationError(exception.Response) is { } message)
+        {
+            throw new HttpRequestException(message, exception, HttpStatusCode.BadRequest);
+        }
+    });
+
+    private static Contracts.RecomputeJobDTO MapJob(RecomputeJobDTO? job)
+    {
+        if (job is null || job.Id == Guid.Empty || !Enum.IsDefined((Contracts.RecomputeJobStatus)job.Status))
+            throw new InvalidDataException("The statistics recompute job is invalid.");
+        return new(job.Id, job.FromUtc, job.ToUtc, job.TransponderId, job.InstallationId, job.Note, job.RequestedByUserId,
+            job.CreatedAtUtc, (Contracts.RecomputeJobStatus)job.Status, job.TotalTransponders, job.RemainingTransponders,
+            job.FailingTransponders, job.LastError, job.CompletedAtUtc);
+    }
+
+    private static string? FirstValidationError(string? response)
+    {
+        if (string.IsNullOrWhiteSpace(response)) return null;
+        try
+        {
+            using var document = JsonDocument.Parse(response);
+            if (!document.RootElement.TryGetProperty("errors", out var errors) || errors.ValueKind != JsonValueKind.Object) return null;
+            foreach (var field in errors.EnumerateObject())
+                if (field.Value.ValueKind == JsonValueKind.Array)
+                    foreach (var message in field.Value.EnumerateArray())
+                        if (message.ValueKind == JsonValueKind.String) return message.GetString();
+        }
+        catch (JsonException)
+        {
+        }
+        return null;
+    }
+
     private static async Task<TResult> Execute<TResult>(Func<Task<TResult>> action)
     {
         try

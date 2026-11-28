@@ -170,7 +170,7 @@ Each phase deletes derived Statistics data and lets the recompute worker rebuild
 
 **Phase 4: Time-bound Timing and Statistics config.** Add `InstallationFacilityAssignment` with its event. Add `StatisticsConfigVersion` (required points, layout, distance, repetitions, thresholds). Drop the structural edit block. Fold threshold revalidation and ownership reconcile into the worker. Implemented: entry identity stays (config, start passing, end passing) and `StatisticsConfigVersionId` is a plain column, so a threshold edit never sends a manual decision to review; each entry uses the version that holds at its end time.
 
-**Phase 5: Operations.** Add an admin "recompute range" action and a progress view. Add metrics (dirty backlog, oldest dirty age, unresolved passings, review backlog, outbox age) and DLQ alerts. Document the runbook.
+**Phase 5: Operations.** Add an admin "recompute range" action and a progress view. Add metrics (dirty backlog, oldest dirty age, unresolved passings, review backlog, outbox age) and DLQ alerts. Document the runbook. Implemented: `recompute_job` tracks each admin job, whose progress is read from its remaining requests; the worker claims live passing requests before bulk work; `unresolved_passing` holds the current unresolved set; backlog, outbox and dead-letter gauges plus Error-level dead-letter logs; see [statistics-operations-runbook.md](statistics-operations-runbook.md).
 
 Phases 1 and 2 must land together, or 2 directly after 1, since Statistics consumes the new fact event. Phases 3 and 4 are independent of each other once Phase 2 is in.
 

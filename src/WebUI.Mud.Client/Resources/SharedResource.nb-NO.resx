@@ -725,4 +725,41 @@
   <data name="SaveLayoutInUse" xml:space="preserve"><value>Lagre bruksintervall</value></data>
   <data name="LayoutInUseSaved" xml:space="preserve"><value>Bruksintervall lagret</value></data>
   <data name="LayoutHistoryLoadFailed" xml:space="preserve"><value>Historikken for baneoppsettet kunne ikke lastes.</value></data>
+  <data name="StatisticsRecompute" xml:space="preserve"><value>Beregn statistikk på nytt</value></data>
+  <data name="StatisticsRecomputeHelp" xml:space="preserve"><value>Statistikk bygges fra registrerte passeringer og konfigurasjonen som gjaldt på tidspunktet for hver passering. Beregn et tidsrom på nytt etter å ha rettet konfigurasjon, en kodeendring eller et dataproblem. Ny beregning av uendrede data endrer ingenting. Direkte passeringer behandles alltid før køede omberegninger.</value></data>
+  <data name="StatisticsRecomputeBacklog" xml:space="preserve"><value>Kø</value></data>
+  <data name="StatisticsRecomputePendingTransponders" xml:space="preserve"><value>Transponderberegninger som venter</value></data>
+  <data name="StatisticsRecomputePendingRanges" xml:space="preserve"><value>Tidsrom som venter på oppdeling</value></data>
+  <data name="StatisticsRecomputeOldestPending" xml:space="preserve"><value>Eldste venter siden</value></data>
+  <data name="StatisticsRecomputeFailing" xml:space="preserve"><value>Prøver igjen etter feil</value></data>
+  <data name="StatisticsRecomputeUnresolvedPassings" xml:space="preserve"><value>Passeringer uten anlegg eller banepunkt</value></data>
+  <data name="StatisticsRecomputeManualReviews" xml:space="preserve"><value>Manuelle ugyldiggjøringer som venter på gjennomgang</value></data>
+  <data name="StatisticsRecomputeOldest" xml:space="preserve"><value>Eldste: {0}</value></data>
+  <data name="StatisticsRecomputeStart" xml:space="preserve"><value>Start ny beregning</value></data>
+  <data name="StatisticsRecomputeTo" xml:space="preserve"><value>Til</value></data>
+  <data name="StatisticsRecomputeScope" xml:space="preserve"><value>Omfang</value></data>
+  <data name="StatisticsRecomputeScopeAll" xml:space="preserve"><value>Alle transpondere</value></data>
+  <data name="StatisticsRecomputeScopeTransponder" xml:space="preserve"><value>Én transponder</value></data>
+  <data name="StatisticsRecomputeScopeInstallation" xml:space="preserve"><value>Transpondere sett ved én installasjon</value></data>
+  <data name="StatisticsRecomputeInstallationId" xml:space="preserve"><value>Installasjons-ID</value></data>
+  <data name="StatisticsRecomputeNote" xml:space="preserve"><value>Notat</value></data>
+  <data name="StatisticsRecomputeSessionsHelp" xml:space="preserve"><value>Tidsrommet utvides til hele treningsøkter, så resultater like utenfor kan også endres.</value></data>
+  <data name="StatisticsRecomputeAllHistoryWarning" xml:space="preserve"><value>Uten grenser eller omfang beregnes hele statistikkhistorikken på nytt. Det kjører i bakgrunnen og kan ta lang tid.</value></data>
+  <data name="StatisticsRecomputeConfirmAllHistory" xml:space="preserve"><value>Jeg vil beregne hele historikken på nytt</value></data>
+  <data name="StatisticsRecomputeSubmit" xml:space="preserve"><value>Legg i kø</value></data>
+  <data name="StatisticsRecomputeQueued" xml:space="preserve"><value>Ny beregning lagt i kø</value></data>
+  <data name="StatisticsRecomputeQueueFailed" xml:space="preserve"><value>Den nye beregningen kunne ikke legges i kø.</value></data>
+  <data name="StatisticsRecomputeLoadFailed" xml:space="preserve"><value>Status for ny beregning kunne ikke lastes.</value></data>
+  <data name="StatisticsRecomputeInvalidId" xml:space="preserve"><value>Skriv inn en gyldig ID.</value></data>
+  <data name="StatisticsRecomputeInvalidRange" xml:space="preserve"><value>Slutten må være etter starten.</value></data>
+  <data name="StatisticsRecomputeJobs" xml:space="preserve"><value>Siste beregninger</value></data>
+  <data name="StatisticsRecomputeNoJobs" xml:space="preserve"><value>Ingen nye beregninger er bestilt.</value></data>
+  <data name="StatisticsRecomputeRequested" xml:space="preserve"><value>Bestilt</value></data>
+  <data name="StatisticsRecomputeRange" xml:space="preserve"><value>Tidsrom</value></data>
+  <data name="StatisticsRecomputeProgress" xml:space="preserve"><value>Fremdrift</value></data>
+  <data name="StatisticsRecomputeStatusQueued" xml:space="preserve"><value>I kø</value></data>
+  <data name="StatisticsRecomputeStatusRunning" xml:space="preserve"><value>Kjører</value></data>
+  <data name="StatisticsRecomputeStatusCompleted" xml:space="preserve"><value>Fullført</value></data>
+  <data name="StatisticsRecomputeTransponders" xml:space="preserve"><value>{0} av {1} transpondere</value></data>
+  <data name="StatisticsRecomputeRetrying" xml:space="preserve"><value>{0} prøver igjen</value></data>
 </root>

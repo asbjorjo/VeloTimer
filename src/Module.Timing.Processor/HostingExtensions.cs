@@ -11,6 +11,8 @@ using VeloTime.Module.Timing;
 using VeloTime.Module.Timing.Handlers;
 using VeloTime.Module.Timing.Messaging;
 using VeloTime.Module.Timing.Service;
+using VeloTime.Module.Timing.Storage;
+using VeloTime.Module.Common.Operations;
 
 public static class StartupExtensions
 {
@@ -71,6 +73,11 @@ public static class StartupExtensions
         services.AddScoped<IAgentService, AgentService>();
 
         builder.AddModuleTiming();
+        // Delivery health (plan Phase 5): the shared Timing outbox and this host's dead-letter queues.
+        builder.AddOutboxMonitor<TimingDbContext>("timing", "timing");
+        builder.AddDeadLetterMonitor(
+            new DeadLetterSubscription("velotime-agent", "timing"),
+            new DeadLetterSubscription("velotime-agent", "infrastructure"));
 
         return builder;
     }

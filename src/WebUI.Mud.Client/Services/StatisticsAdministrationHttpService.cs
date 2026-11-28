@@ -49,12 +49,29 @@ public sealed class StatisticsAdministrationHttpService(HttpClient client) : ISt
     public Task DeleteConfigurationAsync(Guid id, CancellationToken cancellationToken = default) =>
         SendAsync<object>(HttpMethod.Delete, $"{Root}/configurations/{id}", null, cancellationToken);
 
+    public async Task<RecomputeOverviewDTO> GetRecomputeOverviewAsync(CancellationToken cancellationToken = default) =>
+        await client.GetFromJsonAsync<RecomputeOverviewDTO>($"{Root}/recompute", cancellationToken)
+        ?? throw new InvalidDataException("The statistics recompute overview is missing.");
+
+    public async Task<RecomputeJobDTO> CreateRecomputeJobAsync(CreateRecomputeJobRequest request, CancellationToken cancellationToken = default)
+    {
+        using var response = await client.PostAsJsonAsync($"{Root}/recompute/jobs", request, cancellationToken);
+        if (!response.IsSuccessStatusCode) await ThrowAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<RecomputeJobDTO>(cancellationToken)
+            ?? throw new InvalidDataException("The statistics recompute job is missing.");
+    }
+
     private async Task SendAsync<TRequest>(HttpMethod method, string path, TRequest? body, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(method, path);
         if (body is not null) request.Content = JsonContent.Create(body);
         using var response = await client.SendAsync(request, cancellationToken);
         if (response.IsSuccessStatusCode) return;
+        await ThrowAsync(response, cancellationToken);
+    }
+
+    private static async Task ThrowAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
         var message = "The request could not be completed.";
         try
         {

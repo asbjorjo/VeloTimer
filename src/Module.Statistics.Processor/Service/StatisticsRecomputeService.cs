@@ -72,7 +72,7 @@ public sealed class StatisticsRecomputeService(
         var transponderId = (await storage.Database.SqlQuery<Guid>($"""
             SELECT transponder_id AS "Value" FROM statistics.recompute_request
             WHERE transponder_id IS NOT NULL AND (not_before_utc IS NULL OR not_before_utc <= {now})
-            ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED
+            ORDER BY (reason <> 'Passing'), id LIMIT 1 FOR UPDATE SKIP LOCKED
             """).ToListAsync(cancellationToken)).Cast<Guid?>().FirstOrDefault();
         if (transponderId is not { } transponder)
         {
@@ -103,6 +103,9 @@ public sealed class StatisticsRecomputeService(
             await RecomputeAsync(transponder, from, to, cancellationToken);
             var ids = requests.Select(r => r.Id).ToArray();
             await storage.Set<RecomputeRequest>().Where(r => ids.Contains(r.Id)).ExecuteDeleteAsync(cancellationToken);
+            await StatisticsOperations.MarkJobsCompletedAsync(storage, requests
+                .Where(r => r.Reason == RecomputeReason.Manual && r.CausationId is not null)
+                .Select(r => r.CausationId!.Value).Distinct().ToList(), time.GetUtcNow().UtcDateTime, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return new(RecomputeStepOutcome.Recomputed, transponder);
         }
@@ -157,6 +160,8 @@ public sealed class StatisticsRecomputeService(
             });
         await storage.SaveChangesAsync(cancellationToken);
         await storage.Set<RecomputeRequest>().Where(r => r.Id == request.Id).ExecuteDeleteAsync(cancellationToken);
+        if (request is { Reason: RecomputeReason.Manual, CausationId: { } job })
+            await StatisticsOperations.MarkJobExpandedAsync(storage, job, transponders.Count, created, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         storage.ChangeTracker.Clear();
         logger.LogInformation("Split {Reason} recompute request {RequestId} into {Count} transponder requests",
@@ -193,17 +198,26 @@ public sealed class StatisticsRecomputeService(
         var resolved = new List<ResolvedPassing>(loaded.Count);
         var installations = new Dictionary<Guid, InstallationFacilityHistory>();
         var courses = new Dictionary<Guid, FacilityCourseHistory>();
-        var unresolved = 0;
+        var unresolvedFacts = new Dictionary<Guid, (UnresolvedPassingReason Reason, Guid? FacilityId)>();
         foreach (var fact in loaded)
         {
             if (!installations.TryGetValue(fact.InstallationId, out var installation))
                 installations[fact.InstallationId] = installation = await configuration.GetInstallationAsync(fact.InstallationId, cancellationToken);
-            if (installation.ResolveFacility(fact.Time) is not { } facilityId) { unresolved++; continue; }
+            if (installation.ResolveFacility(fact.Time) is not { } facilityId)
+            {
+                unresolvedFacts[fact.PassingId] = (UnresolvedPassingReason.NoFacility, null);
+                continue;
+            }
             if (!courses.TryGetValue(facilityId, out var course))
                 courses[facilityId] = course = await configuration.GetFacilityCourseAsync(facilityId, cancellationToken);
-            if (course.ResolveCoursePoint(fact.TimingPointId, fact.Time) is not { } coursePointId) { unresolved++; continue; }
+            if (course.ResolveCoursePoint(fact.TimingPointId, fact.Time) is not { } coursePointId)
+            {
+                unresolvedFacts[fact.PassingId] = (UnresolvedPassingReason.NoCoursePoint, facilityId);
+                continue;
+            }
             resolved.Add(new(fact.PassingId, fact.TransponderId, fact.TimingPointId, fact.Time, facilityId, coursePointId));
         }
+        var unresolved = unresolvedFacts.Count;
 
         // Every configuration version that holds anywhere in the cluster; each entry uses the version holding at
         // its end time (plan §4.2). A definition edit committed after this read queues its own request.
@@ -267,6 +281,7 @@ public sealed class StatisticsRecomputeService(
         storage.AddRange(samplePlan.Inserts);
         storage.AddRange(entryPlan.Inserts);
         storage.AddRange(reviews);
+        await ApplyUnresolvedAsync(transponderId, clusterStart, clusterEnd, loaded, unresolvedFacts, now, cancellationToken);
         await storage.SaveChangesAsync(cancellationToken);
         storage.ChangeTracker.Clear();
 
@@ -281,6 +296,35 @@ public sealed class StatisticsRecomputeService(
         logger.LogDebug("Recomputed transponder {TransponderId} over {Start:o}..{End:o}: {Passings} passings ({Unresolved} unresolved), " +
             "{Samples} samples, {Entries} entries, {Changed} rows changed, {Rejected} rejected candidates",
             transponderId, clusterStart, clusterEnd, loaded.Count, unresolved, samples.Count, entries.Count, changed, rejections.Count);
+    }
+
+    /// <summary>
+    /// Makes the stored unresolved passings of the cluster match this recompute (plan §5.3), keeping the first
+    /// detection time of rows that stay unresolved. The caller saves.
+    /// </summary>
+    private async Task ApplyUnresolvedAsync(Guid transponderId, DateTime clusterStart, DateTime clusterEnd,
+        IReadOnlyList<PassingFact> loaded, IReadOnlyDictionary<Guid, (UnresolvedPassingReason Reason, Guid? FacilityId)> current,
+        DateTime now, CancellationToken cancellationToken)
+    {
+        var stored = await storage.Set<UnresolvedPassing>()
+            .Where(p => p.TransponderId == transponderId && p.Time >= clusterStart && p.Time <= clusterEnd)
+            .ToDictionaryAsync(p => p.PassingId, cancellationToken);
+        foreach (var (id, row) in stored)
+        {
+            if (!current.TryGetValue(id, out var state)) storage.Remove(row);
+            else if (row.Reason != state.Reason || row.FacilityId != state.FacilityId)
+                (row.Reason, row.FacilityId) = (state.Reason, state.FacilityId);
+        }
+        foreach (var fact in loaded)
+        {
+            if (stored.ContainsKey(fact.PassingId) || !current.TryGetValue(fact.PassingId, out var state)) continue;
+            storage.Add(new UnresolvedPassing
+            {
+                PassingId = fact.PassingId, TransponderId = fact.TransponderId, InstallationId = fact.InstallationId,
+                TimingPointId = fact.TimingPointId, Time = fact.Time, Reason = state.Reason, FacilityId = state.FacilityId,
+                DetectedAtUtc = now
+            });
+        }
     }
 
     /// <summary>The entries the version holds for (by end time), stamped with it.</summary>

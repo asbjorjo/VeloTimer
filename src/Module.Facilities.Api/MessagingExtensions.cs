@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenTelemetry.Trace;
 using SlimMessageBus.Host;
+using VeloTime.Module.Common.Operations;
 using SlimMessageBus.Host.AzureServiceBus;
 using SlimMessageBus.Host.Outbox;
 using SlimMessageBus.Host.Outbox.PostgreSql.DbContext;
@@ -58,6 +59,7 @@ public static class MessagingExtensions
             });
         });
         builder.Services.AddHostedService<TimingAssociationOutboxStartup>();
+        builder.AddOutboxMonitor<FacilityDbContext>("facility", "facility");
         return builder;
     }
 }

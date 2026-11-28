@@ -1,0 +1,241 @@
+@page "/admin/statistics/recompute"
+@inherits PresentationComponentBase
+@attribute [Authorize(Policy = AdministrationPolicies.Statistics)]
+@using VeloTime.Module.Statistics.Interface.Data
+@inject IStatisticsAdministrationService Administration
+@inject ISnackbar Snackbar
+@implements IDisposable
+
+<PageTitle>@L["StatisticsRecompute"]</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    <MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">@L["StatisticsRecompute"]</MudText>
+    <MudText Class="mb-4">@L["StatisticsRecomputeHelp"]</MudText>
+
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+            <MudText Typo="Typo.h6" HtmlTag="h2">@L["StatisticsRecomputeBacklog"]</MudText>
+            <MudSpacer />
+            <MudButton OnClick="Refresh" Disabled="_loading" StartIcon="@Icons.Material.Filled.Refresh">@L["Refresh"]</MudButton>
+        </MudStack>
+        @if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-2" role="alert">@_error</MudAlert> }
+        @if (_loading && _overview is null)
+        {
+            <div role="status" aria-live="polite"><MudProgressLinear Indeterminate="true" Color="Color.Primary" /><MudText>@L["Loading"]</MudText></div>
+        }
+        @if (_overview?.Backlog is { } backlog)
+        {
+            <MudSimpleTable Dense="true" Elevation="0" data-testid="recompute-backlog">
+                <tbody>
+                    <tr><th scope="row">@L["StatisticsRecomputePendingTransponders"]</th><td>@backlog.TransponderRequests</td></tr>
+                    <tr><th scope="row">@L["StatisticsRecomputePendingRanges"]</th><td>@backlog.RangeRequests</td></tr>
+                    <tr><th scope="row">@L["StatisticsRecomputeOldestPending"]</th><td>@Display.Timestamp(backlog.OldestRequestCreatedAtUtc)</td></tr>
+                    <tr>
+                        <th scope="row">@L["StatisticsRecomputeFailing"]</th>
+                        <td>@backlog.FailingRequests @if (backlog.LastError is not null) { <MudText Typo="Typo.caption" Color="Color.Error" Style="overflow-wrap:anywhere">@backlog.LastError</MudText> }</td>
+                    </tr>
+                    <tr><th scope="row">@L["StatisticsRecomputeUnresolvedPassings"]</th><td>@backlog.UnresolvedPassings</td></tr>
+                    <tr>
+                        <th scope="row">@L["StatisticsRecomputeManualReviews"]</th>
+                        <td>@backlog.ManualDecisionReviews @if (backlog.OldestManualDecisionReviewAtUtc is { } oldest) { <MudText Typo="Typo.caption">@L["StatisticsRecomputeOldest", Display.Timestamp(oldest)]</MudText> }</td>
+                    </tr>
+                </tbody>
+            </MudSimpleTable>
+        }
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudText Typo="Typo.h6" HtmlTag="h2" Class="mb-2">@L["StatisticsRecomputeStart"]</MudText>
+        <MudCheckBox T="bool" @bind-Value="_fromUnbounded" Label="@L["NoLowerBound"]" Disabled="_saving" />
+        @if (!_fromUnbounded) { <ZonedInstantEditor Draft="_fromDraft" EditorSettings="Display" Label="@L["From"]" Required="false" Disabled="_saving" /> }
+        <MudCheckBox T="bool" @bind-Value="_toUnbounded" Label="@L["NoUpperBound"]" Disabled="_saving" />
+        @if (!_toUnbounded) { <ZonedInstantEditor Draft="_toDraft" EditorSettings="Display" Label="@L["StatisticsRecomputeTo"]" Required="false" Disabled="_saving" /> }
+        <MudSelect T="RecomputeScope" @bind-Value="_scope" Label="@L["StatisticsRecomputeScope"]" Disabled="_saving" Class="mt-2">
+            <MudSelectItem T="RecomputeScope" Value="RecomputeScope.All">@L["StatisticsRecomputeScopeAll"]</MudSelectItem>
+            <MudSelectItem T="RecomputeScope" Value="RecomputeScope.Transponder">@L["StatisticsRecomputeScopeTransponder"]</MudSelectItem>
+            <MudSelectItem T="RecomputeScope" Value="RecomputeScope.Installation">@L["StatisticsRecomputeScopeInstallation"]</MudSelectItem>
+        </MudSelect>
+        @if (_scope != RecomputeScope.All)
+        {
+            <MudTextField T="string" @bind-Value="_scopeId" Label="@L[_scope == RecomputeScope.Transponder ? "TransponderId" : "StatisticsRecomputeInstallationId"]"
+                          Required="true" RequiredError="@L["RequiredError"]" Disabled="_saving" />
+        }
+        <MudTextField T="string" @bind-Value="_note" Label="@L["StatisticsRecomputeNote"]" MaxLength="500" Lines="2" Disabled="_saving" />
+        <MudText Typo="Typo.caption" Class="d-block mt-2">@L["StatisticsRecomputeSessionsHelp"]</MudText>
+        @if (AllHistory)
+        {
+            <MudAlert Severity="Severity.Warning" Class="my-2">@L["StatisticsRecomputeAllHistoryWarning"]</MudAlert>
+            <MudCheckBox T="bool" @bind-Value="_confirmAllHistory" Label="@L["StatisticsRecomputeConfirmAllHistory"]" Disabled="_saving" />
+        }
+        @if (_formError is not null) { <MudAlert Severity="Severity.Error" Class="my-2" role="alert">@_formError</MudAlert> }
+        <MudButton OnClick="Submit" Disabled="@(_saving || !Display.IsReady || (AllHistory && !_confirmAllHistory))" Variant="Variant.Filled" Color="Color.Primary" Class="mt-2">
+            @L["StatisticsRecomputeSubmit"]
+        </MudButton>
+    </MudPaper>
+
+    <MudText Typo="Typo.h6" HtmlTag="h2" Class="mb-2">@L["StatisticsRecomputeJobs"]</MudText>
+    @if (_overview is { Jobs.Count: 0 }) { <MudText role="status">@L["StatisticsRecomputeNoJobs"]</MudText> }
+    else if (_overview is not null)
+    {
+        <div role="region" aria-label="@L["StatisticsRecomputeJobs"]" tabindex="0" style="overflow-x:auto; width:100%;">
+            <MudTable T="RecomputeJobDTO" Items="_overview.Jobs" Dense="true" Elevation="0" Breakpoint="Breakpoint.None" Style="min-width:56rem">
+                <HeaderContent>
+                    <MudTh>@L["StatisticsRecomputeRequested"]</MudTh>
+                    <MudTh>@L["StatisticsRecomputeRange"]</MudTh>
+                    <MudTh>@L["StatisticsRecomputeScope"]</MudTh>
+                    <MudTh>@L["StatisticsRecomputeProgress"]</MudTh>
+                    <MudTh>@L["StatisticsRecomputeNote"]</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudText>@Display.Timestamp(context.CreatedAtUtc)</MudText>
+                        @if (context.RequestedByUserId is { } user) { <MudText Typo="Typo.caption">@user</MudText> }
+                    </MudTd>
+                    <MudTd>@Range(context)</MudTd>
+                    <MudTd>@Scope(context)</MudTd>
+                    <MudTd>
+                        <MudText>@L["StatisticsRecomputeStatus" + context.Status]</MudText>
+                        @if (context.TotalTransponders is int total && total > 0)
+                        {
+                            <MudProgressLinear Value="@(100.0 * (total - context.RemainingTransponders) / total)" Color="Color.Primary"
+                                               aria-label="@L["StatisticsRecomputeProgress"]" />
+                            <MudText Typo="Typo.caption">@L["StatisticsRecomputeTransponders", total - context.RemainingTransponders, total]</MudText>
+                        }
+                        @if (context.FailingTransponders > 0)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Error">@L["StatisticsRecomputeRetrying", context.FailingTransponders]</MudText>
+                            @if (context.LastError is not null) { <MudText Typo="Typo.caption" Color="Color.Error" Style="overflow-wrap:anywhere">@context.LastError</MudText> }
+                        }
+                        @if (context.CompletedAtUtc is { } completed) { <MudText Typo="Typo.caption">@Display.Timestamp(completed)</MudText> }
+                    </MudTd>
+                    <MudTd Style="white-space:pre-wrap">@context.Note</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </div>
+    }
+</MudContainer>
+
+@code {
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
+    private readonly CancellationTokenSource _lifetime = new();
+    private readonly ZonedInstantDraft _fromDraft = new(), _toDraft = new();
+    private RecomputeOverviewDTO? _overview;
+    private PeriodicTimer? _poll;
+    private bool _loading, _saving, _fromUnbounded, _toUnbounded = true, _confirmAllHistory, _initialized;
+    private string? _error, _formError, _scopeId, _note;
+    private RecomputeScope _scope = RecomputeScope.All;
+
+    private enum RecomputeScope { All, Transponder, Installation }
+
+    private bool AllHistory => _fromUnbounded && _toUnbounded && _scope == RecomputeScope.All;
+
+    private bool Active => _overview is { } overview &&
+        (overview.Backlog.TransponderRequests + overview.Backlog.RangeRequests > 0 || overview.Jobs.Any(job => job.Status != RecomputeJobStatus.Completed));
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!_initialized && Display.IsReady)
+        {
+            _initialized = true;
+            var start = Display.Local(DateTimeOffset.UtcNow).Date.AddDays(-1);
+            _fromDraft.Date = start;
+            _fromDraft.Time = TimeSpan.Zero;
+            await Refresh();
+        }
+    }
+
+    private async Task Refresh()
+    {
+        _loading = true;
+        try
+        {
+            _overview = await Administration.GetRecomputeOverviewAsync(_lifetime.Token);
+            _error = null;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { return; }
+        catch (Exception) { _error = L["StatisticsRecomputeLoadFailed"].Value; }
+        finally { _loading = false; }
+        EnsurePolling();
+    }
+
+    /// <summary>Refreshes every few seconds while work is pending, and stops once the backlog is empty.</summary>
+    private void EnsurePolling()
+    {
+        if (!Active || _poll is not null || _lifetime.IsCancellationRequested) return;
+        _poll = new PeriodicTimer(PollInterval);
+        _ = PollAsync(_poll);
+    }
+
+    private async Task PollAsync(PeriodicTimer timer)
+    {
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_lifetime.Token))
+            {
+                await InvokeAsync(async () =>
+                {
+                    if (!_loading && !_saving) await Refresh();
+                    StateHasChanged();
+                });
+                if (!Active) break;
+            }
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            timer.Dispose();
+            if (ReferenceEquals(_poll, timer)) _poll = null;
+        }
+    }
+
+    private async Task Submit()
+    {
+        _formError = null;
+        DateTimeOffset? from = null, to = null;
+        try
+        {
+            if (!_fromUnbounded) from = _fromDraft.Resolve(Display);
+            if (!_toUnbounded) to = _toDraft.Resolve(Display);
+        }
+        catch (PresentationValidationException exception) { _formError = L[exception.ResourceKey].Value; return; }
+        if (from.HasValue && to.HasValue && from.Value >= to.Value) { _formError = L["StatisticsRecomputeInvalidRange"].Value; return; }
+        Guid? scopeId = null;
+        if (_scope != RecomputeScope.All)
+        {
+            if (!Guid.TryParse(_scopeId?.Trim(), out var parsed) || parsed == Guid.Empty) { _formError = L["StatisticsRecomputeInvalidId"].Value; return; }
+            scopeId = parsed;
+        }
+        _saving = true;
+        try
+        {
+            await Administration.CreateRecomputeJobAsync(new CreateRecomputeJobRequest(from, to,
+                _scope == RecomputeScope.Transponder ? scopeId : null, _scope == RecomputeScope.Installation ? scopeId : null,
+                string.IsNullOrWhiteSpace(_note) ? null : _note), _lifetime.Token);
+            Snackbar.Add(L["StatisticsRecomputeQueued"].Value, Severity.Success);
+            _note = null;
+            _confirmAllHistory = false;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { return; }
+        catch (HttpRequestException exception) when (exception.StatusCode == System.Net.HttpStatusCode.BadRequest)
+        {
+            _formError = exception.Message;
+            return;
+        }
+        catch (Exception) { _formError = L["StatisticsRecomputeQueueFailed"].Value; return; }
+        finally { _saving = false; }
+        await Refresh();
+    }
+
+    private string Range(RecomputeJobDTO job) =>
+        $"{(job.FromUtc.HasValue ? Display.Timestamp(job.FromUtc.Value) : L["NegativeInfinity"].Value)} — {(job.ToUtc.HasValue ? Display.Timestamp(job.ToUtc.Value) : L["PositiveInfinity"].Value)}";
+
+    private string Scope(RecomputeJobDTO job) =>
+        job.TransponderId is { } transponder ? $"{L["StatisticsRecomputeScopeTransponder"].Value}: {transponder}"
+        : job.InstallationId is { } installation ? $"{L["StatisticsRecomputeScopeInstallation"].Value}: {installation}"
+        : L["StatisticsRecomputeScopeAll"].Value;
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}
