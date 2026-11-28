@@ -746,6 +746,30 @@ Agent outbox integration tests create/drop isolated PostgreSQL databases. Set
 OIDC_AUDIENCE=https://build.invalid dotnet test src/VeloTime.Workers.Test --filter FullyQualifiedName~AgentOutboxTests
 ```
 
+### Agent Control and Capability Reports
+
+Commands to agents (`PauseAgentCommand`, `ResumeAgentCommand`,
+`ReportCapabilitiesCommandV1`, and the passing replay commands that follow) travel on
+the `velotime-agent-control` topic, separate from the hardware traffic on
+`velotime-agent`. The topology job declares the topic only. Each agent provisions its
+own subscription at startup, named after `VELOTIME_AGENT`, with a correlation filter
+on the `AgentId` application property, so onboarding an agent needs no deploy. Timing
+publishes commands through its outbox with `AgentId` set and a 15-minute Service Bus
+time to live, so an agent that is offline longer does not act on stale commands.
+The agent's runtime connection therefore needs Manage rights on that topic.
+
+Every agent sends `AgentCapabilitiesV1` on `velotime-agent` at startup, when a
+registered `IAgentCapabilityProvider` raises `CapabilityChanged`, and when asked with
+`ReportCapabilitiesCommandV1`. Timing stores the latest report on the installation
+(older reports are ignored) and shows it on the installation page, where an admin can
+ask for a new one. Pass the agent type to `ConfigureAgent("P3")` (or set
+`Agent:AgentType`); it should be the same constant the agent passes to
+`PassingId.Create`. `Agent:AgentVersion` overrides the reported version, and
+`Agent:ReportCapabilities=false` turns reports off. An agent advertises
+`control.pause-resume` only when it registers an `IControlService`; without one the
+pause and resume commands are logged and acknowledged. See
+[passing-replay-plan.md](docs/passing-replay-plan.md) for the replay capabilities.
+
 ### Transponder Ownership Events
 
 The Timing API queues [TransponderOwnershipChanged](src/Module.Timing.Interface/Messages/TransponderOwnershipChanged.cs)
