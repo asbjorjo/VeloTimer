@@ -17,6 +17,7 @@ using VeloTime.Agent.Interface;
 using VeloTime.Agent.Interface.Messages.Control;
 using VeloTime.Agent.Interface.Messages.Events;
 using VeloTime.Agent.Messaging;
+using VeloTime.Agent.Replay;
 using VeloTime.Agent.Service;
 using VeloTime.Agent.Storage;
 
@@ -143,6 +144,13 @@ public static class StartupExtensions
             ConsumeControl<PauseAgentCommand, PauseAgentHandler>(mbb, settings.ControlTopicName, agentId);
             ConsumeControl<ResumeAgentCommand, ResumeAgentHandler>(mbb, settings.ControlTopicName, agentId);
             ConsumeControl<ReportCapabilitiesCommandV1, ReportCapabilitiesHandler>(mbb, settings.ControlTopicName, agentId);
+            ConsumeControl<ReplayPassingsCommandV1, ReplayPassingsHandler>(mbb, settings.ControlTopicName, agentId);
+            mbb.Produce<PassingReplayStatusV1>(x => x
+                .DefaultTopic(settings.TopicName)
+                .WithModifier((message, sbMessage) =>
+                {
+                    sbMessage.SessionId = agentId;
+                }));
             mbb.AddServicesFromAssemblyContaining<PauseAgentHandler>();
             mbb.AddJsonSerializer();
             mbb.UseOutbox();
@@ -179,6 +187,14 @@ public static class StartupExtensions
         services.AddSingleton<IAgentCapabilityProvider, PauseResumeCapabilityProvider>();
         services.AddSingleton<CapabilityReporter>();
         services.AddHostedService(provider => provider.GetRequiredService<CapabilityReporter>());
+
+        services.AddOptions<ReplayOptions>().Bind(configuration.GetSection(ReplayOptions.Section));
+        services.AddSingleton<AgentStoreReplayCapabilityProvider>();
+        services.AddSingleton<IAgentCapabilityProvider>(provider => provider.GetRequiredService<AgentStoreReplayCapabilityProvider>());
+        services.AddSingleton<IOutboxBacklog, PostgreSqlOutboxBacklog>();
+        services.AddSingleton<PassingReplayService>();
+        services.AddSingleton<PassingReplayWorker>();
+        services.AddHostedService(provider => provider.GetRequiredService<PassingReplayWorker>());
 
         //services.ConfigureApiClient(configuration);
 

@@ -89,8 +89,43 @@ public sealed class AgentOutboxTests : IAsyncLifetime
         Assert.Equal("test-agent", message.SessionId);
         var report = JsonSerializer.Deserialize<AgentCapabilitiesV1>(message.Body, JsonOptions)!;
         Assert.Equal(VeloTime.Agent.Interface.AgentControl.ProtocolVersion, report.ControlProtocolVersion);
-        // The test host registers an IControlService, so pause and resume are advertised.
-        Assert.Equal(VeloTime.Agent.Interface.AgentCapabilities.PauseResume, Assert.Single(report.Capabilities).Name);
+        // The test host registers an IControlService, so pause and resume are advertised, next to AgentStore replays.
+        Assert.Equal([VeloTime.Agent.Interface.AgentCapabilities.PauseResume, VeloTime.Agent.Interface.AgentCapabilities.PassingReplay],
+            report.Capabilities.Select(c => c.Name));
+        Assert.Equal(VeloTime.Agent.Interface.PassingReplayModes.AgentStore, report.Capabilities[1].PassingReplay!.Mode);
+    }
+
+    [PostgreSqlOutboxFact]
+    public async Task AgentStoreReplayRepublishesStoredPassingsThroughTheOutboxWithTheReplayHeader()
+    {
+        var sender = new TestSender { Available = true };
+        var host = await StartHost(sender);
+        var t0 = new DateTime(2026, 11, 20, 12, 0, 0, DateTimeKind.Utc);
+        await using (var scope = host.Services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<MessagingService>().SendEventsAsync(Enumerable.Range(0, 5).Select(i => new Passing
+            {
+                Id = VeloTime.Agent.Identity.PassingId.Create("Test", i.ToString()),
+                Time = t0.AddSeconds(i),
+                TransponderType = "ProChip",
+                TransponderId = "106187718",
+                LoopId = i % 2 == 0 ? "loop-1" : "loop-2"
+            }).ToList());
+        }
+        await WaitUntil(() => Task.FromResult(sender.Delivered.Count(m => Equals(m.ApplicationProperties["MessageName"], nameof(PassingObservedV1))) == 5));
+
+        var replays = host.Services.GetRequiredService<VeloTime.Agent.Replay.PassingReplayService>();
+        var command = new VeloTime.Agent.Interface.Messages.Control.ReplayPassingsCommandV1(Guid.NewGuid(), "test-agent",
+            VeloTime.Agent.Interface.PassingReplayModes.AgentStore, t0, t0.AddMinutes(1), ["loop-1"], DateTime.UtcNow.AddMinutes(15));
+        var accepted = await replays.AcceptAsync(command, CancellationToken.None);
+        await replays.RunAsync(accepted!, CancellationToken.None);
+
+        bool Replayed(ServiceBusMessage m) => m.ApplicationProperties.TryGetValue("ReplayRequestId", out var id) && Equals(id, command.RequestId.ToString());
+        await WaitUntil(() => Task.FromResult(sender.Delivered.Count(Replayed) == 3));
+        Assert.All(sender.Delivered.Where(Replayed), m => Assert.Equal("loop-1", JsonSerializer.Deserialize<PassingObservedV1>(m.Body, JsonOptions)!.LoopId));
+        await WaitUntil(() => Task.FromResult(sender.Delivered.Any(m => Equals(m.ApplicationProperties["MessageName"], nameof(PassingReplayStatusV1))
+            && JsonSerializer.Deserialize<PassingReplayStatusV1>(m.Body, JsonOptions)!.State == "Completed")));
+        Assert.Equal(1, await Scalar($"SELECT count(*)::int FROM agent.replay_request WHERE request_id = '{command.RequestId}' AND state = 'Completed' AND published = 3"));
     }
 
     [PostgreSqlOutboxFact]
@@ -497,7 +532,9 @@ public sealed class AgentOutboxTests : IAsyncLifetime
             ["ConnectionStrings:MessageBus"] = "Endpoint=sb://localhost/;SharedAccessKeyName=test;SharedAccessKey=dGVzdA==",
             ["MessageBus:OutboxPollIdleSleep"] = "00:00:00.05",
             // Off by default so the startup capability report does not count as one of the tested events.
-            ["Agent:ReportCapabilities"] = reportCapabilities ? "true" : "false"
+            ["Agent:ReportCapabilities"] = reportCapabilities ? "true" : "false",
+            ["Agent:Replay:ChunkSize"] = "2",
+            ["Agent:Replay:ChunkPause"] = "00:00:00.01"
         });
         builder.Services.AddSingleton<IControlService, TestControl>();
         builder.ConfigureAgent();

@@ -26,7 +26,9 @@ public sealed class AgentCapabilityTests
         {
             ["VELOTIME_AGENT"] = agentId,
             ["ConnectionStrings:AgentDb"] = "Host=localhost;Database=agent;Username=test;Password=test",
-            ["ConnectionStrings:MessageBus"] = "Endpoint=sb://localhost/;SharedAccessKeyName=test;SharedAccessKey=dGVzdA=="
+            ["ConnectionStrings:MessageBus"] = "Endpoint=sb://localhost/;SharedAccessKeyName=test;SharedAccessKey=dGVzdA==",
+            // No database here; the AgentStore provider is covered by AgentReplayTests.
+            ["Agent:Replay:AgentStoreEnabled"] = "false"
         });
         return builder;
     }
@@ -42,7 +44,7 @@ public sealed class AgentCapabilityTests
         Assert.DoesNotContain(bus.Settings.Consumers, consumer => consumer.Path == "velotime-agent");
         var control = bus.Settings.Consumers.Where(consumer => consumer.Path == AgentControl.Topic).ToList();
         Assert.Equal(
-            [typeof(PauseAgentCommand), typeof(ReportCapabilitiesCommandV1), typeof(ResumeAgentCommand)],
+            [typeof(PauseAgentCommand), typeof(ReplayPassingsCommandV1), typeof(ReportCapabilitiesCommandV1), typeof(ResumeAgentCommand)],
             control.Select(consumer => consumer.MessageType).OrderBy(type => type.Name));
         foreach (var consumer in control)
         {
@@ -55,6 +57,8 @@ public sealed class AgentCapabilityTests
             Assert.Equal("agent-a", Assert.Single(properties, pair => pair.Key == AgentControl.AgentIdHeader).Value);
         }
         Assert.Contains(bus.Settings.Producers, producer => producer.MessageType == typeof(AgentCapabilitiesV1) &&
+            producer.DefaultPath == "velotime-agent");
+        Assert.Contains(bus.Settings.Producers, producer => producer.MessageType == typeof(PassingReplayStatusV1) &&
             producer.DefaultPath == "velotime-agent");
         Assert.Equal("Test", provider.GetRequiredService<IOptions<AgentOptions>>().Value.AgentType);
         Assert.Contains(builder.Services, descriptor => descriptor.ServiceType == typeof(IHostedService));
@@ -128,8 +132,13 @@ public sealed class AgentCapabilityTests
         Assert.Single(bus.Settings.Consumers, consumer => consumer.Path == "velotime-agent" &&
             consumer.MessageType == typeof(AgentCapabilitiesV1) && consumer.ConsumerType == typeof(AgentCapabilitiesHandler) &&
             consumer.Properties.Values.Contains("infrastructure"));
+        Assert.Single(bus.Settings.Consumers, consumer => consumer.Path == "velotime-agent" &&
+            consumer.MessageType == typeof(PassingReplayStatusV1) && consumer.ConsumerType == typeof(PassingReplayStatusHandler) &&
+            consumer.Properties.Values.Contains("infrastructure"));
         // Both Timing hosts dispatch the shared outbox, so both can send commands to agents.
         Assert.Contains(bus.Settings.Producers, producer => producer.MessageType == typeof(ReportCapabilitiesCommandV1) &&
+            producer.DefaultPath == AgentControl.Topic);
+        Assert.Contains(bus.Settings.Producers, producer => producer.MessageType == typeof(ReplayPassingsCommandV1) &&
             producer.DefaultPath == AgentControl.Topic);
     }
 

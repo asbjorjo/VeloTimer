@@ -76,7 +76,71 @@ namespace VeloTime.Agent.Migrations
                     b.HasKey("Id")
                         .HasName("pk_passing");
 
+                    b.HasIndex("Time", "Id")
+                        .HasDatabaseName("ix_passing_time_id");
+
                     b.ToTable("passing", "agent");
+                });
+
+            modelBuilder.Entity("VeloTime.Agent.Model.ReplayRequest", b =>
+                {
+                    b.Property<Guid>("RequestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("request_id");
+
+                    b.Property<DateTime>("FromUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("from_utc");
+
+                    b.Property<string>("LoopIds")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("loop_ids");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("mode");
+
+                    b.Property<int>("Published")
+                        .HasColumnType("integer")
+                        .HasColumnName("published");
+
+                    b.Property<int>("Read")
+                        .HasColumnType("integer")
+                        .HasColumnName("read");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at_utc");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("state");
+
+                    b.Property<DateTime>("ToUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("to_utc");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("RequestId")
+                        .HasName("pk_replay_request");
+
+                    b.HasIndex("State")
+                        .HasDatabaseName("ix_replay_request_state");
+
+                    b.ToTable("replay_request", "agent");
                 });
 #pragma warning restore 612, 618
         }
