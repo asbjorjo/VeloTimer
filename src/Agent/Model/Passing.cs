@@ -14,6 +14,10 @@ public class Passing : IModel
     public bool LowBattery { get; init; }
     public bool LowStrength { get; init; }
     public bool LowHits { get; init; }
+    /// <summary>Signal strength in the decoder's own units, as reported. Null when the decoder does not report it.</summary>
+    public double? Strength { get; init; }
+    /// <summary>Hits the decoder counted for the passing. Null when the decoder does not report it.</summary>
+    public int? Hits { get; init; }
 
     /// <summary>
     /// The passing ID as reported by the decoder or SDK (for example a P3 passing number or an X2 SDK passing ID), kept
