@@ -270,7 +270,7 @@ public sealed class WorkerHandlerTests
     public async Task LoopStatusEventHandler_RequiresAgentIdAndUpdatesLastSeen()
     {
         await using var database = await TimingTestDatabase.CreateAsync();
-        var handler = new LoopStatusEventHandler(database.InstallationService)
+        var handler = new LoopStatusEventHandler(new LoopStatusService(database.InstallationService, database.Storage), database.InstallationService)
         {
             Context = TestConsumerContext.Create(new Dictionary<string, object>())
         };
@@ -289,6 +289,101 @@ public sealed class WorkerHandlerTests
         await handler.OnHandle(new VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent(seenAt, "loop-1", 0.1), CancellationToken.None);
 
         Assert.Equal(seenAt, (await database.Storage.Set<Installation>().SingleAsync()).LastSeen);
+        Assert.Single(await database.Storage.Set<LoopStatusSample>().ToListAsync());
+    }
+
+    [Fact]
+    public async Task LoopStatusEventHandler_StoresEveryFieldOnceAndRedeliveryKeepsTheRollup()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        var handler = new LoopStatusEventHandler(new LoopStatusService(database.InstallationService, database.Storage), database.InstallationService)
+        {
+            Context = TestConsumerContext.Create(new Dictionary<string, object> { ["AgentId"] = "agent-status" })
+        };
+        var time = new DateTime(2026, 11, 28, 10, 2, 30, DateTimeKind.Utc);
+        var message = new VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent(time, "loop-1", 21.5)
+        {
+            LoopTriggers = 2, DecoderTemperature = 308.15, InputVoltage = 12.1, TimeSynchronised = false, SatellitesInUse = 8,
+            DecoderId = "decoder-1", NoiseSharesStrengthScale = true
+        };
+
+        await handler.OnHandle(message, CancellationToken.None);
+        await handler.OnHandle(message, CancellationToken.None);
+
+        var sample = await database.Storage.Set<LoopStatusSample>().AsNoTracking().SingleAsync();
+        Assert.Equal(time, sample.Time);
+        Assert.Equal((21.5, 2, 308.15, 12.1, false, 8, "decoder-1", true), (sample.Noise, sample.LoopTriggers, sample.DecoderTemperature,
+            sample.InputVoltage, sample.TimeSynchronised, sample.SatellitesInUse, sample.DecoderId, sample.NoiseSharesStrengthScale));
+        var point = await database.Storage.Set<TimingPoint>().AsNoTracking().SingleAsync();
+        Assert.Equal(point.Id, sample.TimingPointId);
+        var rollup = await database.Storage.Set<LoopStatusRollup>().AsNoTracking().SingleAsync();
+        Assert.Equal(new DateTime(2026, 11, 28, 10, 0, 0, DateTimeKind.Utc), rollup.BucketStart);
+        Assert.Equal((1, 21.5, 21.5, 21.5), (rollup.Samples, rollup.NoiseSum, rollup.NoiseMin, rollup.NoiseMax));
+        Assert.Equal((1, 308.15, 308.15, 308.15), (rollup.TemperatureSamples, rollup.TemperatureSum, rollup.TemperatureMin, rollup.TemperatureMax));
+        Assert.Equal((1, 2L, 1, 1, 1), (rollup.TriggerSamples, rollup.TriggersSum, rollup.SyncSamples, rollup.UnsynchronisedSamples, rollup.SharedScaleSamples));
+    }
+
+    [Fact]
+    public async Task LoopStatusRollup_IsTheSameForShuffledAndReplayedSamples()
+    {
+        var start = new DateTime(2026, 11, 28, 10, 0, 0, DateTimeKind.Utc);
+        var samples = Enumerable.Range(0, 120).Select(i => new LoopStatusObservation("agent-shuffle", $"loop-{i % 2}",
+            start.AddSeconds(5 * i), Noise: 10 + i % 7 * 1.5,
+            DecoderTemperature: i % 3 == 0 ? null : 300 + i % 5,
+            InputVoltage: i % 4 == 0 ? null : 11.5 + i % 3 * 0.25,
+            LoopTriggers: i % 5 == 0 ? null : i % 4,
+            TimeSynchronised: i % 6 == 0 ? null : i % 11 != 0)).ToArray();
+
+        async Task<List<LoopStatusRollup>> Rollups(IEnumerable<LoopStatusObservation> order)
+        {
+            await using var database = await TimingTestDatabase.CreateAsync();
+            var service = new LoopStatusService(database.InstallationService, database.Storage);
+            foreach (var sample in order) await service.RecordAsync(sample);
+            Assert.Equal(samples.Length, await database.Storage.Set<LoopStatusSample>().CountAsync());
+            var points = await database.Storage.Set<TimingPoint>().AsNoTracking().ToDictionaryAsync(p => p.Id, p => p.SystemId);
+            return (await database.Storage.Set<LoopStatusRollup>().AsNoTracking().ToListAsync())
+                // Timing point IDs differ per database; compare by loop.
+                .Select(r => { r.TemperatureSum = Math.Round(r.TemperatureSum, 6); r.VoltageSum = Math.Round(r.VoltageSum, 6); r.NoiseSum = Math.Round(r.NoiseSum, 6); return (points[r.TimingPointId], r); })
+                .OrderBy(x => x.Item1).ThenBy(x => x.r.BucketStart).Select(x => x.r).ToList();
+        }
+
+        var inOrder = await Rollups(samples);
+        var shuffled = await Rollups(samples.OrderBy(s => s.Time.Ticks * 7919 % 1009));
+        var replayed = await Rollups(samples.Concat(samples.Reverse()).Concat(samples));
+
+        Assert.Equal(4, inOrder.Count); // 10 minutes, 2 loops, 5-minute buckets.
+        Assert.Equal(samples.Length, inOrder.Sum(r => r.Samples));
+        string Shape(List<LoopStatusRollup> rows) => JsonSerializer.Serialize(rows.Select(r => new
+        {
+            r.BucketStart, r.Samples, r.NoiseSum, r.NoiseMin, r.NoiseMax, r.TemperatureSamples, r.TemperatureSum, r.TemperatureMin,
+            r.TemperatureMax, r.VoltageSamples, r.VoltageSum, r.VoltageMin, r.VoltageMax, r.TriggerSamples, r.TriggersSum,
+            r.SyncSamples, r.UnsynchronisedSamples, r.SharedScaleSamples
+        }));
+        Assert.Equal(Shape(inOrder), Shape(shuffled));
+        Assert.Equal(Shape(inOrder), Shape(replayed));
+    }
+
+    [Fact]
+    public async Task UpdateLastSeen_SkipsStepsSmallerThanTheResolution()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        var installation = new Installation { Id = Guid.NewGuid(), AgentId = "agent-seen" };
+        database.Storage.Add(installation);
+        await database.Storage.SaveChangesAsync();
+        database.Storage.ChangeTracker.Clear();
+        var start = new DateTime(2026, 11, 28, 10, 0, 0, DateTimeKind.Utc);
+        async Task<DateTime?> Seen(DateTime time)
+        {
+            var current = (await database.InstallationService.GetInstallationForAgent("agent-seen"))!;
+            await database.InstallationService.UpdateLastSeenAsync(current, time);
+            database.Storage.ChangeTracker.Clear();
+            return (await database.Storage.Set<Installation>().AsNoTracking().SingleAsync()).LastSeen;
+        }
+
+        Assert.Equal(start, await Seen(start));
+        Assert.Equal(start, await Seen(start.AddSeconds(29)));
+        Assert.Equal(start, await Seen(start.AddSeconds(-60)));
+        Assert.Equal(start.AddSeconds(30), await Seen(start.AddSeconds(30)));
     }
 
     [Fact]

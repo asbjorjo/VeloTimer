@@ -1,11 +1,16 @@
-﻿using SlimMessageBus;
+using SlimMessageBus;
 using System.Diagnostics;
 using VeloTime.Agent.Interface.Messages.Events;
 using VeloTime.Module.Timing.Service;
 
 namespace VeloTime.Module.Timing.Handlers;
 
-public class LoopStatusEventHandler(InstallationService installationService) : IConsumer<LoopStatusEvent>, IConsumerWithContext
+/// <summary>
+/// Stores each loop status sample (deduplicated on timing point and decoder time) with its 5-minute rollup, then
+/// advances the installation's LastSeen.
+/// </summary>
+public class LoopStatusEventHandler(LoopStatusService loopStatusService, InstallationService installationService)
+    : IConsumer<LoopStatusEvent>, IConsumerWithContext
 {
     public required IConsumerContext Context { get; set; }
 
@@ -26,8 +31,20 @@ public class LoopStatusEventHandler(InstallationService installationService) : I
 
         activity?.SetTag("AgentId", AgentId);
 
+        await loopStatusService.RecordAsync(new LoopStatusObservation(
+            AgentId: AgentId,
+            LoopId: message.LoopId,
+            Time: message.Time,
+            Noise: message.Noise,
+            LoopTriggers: message.LoopTriggers,
+            DecoderTemperature: message.DecoderTemperature,
+            InputVoltage: message.InputVoltage,
+            TimeSynchronised: message.TimeSynchronised,
+            SatellitesInUse: message.SatellitesInUse,
+            DecoderId: message.DecoderId,
+            NoiseSharesStrengthScale: message.NoiseSharesStrengthScale), cancellationToken);
+
         var installation = await installationService.GetInstallationForAgent(AgentId, cancellationToken);
-        
         if (installation is not null)
         {
             await installationService.UpdateLastSeenAsync(installation, message.Time, cancellationToken);

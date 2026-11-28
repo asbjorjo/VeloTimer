@@ -12,7 +12,9 @@ public sealed record PassingObservation(
     DateTime Time,
     bool LowBattery = false,
     bool LowStrength = false,
-    bool LowHits = false)
+    bool LowHits = false,
+    double? Strength = null,
+    int? Hits = null)
 {
     /// <summary>The replay this observation came from (the <c>ReplayRequestId</c> header); null for live passings.</summary>
     public Guid? ReplayRequestId { get; init; }

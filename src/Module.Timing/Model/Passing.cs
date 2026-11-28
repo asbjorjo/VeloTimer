@@ -15,4 +15,8 @@ public class Passing {
     public bool LowBattery { get; init; } = false;
     public bool LowStrength { get; init; } = false;
     public bool LowHits { get; init; } = false;
+    /// <summary>Signal strength in the decoder's own units, as reported. Null when the agent does not send it.</summary>
+    public double? Strength { get; init; }
+    /// <summary>Hits the decoder counted for the passing. Null when the agent does not send it.</summary>
+    public int? Hits { get; init; }
 }

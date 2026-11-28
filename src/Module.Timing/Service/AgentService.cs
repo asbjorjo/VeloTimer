@@ -60,7 +60,9 @@ public class AgentService(InstallationService installationService, TimingDbConte
             TransponderId = transponder.Id,
             LowBattery = observation.LowBattery,
             LowStrength = observation.LowStrength,
-            LowHits = observation.LowHits
+            LowHits = observation.LowHits,
+            Strength = observation.Strength,
+            Hits = observation.Hits
         };
 
         var ownsTransaction = storage.Database.CurrentTransaction is null;
@@ -129,6 +131,8 @@ public class AgentService(InstallationService installationService, TimingDbConte
         rejection.LowBattery = observation.LowBattery;
         rejection.LowStrength = observation.LowStrength;
         rejection.LowHits = observation.LowHits;
+        rejection.Strength = observation.Strength;
+        rejection.Hits = observation.Hits;
         rejection.Reason = reason;
         rejection.LastSeenAt = now;
         // A replayed rejection is counted in the same transaction as the rejection row.
@@ -198,7 +202,8 @@ public class AgentService(InstallationService installationService, TimingDbConte
         var conflict = await storage.Set<PassingConflict>().SingleOrDefaultAsync(c =>
             c.InstallationId == received.InstallationId && c.SourcePassingId == received.SourcePassingId && c.Reason == reason
             && c.TransponderId == received.TransponderId && c.TimingPointId == received.TimingPointId && c.Time == received.Time
-            && c.LowBattery == received.LowBattery && c.LowStrength == received.LowStrength && c.LowHits == received.LowHits,
+            && c.LowBattery == received.LowBattery && c.LowStrength == received.LowStrength && c.LowHits == received.LowHits
+            && c.Strength == received.Strength && c.Hits == received.Hits,
             cancellationToken);
         if (conflict is null)
         {
@@ -214,6 +219,8 @@ public class AgentService(InstallationService installationService, TimingDbConte
                 LowBattery = received.LowBattery,
                 LowStrength = received.LowStrength,
                 LowHits = received.LowHits,
+                Strength = received.Strength,
+                Hits = received.Hits,
                 FirstSeenAt = now,
                 LastSeenAt = now
             };
@@ -235,7 +242,9 @@ public class AgentService(InstallationService installationService, TimingDbConte
         && stored.Time == received.Time
         && stored.LowBattery == received.LowBattery
         && stored.LowStrength == received.LowStrength
-        && stored.LowHits == received.LowHits;
+        && stored.LowHits == received.LowHits
+        && stored.Strength == received.Strength
+        && stored.Hits == received.Hits;
 }
 
 public static class PassingTime

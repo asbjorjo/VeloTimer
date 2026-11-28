@@ -36,6 +36,14 @@ public class TimingDbContext : BaseDbContext
             // Adjacent-passing reads: previous passing per installation and transponder, ordered by (Time, Id).
             e.HasIndex(p => new { p.InstallationId, p.TransponderId, p.Time, p.Id });
             e.HasIndex(p => p.Time);
+            // Loop health reads: passings per timing point over a time range.
+            e.HasIndex(p => new { p.TimingPointId, p.Time });
+            if (Database.IsNpgsql())
+            {
+                // Keeps low-signal counts per loop cheap; most passings carry no warning.
+                e.HasIndex(p => new { p.TimingPointId, p.Time }, "ix_passing_timing_point_id_time_warning")
+                    .HasFilter("low_strength OR low_hits OR low_battery");
+            }
         });
 
         modelBuilder.Entity<PassingConflict>(e =>
@@ -43,8 +51,8 @@ public class TimingDbContext : BaseDbContext
             e.HasIndex(c => new
             {
                 c.InstallationId, c.SourcePassingId, c.Reason, c.TransponderId, c.TimingPointId, c.Time,
-                c.LowBattery, c.LowStrength, c.LowHits
-            }).IsUnique();
+                c.LowBattery, c.LowStrength, c.LowHits, c.Strength, c.Hits
+            }).IsUnique().AreNullsDistinct(false);
             e.HasIndex(c => c.LastSeenAt);
         });
 
@@ -52,6 +60,24 @@ public class TimingDbContext : BaseDbContext
         {
             e.HasIndex(r => new { r.AgentId, r.SourcePassingId }).IsUnique();
             e.HasIndex(r => r.LastSeenAt);
+        });
+
+        modelBuilder.Entity<LoopStatusSample>(e =>
+        {
+            e.ToTable("loop_status");
+            e.HasOne<TimingPoint>().WithMany().HasForeignKey(s => s.TimingPointId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Installation>().WithMany().HasForeignKey(s => s.InstallationId).OnDelete(DeleteBehavior.Cascade);
+            // Natural key: one sample per loop and decoder instant, so redelivery and replay insert nothing.
+            e.HasIndex(s => new { s.TimingPointId, s.Time }).IsUnique();
+            e.HasIndex(s => new { s.InstallationId, s.Time });
+        });
+
+        modelBuilder.Entity<LoopStatusRollup>(e =>
+        {
+            e.HasKey(r => new { r.TimingPointId, r.BucketStart });
+            e.HasOne<TimingPoint>().WithMany().HasForeignKey(r => r.TimingPointId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<Installation>().WithMany().HasForeignKey(r => r.InstallationId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(r => new { r.InstallationId, r.BucketStart });
         });
 
         modelBuilder.Entity<TimingPoint>(e =>

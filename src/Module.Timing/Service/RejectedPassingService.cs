@@ -39,8 +39,8 @@ public sealed class RejectedPassingService(TimingDbContext storage, IAgentServic
             foreach (var row in batch)
             {
                 var result = await agentService.RegisterPassingAsync(new PassingObservation(row.AgentId, row.SourcePassingId,
-                    row.TransponderId, row.TransponderType, row.LoopId, row.Time, row.LowBattery, row.LowStrength, row.LowHits),
-                    cancellationToken);
+                    row.TransponderId, row.TransponderType, row.LoopId, row.Time, row.LowBattery, row.LowStrength, row.LowHits,
+                    row.Strength, row.Hits), cancellationToken);
                 switch (result.Outcome)
                 {
                     case PassingRegistrationOutcome.Recorded: recorded++; break;

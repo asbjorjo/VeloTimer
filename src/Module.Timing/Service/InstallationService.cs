@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using VeloTime.Module.Common;
@@ -11,8 +12,9 @@ using VeloTime.Module.Timing.Storage;
 namespace VeloTime.Module.Timing.Service;
 
 public class InstallationService(TimingDbContext storage, HybridCache cache, ILogger<InstallationService>? logger = null,
-    ICacheInvalidationOperations? evictionOperations = null)
+    ICacheInvalidationOperations? evictionOperations = null, IOptions<TimingOptions>? options = null)
 {
+    private readonly TimeSpan lastSeenResolution = options?.Value.LastSeenResolution ?? new TimingOptions().LastSeenResolution;
     private static readonly SemaphoreSlim installationSemaphore = new(1, 1);
     private static readonly SemaphoreSlim timingPointSemaphore = new(1, 1);
     private static readonly SemaphoreSlim transponderSemaphore = new(1, 1);
@@ -225,13 +227,20 @@ public class InstallationService(TimingDbContext storage, HybridCache cache, ILo
                 && p.TimingPoint.Installation == installation, cancellationToken: cancellationToken);
     }
 
+    /// <summary>
+    /// Advances <see cref="Installation.LastSeen"/> to <paramref name="timestamp"/> when it moves by at least
+    /// <see cref="TimingOptions.LastSeenResolution"/>; smaller steps are skipped without touching the database.
+    /// </summary>
     public async Task UpdateLastSeenAsync(Installation installation, DateTime timestamp, CancellationToken cancellationToken = default)
     {
+        // The supplied (possibly cached) instance is refreshed whenever LastSeen is written, so it is a safe pre-check.
+        if (installation.LastSeen is { } known && timestamp - known < lastSeenResolution)
+            return;
         // Never mutate an object supplied by a caller: it may be the mutable entity
         // instance held by HybridCache. Load persisted state into a separate tracked entity.
         var installationToUpdate = await GetWritableInstallationByIdAsync(installation.Id, cancellationToken);
 
-        if (installationToUpdate.LastSeen >= timestamp)
+        if (installationToUpdate.LastSeen is { } persisted && timestamp - persisted < lastSeenResolution)
             return;
         var pointIdentities = await storage.Set<TimingPoint>()
             .Where(point => point.InstallationId == installationToUpdate.Id)

@@ -40,7 +40,9 @@ public class PassingObservedHandler(IAgentService agentService, InstallationServ
             Time: message.Time,
             LowBattery: message.LowBattery,
             LowStrength: message.LowStrength,
-            LowHits: message.LowHits)
+            LowHits: message.LowHits,
+            Strength: message.Strength,
+            Hits: message.Hits)
         {
             ReplayRequestId = ReplayRequestId()
         }, cancellationToken);
