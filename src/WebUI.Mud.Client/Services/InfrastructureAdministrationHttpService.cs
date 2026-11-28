@@ -39,6 +39,8 @@ public sealed class InfrastructureAdministrationHttpService(HttpClient httpClien
         await client.SendAsync<Timing.InstallationDTO>(id.HasValue ? HttpMethod.Put : HttpMethod.Post, $"api/admin/timing/installations{Suffix(id)}", request, cancellationToken) ?? throw new HttpRequestException("Missing installation response.");
     public Task DeleteInstallationAsync(Guid id, CancellationToken cancellationToken = default) =>
         client.SendAsync<object>(HttpMethod.Delete, $"api/admin/timing/installations/{id}", null, cancellationToken);
+    public Task RefreshInstallationCapabilitiesAsync(Guid id, CancellationToken cancellationToken = default) =>
+        client.SendAsync<object>(HttpMethod.Post, $"api/admin/timing/installations/{id}/capabilities/refresh", null, cancellationToken);
     public async Task<Timing.TimingPointDTO> SaveTimingPointAsync(Guid installationId, Guid? id, Timing.SaveTimingPointRequest request, CancellationToken cancellationToken = default) =>
         await client.SendAsync<Timing.TimingPointDTO>(id.HasValue ? HttpMethod.Put : HttpMethod.Post, $"api/admin/timing/installations/{installationId}/points{Suffix(id)}", request, cancellationToken) ?? throw new HttpRequestException("Missing timing point response.");
     public Task DeleteTimingPointAsync(Guid installationId, Guid id, CancellationToken cancellationToken = default) =>

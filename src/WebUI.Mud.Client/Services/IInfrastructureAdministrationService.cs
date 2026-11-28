@@ -21,6 +21,8 @@ public interface IInfrastructureAdministrationService
     Task<IReadOnlyList<Timing.InstallationDTO>> GetInstallationsAsync(CancellationToken cancellationToken = default);
     Task<Timing.InstallationDTO> SaveInstallationAsync(Guid? id, Timing.SaveInstallationRequest request, CancellationToken cancellationToken = default);
     Task DeleteInstallationAsync(Guid id, CancellationToken cancellationToken = default);
+    /// <summary>Asks the installation's agent for a fresh capability report; it arrives asynchronously.</summary>
+    Task RefreshInstallationCapabilitiesAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Timing.TimingPointDTO> SaveTimingPointAsync(Guid installationId, Guid? id, Timing.SaveTimingPointRequest request, CancellationToken cancellationToken = default);
     Task DeleteTimingPointAsync(Guid installationId, Guid id, CancellationToken cancellationToken = default);
 }
