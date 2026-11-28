@@ -189,8 +189,8 @@ Each **domain service** consists of:
 - Manages Azure Service Bus connection, outbox pattern, OTEL, and the `VELOTIME_AGENT` identity
 - `MessagingService` handles publishing `PassingObservedV1`, `InstallationLayoutEvent`, etc. to the message bus
 - `AgentDbContext` provides a local outbox store to prevent duplicate event delivery
-- `Handler/` contains the control command handlers (pause, resume, capability report requests), consumed from `velotime-agent-control` on a per-agent subscription
-- `Capabilities/CapabilityReporter` sends `AgentCapabilitiesV1` built from registered `IAgentCapabilityProvider`s; `Replay/IPassingReplaySource` is the optional hook for replaying from the hardware source
+- `Handler/` contains the control command handlers (pause, resume, capability report requests, passing replays), consumed from `velotime-agent-control` on a per-agent subscription
+- `Capabilities/CapabilityReporter` sends `AgentCapabilitiesV1` built from registered `IAgentCapabilityProvider`s; `Replay/` runs `AgentStore` replays from the local store (`PassingReplayWorker`), and `Replay/IPassingReplaySource` is the optional hook for replaying from the hardware source
 
 **`src/Agent.Interface/`** defines the shared contracts (events/commands) used by both agents and the processors that consume them (e.g., `PassingObservedV1`, `InstallationLayoutEvent`).
 

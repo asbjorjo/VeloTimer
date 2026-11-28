@@ -130,6 +130,50 @@ FROM statistics.manual_decision_review ORDER BY created_at_utc;
 
 Re-apply the invalidation to the replacing entry on *Statistics entries* if it still applies, then delete the review row.
 
+### Replay passings
+
+Use a replay when Timing is missing passings that an agent saw, for example after an agent outage, a dead-lettered
+`PassingObservedV1`, or passings that were rejected before a transponder or timing point was set up. A replay sends
+the passings of a time range again. Timing deduplicates them, so replaying a range Timing already has changes nothing.
+
+1. Open *Timing installations*, choose the installation, and check *Agent capabilities*. Ask the agent for a new
+   report if it is more than a day old. *Replay passings* appears only when the agent advertises a replay mode.
+2. Pick the mode:
+   - **From the agent's store** (`AgentStore`) re-sends what the agent already stored and sent once. Use it when the
+     agent had the passings but Timing lost or rejected them. It covers at most 30 days per request and nothing older
+     than the agent's oldest stored passing.
+   - **From the timing source** (`Source`) reads the decoder or timing server again. Use it when the agent itself
+     missed passings, for example while it was down. Only agents that implement it offer it.
+3. Pick the range (start inclusive, end exclusive) and, if offered, the loops. Add a note saying why.
+4. Follow the request in the history list. It moves from *Pending* to *Accepted*, *Running* and *Completed*. One
+   replay runs per agent at a time; a second request is refused as *Busy*. A request the agent does not answer
+   within 15 minutes becomes *Expired*, usually because the agent is offline. Request it again once the agent is back.
+
+The counts mean:
+
+| Count | Meaning |
+|---|---|
+| read | passings the agent found in the range |
+| recorded | new passings Timing stored. Statistics picks them up on its own; no recompute is needed. |
+| duplicates | passings Timing already had. Expected for most of a replay. |
+| conflicts | passings that contradict a recorded one; they are kept for review |
+| rejected | passings Timing still cannot resolve, for example an unknown transponder |
+
+Timing counts its outcomes as the replayed passings arrive, so they can lag *Completed* by a few seconds. Many
+conflicts with reason `DuplicateObservation` from a `Source` replay mean the agent derives passing IDs differently
+when it reads live and when it replays. Report that to the agent's implementer rather than replaying again.
+
+Inspect requests:
+
+```sql
+SELECT created_at, agent_id, mode, from_utc, to_utc, state, reason, read, published, recorded, duplicate, conflict, rejected
+FROM timing.passing_replay_request ORDER BY created_at DESC LIMIT 20;
+```
+
+On the agent, `agent.replay_request` holds each request it handled, so a redelivered command reports its earlier
+result instead of running again. Replays are sent in chunks (`Agent:Replay:ChunkSize`, default 200) and each chunk
+waits for the agent's outbox to drain, so live passings are not held behind a large replay.
+
 ### Outbox is not draining
 
 1. Check the host's logs (Timing.Processor or Timing.Api for `timing`, Facilities.Api for `facility`) for Service Bus send errors. Common causes are a wrong or expired connection string, a missing topic (the topology job did not run), or a namespace outage.
@@ -156,6 +200,9 @@ Re-apply the invalidation to the replacing entry on *Statistics entries* if it s
 | `Statistics:Recompute:IdlePollInterval` | 00:00:30 | Statistics.Processor |
 | `Statistics:Recompute:FailureDelay` / `MaxFailureDelay` | 00:00:05 / 00:05:00 | Statistics.Processor |
 | `Statistics:Operations:SampleInterval` | 00:00:30 | Statistics.Processor |
+| `Agent:Replay:AgentStoreEnabled` | true | agents |
+| `Agent:Replay:ChunkSize` / `ChunkPause` | 200 / 00:00:00.5 | agents |
+| `Agent:Replay:AgentStoreMaxRange` | 30.00:00:00 | agents |
 | `Messaging:Monitoring:Enabled` | true | hosts with an outbox or DLQ monitor |
 | `Messaging:Monitoring:OutboxSampleInterval` | 00:00:30 | Timing.Processor, Facilities.Api |
 | `Messaging:Monitoring:DeadLetterSampleInterval` | 00:01:00 | Timing.Processor, Statistics.Processor |

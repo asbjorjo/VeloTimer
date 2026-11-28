@@ -1,7 +1,7 @@
 # Plan: passing replays from the source system, with per-agent capabilities
 
 Base: `v2` at `02b9fe7` (after #153 and #154). Branch from and target `v2`.
-Status: approved plan (owner, 2026-11-28). Phase 1 implemented; Phases 2 to 4 not started.
+Status: approved plan (owner, 2026-11-28). Phases 1 and 2 implemented; Phases 3 and 4 not started.
 
 ### Phase 1 as built
 
@@ -20,8 +20,22 @@ Status: approved plan (owner, 2026-11-28). Phase 1 implemented; Phases 2 to 4 no
   (SI seconds); the message keeps `TimeSpan`.
 - `POST /api/timing/admin/installations/{id}/capabilities/refresh` (`202`, `404`) sends `ReportCapabilitiesCommandV1`.
 
+### Phase 2 as built
 
-## Goal
+- The agent's `ReplayPassingsHandler` validates the command and stores it in `agent.replay_request`; a
+  `PassingReplayWorker` runs it in the background and resumes interrupted replays on start. Chunks are read by
+  (`time`, `id`) keyset; each waits until the outbox backlog is at most `Agent:Replay:MaxPendingOutbox` (default the
+  chunk size). Every state change saves the row and enqueues `PassingReplayStatusV1` in one outbox transaction.
+- `AgentStore` advertises `SupportsLoopFilter = true` (the store has the loop ID, so filtering is free) and
+  `OldestAvailableUtc = min(agent.passing.time)`. It can be turned off with `Agent:Replay:AgentStoreEnabled`.
+- New reason codes: `InvalidRange` and `LoopFilterUnsupported` (agent and platform), and the platform-only
+  `NoCapabilityReport` and `NoteTooLong`. Timing also answers `Busy` itself when it has an active request for the
+  installation; the agent still checks.
+- Timing applies statuses in report order, never reopens a finished request, and lets a late agent status replace
+  `Expired`, since the agent's answer is the truth. The expiry sweep runs every minute in Timing.Processor.
+- The dummy agent now sends through `MessagingService`. Its old redelivery simulation is removed; replays cover that.
+- The dummy agent's optional fake `Source` moves to Phase 3 with the `Source` mode.
+
 
 An admin can ask an agent to send the passings for a time range again, either from the agent's own store or from
 the source system behind it (decoder memory, timing server). Each agent says which of these it supports, and the
