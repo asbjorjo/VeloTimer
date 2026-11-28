@@ -52,7 +52,7 @@ public sealed class OwnershipOutboxTests : IAsyncLifetime
         if (string.IsNullOrWhiteSpace(adminConnectionString)) return;
         await ExecuteSql(adminConnectionString, $"CREATE DATABASE \"{databaseName}\"");
         connectionString = new NpgsqlConnectionStringBuilder(adminConnectionString) { Database = databaseName }.ConnectionString;
-        await using var storage = new TimingDbContext(new DbContextOptionsBuilder<TimingDbContext>().UseNpgsql(connectionString).Options);
+        await using var storage = new TimingDbContext(new DbContextOptionsBuilder<TimingDbContext>().UseNpgsql(connectionString).UseSnakeCaseNamingConvention().Options);
         await storage.Database.EnsureCreatedAsync();
         var transponder = new MylapsProChipTransponder { Id = Guid.NewGuid(), SystemId = "106187718" };
         transponderId = transponder.Id;
@@ -257,7 +257,7 @@ public sealed class OwnershipOutboxTests : IAsyncLifetime
         {
             ["ConnectionStrings:MessageBus"] = "Endpoint=sb://localhost/;SharedAccessKeyName=test;SharedAccessKey=dGVzdA=="
         });
-        builder.Services.AddDbContext<TimingDbContext>(options => options.UseNpgsql(connectionString).AddInterceptors(commitFailure));
+        builder.Services.AddDbContext<TimingDbContext>(options => options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention().AddInterceptors(commitFailure));
         builder.Services.AddScoped<TransponderOwnershipService>();
         builder.AddOwnershipMessaging();
         var busBuilder = (MessageBusBuilder)builder.Services.Single(service => service.ServiceType == typeof(MessageBusBuilder)).ImplementationInstance!;
@@ -278,7 +278,7 @@ public sealed class OwnershipOutboxTests : IAsyncLifetime
 
     private async Task<int> OwnershipCount()
     {
-        await using var storage = new TimingDbContext(new DbContextOptionsBuilder<TimingDbContext>().UseNpgsql(connectionString).Options);
+        await using var storage = new TimingDbContext(new DbContextOptionsBuilder<TimingDbContext>().UseNpgsql(connectionString).UseSnakeCaseNamingConvention().Options);
         return await storage.Set<TransponderOwner>().CountAsync();
     }
 

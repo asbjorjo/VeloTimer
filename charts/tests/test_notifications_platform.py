@@ -105,7 +105,7 @@ class NotificationsPlatformTests(unittest.TestCase):
 
     def test_ci_runs_notifications_api_and_worker_postgres_fixtures(self):
         workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
-        job = workflow["jobs"]["build"]
+        job = workflow["jobs"]["integration"]
         connection_names = (
             "NOTIFICATIONS_API_TEST_ADMIN_CONNECTION",
             "NOTIFICATIONS_WORKER_TEST_ADMIN_CONNECTION",
