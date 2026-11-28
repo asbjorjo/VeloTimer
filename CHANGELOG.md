@@ -21,6 +21,13 @@ All notable changes to this project will be documented in this file. See [versio
 * **facilities:** return an empty layout list for an existing facility without layouts.
 * **authentication:** request the configured API-audience scope when forwarding signed-in users to protected domain APIs.
 
+<a name="2.1.0-alpha.59"></a>
+## [2.1.0-alpha.59](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.59) (2026-11-28)
+
+### Features
+
+* **agent:** passing replay phase 2, AgentStore replays end to end ([#163](https://www.github.com/asbjorjo/VeloTimer/issues/163)) ([a8629ca](https://www.github.com/asbjorjo/VeloTimer/commit/a8629ca5ecb62e0708c6954f3ce68e5dd01935dc))
+
 <a name="2.1.0-alpha.58"></a>
 ## [2.1.0-alpha.58](https://www.github.com/asbjorjo/VeloTimer/releases/tag/v2.1.0-alpha.58) (2026-11-28)
 
