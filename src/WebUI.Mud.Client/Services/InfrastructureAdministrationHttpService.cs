@@ -41,6 +41,10 @@ public sealed class InfrastructureAdministrationHttpService(HttpClient httpClien
         client.SendAsync<object>(HttpMethod.Delete, $"api/admin/timing/installations/{id}", null, cancellationToken);
     public Task RefreshInstallationCapabilitiesAsync(Guid id, CancellationToken cancellationToken = default) =>
         client.SendAsync<object>(HttpMethod.Post, $"api/admin/timing/installations/{id}/capabilities/refresh", null, cancellationToken);
+    public async Task<IReadOnlyList<Timing.PassingReplayRequestDTO>> GetPassingReplaysAsync(Guid installationId, CancellationToken cancellationToken = default) =>
+        await client.SendAsync<List<Timing.PassingReplayRequestDTO>>(HttpMethod.Get, $"api/admin/timing/installations/{installationId}/passing-replays", null, cancellationToken) ?? [];
+    public async Task<Timing.PassingReplayRequestDTO> RequestPassingReplayAsync(Guid installationId, Timing.CreatePassingReplayRequest request, CancellationToken cancellationToken = default) =>
+        await client.SendAsync<Timing.PassingReplayRequestDTO>(HttpMethod.Post, $"api/admin/timing/installations/{installationId}/passing-replays", request, cancellationToken) ?? throw new HttpRequestException("Missing passing replay response.");
     public async Task<Timing.TimingPointDTO> SaveTimingPointAsync(Guid installationId, Guid? id, Timing.SaveTimingPointRequest request, CancellationToken cancellationToken = default) =>
         await client.SendAsync<Timing.TimingPointDTO>(id.HasValue ? HttpMethod.Put : HttpMethod.Post, $"api/admin/timing/installations/{installationId}/points{Suffix(id)}", request, cancellationToken) ?? throw new HttpRequestException("Missing timing point response.");
     public Task DeleteTimingPointAsync(Guid installationId, Guid id, CancellationToken cancellationToken = default) =>

@@ -23,6 +23,10 @@ public interface IInfrastructureAdministrationService
     Task DeleteInstallationAsync(Guid id, CancellationToken cancellationToken = default);
     /// <summary>Asks the installation's agent for a fresh capability report; it arrives asynchronously.</summary>
     Task RefreshInstallationCapabilitiesAsync(Guid id, CancellationToken cancellationToken = default);
+    /// <summary>The installation's passing replays, newest first.</summary>
+    Task<IReadOnlyList<Timing.PassingReplayRequestDTO>> GetPassingReplaysAsync(Guid installationId, CancellationToken cancellationToken = default);
+    /// <summary>Asks the installation's agent to send passings again. A refused request throws an HttpRequestException whose message is the reason code.</summary>
+    Task<Timing.PassingReplayRequestDTO> RequestPassingReplayAsync(Guid installationId, Timing.CreatePassingReplayRequest request, CancellationToken cancellationToken = default);
     Task<Timing.TimingPointDTO> SaveTimingPointAsync(Guid installationId, Guid? id, Timing.SaveTimingPointRequest request, CancellationToken cancellationToken = default);
     Task DeleteTimingPointAsync(Guid installationId, Guid id, CancellationToken cancellationToken = default);
 }
