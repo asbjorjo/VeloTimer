@@ -24,6 +24,10 @@ public class RejectedPassing
     public bool LowBattery { get; set; }
     public bool LowStrength { get; set; }
     public bool LowHits { get; set; }
+    /// <summary>Signal strength in the decoder's own units, as reported. Null when the agent does not send it.</summary>
+    public double? Strength { get; set; }
+    /// <summary>Hits the decoder counted for the passing. Null when the agent does not send it.</summary>
+    public int? Hits { get; set; }
     public PassingRejectionReason Reason { get; set; }
     public DateTime FirstSeenAt { get; init; }
     public DateTime LastSeenAt { get; set; }

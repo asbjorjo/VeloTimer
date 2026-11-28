@@ -26,6 +26,10 @@ public class PassingConflict
     public bool LowBattery { get; init; }
     public bool LowStrength { get; init; }
     public bool LowHits { get; init; }
+    /// <summary>Signal strength in the decoder's own units, as reported. Null when the agent does not send it.</summary>
+    public double? Strength { get; init; }
+    /// <summary>Hits the decoder counted for the passing. Null when the agent does not send it.</summary>
+    public int? Hits { get; init; }
     public DateTime FirstSeenAt { get; init; }
     public DateTime LastSeenAt { get; set; }
     public int Occurrences { get; set; } = 1;

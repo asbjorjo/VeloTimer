@@ -686,6 +686,17 @@ decoder's own units. Apply the agent `AddPassingStrengthAndHits` EF migration
 before storing strength and hits in the agent passing store. See
 [docs/loop-health-plan.md](docs/loop-health-plan.md).
 
+Timing stores every loop status sample in `timing.loop_status` (one row per
+timing point and decoder time, so redelivery and replay insert nothing) and keeps
+5-minute aggregates in `timing.loop_status_rollup`, updated in the same
+transaction as each new sample. Raw samples are kept indefinitely; the rollup can
+be rebuilt from them. Passings, rejected passings, and conflicts carry the
+nullable `strength` and `hits`, and a changed strength or hit count for a known
+passing is a conflict like any other payload change. Installation `LastSeen`
+advances only in steps of at least `Timing:LastSeenResolution` (default
+`00:00:30`), so frequent status samples do not rewrite the installation row or
+churn its cache entry.
+
 The `velotime-web` client scope is a default scope in the checked-in realm import. It
 adds the application URL audience and user subject required by the domain APIs, as
 well as the realm-role claims used by the WebUI. The scope does not grant

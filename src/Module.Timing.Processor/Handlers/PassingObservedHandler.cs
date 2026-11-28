@@ -39,7 +39,9 @@ public class PassingObservedHandler(IAgentService agentService, InstallationServ
             Time: message.Time,
             LowBattery: message.LowBattery,
             LowStrength: message.LowStrength,
-            LowHits: message.LowHits), cancellationToken);
+            LowHits: message.LowHits,
+            Strength: message.Strength,
+            Hits: message.Hits), cancellationToken);
 
         var installation = await installationService.GetInstallationForAgent(AgentId, cancellationToken);
         if (installation is not null)

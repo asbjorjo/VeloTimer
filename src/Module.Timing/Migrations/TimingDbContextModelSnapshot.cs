@@ -118,12 +118,175 @@ namespace VeloTime.Module.Timing.Migrations
                         });
                 });
 
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.LoopStatusRollup", b =>
+                {
+                    b.Property<Guid>("TimingPointId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("timing_point_id");
+
+                    b.Property<DateTime>("BucketStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("bucket_start");
+
+                    b.Property<Guid>("InstallationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("installation_id");
+
+                    b.Property<double>("NoiseMax")
+                        .HasColumnType("double precision")
+                        .HasColumnName("noise_max");
+
+                    b.Property<double>("NoiseMin")
+                        .HasColumnType("double precision")
+                        .HasColumnName("noise_min");
+
+                    b.Property<double>("NoiseSum")
+                        .HasColumnType("double precision")
+                        .HasColumnName("noise_sum");
+
+                    b.Property<int>("Samples")
+                        .HasColumnType("integer")
+                        .HasColumnName("samples");
+
+                    b.Property<int>("SharedScaleSamples")
+                        .HasColumnType("integer")
+                        .HasColumnName("shared_scale_samples");
+
+                    b.Property<int>("SyncSamples")
+                        .HasColumnType("integer")
+                        .HasColumnName("sync_samples");
+
+                    b.Property<double?>("TemperatureMax")
+                        .HasColumnType("double precision")
+                        .HasColumnName("temperature_max");
+
+                    b.Property<double?>("TemperatureMin")
+                        .HasColumnType("double precision")
+                        .HasColumnName("temperature_min");
+
+                    b.Property<int>("TemperatureSamples")
+                        .HasColumnType("integer")
+                        .HasColumnName("temperature_samples");
+
+                    b.Property<double>("TemperatureSum")
+                        .HasColumnType("double precision")
+                        .HasColumnName("temperature_sum");
+
+                    b.Property<int>("TriggerSamples")
+                        .HasColumnType("integer")
+                        .HasColumnName("trigger_samples");
+
+                    b.Property<long>("TriggersSum")
+                        .HasColumnType("bigint")
+                        .HasColumnName("triggers_sum");
+
+                    b.Property<int>("UnsynchronisedSamples")
+                        .HasColumnType("integer")
+                        .HasColumnName("unsynchronised_samples");
+
+                    b.Property<double?>("VoltageMax")
+                        .HasColumnType("double precision")
+                        .HasColumnName("voltage_max");
+
+                    b.Property<double?>("VoltageMin")
+                        .HasColumnType("double precision")
+                        .HasColumnName("voltage_min");
+
+                    b.Property<int>("VoltageSamples")
+                        .HasColumnType("integer")
+                        .HasColumnName("voltage_samples");
+
+                    b.Property<double>("VoltageSum")
+                        .HasColumnType("double precision")
+                        .HasColumnName("voltage_sum");
+
+                    b.HasKey("TimingPointId", "BucketStart")
+                        .HasName("pk_loop_status_rollup");
+
+                    b.HasIndex("InstallationId", "BucketStart")
+                        .HasDatabaseName("ix_loop_status_rollup_installation_id_bucket_start");
+
+                    b.ToTable("loop_status_rollup", "timing");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.LoopStatusSample", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("DecoderId")
+                        .HasColumnType("text")
+                        .HasColumnName("decoder_id");
+
+                    b.Property<double?>("DecoderTemperature")
+                        .HasColumnType("double precision")
+                        .HasColumnName("decoder_temperature");
+
+                    b.Property<double?>("InputVoltage")
+                        .HasColumnType("double precision")
+                        .HasColumnName("input_voltage");
+
+                    b.Property<Guid>("InstallationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("installation_id");
+
+                    b.Property<int?>("LoopTriggers")
+                        .HasColumnType("integer")
+                        .HasColumnName("loop_triggers");
+
+                    b.Property<double>("Noise")
+                        .HasColumnType("double precision")
+                        .HasColumnName("noise");
+
+                    b.Property<bool?>("NoiseSharesStrengthScale")
+                        .HasColumnType("boolean")
+                        .HasColumnName("noise_shares_strength_scale");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<int?>("SatellitesInUse")
+                        .HasColumnType("integer")
+                        .HasColumnName("satellites_in_use");
+
+                    b.Property<DateTime>("Time")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("time");
+
+                    b.Property<bool?>("TimeSynchronised")
+                        .HasColumnType("boolean")
+                        .HasColumnName("time_synchronised");
+
+                    b.Property<Guid>("TimingPointId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("timing_point_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_loop_status");
+
+                    b.HasIndex("InstallationId", "Time")
+                        .HasDatabaseName("ix_loop_status_installation_id_time");
+
+                    b.HasIndex("TimingPointId", "Time")
+                        .IsUnique()
+                        .HasDatabaseName("ix_loop_status_timing_point_id_time");
+
+                    b.ToTable("loop_status", "timing");
+                });
+
             modelBuilder.Entity("VeloTime.Module.Timing.Model.Passing", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<int?>("Hits")
+                        .HasColumnType("integer")
+                        .HasColumnName("hits");
 
                     b.Property<Guid>("InstallationId")
                         .HasColumnType("uuid")
@@ -145,6 +308,10 @@ namespace VeloTime.Module.Timing.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("source_passing_id");
 
+                    b.Property<double?>("Strength")
+                        .HasColumnType("double precision")
+                        .HasColumnName("strength");
+
                     b.Property<DateTime>("Time")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("time");
@@ -163,12 +330,12 @@ namespace VeloTime.Module.Timing.Migrations
                     b.HasIndex("Time")
                         .HasDatabaseName("ix_passing_time");
 
-                    b.HasIndex("TimingPointId")
-                        .HasDatabaseName("ix_passing_timing_point_id");
-
                     b.HasIndex("InstallationId", "SourcePassingId")
                         .IsUnique()
                         .HasDatabaseName("ix_passing_installation_id_source_passing_id");
+
+                    b.HasIndex("TimingPointId", "Time")
+                        .HasDatabaseName("ix_passing_timing_point_id_time");
 
                     b.HasIndex("TransponderId", "Time", "TimingPointId")
                         .IsUnique()
@@ -176,6 +343,10 @@ namespace VeloTime.Module.Timing.Migrations
 
                     b.HasIndex("InstallationId", "TransponderId", "Time", "Id")
                         .HasDatabaseName("ix_passing_installation_id_transponder_id_time_id");
+
+                    b.HasIndex(new[] { "TimingPointId", "Time" }, "ix_passing_timing_point_id_time_warning")
+                        .HasDatabaseName("ix_passing_timing_point_id_time1")
+                        .HasFilter("low_strength OR low_hits OR low_battery");
 
                     b.ToTable("passing", "timing");
                 });
@@ -194,6 +365,10 @@ namespace VeloTime.Module.Timing.Migrations
                     b.Property<DateTime>("FirstSeenAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("first_seen_at");
+
+                    b.Property<int?>("Hits")
+                        .HasColumnType("integer")
+                        .HasColumnName("hits");
 
                     b.Property<Guid>("InstallationId")
                         .HasColumnType("uuid")
@@ -227,6 +402,10 @@ namespace VeloTime.Module.Timing.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("source_passing_id");
 
+                    b.Property<double?>("Strength")
+                        .HasColumnType("double precision")
+                        .HasColumnName("strength");
+
                     b.Property<DateTime>("Time")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("time");
@@ -245,9 +424,11 @@ namespace VeloTime.Module.Timing.Migrations
                     b.HasIndex("LastSeenAt")
                         .HasDatabaseName("ix_passing_conflict_last_seen_at");
 
-                    b.HasIndex("InstallationId", "SourcePassingId", "Reason", "TransponderId", "TimingPointId", "Time", "LowBattery", "LowStrength", "LowHits")
+                    b.HasIndex("InstallationId", "SourcePassingId", "Reason", "TransponderId", "TimingPointId", "Time", "LowBattery", "LowStrength", "LowHits", "Strength", "Hits")
                         .IsUnique()
                         .HasDatabaseName("ix_passing_conflict_installation_id_source_passing_id_reason_t");
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("InstallationId", "SourcePassingId", "Reason", "TransponderId", "TimingPointId", "Time", "LowBattery", "LowStrength", "LowHits", "Strength", "Hits"), false);
 
                     b.ToTable("passing_conflict", "timing");
                 });
@@ -267,6 +448,10 @@ namespace VeloTime.Module.Timing.Migrations
                     b.Property<DateTime>("FirstSeenAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("first_seen_at");
+
+                    b.Property<int?>("Hits")
+                        .HasColumnType("integer")
+                        .HasColumnName("hits");
 
                     b.Property<DateTime>("LastSeenAt")
                         .HasColumnType("timestamp with time zone")
@@ -300,6 +485,10 @@ namespace VeloTime.Module.Timing.Migrations
                     b.Property<Guid>("SourcePassingId")
                         .HasColumnType("uuid")
                         .HasColumnName("source_passing_id");
+
+                    b.Property<double?>("Strength")
+                        .HasColumnType("double precision")
+                        .HasColumnName("strength");
 
                     b.Property<DateTime>("Time")
                         .HasColumnType("timestamp with time zone")
@@ -445,6 +634,40 @@ namespace VeloTime.Module.Timing.Migrations
                         .HasConstraintName("fk_installation_facility_assignment_installation_installation_");
 
                     b.Navigation("Installation");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.LoopStatusRollup", b =>
+                {
+                    b.HasOne("VeloTime.Module.Timing.Model.Installation", null)
+                        .WithMany()
+                        .HasForeignKey("InstallationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_loop_status_rollup_installation_installation_id");
+
+                    b.HasOne("VeloTime.Module.Timing.Model.TimingPoint", null)
+                        .WithMany()
+                        .HasForeignKey("TimingPointId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_loop_status_rollup_timing_point_timing_point_id");
+                });
+
+            modelBuilder.Entity("VeloTime.Module.Timing.Model.LoopStatusSample", b =>
+                {
+                    b.HasOne("VeloTime.Module.Timing.Model.Installation", null)
+                        .WithMany()
+                        .HasForeignKey("InstallationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_loop_status_installation_installation_id");
+
+                    b.HasOne("VeloTime.Module.Timing.Model.TimingPoint", null)
+                        .WithMany()
+                        .HasForeignKey("TimingPointId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_loop_status_timing_point_timing_point_id");
                 });
 
             modelBuilder.Entity("VeloTime.Module.Timing.Model.Passing", b =>

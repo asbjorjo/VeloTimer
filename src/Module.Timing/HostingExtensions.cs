@@ -29,7 +29,9 @@ public static class StartupExtensions
         builder.AddModuleStorage<TimingDbContext>(connectionName: "velotimedb");
 
         builder.AddModuleCache();
+        services.AddOptions<TimingOptions>().Bind(configuration.GetSection(TimingOptions.SectionName));
         services.AddScoped<InstallationService>();
+        services.AddScoped<LoopStatusService>();
         services.AddScoped<TransponderService>();
         
         services.AddSingleton<Metrics>();

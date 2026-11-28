@@ -12,7 +12,9 @@ public sealed record PassingObservation(
     DateTime Time,
     bool LowBattery = false,
     bool LowStrength = false,
-    bool LowHits = false);
+    bool LowHits = false,
+    double? Strength = null,
+    int? Hits = null);
 
 public enum PassingRegistrationOutcome
 {

@@ -219,6 +219,29 @@ public sealed class TimingServiceTests
     }
 
     [Fact]
+    public async Task AgentService_StoresStrengthAndHitsAndFlagsAChangedStrengthAsAConflict()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        var time = DateTime.UtcNow;
+        var measured = Observation("agent-s", "p-s", "106187721", "loop-1", time) with { Strength = 88.5, Hits = 30 };
+        var first = await database.AgentService.RegisterPassingAsync(measured);
+        var duplicate = await database.AgentService.RegisterPassingAsync(measured);
+        var changed = await database.AgentService.RegisterPassingAsync(measured with { Strength = 70 });
+        var unmeasured = await database.AgentService.RegisterPassingAsync(measured with { Strength = null, Hits = null });
+
+        Assert.Equal(PassingRegistrationOutcome.Recorded, first.Outcome);
+        Assert.Equal(PassingRegistrationOutcome.Duplicate, duplicate.Outcome);
+        Assert.Equal(PassingRegistrationOutcome.Conflict, changed.Outcome);
+        Assert.Equal(PassingRegistrationOutcome.Conflict, unmeasured.Outcome);
+        var stored = await database.Storage.Set<Passing>().AsNoTracking().SingleAsync();
+        Assert.Equal((88.5, 30), (stored.Strength, stored.Hits));
+        var conflicts = await database.Storage.Set<PassingConflict>().AsNoTracking().OrderBy(c => c.Strength).ToListAsync();
+        Assert.Equal([null, 70], conflicts.Select(c => c.Strength));
+        Assert.Equal([null, 30], conflicts.Select(c => c.Hits));
+        Assert.Single(database.Bus.Published);
+    }
+
+    [Fact]
     public async Task AgentService_SameSourceIdWithDifferentPayloadIsRejectedAndFlagged()
     {
         await using var database = await TestDatabase.CreateAsync();

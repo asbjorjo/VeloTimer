@@ -1,7 +1,7 @@
 # Plan: loop status history and loop health graphs for admins
 
 Base: `v2` at `15f82de5` (2.1.0-alpha.56, after replay-safe Phase 5 #152). Branch from and target `v2`.
-Status: approved plan (owner, 2026-11-28). Phase 1 (contract and agent library) is implemented; later phases are not.
+Status: approved plan (owner, 2026-11-28). Phases 1 (contract and agent library) and 2 (Timing storage) are implemented; later phases are not.
 
 ## Goal
 
@@ -103,7 +103,10 @@ Unique index `(timing_point_id, time)`. A status sample has no decoder sequence 
 
 New table `timing.loop_status_rollup`, one row per `(timing_point_id, bucket_start)` with a 5-minute bucket:
 `samples`, `noise_sum`, `noise_min`, `noise_max`, the same for temperature and voltage, `triggers_sum`,
-`unsynchronised_samples`. These are all mergeable aggregates. In the **same transaction** as the raw insert,
+`unsynchronised_samples`. These are all mergeable aggregates. As built, each nullable value also has its own
+sample count (`temperature_samples`, `voltage_samples`, `trigger_samples`, `sync_samples`) so averages stay correct
+when only some samples report it, and `shared_scale_samples` counts samples whose agent declared a shared
+noise/strength scale. In the **same transaction** as the raw insert,
 and only when the insert actually inserted a row, the handler upserts the bucket (`samples + 1`,
 `least/greatest`, sums). Because the raw insert deduplicates first, replay and out-of-order delivery give the
 same rollup. Coarser buckets (1 h, 1 day) are aggregated from the 5-minute rows at query time.
