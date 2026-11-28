@@ -34,6 +34,15 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
     public Task SendEventsAsync(IEnumerable<Passing> passing, CancellationToken cancellationToken) =>
         EnqueueAsync(passing, m => m.ToMessage(), "Passings", cancellationToken, PreparePassingsAsync, processedPassing: true);
 
+    /// <summary>
+    /// Enqueues <see cref="Interface.Messages.Events.PassingObservedV1"/> for every passing, including ones already in
+    /// the agent store, with the <c>ReplayRequestId</c> header so Timing can count the outcomes per replay. Unlike
+    /// <see cref="SendEventsAsync(IEnumerable{Passing}, CancellationToken)"/> nothing is inserted into the store.
+    /// </summary>
+    public Task RepublishAsync(IEnumerable<Passing> passings, Guid replayRequestId, CancellationToken cancellationToken) =>
+        EnqueueAsync(passings, m => m.ToMessage(), "Replay Passings", cancellationToken,
+            headers: new Dictionary<string, object> { [Interface.AgentControl.ReplayRequestIdHeader] = replayRequestId.ToString() });
+
     public Task SendEventsAsync(IEnumerable<SegmentConfig> config) => SendEventsAsync(config, CancellationToken.None);
 
     public Task SendEventsAsync(IEnumerable<SegmentConfig> config, CancellationToken cancellationToken) =>
@@ -142,7 +151,8 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
 
     private async Task EnqueueAsync<TModel, TMessage>(IEnumerable<TModel> input, Func<TModel, TMessage> map,
         string operation, CancellationToken cancellationToken,
-        Func<TModel[], CancellationToken, Task<TModel[]>>? prepare = null, bool processedPassing = false)
+        Func<TModel[], CancellationToken, Task<TModel[]>>? prepare = null, bool processedPassing = false,
+        IDictionary<string, object>? headers = null)
         where TMessage : class
     {
         using var activity = Instrumentation.Source.StartActivity($"Send {operation}");
@@ -161,7 +171,9 @@ public class MessagingService(IMessageBus messageBus, AgentDbContext dbContext, 
             foreach (var item in batch)
             {
                 // Collection publishes bypass SlimMessageBus 3.4 outbox interceptors.
-                await messageBus.Publish(map(item), cancellationToken: cancellationToken);
+                await messageBus.Publish(map(item),
+                    headers: headers is null ? null : new Dictionary<string, object>(headers),
+                    cancellationToken: cancellationToken);
             }
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);

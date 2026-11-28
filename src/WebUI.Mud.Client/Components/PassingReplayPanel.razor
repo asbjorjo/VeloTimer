@@ -1,0 +1,192 @@
+@inherits PresentationComponentBase
+@using VeloTime.Module.Timing.Interface.Data
+@inject IInfrastructureAdministrationService Service
+@inject ISnackbar Snackbar
+@implements IDisposable
+
+@* Passing replays for one installation (docs/passing-replay-plan.md): request form and history. *@
+<section aria-labelledby="passing-replays-heading" data-testid="passing-replays">
+    <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.h6" HtmlTag="h2" id="passing-replays-heading">@L["PassingReplays"]</MudText><MudSpacer />
+        @if (Modes.Count > 0 && !_open)
+        {
+            <MudButton StartIcon="@Icons.Material.Filled.Replay" Color="Color.Primary" OnClick="Open" Disabled="@(Disabled || !Display.IsReady)">@L["ReplayPassings"]</MudButton>
+        }
+        <MudTooltip Text="@L["Refresh"]"><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="LoadHistory" Disabled="_loading" aria-label="@L["Refresh"]" /></MudTooltip>
+    </MudStack>
+    @if (Modes.Count == 0) { <MudText Class="mb-2">@L["ReplayNotAdvertised"]</MudText> }
+    @if (_open)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mb-4">
+            @foreach (var warning in Warnings()) { <MudAlert Severity="Severity.Warning" Class="mb-2">@warning</MudAlert> }
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudSelect T="string" @bind-Value="_mode" Label="@L["ReplayMode"]" Disabled="_submitting">
+                        @foreach (var mode in Modes) { <MudSelectItem Value="@mode.Mode">@ModeName(mode.Mode)</MudSelectItem> }
+                    </MudSelect>
+                    @if (SelectedMode is { } selected) { <MudText Typo="Typo.caption">@Limits(selected)</MudText> }
+                </MudItem>
+                <MudItem xs="12" md="4"><ZonedInstantEditor Draft="_fromDraft" EditorSettings="Display" Label="@L["From"]" Disabled="_submitting" /></MudItem>
+                <MudItem xs="12" md="4"><ZonedInstantEditor Draft="_toDraft" EditorSettings="Display" Label="@L["ToExclusive"]" Disabled="_submitting" /></MudItem>
+                @if (SelectedMode?.SupportsLoopFilter == true && LoopIds.Count > 0)
+                {
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string" MultiSelection="true" @bind-SelectedValues="_loops" Label="@L["ReplayLoops"]" HelperText="@L["ReplayLoopsHelp"]" Clearable="true" Disabled="_submitting">
+                            @foreach (var loop in LoopIds) { <MudSelectItem Value="@loop">@loop</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                }
+                <MudItem xs="12" md="6"><MudTextField @bind-Value="_note" Label="@L["ReplayNote"]" MaxLength="500" Disabled="_submitting" /></MudItem>
+            </MudGrid>
+            @if (_formError is not null) { <MudAlert Severity="Severity.Error" role="alert" Class="mt-2">@_formError</MudAlert> }
+            <MudStack Row="true" Spacing="3" Class="mt-4">
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@(_submitting || !Display.IsReady)">@L["RequestReplay"]</MudButton>
+                <MudButton OnClick="() => _open = false" Disabled="_submitting">@L["Cancel"]</MudButton>
+            </MudStack>
+        </MudPaper>
+    }
+    @if (_error is not null) { <MudAlert Severity="Severity.Error" role="alert" Class="mb-2">@_error</MudAlert> }
+    @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
+    <MudTable T="PassingReplayRequestDTO" Items="_history" Dense="true" Elevation="0">
+        <HeaderContent><MudTh>@L["ReplayRequested"]</MudTh><MudTh>@L["ReplayMode"]</MudTh><MudTh>@L["ReplayRange"]</MudTh><MudTh>@L["ReplayState"]</MudTh><MudTh>@L["ReplayCounts"]</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="@L["ReplayRequested"]">@Stamp(context.CreatedAt)</MudTd>
+            <MudTd DataLabel="@L["ReplayMode"]">@ModeName(context.Mode)@(context.LoopIds.Count > 0 ? $" ({string.Join(", ", context.LoopIds)})" : "")</MudTd>
+            <MudTd DataLabel="@L["ReplayRange"]">@Stamp(context.FromUtc) – @Stamp(context.ToUtc)</MudTd>
+            <MudTd DataLabel="@L["ReplayState"]">@StateName(context)</MudTd>
+            <MudTd DataLabel="@L["ReplayCounts"]">@Counts(context)</MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText>@L["NoReplays"]</MudText></NoRecordsContent>
+    </MudTable>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Guid InstallationId { get; set; }
+    [Parameter] public AgentCapabilitiesDTO? Report { get; set; }
+    [Parameter] public DateTime? LastSeen { get; set; }
+    /// <summary>The installation's loop IDs (timing point system IDs) for the loop filter.</summary>
+    [Parameter] public IReadOnlyList<string> LoopIds { get; set; } = [];
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>The agent is flagged as not seen recently after this long without a passing or loop status.</summary>
+    internal static readonly TimeSpan NotSeenAfter = TimeSpan.FromMinutes(15);
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<PassingReplayRequestDTO> _history = [];
+    private bool _loading, _open, _submitting;
+    private string? _error, _formError, _note;
+    private string _mode = "";
+    private IReadOnlyCollection<string> _loops = [];
+    private ZonedInstantDraft _fromDraft = new(), _toDraft = new();
+    private Guid _loadedFor;
+
+    internal IReadOnlyList<PassingReplayCapabilityDTO> Modes => Report?.Capabilities
+        .Where(c => c.Name == "passing-replay" && c.PassingReplay is not null).Select(c => c.PassingReplay!).ToList() ?? [];
+    private PassingReplayCapabilityDTO? SelectedMode => Modes.FirstOrDefault(m => m.Mode == _mode);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == InstallationId) return;
+        _loadedFor = InstallationId;
+        await LoadHistory();
+    }
+
+    private async Task LoadHistory()
+    {
+        _loading = true; _error = null;
+        try { _history = await Service.GetPassingReplaysAsync(InstallationId, _lifetime.Token); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception) { _error = L["ReplayHistoryLoadFailed"]; }
+        finally { _loading = false; }
+    }
+
+    private void Open()
+    {
+        _mode = Modes.FirstOrDefault()?.Mode ?? "";
+        var now = DateTimeOffset.UtcNow;
+        _toDraft = ZonedInstantDraft.FromInstant(now, Display);
+        _fromDraft = ZonedInstantDraft.FromInstant(now.AddHours(-1), Display);
+        _loops = []; _note = null; _formError = null; _open = true;
+    }
+
+    internal IEnumerable<string> Warnings(DateTime? nowUtc = null)
+    {
+        var now = nowUtc ?? DateTime.UtcNow;
+        if (Report is { } report && AgentCapabilitiesPanel.IsStale(report, now)) yield return L["ReplayReportStaleWarning"];
+        if (LastSeen is not { } seen || now - DateTime.SpecifyKind(seen, DateTimeKind.Utc) > NotSeenAfter) yield return L["ReplayAgentNotSeenWarning"];
+    }
+
+    /// <summary>The same checks the platform makes, so most mistakes are explained before anything is sent. Returns a reason code.</summary>
+    internal static string? Check(PassingReplayCapabilityDTO? mode, DateTime fromUtc, DateTime toUtc, int loopCount)
+    {
+        if (mode is null) return "UnsupportedMode";
+        if (fromUtc >= toUtc) return "InvalidRange";
+        if (mode.MaxRangeSeconds is { } max && (toUtc - fromUtc).TotalSeconds > max) return "RangeTooLong";
+        if (mode.OldestAvailableUtc is { } oldest && toUtc <= oldest) return "OutOfRetention";
+        if (loopCount > 0 && !mode.SupportsLoopFilter) return "LoopFilterUnsupported";
+        return null;
+    }
+
+    private async Task Submit()
+    {
+        _formError = null;
+        DateTime from, to;
+        try { from = _fromDraft.Resolve(Display).UtcDateTime; to = _toDraft.Resolve(Display).UtcDateTime; }
+        catch (PresentationValidationException exception) { _formError = L[exception.ResourceKey]; return; }
+        var loops = _loops.ToList();
+        if (Check(SelectedMode, from, to, loops.Count) is { } problem) { _formError = Reason(problem); return; }
+        _submitting = true;
+        try
+        {
+            await Service.RequestPassingReplayAsync(InstallationId, new CreatePassingReplayRequest
+            {
+                Mode = _mode, FromUtc = from, ToUtc = to, LoopIds = loops.Count == 0 ? null : loops, Note = _note
+            }, _lifetime.Token);
+            Snackbar.Add(L["ReplayRequestedMessage"], Severity.Success);
+            _open = false;
+            await LoadHistory();
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+        {
+            _formError = Reason(exception.Message);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception) { _formError = L["ReplayRequestFailed"]; }
+        finally { _submitting = false; }
+    }
+
+    private string Reason(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return L["ReplayRequestFailed"];
+        var text = L[$"ReplayReason{code}"];
+        return text.ResourceNotFound ? code : text.Value;
+    }
+
+    private string Stamp(DateTime utc) => Display.IsReady ? Display.Timestamp(utc) : "…";
+
+    private string ModeName(string mode) => mode switch
+    {
+        "AgentStore" => L["ReplayModeAgentStore"].Value,
+        "Source" => L["ReplayModeSource"].Value,
+        _ => mode
+    };
+
+    private string Limits(PassingReplayCapabilityDTO mode)
+    {
+        var oldest = mode.OldestAvailableUtc is { } value ? L["ReplayOldestAvailable", Stamp(value)].Value : L["ReplayOldestUnknown"].Value;
+        var range = mode.MaxRangeSeconds is { } seconds ? L["ReplayMaxRange", L["DurationDays", Math.Round(seconds / 86400, 1)]].Value : L["ReplayMaxRangeUnlimited"].Value;
+        return $"{oldest} · {range}";
+    }
+
+    private string StateName(PassingReplayRequestDTO replay)
+    {
+        var state = L[$"ReplayState{replay.State}"];
+        var name = state.ResourceNotFound ? replay.State : state.Value;
+        return replay.Reason is { Length: > 0 } reason ? $"{name}: {Reason(reason)}" : name;
+    }
+
+    internal string Counts(PassingReplayRequestDTO replay) =>
+        L["ReplayCountsSummary", replay.Read, replay.Recorded, replay.Duplicate, replay.Conflict, replay.Rejected];
+
+    public void Dispose() { _lifetime.Cancel(); _lifetime.Dispose(); }
+}

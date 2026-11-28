@@ -43,6 +43,9 @@
             <MudDivider Class="my-6" />
             <AgentCapabilitiesPanel InstallationId="_installation.Id" Report="_installation.Capabilities" Disabled="_busy" />
             <MudDivider Class="my-6" />
+            <PassingReplayPanel InstallationId="_installation.Id" Report="_installation.Capabilities" LastSeen="_installation.LastSeen"
+                                LoopIds="@_installation.TimingPoints.Select(point => point.SystemId).OrderBy(id => id).ToList()" Disabled="_busy" />
+            <MudDivider Class="my-6" />
             <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-4">
                 <MudText Typo="Typo.h6">@L["TimingPoints"]</MudText><MudSpacer />
                 <MudButton StartIcon="@Icons.Material.Filled.Add" OnClick="() => EditPoint(null)" Disabled="@(_busy || _dirty || _pointEditing)">@L["NewTimingPoint"]</MudButton>

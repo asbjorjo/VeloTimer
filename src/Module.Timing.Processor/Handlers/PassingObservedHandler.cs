@@ -1,5 +1,6 @@
 using SlimMessageBus;
 using System.Diagnostics;
+using VeloTime.Agent.Interface;
 using VeloTime.Agent.Interface.Messages.Events;
 using VeloTime.Module.Timing.Service;
 
@@ -39,7 +40,10 @@ public class PassingObservedHandler(IAgentService agentService, InstallationServ
             Time: message.Time,
             LowBattery: message.LowBattery,
             LowStrength: message.LowStrength,
-            LowHits: message.LowHits), cancellationToken);
+            LowHits: message.LowHits)
+        {
+            ReplayRequestId = ReplayRequestId()
+        }, cancellationToken);
 
         var installation = await installationService.GetInstallationForAgent(AgentId, cancellationToken);
         if (installation is not null)
@@ -49,4 +53,9 @@ public class PassingObservedHandler(IAgentService agentService, InstallationServ
 
         activity?.SetStatus(ActivityStatusCode.Ok);
     }
+
+    /// <summary>The replay a re-sent passing belongs to; a malformed header is ignored, so the passing still counts.</summary>
+    private Guid? ReplayRequestId() =>
+        Context.Headers.TryGetValue(AgentControl.ReplayRequestIdHeader, out var value) && Guid.TryParse(value?.ToString(), out var id)
+            ? id : null;
 }

@@ -72,10 +72,16 @@ public static class StartupExtensions
                 .SubscriptionName("infrastructure")
                 .SubscriptionSqlFilter($"MessageName = '{nameof(AgentCapabilitiesV1)}'")
                 .WithConsumer<AgentCapabilitiesHandler>());
+            mbb.Consume<PassingReplayStatusV1>(x => x
+                .Topic("velotime-agent")
+                .SubscriptionName("infrastructure")
+                .SubscriptionSqlFilter($"MessageName = '{nameof(PassingReplayStatusV1)}'")
+                .WithConsumer<PassingReplayStatusHandler>());
             mbb.AddServicesFromAssemblyContaining<PassingObservedHandler>();
         });
 
         services.AddScoped<IAgentService, AgentService>();
+        services.AddHostedService<PassingReplayExpiryWorker>();
 
         builder.AddModuleTiming();
         // Delivery health (plan Phase 5): the shared Timing outbox and this host's dead-letter queues.

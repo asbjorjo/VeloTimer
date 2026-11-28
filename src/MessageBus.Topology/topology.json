@@ -1,4 +1,4 @@
-{
+﻿{
   "MessageBusTopology": {
     "Topics": [
       {
@@ -17,7 +17,8 @@
             "rules": [
               { "name": "InstallationLayoutEvent", "sqlFilter": "MessageName = 'InstallationLayoutEvent'" },
               { "name": "LoopStatusEvent", "sqlFilter": "MessageName = 'LoopStatusEvent'" },
-              { "name": "AgentCapabilitiesV1", "sqlFilter": "MessageName = 'AgentCapabilitiesV1'" }
+              { "name": "AgentCapabilitiesV1", "sqlFilter": "MessageName = 'AgentCapabilitiesV1'" },
+              { "name": "PassingReplayStatusV1", "sqlFilter": "MessageName = 'PassingReplayStatusV1'" }
             ]
           }
         ]

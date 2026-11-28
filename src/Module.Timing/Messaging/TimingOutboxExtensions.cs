@@ -53,6 +53,16 @@ public static class TimingOutboxExtensions
                 transportMessage.MessageId = message.RequestId.ToString();
                 transportMessage.TimeToLive = AgentCommandTimeToLive;
             }));
+        mbb.Produce<ReplayPassingsCommandV1>(producer => producer
+            .DefaultTopic(AgentControl.Topic)
+            .WithModifier((message, transportMessage) =>
+            {
+                transportMessage.ApplicationProperties[AgentControl.AgentIdHeader] = message.AgentId;
+                transportMessage.MessageId = message.RequestId.ToString();
+                // Service Bus drops the command once it expires; the agent also rejects an expired one it receives.
+                var remaining = message.ExpiresAtUtc - DateTime.UtcNow;
+                transportMessage.TimeToLive = remaining > TimeSpan.FromSeconds(1) ? remaining : TimeSpan.FromSeconds(1);
+            }));
         mbb.UseOutbox();
         mbb.AddOutboxUsingDbContext<TimingDbContext>(options =>
         {
