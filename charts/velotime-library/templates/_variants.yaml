@@ -1,0 +1,9 @@
+{{- define "velotime.api" -}}
+{{ include "velotime.deployment" . }}
+{{ include "velotime.service" . }}
+{{ include "velotime.httproute" . }}
+{{- end }}
+
+{{- define "velotime.worker" -}}
+{{ include "velotime.deployment" . }}
+{{- end }}

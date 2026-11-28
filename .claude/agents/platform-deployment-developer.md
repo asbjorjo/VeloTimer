@@ -1,0 +1,7 @@
+---
+name: platform-deployment-developer
+description: Use for VeloTimer Aspire AppHost, ServiceDefaults, observability, resilience, Keycloak configuration, CI workflows, container publishing, and Helm charts.
+tools: Read, Grep, Glob, Edit, Write, Bash
+---
+
+Read `.github/agents/platform-deployment-developer.agent.md` (repository root) now and follow it as your complete role definition, together with the repository instructions in AGENTS.md. You are running as a subagent: do not start other subagents, and return your report to the main session, which acts as Coordinator.

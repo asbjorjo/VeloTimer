@@ -1,0 +1,724 @@
+@page "/admin/statistics/entries"
+@inherits PresentationComponentBase
+@attribute [Authorize(Policy = AdministrationPolicies.Statistics)]
+@using System.Globalization
+@using System.Net
+@using VeloTime.Module.Statistics.Interface.Data
+@using VeloTime.WebUI.Mud.Client.ViewModel
+@inject IStatisticsAdministrationService Administration
+@inject IFacilityService Facilities
+@inject IDialogService Dialogs
+@inject ISnackbar Snackbar
+@implements IDisposable
+
+<PageTitle>@L["StatisticsEntries"]</PageTitle>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+    <MudText Typo="Typo.h5" HtmlTag="h1" Class="mb-4">@L["StatisticsEntries"]</MudText>
+    <MudText Class="mb-4">@L["StatisticsEntriesHelp"]</MudText>
+    @if (_referenceError is not null)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mb-3" role="alert">
+            @_referenceError
+            <MudButton OnClick="LoadReferences" Disabled="_referencesLoading">@L["Retry"]</MudButton>
+        </MudAlert>
+    }
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="6" md="4">
+            <MudSelect T="Guid?" Value="_itemId" ValueChanged="SelectItem" Label="@L["StatisticsItemLabel"]" Disabled="Busy">
+                <MudSelectItem T="Guid?" Value="@((Guid?)null)">@L["StatisticsAllItems"]</MudSelectItem>
+                @foreach (var item in _items) { <MudSelectItem T="Guid?" Value="@((Guid?)item.Id)">@item.Name</MudSelectItem> }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudSelect T="Guid?" @bind-Value="_configurationId" Label="@L["Configuration"]" Disabled="Busy">
+                <MudSelectItem T="Guid?" Value="@((Guid?)null)">@L["StatisticsAllConfigurations"]</MudSelectItem>
+                @foreach (var config in _configurations.Where(config => !_itemId.HasValue || config.StatisticsItemId == _itemId))
+                { <MudSelectItem T="Guid?" Value="@((Guid?)config.Id)">@ConfigurationLabel(config)</MudSelectItem> }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudSelect T="Guid?" @bind-Value="_facilityId" Label="@L["Facility"]" Disabled="Busy">
+                <MudSelectItem T="Guid?" Value="@((Guid?)null)">@L["HallOfFameAllFacilities"]</MudSelectItem>
+                @foreach (var facility in _facilities) { <MudSelectItem T="Guid?" Value="@((Guid?)facility.Id)">@facility.Name</MudSelectItem> }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+    <MudStack Row="true" Wrap="Wrap.Wrap" Class="mb-4">
+        <MudButton OnClick="ApplyFilters" Disabled="Busy" Variant="Variant.Filled" Color="Color.Primary">@L["ApplyFilters"]</MudButton>
+        <MudButton OnClick="Refresh" Disabled="Busy" StartIcon="@Icons.Material.Filled.Refresh">@L["Refresh"]</MudButton>
+    </MudStack>
+    @if (_error is not null) { <MudAlert Severity="Severity.Error" Class="mb-4" role="alert">@_error</MudAlert> }
+    @if (_loading)
+    {
+        <div role="status" aria-live="polite"><MudProgressLinear Indeterminate="true" Color="Color.Primary" /><MudText>@L["Loading"]</MudText></div>
+    }
+    <div role="region" aria-label="@L["StatisticsEntries"]" tabindex="0" style="overflow-x:auto; width:100%;">
+    <MudTable T="AdminStatisticsEntryDTO" Items="Rows" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.None" OnRowClick="EntryRowClicked" Style="min-width:80rem; overflow-wrap:anywhere">
+        <HeaderContent>
+            <MudTh>@L["StatisticsEntry"]</MudTh>
+            <MudTh>@L["Profile"] / @L["Transponder"]</MudTh>
+            <MudTh aria-sort="@AriaSort(AdminStatisticsEntriesSort.TimeEnd)">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.caption">@L["Facility"]</MudText>
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Default"
+                               OnClick="() => SortBy(AdminStatisticsEntriesSort.TimeEnd)"
+                               aria-label="@L["StatisticsSortByCompletionTime"]">
+                        @L["StatisticsEntryTime"] @if (IsActiveSort(AdminStatisticsEntriesSort.TimeEnd)) { <MudIcon Icon="@SortIcon" /> }
+                    </MudButton>
+                </MudStack>
+            </MudTh>
+            <MudTh aria-sort="@AriaSort(AdminStatisticsEntriesSort.Duration)">
+                <MudStack Spacing="1" Class="statistics-entry-header-filter">
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Default"
+                               OnClick="() => SortBy(AdminStatisticsEntriesSort.Duration)"
+                               aria-label="@L["StatisticsSortByDuration"]">
+                        @L["Duration"] @if (IsActiveSort(AdminStatisticsEntriesSort.Duration)) { <MudIcon Icon="@SortIcon" /> }
+                    </MudButton>
+                    <MudTextField T="string" @bind-Value="_minDurationDraft" Label="@L["StatisticsMinimumDuration"]"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" DebounceInterval="350"
+                                  OnDebounceIntervalElapsed="DurationDraftDebounced" Clearable="true" />
+                    <MudTextField T="string" @bind-Value="_maxDurationDraft" Label="@L["StatisticsMaximumDuration"]"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" DebounceInterval="350"
+                                  OnDebounceIntervalElapsed="DurationDraftDebounced" Clearable="true" />
+                    <MudText Typo="Typo.caption">@L["StatisticsDurationFilterHelp"]</MudText>
+                    @if (_durationError is not null) { <MudText Color="Color.Error" Typo="Typo.caption" role="alert">@_durationError</MudText> }
+                </MudStack>
+            </MudTh>
+            <MudTh aria-sort="@AriaSort(AdminStatisticsEntriesSort.Speed)">
+                <MudStack Spacing="1" Class="statistics-entry-header-filter">
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Default"
+                               OnClick="() => SortBy(AdminStatisticsEntriesSort.Speed)"
+                               aria-label="@L["StatisticsSortBySpeed"]">
+                        @L["SpeedInUnit", Display.SpeedUnit] @if (IsActiveSort(AdminStatisticsEntriesSort.Speed)) { <MudIcon Icon="@SortIcon" /> }
+                    </MudButton>
+                    <MudTextField T="string" @bind-Value="_minSpeedDraft" Label="@L["StatisticsMinimumSpeed", Display.SpeedUnit]"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" DebounceInterval="350"
+                                  OnDebounceIntervalElapsed="SpeedDraftDebounced" Clearable="true" />
+                    <MudTextField T="string" @bind-Value="_maxSpeedDraft" Label="@L["StatisticsMaximumSpeed", Display.SpeedUnit]"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" DebounceInterval="350"
+                                  OnDebounceIntervalElapsed="SpeedDraftDebounced" Clearable="true" />
+                    <MudText Typo="Typo.caption">@L["StatisticsSpeedFilterHelp", Display.SpeedUnit]</MudText>
+                    @if (_speedError is not null) { <MudText Color="Color.Error" Typo="Typo.caption" role="alert">@_speedError</MudText> }
+                </MudStack>
+            </MudTh>
+            <MudTh aria-sort="none">
+                <MudSelect T="bool?" Value="_isValid" ValueChanged="ValidityChanged" Label="@L["StatisticsValidity"]" Disabled="_saving || _referencesLoading">
+                    <MudSelectItem T="bool?" Value="@((bool?)null)">@L["StatisticsAllValidity"]</MudSelectItem>
+                    <MudSelectItem T="bool?" Value="@((bool?)true)">@L["StatisticsValid"]</MudSelectItem>
+                    <MudSelectItem T="bool?" Value="@((bool?)false)">@L["StatisticsInvalid"]</MudSelectItem>
+                </MudSelect>
+            </MudTh>
+            <MudTh>@L["StatisticsManualAudit"]</MudTh>
+            <MudTh>@L["Actions"]</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="@L["StatisticsEntry"]">
+                <span @onclick:stopPropagation="true"><MudIconButton Icon="@(IsExpanded(context.Id) ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                               Size="Size.Small" Color="Color.Default"
+                               aria-label="@L[IsExpanded(context.Id) ? "StatisticsHideContributions" : "StatisticsShowContributions", context.StatisticsItemName]"
+                               aria-expanded="@IsExpanded(context.Id).ToString().ToLowerInvariant()"
+                               aria-controls="@ContributionsPanelId(context.Id)"
+                               OnClick="() => ToggleContributions(context.Id)" /></span>
+                <MudText>@context.StatisticsItemName</MudText><MudText Typo="Typo.caption">@context.Id</MudText>
+                <MudText Typo="Typo.caption">@L["Configuration"]: @context.StatisticsItemConfigId (@L[context.StatisticsItemConfigType == StatisticsConfigurationType.Simple ? "Simple" : "Multi"])</MudText>
+            </MudTd>
+            <MudTd DataLabel="@($"{L["Profile"]} / {L["Transponder"]}")">
+                <MudText>@(context.ProfileName ?? L["NoStatisticsProfile"].Value)</MudText>
+                @if (context.StatsProfileUserId.HasValue) { <MudText Typo="Typo.caption">@context.StatsProfileUserId</MudText> }
+                <MudText Typo="Typo.caption">@L["TransponderId"]: @context.TransponderId</MudText>
+            </MudTd>
+            <MudTd DataLabel="@($"{L["Facility"]} / {L["StatisticsEntryTime"]}")">
+                <MudText>@FacilityName(context.FacilityId)</MudText>
+                <MudText Typo="Typo.caption">@L["StatisticsEntryStart"]: @Display.Timestamp(context.TimeStart)</MudText>
+                <MudText Typo="Typo.caption">@L["StatisticsEntryEnd"]: @Display.Timestamp(context.TimeEnd)</MudText>
+            </MudTd>
+            <MudTd DataLabel="@L["Duration"]">@context.Duration.ToString("g", Display.NumberCulture)</MudTd>
+            <MudTd DataLabel="@L["SpeedInUnit", Display.SpeedUnit]">@Speed(context.SpeedMetresPerSecond)</MudTd>
+            <MudTd DataLabel="@L["StatisticsValidity"]">
+                <MudText>@L[context.IsValid ? "StatisticsValid" : "StatisticsInvalid"]</MudText>
+                @if (!context.IsValid) { <MudText Typo="Typo.caption">@Reason(context.InvalidReason)</MudText> }
+            </MudTd>
+            <MudTd DataLabel="@L["StatisticsManualAudit"]">
+                <MudText>@L[context.IsManuallyInvalidated ? "StatisticsManualActive" : "StatisticsManualInactive"]</MudText>
+                @if (context.ManualInvalidationChangedAtUtc.HasValue)
+                {
+                    <MudText Typo="Typo.caption">@Display.Timestamp(context.ManualInvalidationChangedAtUtc)</MudText>
+                    <MudText Typo="Typo.caption">@L["StatisticsManualActor"]: @(context.ManualInvalidationChangedByUserId?.ToString() ?? L["Unknown"].Value)</MudText>
+                    <MudText Typo="Typo.body2" Style="white-space:pre-wrap">@(context.ManualInvalidationNote ?? L["StatisticsNoNote"].Value)</MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="@L["Actions"]">
+                <span @onclick:stopPropagation="true"><MudButton OnClick="() => ChangeManualState(context)" Disabled="Busy" Color="Color.Primary"
+                           aria-label="@L[context.IsManuallyInvalidated ? "StatisticsRestoreEntry" : "StatisticsMarkEntry", context.Id]">
+                    @L[context.IsManuallyInvalidated ? "StatisticsRestore" : "StatisticsMarkInvalid"]
+                </MudButton></span>
+            </MudTd>
+        </RowTemplate>
+        <ChildRowContent Context="entry">
+            @if (IsExpanded(entry.Id))
+            {
+                <MudTr>
+                    <MudTd colspan="8" Class="pa-2 pa-sm-4">
+                        <section id="@ContributionsPanelId(entry.Id)" aria-label="@L["StatisticsEntryContributions", entry.StatisticsItemName]" class="statistics-contributions" @onclick:stopPropagation="true">
+                            <MudPaper Outlined="true" Class="pa-3 pa-sm-4">
+                                <MudText Typo="Typo.h6">@L["StatisticsEntryContributions"]</MudText>
+                                <MudText Typo="Typo.caption">@Display.Timestamp(entry.TimeStart) — @Display.Timestamp(entry.TimeEnd)</MudText>
+                                @if (_contributions.TryGetValue(entry.Id, out var details))
+                                {
+                                    @if (details.Loading)
+                                    {
+                                        <div role="status" aria-live="polite" class="my-3"><MudProgressLinear Indeterminate="true" Color="Color.Primary" /><MudText>@L["StatisticsContributionsLoading"]</MudText></div>
+                                    }
+                                    else if (details.Error is not null)
+                                    {
+                                        <MudAlert Severity="Severity.Error" role="alert" Class="my-3">
+                                            @details.Error
+                                            <span @onclick:stopPropagation="true"><MudButton OnClick="() => RetryContributions(entry.Id)" Disabled="details.Loading">@L["Retry"]</MudButton></span>
+                                        </MudAlert>
+                                    }
+                                    else if (details.Result is { } result)
+                                    {
+                                        <MudText Typo="Typo.subtitle1" Class="mt-3">@L["StatisticsContributionSamples"]</MudText>
+                                        @if (result.SamplesTruncated)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" Dense="true" role="status">@L["StatisticsContributionsTruncated", result.Samples.Count]</MudAlert>
+                                        }
+                                        @if (details.NamesError is not null)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" Dense="true" role="alert">
+                                                @L["StatisticsCoursePointNamesFailed"]
+                                                <span @onclick:stopPropagation="true"><MudButton OnClick="() => RetryCoursePointNames(entry.Id)" Disabled="details.NamesLoading">@L["Retry"]</MudButton></span>
+                                            </MudAlert>
+                                        }
+                                        @if (details.NamesLoading)
+                                        {
+                                            <div role="status" aria-live="polite"><MudProgressCircular Indeterminate="true" Size="Size.Small" /> @L["StatisticsCoursePointNamesLoading"]</div>
+                                        }
+                                        @if (result.Samples.Count == 0)
+                                        {
+                                            <MudText Typo="Typo.body2" role="status">@L["StatisticsContributionSamplesEmpty"]</MudText>
+                                        }
+                                        else
+                                        {
+                                            <div class="statistics-contributions-table" role="region" aria-label="@L["StatisticsContributionSamples"]" tabindex="0">
+                                                <table class="mud-table-root mud-table-dense">
+                                                    <thead><tr>
+                                                        <th scope="col">@L["StatisticsContributionStart"]</th><th scope="col">@L["StatisticsContributionEnd"]</th>
+                                                        <th scope="col">@L["StatisticsContributionCoursePointStart"]</th><th scope="col">@L["StatisticsContributionCoursePointEnd"]</th>
+                                                        <th scope="col">@L["Distance"]</th><th scope="col">@L["Duration"]</th><th scope="col">@L["SpeedInUnit", Display.SpeedUnit]</th><th scope="col">@L["Facility"]</th>
+                                                    </tr></thead>
+                                                    <tbody>
+                                                        @foreach (var sample in result.Samples)
+                                                        {
+                                                            <tr>
+                                                                <td data-label="@L["StatisticsContributionStart"]">@Display.Timestamp(sample.TimeStart)</td><td data-label="@L["StatisticsContributionEnd"]">@Display.Timestamp(sample.TimeEnd)</td>
+                                                                <td data-label="@L["StatisticsContributionCoursePointStart"]">@CoursePointName(details, sample.CoursePointStartId)</td><td data-label="@L["StatisticsContributionCoursePointEnd"]">@CoursePointName(details, sample.CoursePointEndId)</td>
+                                                                <td data-label="@L["Distance"]">@Display.Distance(sample.DistanceMetres)</td><td data-label="@L["Duration"]">@sample.Duration.ToString("g", Display.NumberCulture)</td>
+                                                                <td data-label="@L["SpeedInUnit", Display.SpeedUnit]">@Speed(sample.SpeedMetresPerSecond)</td><td data-label="@L["Facility"]">@FacilityName(sample.FacilityId)</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        }
+                                        <MudText Typo="Typo.subtitle1" Class="mt-4">@L["StatisticsContributionPassings"]</MudText>
+                                        @if (result.PassingsStatus == StatisticsEntryPassingsStatus.Forbidden)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" role="status">@L["StatisticsPassingsForbidden"]</MudAlert>
+                                        }
+                                        else if (result.PassingsStatus == StatisticsEntryPassingsStatus.WindowTooLarge)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" role="status">@L["StatisticsPassingsWindowTooLarge"]</MudAlert>
+                                        }
+                                        else if (result.PassingsStatus == StatisticsEntryPassingsStatus.Unavailable)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" role="status">@L["StatisticsPassingsUnavailable"]</MudAlert>
+                                        }
+                                        else if (result.PassingsTruncated)
+                                        {
+                                            <MudAlert Severity="Severity.Warning" Dense="true" role="status">@L["StatisticsContributionsTruncated", result.Passings?.Count ?? 0]</MudAlert>
+                                        }
+                                        @if (result.PassingsStatus == StatisticsEntryPassingsStatus.Available)
+                                        {
+                                            @if (result.Passings is { Count: 0 })
+                                            {
+                                                <MudText Typo="Typo.body2" role="status">@L["StatisticsContributionPassingsEmpty"]</MudText>
+                                            }
+                                            else if (result.Passings is { } passings)
+                                            {
+                                                <div class="statistics-contributions-table" role="region" aria-label="@L["StatisticsContributionPassings"]" tabindex="0">
+                                                    <table class="mud-table-root mud-table-dense">
+                                                        <thead><tr>
+                                                            <th scope="col">@L["StatisticsContributionTime"]</th><th scope="col">@L["StatisticsContributionTimingPoint"]</th><th scope="col">@L["StatisticsContributionInstallation"]</th><th scope="col">@L["StatisticsContributionFlags"]</th>
+                                                        </tr></thead>
+                                                        <tbody>
+                                                            @foreach (var passing in passings)
+                                                            {
+                                                                <tr>
+                                                                    <td data-label="@L["StatisticsContributionTime"]">@Display.Timestamp(passing.Time)<MudText Typo="Typo.caption">@passing.Id</MudText></td>
+                                                                    <td data-label="@L["StatisticsContributionTimingPoint"]">@(string.IsNullOrWhiteSpace(passing.TimingPointDescription) ? L["Unknown"].Value : passing.TimingPointDescription)</td>
+                                                                    <td data-label="@L["StatisticsContributionInstallation"]">@(string.IsNullOrWhiteSpace(passing.InstallationDescription) ? L["Unknown"].Value : passing.InstallationDescription)</td>
+                                                                    <td data-label="@L["StatisticsContributionFlags"]"><MudChipSet T="string" ReadOnly="true" Class="flex-wrap">
+                                                                        <MudChip T="string" Size="Size.Small" Color="@(passing.LowBattery ? Color.Warning : Color.Default)">@L["StatisticsContributionLowBattery"]: @FlagValue(passing.LowBattery)</MudChip>
+                                                                        <MudChip T="string" Size="Size.Small" Color="@(passing.LowStrength ? Color.Warning : Color.Default)">@L["StatisticsContributionLowStrength"]: @FlagValue(passing.LowStrength)</MudChip>
+                                                                        <MudChip T="string" Size="Size.Small" Color="@(passing.LowHits ? Color.Warning : Color.Default)">@L["StatisticsContributionLowHits"]: @FlagValue(passing.LowHits)</MudChip>
+                                                                    </MudChipSet></td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            }
+                                        }
+                                    }
+                                }
+                            </MudPaper>
+                        </section>
+                    </MudTd>
+                </MudTr>
+            }
+        </ChildRowContent>
+        <NoRecordsContent>
+            @if (!_loading && _error is null) { <MudText role="status">@L["StatisticsEntriesEmpty"]</MudText> }
+        </NoRecordsContent>
+    </MudTable>
+    </div>
+    <MudStack Row="true" Wrap="Wrap.Wrap" Class="mt-4">
+        <MudButton OnClick="Previous" Disabled="@(Busy || _page?.Previous is null)">@L["PreviousResults"]</MudButton>
+        <MudButton OnClick="Next" Disabled="@(Busy || _page?.Next is null)">@L["NextResults"]</MudButton>
+    </MudStack>
+</MudContainer>
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private IReadOnlyList<StatisticsItemDTO> _items = [];
+    private IReadOnlyList<StatisticsConfigurationDTO> _configurations = [];
+    private IReadOnlyList<FacilityView> _facilities = [];
+    private IReadOnlyList<AdminStatisticsEntryDTO> Rows => _page?.Items ?? Array.Empty<AdminStatisticsEntryDTO>();
+    private AdminStatisticsEntriesPageDTO? _page;
+    private GetAdminStatisticsEntriesRequest _request = new();
+    private CancellationTokenSource? _activeLoad;
+    private CancellationTokenSource? _activeContributionsLoad;
+    private readonly Dictionary<Guid, EntryContributionsState> _contributions = [];
+    private Guid? _expandedEntryId;
+    private int _contributionsVersion;
+    private Guid? _itemId, _configurationId, _facilityId;
+    private bool? _isValid;
+    private string _minDurationDraft = "", _maxDurationDraft = "", _minSpeedDraft = "", _maxSpeedDraft = "";
+    private string _minSpeedBaseline = "", _maxSpeedBaseline = "", _speedDraftUnit = "";
+    private string? _durationError, _speedError, _error, _referenceError;
+    private bool _speedUnitInitialized;
+    private bool _loading, _saving, _referencesLoading;
+    private int _loadVersion;
+    private bool Busy => _loading || _saving || _referencesLoading;
+
+    private sealed class EntryContributionsState
+    {
+        public StatisticsEntryContributionsDTO? Result { get; set; }
+        public Dictionary<Guid, string> CoursePointNames { get; } = [];
+        public string? Error { get; set; }
+        public string? NamesError { get; set; }
+        public bool Loading { get; set; }
+        public bool NamesLoading { get; set; }
+        public bool NamesLoaded { get; set; }
+    }
+
+    protected override Task OnInitializedAsync() => Task.WhenAll(LoadReferences(), Load(_request));
+
+    protected override void OnParametersSet()
+    {
+        if (!_speedUnitInitialized)
+        {
+            _speedDraftUnit = Display.SpeedUnit;
+            _minSpeedDraft = _minSpeedBaseline = FormatSpeedDraft(_request.MinSpeedMetresPerSecond);
+            _maxSpeedDraft = _maxSpeedBaseline = FormatSpeedDraft(_request.MaxSpeedMetresPerSecond);
+            _speedUnitInitialized = true;
+            return;
+        }
+
+        if (_speedDraftUnit == Display.SpeedUnit) return;
+        if (_minSpeedDraft == _minSpeedBaseline)
+            _minSpeedDraft = _minSpeedBaseline = FormatSpeedDraft(_request.MinSpeedMetresPerSecond);
+        if (_maxSpeedDraft == _maxSpeedBaseline)
+            _maxSpeedDraft = _maxSpeedBaseline = FormatSpeedDraft(_request.MaxSpeedMetresPerSecond);
+        _speedDraftUnit = Display.SpeedUnit;
+    }
+
+    private async Task LoadReferences()
+    {
+        _referencesLoading = true;
+        _referenceError = null;
+        try
+        {
+            var items = Administration.GetItemsAsync(_lifetime.Token);
+            var configurations = Administration.GetConfigurationsAsync(_lifetime.Token);
+            var facilities = Facilities.GetFacilitiesAsync(_lifetime.Token);
+            await Task.WhenAll(items, configurations, facilities);
+            if (_lifetime.IsCancellationRequested) return;
+            _items = await items;
+            _configurations = await configurations;
+            _facilities = (await facilities).ToArray();
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception exception) { _referenceError = ErrorFor(exception); }
+        finally { _referencesLoading = false; }
+    }
+
+    private bool IsExpanded(Guid id) => _expandedEntryId == id;
+    private string ContributionsPanelId(Guid id) => $"statistics-contributions-{id:N}";
+
+    private Task EntryRowClicked(TableRowClickEventArgs<AdminStatisticsEntryDTO> args) => args.Item is null ? Task.CompletedTask : ToggleContributions(args.Item.Id);
+
+    private Task ToggleContributions(Guid entryId)
+    {
+        if (_expandedEntryId == entryId)
+        {
+            CancelContributionLoad();
+            _expandedEntryId = null;
+            return Task.CompletedTask;
+        }
+
+        CancelContributionLoad();
+        _expandedEntryId = entryId;
+        if (!_contributions.TryGetValue(entryId, out var state))
+            _contributions[entryId] = state = new EntryContributionsState();
+        if (state.Result is null && state.Error is null) return LoadContributions(entryId, state);
+        if (state.Result is not null && !state.NamesLoaded && state.NamesError is null)
+            return LoadCoursePointNames(entryId, state);
+        return Task.CompletedTask;
+    }
+
+    private Task RetryContributions(Guid entryId)
+    {
+        if (_expandedEntryId != entryId || !_contributions.TryGetValue(entryId, out var state)) return Task.CompletedTask;
+        return LoadContributions(entryId, state);
+    }
+
+    private async Task LoadContributions(Guid entryId, EntryContributionsState state)
+    {
+        var (cancellation, version) = StartContributionLoad();
+        var token = cancellation.Token;
+        state.Loading = true;
+        state.Error = null;
+        state.Result = null;
+        state.CoursePointNames.Clear();
+        state.NamesError = null;
+        state.NamesLoaded = false;
+        state.NamesLoading = false;
+        try
+        {
+            var result = await Administration.GetEntryContributionsAsync(entryId, token);
+            if (!IsCurrentContributionLoad(entryId, cancellation, version, token)) return;
+            state.Result = result;
+            state.Loading = false;
+            await ResolveCoursePointNames(entryId, state, cancellation, version, token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            if (IsCurrentContributionLoad(entryId, cancellation, version, token)) state.Error = ErrorFor(exception);
+        }
+        finally
+        {
+            if (version == _contributionsVersion && ReferenceEquals(_activeContributionsLoad, cancellation))
+            {
+                state.Loading = false;
+                state.NamesLoading = false;
+                _activeContributionsLoad = null;
+            }
+            cancellation.Dispose();
+        }
+    }
+
+    private Task RetryCoursePointNames(Guid entryId)
+    {
+        if (_expandedEntryId != entryId || !_contributions.TryGetValue(entryId, out var state) || state.Result is null) return Task.CompletedTask;
+        return LoadCoursePointNames(entryId, state);
+    }
+
+    private async Task LoadCoursePointNames(Guid entryId, EntryContributionsState state)
+    {
+        var (cancellation, version) = StartContributionLoad();
+        var token = cancellation.Token;
+        state.NamesError = null;
+        state.NamesLoading = true;
+        try
+        {
+            await ResolveCoursePointNames(entryId, state, cancellation, version, token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        finally
+        {
+            if (version == _contributionsVersion && ReferenceEquals(_activeContributionsLoad, cancellation))
+            {
+                state.NamesLoading = false;
+                _activeContributionsLoad = null;
+            }
+            cancellation.Dispose();
+        }
+    }
+
+    private async Task ResolveCoursePointNames(Guid entryId, EntryContributionsState state,
+        CancellationTokenSource cancellation, int version, CancellationToken token)
+    {
+        state.NamesLoading = true;
+        try
+        {
+            var ids = state.Result!.Samples
+                .SelectMany(sample => new[] { sample.CoursePointStartId, sample.CoursePointEndId })
+                .Distinct().ToArray();
+            // Async event handlers only render automatically at their first yield and completion.
+            StateHasChanged();
+            var names = await Administration.GetCoursePointNamesAsync(ids, token);
+            if (!IsCurrentContributionLoad(entryId, cancellation, version, token)) return;
+            state.CoursePointNames.Clear();
+            foreach (var (id, name) in names) state.CoursePointNames[id] = name;
+            state.NamesLoaded = true;
+            state.NamesError = null;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch (Exception exception)
+        {
+            if (IsCurrentContributionLoad(entryId, cancellation, version, token)) state.NamesError = ErrorFor(exception);
+        }
+        finally
+        {
+            if (IsCurrentContributionLoad(entryId, cancellation, version, token)) state.NamesLoading = false;
+        }
+    }
+
+    private (CancellationTokenSource Source, int Version) StartContributionLoad()
+    {
+        CancelContributionLoad();
+        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _activeContributionsLoad = cancellation;
+        return (cancellation, ++_contributionsVersion);
+    }
+
+    private bool IsCurrentContributionLoad(Guid entryId, CancellationTokenSource cancellation, int version, CancellationToken token) =>
+        version == _contributionsVersion && _expandedEntryId == entryId && ReferenceEquals(_activeContributionsLoad, cancellation) && !token.IsCancellationRequested;
+
+    private void CancelContributionLoad()
+    {
+        _contributionsVersion++;
+        _activeContributionsLoad?.Cancel();
+        _activeContributionsLoad = null;
+    }
+
+    private string CoursePointName(EntryContributionsState state, Guid id) =>
+        state.CoursePointNames.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name)
+            ? name : L["StatisticsCoursePointNameMissing"].Value;
+
+    private string FlagValue(bool value) => L[value ? "StatisticsContributionFlagOn" : "StatisticsContributionFlagOff"].Value;
+
+    private async Task Load(GetAdminStatisticsEntriesRequest request)
+    {
+        CancelContributionLoad();
+        _expandedEntryId = null;
+        _contributions.Clear();
+        _activeLoad?.Cancel();
+        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        _activeLoad = cancellation;
+        var token = cancellation.Token;
+        var version = ++_loadVersion;
+        _loading = true;
+        _error = null;
+        _page = null;
+        _request = request;
+        _isValid = request.IsValid;
+        try
+        {
+            var page = await Administration.ListEntriesAsync(request, token);
+            if (version == _loadVersion && !token.IsCancellationRequested) _page = page;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            if (version == _loadVersion && !token.IsCancellationRequested) _error = ErrorFor(exception);
+        }
+        finally
+        {
+            if (version == _loadVersion)
+            {
+                _loading = false;
+                _activeLoad = null;
+            }
+            cancellation.Dispose();
+        }
+    }
+
+    private void SelectItem(Guid? id) { _itemId = id; _configurationId = null; }
+
+    private Task ApplyFilters()
+    {
+        if (Busy) return Task.CompletedTask;
+        return Load(_request with
+        {
+            FacilityId = _facilityId,
+            StatisticsItemId = _itemId,
+            StatisticsItemConfigId = _configurationId,
+            IsValid = _isValid,
+            Cursor = null,
+            Direction = null
+        });
+    }
+
+    private Task Refresh() => Busy ? Task.CompletedTask : Load(_request);
+    private Task Previous() => Busy || _page?.Previous is not { } cursor ? Task.CompletedTask : Load(_request with { Cursor = cursor, Direction = AdminStatisticsEntriesPageDirection.Previous });
+    private Task Next() => Busy || _page?.Next is not { } cursor ? Task.CompletedTask : Load(_request with { Cursor = cursor, Direction = AdminStatisticsEntriesPageDirection.Next });
+
+    private Task ValidityChanged(bool? value)
+    {
+        _isValid = value;
+        if (_request.IsValid == value && _request.Cursor is null) return Task.CompletedTask;
+        return Load(_request with { IsValid = value, Cursor = null, Direction = null });
+    }
+
+    private Task SortBy(AdminStatisticsEntriesSort sort)
+    {
+        if (_request.Sort == sort)
+            return Load(_request with
+            {
+                Order = _request.Order == AdminStatisticsEntriesSortOrder.Ascending
+                    ? AdminStatisticsEntriesSortOrder.Descending
+                    : AdminStatisticsEntriesSortOrder.Ascending,
+                Cursor = null,
+                Direction = null
+            });
+        return Load(_request with { Sort = sort, Order = AdminStatisticsEntriesSortOrder.Ascending, Cursor = null, Direction = null });
+    }
+
+    private Task DurationDraftDebounced(string _) => ApplyDurationDrafts();
+    private Task SpeedDraftDebounced(string _) => ApplySpeedDrafts();
+
+    private Task ApplyDurationDrafts()
+    {
+        _durationError = null;
+        var min = ParseDuration(_minDurationDraft);
+        var max = ParseDuration(_maxDurationDraft);
+        if (!min.IsValid || !max.IsValid)
+        {
+            _durationError = L["StatisticsDurationFilterInvalid"].Value;
+            return Task.CompletedTask;
+        }
+        if (min.Value.HasValue && max.Value.HasValue && min.Value > max.Value)
+        {
+            _durationError = L["StatisticsDurationRangeInvalid"].Value;
+            return Task.CompletedTask;
+        }
+        if (_request.MinDuration == min.Value && _request.MaxDuration == max.Value) return Task.CompletedTask;
+        return Load(_request with { MinDuration = min.Value, MaxDuration = max.Value, Cursor = null, Direction = null });
+    }
+
+    private (bool IsValid, TimeSpan? Value) ParseDuration(string draft)
+    {
+        if (string.IsNullOrWhiteSpace(draft)) return (true, null);
+        return TimeSpan.TryParseExact(draft.Trim(), "c", CultureInfo.InvariantCulture, out var value)
+            ? (true, value)
+            : (false, null);
+    }
+
+    private Task ApplySpeedDrafts()
+    {
+        _speedError = null;
+        var min = ParseSpeed(_minSpeedDraft, _minSpeedBaseline, _request.MinSpeedMetresPerSecond);
+        var max = ParseSpeed(_maxSpeedDraft, _maxSpeedBaseline, _request.MaxSpeedMetresPerSecond);
+        if (!min.IsValid || !max.IsValid)
+        {
+            _speedError = L["StatisticsSpeedFilterInvalid", Display.SpeedUnit].Value;
+            return Task.CompletedTask;
+        }
+        if (min.Value.HasValue && max.Value.HasValue && min.Value > max.Value)
+        {
+            _speedError = L["StatisticsSpeedRangeInvalid"].Value;
+            return Task.CompletedTask;
+        }
+
+        _minSpeedBaseline = _minSpeedDraft;
+        _maxSpeedBaseline = _maxSpeedDraft;
+        if (_request.MinSpeedMetresPerSecond == min.Value && _request.MaxSpeedMetresPerSecond == max.Value) return Task.CompletedTask;
+        return Load(_request with { MinSpeedMetresPerSecond = min.Value, MaxSpeedMetresPerSecond = max.Value, Cursor = null, Direction = null });
+    }
+
+    private (bool IsValid, double? Value) ParseSpeed(string draft, string baseline, double? applied)
+    {
+        if (draft == baseline) return (true, applied);
+        if (string.IsNullOrWhiteSpace(draft)) return (true, null);
+        if (!double.TryParse(draft.Trim(), NumberStyles.Float, Display.NumberCulture, out var value) || !double.IsFinite(value) || value < 0)
+            return (false, null);
+        var canonical = DisplaySpeedToMetresPerSecond(value);
+        return double.IsFinite(canonical) && canonical >= 0 ? (true, canonical) : (false, null);
+    }
+
+    private double DisplaySpeedToMetresPerSecond(double value) => Display.SpeedUnit switch
+    {
+        "mph" => UnitsNet.Speed.FromMilesPerHour(value).MetersPerSecond,
+        "m/s" => value,
+        _ => UnitsNet.Speed.FromKilometersPerHour(value).MetersPerSecond
+    };
+
+    private string FormatSpeedDraft(double? metresPerSecond)
+    {
+        if (metresPerSecond is not { } value) return "";
+        var speed = UnitsNet.Speed.FromMetersPerSecond(value);
+        var displayValue = Display.SpeedUnit switch { "mph" => speed.MilesPerHour, "m/s" => speed.MetersPerSecond, _ => speed.KilometersPerHour };
+        return double.IsFinite(displayValue) ? displayValue.ToString("G", Display.NumberCulture) : "";
+    }
+
+    private string AriaSort(AdminStatisticsEntriesSort sort) => _request.Sort != sort ? "none" :
+        _request.Order == AdminStatisticsEntriesSortOrder.Ascending ? "ascending" : "descending";
+    private bool IsActiveSort(AdminStatisticsEntriesSort sort) => _request.Sort == sort;
+    private string SortIcon => _request.Order == AdminStatisticsEntriesSortOrder.Ascending
+        ? Icons.Material.Filled.ArrowUpward : Icons.Material.Filled.ArrowDownward;
+
+    private async Task ChangeManualState(AdminStatisticsEntryDTO entry)
+    {
+        if (Busy) return;
+        _saving = true;
+        _error = null;
+        try
+        {
+            var parameters = new DialogParameters<StatisticsEntryInvalidationDialog> { { dialog => dialog.Entry, entry } };
+            var dialog = await Dialogs.ShowAsync<StatisticsEntryInvalidationDialog>(L[entry.IsManuallyInvalidated ? "StatisticsRestore" : "StatisticsMarkInvalid"], parameters,
+                new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small });
+            var result = await dialog.Result;
+            if (_lifetime.IsCancellationRequested || result is null || result.Canceled || result.Data is not StatisticsEntryManualInvalidationRequest request) return;
+            await Administration.SetManualInvalidationAsync(entry.Id, request, _lifetime.Token);
+            if (_lifetime.IsCancellationRequested) return;
+            Snackbar.Add(L["StatisticsManualSaved"], Severity.Success);
+            await Load(_request);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception exception) { _error = ErrorFor(exception); }
+        finally { _saving = false; }
+    }
+
+    private string ConfigurationLabel(StatisticsConfigurationDTO config) =>
+        $"{_items.FirstOrDefault(item => item.Id == config.StatisticsItemId)?.Name ?? config.StatisticsItemId.ToString()} — {L[config.Type == StatisticsConfigurationType.Simple ? "Simple" : "Multi"]} — {config.Id}";
+    private string FacilityName(Guid id) => _facilities.FirstOrDefault(facility => facility.Id == id)?.Name ?? id.ToString();
+    private string Reason(StatisticsEntryInvalidReason? reason) => reason.HasValue && Enum.IsDefined(reason.Value)
+        ? L[$"StatisticsInvalidReason{reason.Value}"].Value : L["Unknown"].Value;
+    private string Speed(double? metresPerSecond)
+    {
+        if (metresPerSecond is not { } value || !double.IsFinite(value)) return L["StatisticsSpeedUnavailable"];
+        var speed = UnitsNet.Speed.FromMetersPerSecond(value);
+        var displayValue = Display.SpeedUnit switch { "mph" => speed.MilesPerHour, "m/s" => speed.MetersPerSecond, _ => speed.KilometersPerHour };
+        return double.IsFinite(displayValue) ? $"{displayValue.ToString("N3", Display.NumberCulture)} {Display.SpeedUnit}" : L["StatisticsSpeedUnavailable"].Value;
+    }
+    private string ErrorFor(Exception exception) => exception switch
+    {
+        HttpRequestException { StatusCode: HttpStatusCode.Unauthorized } => L["SignInRequired"],
+        HttpRequestException { StatusCode: HttpStatusCode.Forbidden } => L["NoPermission"],
+        HttpRequestException { StatusCode: HttpStatusCode.Conflict or HttpStatusCode.NotFound } => L["StatisticsEntryChanged"],
+        HttpRequestException { StatusCode: HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity } => L["RequestRejected"],
+        _ => L["StatisticsEntriesFailed"]
+    };
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        CancelContributionLoad();
+        _activeLoad?.Cancel();
+        _lifetime.Dispose();
+    }
+}

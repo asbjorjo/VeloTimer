@@ -1,0 +1,24 @@
+{
+    "chat.agentFilesLocations": {
+        ".github/agents": true,
+        ".claude/agents": false
+    },
+    "chat.agentSkillsLocations": {
+        ".claude/skills": true
+    },
+    "chat.tools.terminal.autoApprove": {
+        "dotnet build": true,
+        "dotnet ef migrations add": true,
+        "dotnet ef migrations list": true,
+        "dotnet ef migrations has-pending-model-changes": true,
+        "dotnet ef database": false,
+        "dotnet restore": true,
+        "dotnet test": true,
+        "git diff": true,
+        "git status": true,
+        "git fetch": true,
+        "git worktree": true
+    },
+    "dotnet.defaultSolution": "VeloTimer.sln",
+    "dotnet.unitTests.runSettingsPath": ".vscode/tests.runsettings"
+}

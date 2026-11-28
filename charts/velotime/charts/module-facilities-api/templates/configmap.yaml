@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}
+data:
+  OIDC_AUDIENCE: {{ .Values.oidcAudience | default .Values.global.oidcAudience | quote }}
+  {{- include "velotime.oidcConfig" . | nindent 2 }}

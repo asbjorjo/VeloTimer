@@ -1,0 +1,90 @@
+@inherits PresentationComponentBase
+@using VeloTime.Module.Timing.Interface.Data
+@inject IInfrastructureAdministrationService Service
+@inject ISnackbar Snackbar
+
+@* The latest capability report from the installation's agent (docs/passing-replay-plan.md). *@
+<section aria-labelledby="agent-capabilities-heading" data-testid="agent-capabilities">
+    <MudStack Row="true" Wrap="Wrap.Wrap" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.h6" HtmlTag="h2" id="agent-capabilities-heading">@L["AgentCapabilities"]</MudText><MudSpacer />
+        <MudButton StartIcon="@Icons.Material.Filled.Refresh" OnClick="Refresh" Disabled="@(Disabled || _requesting)">@L["RequestCapabilityReport"]</MudButton>
+    </MudStack>
+    @if (_error is not null) { <MudAlert Severity="Severity.Error" role="alert" Class="mb-2">@_error</MudAlert> }
+    @if (Report is not { } report)
+    {
+        <MudText>@L["NoCapabilityReport"]</MudText>
+    }
+    else
+    {
+        <MudText Class="mb-2">@L["AgentTypeAndVersion", report.AgentType, report.AgentVersion] · @L["CapabilitiesReportedAt", Stamp(report.ReportedAtUtc)]</MudText>
+        @if (IsStale(report)) { <MudAlert Severity="Severity.Warning" Class="mb-2">@L["CapabilityReportStale"]</MudAlert> }
+        <MudTable T="AgentCapabilityDTO" Items="report.Capabilities" Dense="true" Elevation="0">
+            <HeaderContent><MudTh>@L["Capability"]</MudTh><MudTh>@L["CapabilityLimits"]</MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="@L["Capability"]">@CapabilityName(context)</MudTd>
+                <MudTd DataLabel="@L["CapabilityLimits"]">@Limits(context)</MudTd>
+            </RowTemplate>
+            <NoRecordsContent><MudText>@L["NoCapabilitiesAdvertised"]</MudText></NoRecordsContent>
+        </MudTable>
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Guid InstallationId { get; set; }
+    [Parameter] public AgentCapabilitiesDTO? Report { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    private bool _requesting;
+    private string? _error;
+
+    /// <summary>A report older than this is flagged, since what the agent can do may have changed.</summary>
+    internal static readonly TimeSpan StaleAfter = TimeSpan.FromDays(1);
+
+    internal static bool IsStale(AgentCapabilitiesDTO report, DateTime? nowUtc = null) =>
+        (nowUtc ?? DateTime.UtcNow) - DateTime.SpecifyKind(report.ReportedAtUtc, DateTimeKind.Utc) > StaleAfter;
+
+    // Times show in the user's zone once display settings have loaded.
+    private string Stamp(DateTime utc) => Display.IsReady ? Display.Timestamp(utc) : "…";
+
+    private string CapabilityName(AgentCapabilityDTO capability) => capability.Name switch
+    {
+        "passing-replay" => L["CapabilityPassingReplay"],
+        "control.pause-resume" => L["CapabilityPauseResume"],
+        _ => L["CapabilityUnknown", capability.Name]
+    };
+
+    private string Limits(AgentCapabilityDTO capability)
+    {
+        if (capability.PassingReplay is not { } replay) return "";
+        var mode = replay.Mode switch
+        {
+            "AgentStore" => L["ReplayModeAgentStore"].Value,
+            "Source" => L["ReplayModeSource"].Value,
+            var other => other
+        };
+        var parts = new List<string> { mode };
+        parts.Add(replay.OldestAvailableUtc is { } oldest ? L["ReplayOldestAvailable", Stamp(oldest)] : L["ReplayOldestUnknown"]);
+        parts.Add(replay.MaxRangeSeconds is { } seconds ? L["ReplayMaxRange", FormatDuration(seconds)] : L["ReplayMaxRangeUnlimited"]);
+        parts.Add(replay.SupportsLoopFilter ? L["ReplayLoopFilter"] : L["ReplayNoLoopFilter"]);
+        return string.Join(" · ", parts);
+    }
+
+    private string FormatDuration(double seconds)
+    {
+        var duration = TimeSpan.FromSeconds(seconds);
+        return duration.TotalDays >= 1 && duration.TotalDays == Math.Floor(duration.TotalDays)
+            ? L["DurationDays", (int)duration.TotalDays]
+            : L["DurationHours", Math.Round(duration.TotalHours, 1)];
+    }
+
+    private async Task Refresh()
+    {
+        _requesting = true; _error = null;
+        try
+        {
+            await Service.RefreshInstallationCapabilitiesAsync(InstallationId);
+            Snackbar.Add(L["CapabilityReportRequested"], Severity.Info);
+        }
+        catch (Exception) { _error = L["CapabilityReportRequestFailed"]; }
+        finally { _requesting = false; }
+    }
+}

@@ -1,11 +1,17 @@
 name: CI
 
+# Fast unit tests run for v2 work; the integration suite (PostgreSQL-backed tests and the
+# Release WebUI publish test) runs only for master (PRs into master and pushes to master)
+# or on manual dispatch. Those tests skip when their variables are unset, so the unit job
+# runs the same command without the database service.
+
 on:
   push:
     branches:
       - master
+      - v2
   pull_request:
-    branches: [ master ]
+    branches: [ master, v2 ]
     types:
       - opened
       - synchronize
@@ -15,11 +21,14 @@ on:
       - 'src/**'
       - 'VeloTimer.sln'
       - '.github/workflows/**'
+  workflow_dispatch:
 
 jobs:
-  build:
+  unit:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
+    env:
+      OIDC_AUDIENCE: https://build.invalid
+    if: (github.event_name == 'push' && github.ref != 'refs/heads/master') || (github.event_name == 'pull_request' && github.event.pull_request.draft == false && github.base_ref != 'master')
     steps:
     - uses: actions/checkout@v4
       with:
@@ -31,7 +40,11 @@ jobs:
         dotnet-version: '10.0.x'
 
     - name: Test
-      run: dotnet test --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
+      run: dotnet test VeloTimer.sln --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
+
+    - name: Summarize Test Results
+      if: always()
+      run: python3 .github/scripts/summarize-test-results.py
 
     - name: Upload Test Results
       uses: actions/upload-artifact@v4
@@ -42,3 +55,58 @@ jobs:
 
     - name: Coveralls
       uses: coverallsapp/github-action@v2
+      continue-on-error: true
+
+  integration:
+    runs-on: ubuntu-latest
+    env:
+      OIDC_AUDIENCE: https://build.invalid
+      # Makes the guard tests fail if any PostgreSQL connection is missing, so gated tests cannot silently skip.
+      VELOTIME_TEST_REQUIRE_POSTGRES: 'true'
+      # Runs the Release WebUI publish test, which takes over ten minutes.
+      VELOTIME_TEST_RELEASE_PUBLISH: 'true'
+      NOTIFICATIONS_WORKER_TEST_ADMIN_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
+      NOTIFICATIONS_API_TEST_ADMIN_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
+      VELOTIME_TEST_OUTBOX_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
+      VELOTIME_TEST_STATISTICS_POSTGRES: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
+      FACILITIES_TEST_POSTGRES_ADMIN_CONNECTION: Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=outbox-tests
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: outbox-tests
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'pull_request' && github.event.pull_request.draft == false && github.base_ref == 'master')
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: '0'
+
+    - name: Setup .NET 10.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Test
+      run: dotnet test VeloTimer.sln --logger "trx" /p:CollectCoverage=true /p:CoverletOutputFormat=lcov
+
+    - name: Summarize Test Results
+      if: always()
+      run: python3 .github/scripts/summarize-test-results.py
+
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: success() || failure()
+      with:
+        name: test-results
+        path: src/*.Test/TestResults/*.trx
+
+    - name: Coveralls
+      uses: coverallsapp/github-action@v2
+      continue-on-error: true

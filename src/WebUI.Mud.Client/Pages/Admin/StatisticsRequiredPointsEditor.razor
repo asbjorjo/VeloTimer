@@ -1,0 +1,66 @@
+@inherits PresentationComponentBase
+@using VeloTime.WebUI.Mud.Client.ViewModel
+
+<fieldset class="pa-4 rounded border-solid border-1 mud-border-lines-default">
+    <legend class="px-2">@L["RequiredIntermediatePoints"]</legend>
+    <MudText Typo="Typo.body2">@L["RequiredIntermediatePointsHelp"]</MudText>
+    <div aria-live="polite">
+        @if (Loading)
+        {
+            <MudText Class="mt-2" role="status">@L["RequiredPointsLoading"]</MudText>
+        }
+        else if (ReferenceError is not null)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mt-2">@ReferenceError</MudAlert>
+        }
+        else if (Path is null)
+        {
+            <MudAlert Severity="Severity.Info" Class="mt-2">@L["RequiredPointsChoosePath"]</MudAlert>
+        }
+        else if (Path.Count == 0)
+        {
+            <MudText Class="mt-2">@L["RequiredPointsNoIntermediates"]</MudText>
+        }
+        @if (!Draft.MatchesPath(LayoutId, Path) && !Loading && ReferenceError is null)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mt-2">@L["RequiredPointsPathChanged"]</MudAlert>
+        }
+    </div>
+    @if (!Loading && ReferenceError is null && Path is not null)
+    {
+        <MudStack Spacing="0" Class="my-2">
+            @foreach (var point in Path)
+            {
+                <MudCheckBox T="bool" @key="point.Id" Value="@Draft.Selected.Contains(point.Id)" ValueChanged="() => Toggle(point.Id)"
+                             Label="@PointLabel(point.Id)" Disabled="Disabled" Dense="true" />
+            }
+        </MudStack>
+    }
+    <MudText Typo="Typo.subtitle2" Class="mt-2">@L["SelectedRequiredPoints"]</MudText>
+    @if (Draft.Selected.Count == 0)
+    {
+        <MudText Typo="Typo.body2">@L["NoRequiredPoints"]</MudText>
+    }
+    else
+    {
+        <ol>
+            @foreach (var id in Draft.Selected)
+            {
+                <li>@PointLabel(id)</li>
+            }
+        </ol>
+        <MudButton OnClick="Clear" Disabled="Disabled" StartIcon="@Icons.Material.Filled.Clear">@L["ClearRequiredPoints"]</MudButton>
+    }
+</fieldset>
+
+@code {
+    [Parameter, EditorRequired] public StatisticsRequiredPointsDraft Draft { get; set; } = default!;
+    [Parameter] public Guid? LayoutId { get; set; }
+    [Parameter] public IReadOnlyList<CoursePointView>? Path { get; set; }
+    [Parameter, EditorRequired] public Func<Guid, string> PointLabel { get; set; } = default!;
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public string? ReferenceError { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    private void Toggle(Guid id) { if (!Disabled && Path is not null) Draft.Toggle(id, Path); }
+    private void Clear() { if (!Disabled) Draft.Clear(); }
+}

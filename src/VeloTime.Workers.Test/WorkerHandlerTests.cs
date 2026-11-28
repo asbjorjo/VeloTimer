@@ -1,0 +1,659 @@
+﻿using System.Reflection;
+using System.Diagnostics.Metrics;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Azure.Messaging.ServiceBus;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using SlimMessageBus;
+using SlimMessageBus.Host.AzureServiceBus;
+using Microsoft.Extensions.Options;
+using VeloTime.Agent.Capabilities;
+using VeloTime.Agent.Handler;
+using VeloTime.Agent.Interface.Messages.Control;
+using VeloTime.Agent.Service;
+using VeloTime.Agent.Storage;
+using VeloTime.Module.Facilities.Client;
+using VeloTime.Module.Facilities.Interface.Data;
+using VeloTime.Module.Statistics;
+using VeloTime.Module.Statistics.Handlers;
+using VeloTime.Module.Statistics.Model;
+using VeloTime.Module.Statistics.Service;
+using VeloTime.Module.Statistics.Storage;
+using VeloTime.Module.Timing.Handlers;
+using VeloTime.Module.Timing.Interface.Messages;
+using VeloTime.Module.Timing.Model;
+using VeloTime.Module.Timing.Service;
+using VeloTime.Module.Timing.Storage;
+using VeloTime.Module.Common;
+using VeloTime.Agent.Interface.Messages.Events;
+using ZiggyCreatures.Caching.Fusion;
+using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
+
+namespace VeloTime.Workers.Test;
+
+public sealed class WorkerHandlerTests
+{
+    private static readonly Guid SourceId = Guid.Parse("6f1c2d4e-0000-4000-8000-000000000042");
+
+    [Fact]
+    public async Task AgentControlHandlers_DelegatePauseAndResumeCommands()
+    {
+        var control = new RecordingControlService();
+        var services = new ServiceCollection().AddSingleton<IControlService>(control).BuildServiceProvider();
+        var options = Options.Create(new AgentOptions { AgentId = "agent" });
+        var pause = new PauseAgentHandler(services, options, NullLogger<PauseAgentHandler>.Instance);
+        var resume = new ResumeAgentHandler(services, options, NullLogger<ResumeAgentHandler>.Instance);
+
+        await pause.OnHandle(new PauseAgentCommand("agent"), CancellationToken.None);
+        await resume.OnHandle(new ResumeAgentCommand("agent"), CancellationToken.None);
+
+        Assert.Equal(1, control.PauseCalls);
+        Assert.Equal(1, control.ResumeCalls);
+    }
+
+    [Fact]
+    public async Task AgentControlHandlers_AcknowledgeWithoutControlServiceAndIgnoreOtherAgents()
+    {
+        // No IControlService: the command is acknowledged instead of failing in DI on every delivery.
+        var none = new ServiceCollection().BuildServiceProvider();
+        var options = Options.Create(new AgentOptions { AgentId = "agent" });
+        await new PauseAgentHandler(none, options, NullLogger<PauseAgentHandler>.Instance)
+            .OnHandle(new PauseAgentCommand("agent"), CancellationToken.None);
+        await new ResumeAgentHandler(none, options, NullLogger<ResumeAgentHandler>.Instance)
+            .OnHandle(new ResumeAgentCommand("agent"), CancellationToken.None);
+
+        var control = new RecordingControlService();
+        var services = new ServiceCollection().AddSingleton<IControlService>(control).BuildServiceProvider();
+        await new PauseAgentHandler(services, options, NullLogger<PauseAgentHandler>.Instance)
+            .OnHandle(new PauseAgentCommand("another-agent"), CancellationToken.None);
+        Assert.Equal(0, control.PauseCalls);
+    }
+
+    [Fact]
+    public async Task AgentCapabilitiesHandler_StoresLatestReportCreatesInstallationAndIgnoresOlderReports()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        var handler = new AgentCapabilitiesHandler(database.InstallationService, NullLogger<AgentCapabilitiesHandler>.Instance)
+        {
+            Context = TestConsumerContext.Create(new Dictionary<string, object>())
+        };
+        var reportedAt = new DateTime(2026, 11, 28, 10, 0, 0, DateTimeKind.Utc);
+        AgentCapabilitiesV1 Report(DateTime at, string version, params AgentCapability[] capabilities) =>
+            new(at, "P3", version, 1, capabilities);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.OnHandle(Report(reportedAt, "1"), CancellationToken.None));
+
+        handler.Context = TestConsumerContext.Create(new Dictionary<string, object> { ["AgentId"] = "caps-agent" });
+        var oldest = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc);
+        await handler.OnHandle(Report(reportedAt, "2",
+            new AgentCapability("passing-replay", new PassingReplayCapability("AgentStore", oldest, TimeSpan.FromDays(30), false)),
+            new AgentCapability("control.pause-resume"),
+            new AgentCapability("future.capability")), CancellationToken.None);
+
+        database.Storage.ChangeTracker.Clear();
+        var installation = await database.Storage.Set<Installation>().SingleAsync();
+        Assert.Equal("caps-agent", installation.AgentId);
+        Assert.Equal(reportedAt, installation.CapabilitiesReportedAt);
+        Assert.Equal(("P3", "2", 1), (installation.AgentType, installation.AgentVersion, installation.ControlProtocolVersion));
+        Assert.Equal(["passing-replay", "control.pause-resume", "future.capability"], installation.AgentCapabilities.Select(c => c.Name));
+        var replay = installation.AgentCapabilities[0].PassingReplay!;
+        Assert.Equal(("AgentStore", 30 * 86400d, false), (replay.Mode, replay.MaxRangeSeconds!.Value, replay.SupportsLoopFilter));
+        Assert.Equal(oldest, replay.OldestAvailableUtc);
+
+        // An older report delivered late, and a redelivery of the stored one, change nothing.
+        await handler.OnHandle(Report(reportedAt.AddMinutes(-5), "1"), CancellationToken.None);
+        await handler.OnHandle(Report(reportedAt, "2"), CancellationToken.None);
+        database.Storage.ChangeTracker.Clear();
+        installation = await database.Storage.Set<Installation>().SingleAsync();
+        Assert.Equal("2", installation.AgentVersion);
+        Assert.Equal(3, installation.AgentCapabilities.Count);
+
+        // A newer report replaces the stored one entirely.
+        await handler.OnHandle(Report(reportedAt.AddMinutes(1), "3"), CancellationToken.None);
+        database.Storage.ChangeTracker.Clear();
+        installation = await database.Storage.Set<Installation>().SingleAsync();
+        Assert.Equal("3", installation.AgentVersion);
+        Assert.Empty(installation.AgentCapabilities);
+    }
+
+    [Fact]
+    public async Task AgentMessagingService_PublishesAllEventContractsAndStoresPassings()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<AgentDbContext>().UseSqlite(connection).Options;
+        await using var storage = new AgentDbContext(options);
+        await storage.Database.EnsureCreatedAsync();
+        var (messageBus, recorder) = RecordingMessageBus.Create();
+        using var serviceProvider = new ServiceCollection().AddMetrics().BuildServiceProvider();
+        var service = new MessagingService(
+            messageBus,
+            storage,
+            new VeloTime.Agent.Metrics(serviceProvider.GetRequiredService<IMeterFactory>()),
+            NullLogger<MessagingService>.Instance);
+        var loop = new VeloTime.Agent.Model.LoopConfig { LoopId = "loop-1", Name = "Start", Order = 1, SystemId = "system-1" };
+        var segment = new VeloTime.Agent.Model.SegmentConfig
+        {
+            SegmentId = "segment-1", Name = "Lap", FromLoopId = "loop-1", ToLoopId = "loop-2", Length = 250, SystemId = "system-1"
+        };
+        var system = new VeloTime.Agent.Model.SystemConfig
+        {
+            SystemId = "system-1", Sport = "cycling", Description = "Timing system",
+            Loops = [loop], Segments = [segment]
+        };
+        var time = DateTime.UtcNow;
+
+        await service.SendEventAsync(new VeloTime.Agent.Model.InstallationConfig { Systems = [system] });
+        await service.SendEventsAsync([loop]);
+        await service.SendEventAsync(new VeloTime.Agent.Model.LoopStatus
+        {
+            Time = time, LoopId = "loop-1", Noise = 0.25, LoopTriggers = 3, DecoderTemperature = 308.15, InputVoltage = 12.1,
+            TimeSynchronised = false, SatellitesInUse = 7, DecoderId = "decoder-1", NoiseSharesStrengthScale = true
+        });
+        await service.SendEventsAsync([new VeloTime.Agent.Model.Passing
+        {
+            Id = Guid.Parse("6f1c2d4e-0000-4000-8000-000000000001"), Time = time, TransponderType = "ProChip", TransponderId = "106187718", LoopId = "loop-1",
+            LowBattery = true, LowStrength = true, LowHits = true, Strength = 61.5, Hits = 9
+        }]);
+        await service.SendEventsAsync([segment]);
+        await service.SendEventsAsync([system]);
+
+        Assert.Equal(6, recorder.Published.Count);
+        Assert.All(recorder.Published, message => Assert.False(message.Payload is System.Collections.IEnumerable));
+        Assert.IsType<VeloTime.Agent.Interface.Messages.Events.InstallationLayoutEvent>(recorder.Published[0].Payload);
+        Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopConfigEvent>(recorder.Published[1].Payload);
+        var sentStatus = Assert.IsType<VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent>(recorder.Published[2].Payload);
+        Assert.Equal(new VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent(time, "loop-1", 0.25)
+        {
+            LoopTriggers = 3, DecoderTemperature = 308.15, InputVoltage = 12.1, TimeSynchronised = false, SatellitesInUse = 7,
+            DecoderId = "decoder-1", NoiseSharesStrengthScale = true
+        }, sentStatus);
+        var sentPassing = Assert.IsType<PassingObservedV1>(recorder.Published[3].Payload);
+        Assert.Equal(Guid.Parse("6f1c2d4e-0000-4000-8000-000000000001"), sentPassing.SourcePassingId);
+        Assert.True(sentPassing.LowBattery && sentPassing.LowStrength && sentPassing.LowHits);
+        Assert.Equal(61.5, sentPassing.Strength);
+        Assert.Equal(9, sentPassing.Hits);
+        Assert.IsType<VeloTime.Agent.Interface.Messages.Events.SegmentConfigEvent>(recorder.Published[4].Payload);
+        Assert.IsType<VeloTime.Agent.Interface.Messages.Events.SystemConfigEvent>(recorder.Published[5].Payload);
+        var storedPassing = await storage.Set<VeloTime.Agent.Model.Passing>().SingleAsync();
+        Assert.True(storedPassing.LowBattery && storedPassing.LowStrength && storedPassing.LowHits);
+        Assert.Equal(61.5, storedPassing.Strength);
+        Assert.Equal(9, storedPassing.Hits);
+    }
+
+    [Fact]
+    public async Task AgentMessagingService_SendsAbsentSignalValuesAsNull()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<AgentDbContext>().UseSqlite(connection).Options;
+        await using var storage = new AgentDbContext(options);
+        await storage.Database.EnsureCreatedAsync();
+        var (messageBus, recorder) = RecordingMessageBus.Create();
+        using var serviceProvider = new ServiceCollection().AddMetrics().BuildServiceProvider();
+        var service = new MessagingService(messageBus, storage,
+            new VeloTime.Agent.Metrics(serviceProvider.GetRequiredService<IMeterFactory>()), NullLogger<MessagingService>.Instance);
+        var time = DateTime.UtcNow;
+
+        await service.SendEventAsync(new VeloTime.Agent.Model.LoopStatus { Time = time, LoopId = "loop-1", Noise = 4 });
+        await service.SendEventsAsync([new VeloTime.Agent.Model.Passing
+        {
+            Id = Guid.Parse("6f1c2d4e-0000-4000-8000-000000000002"), Time = time, TransponderType = "ProChip", TransponderId = "106187718", LoopId = "loop-1"
+        }]);
+
+        Assert.Equal(new VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent(time, "loop-1", 4), recorder.Published[0].Payload);
+        var sentPassing = Assert.IsType<PassingObservedV1>(recorder.Published[1].Payload);
+        Assert.Null(sentPassing.Strength);
+        Assert.Null(sentPassing.Hits);
+        var storedPassing = await storage.Set<VeloTime.Agent.Model.Passing>().SingleAsync();
+        Assert.Null(storedPassing.Strength);
+        Assert.Null(storedPassing.Hits);
+    }
+
+    [Fact]
+    public void AgentEventContracts_ReadPayloadsWithoutOptionalSignalFields()
+    {
+        // Payloads from agents built before the optional fields existed must stay readable.
+        var status = JsonSerializer.Deserialize<VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent>(
+            """{"Time":"2026-11-28T10:00:00Z","LoopId":"loop-1","Noise":12.5}""")!;
+        Assert.Equal(12.5, status.Noise);
+        Assert.Null(status.LoopTriggers);
+        Assert.Null(status.DecoderTemperature);
+        Assert.Null(status.InputVoltage);
+        Assert.Null(status.TimeSynchronised);
+        Assert.Null(status.SatellitesInUse);
+        Assert.Null(status.DecoderId);
+        Assert.Null(status.NoiseSharesStrengthScale);
+
+        var passing = JsonSerializer.Deserialize<PassingObservedV1>(
+            """{"SourcePassingId":"6f1c2d4e-0000-4000-8000-000000000003","Time":"2026-11-28T10:00:00Z","TransponderType":"ProChip","TransponderId":"106187718","LoopId":"loop-1","LowStrength":true}""")!;
+        Assert.True(passing.LowStrength);
+        Assert.Null(passing.Strength);
+        Assert.Null(passing.Hits);
+
+        var roundTrip = JsonSerializer.Deserialize<VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent>(
+            JsonSerializer.Serialize(status with { DecoderTemperature = 300.5, TimeSynchronised = true }))!;
+        Assert.Equal(300.5, roundTrip.DecoderTemperature);
+        Assert.True(roundTrip.TimeSynchronised);
+    }
+
+    [Fact]
+    public async Task AgentMessagingService_RejectsBatchesWithEmptyPassingIds()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<AgentDbContext>().UseSqlite(connection).Options;
+        await using var storage = new AgentDbContext(options);
+        await storage.Database.EnsureCreatedAsync();
+        var (messageBus, recorder) = RecordingMessageBus.Create();
+        using var serviceProvider = new ServiceCollection().AddMetrics().BuildServiceProvider();
+        var service = new MessagingService(messageBus, storage,
+            new VeloTime.Agent.Metrics(serviceProvider.GetRequiredService<IMeterFactory>()), NullLogger<MessagingService>.Instance);
+        VeloTime.Agent.Model.Passing Passing(Guid id) => new()
+        {
+            Id = id, Time = DateTime.UtcNow, TransponderType = "ProChip", TransponderId = "106187718", LoopId = "loop-1"
+        };
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            service.SendEventsAsync([Passing(Guid.NewGuid()), Passing(Guid.Empty)]));
+
+        Assert.Empty(recorder.Published);
+        Assert.Empty(await storage.Set<VeloTime.Agent.Model.Passing>().ToListAsync());
+    }
+
+    [Fact]
+    public async Task LoopStatusEventHandler_RequiresAgentIdAndUpdatesLastSeen()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        var handler = new LoopStatusEventHandler(new LoopStatusService(database.InstallationService, database.Storage), database.InstallationService)
+        {
+            Context = TestConsumerContext.Create(new Dictionary<string, object>())
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.OnHandle(
+            new VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent(DateTime.UtcNow, "loop-1", 0.1),
+            CancellationToken.None));
+
+        var installation = new Installation { Id = Guid.NewGuid(), AgentId = "agent-loop" };
+        database.Storage.Add(installation);
+        await database.Storage.SaveChangesAsync();
+        database.Storage.ChangeTracker.Clear();
+        var seenAt = DateTime.UtcNow;
+        handler.Context = TestConsumerContext.Create(new Dictionary<string, object> { ["AgentId"] = "agent-loop" });
+
+        await handler.OnHandle(new VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent(seenAt, "loop-1", 0.1), CancellationToken.None);
+
+        Assert.Equal(seenAt, (await database.Storage.Set<Installation>().SingleAsync()).LastSeen);
+        Assert.Single(await database.Storage.Set<LoopStatusSample>().ToListAsync());
+    }
+
+    [Fact]
+    public async Task LoopStatusEventHandler_StoresEveryFieldOnceAndRedeliveryKeepsTheRollup()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        var handler = new LoopStatusEventHandler(new LoopStatusService(database.InstallationService, database.Storage), database.InstallationService)
+        {
+            Context = TestConsumerContext.Create(new Dictionary<string, object> { ["AgentId"] = "agent-status" })
+        };
+        var time = new DateTime(2026, 11, 28, 10, 2, 30, DateTimeKind.Utc);
+        var message = new VeloTime.Agent.Interface.Messages.Events.LoopStatusEvent(time, "loop-1", 21.5)
+        {
+            LoopTriggers = 2, DecoderTemperature = 308.15, InputVoltage = 12.1, TimeSynchronised = false, SatellitesInUse = 8,
+            DecoderId = "decoder-1", NoiseSharesStrengthScale = true
+        };
+
+        await handler.OnHandle(message, CancellationToken.None);
+        await handler.OnHandle(message, CancellationToken.None);
+
+        var sample = await database.Storage.Set<LoopStatusSample>().AsNoTracking().SingleAsync();
+        Assert.Equal(time, sample.Time);
+        Assert.Equal((21.5, 2, 308.15, 12.1, false, 8, "decoder-1", true), (sample.Noise, sample.LoopTriggers, sample.DecoderTemperature,
+            sample.InputVoltage, sample.TimeSynchronised, sample.SatellitesInUse, sample.DecoderId, sample.NoiseSharesStrengthScale));
+        var point = await database.Storage.Set<TimingPoint>().AsNoTracking().SingleAsync();
+        Assert.Equal(point.Id, sample.TimingPointId);
+        var rollup = await database.Storage.Set<LoopStatusRollup>().AsNoTracking().SingleAsync();
+        Assert.Equal(new DateTime(2026, 11, 28, 10, 0, 0, DateTimeKind.Utc), rollup.BucketStart);
+        Assert.Equal((1, 21.5, 21.5, 21.5), (rollup.Samples, rollup.NoiseSum, rollup.NoiseMin, rollup.NoiseMax));
+        Assert.Equal((1, 308.15, 308.15, 308.15), (rollup.TemperatureSamples, rollup.TemperatureSum, rollup.TemperatureMin, rollup.TemperatureMax));
+        Assert.Equal((1, 2L, 1, 1, 1), (rollup.TriggerSamples, rollup.TriggersSum, rollup.SyncSamples, rollup.UnsynchronisedSamples, rollup.SharedScaleSamples));
+    }
+
+    [Fact]
+    public async Task LoopStatusRollup_IsTheSameForShuffledAndReplayedSamples()
+    {
+        var start = new DateTime(2026, 11, 28, 10, 0, 0, DateTimeKind.Utc);
+        var samples = Enumerable.Range(0, 120).Select(i => new LoopStatusObservation("agent-shuffle", $"loop-{i % 2}",
+            start.AddSeconds(5 * i), Noise: 10 + i % 7 * 1.5,
+            DecoderTemperature: i % 3 == 0 ? null : 300 + i % 5,
+            InputVoltage: i % 4 == 0 ? null : 11.5 + i % 3 * 0.25,
+            LoopTriggers: i % 5 == 0 ? null : i % 4,
+            TimeSynchronised: i % 6 == 0 ? null : i % 11 != 0)).ToArray();
+
+        async Task<List<LoopStatusRollup>> Rollups(IEnumerable<LoopStatusObservation> order)
+        {
+            await using var database = await TimingTestDatabase.CreateAsync();
+            var service = new LoopStatusService(database.InstallationService, database.Storage);
+            foreach (var sample in order) await service.RecordAsync(sample);
+            Assert.Equal(samples.Length, await database.Storage.Set<LoopStatusSample>().CountAsync());
+            var points = await database.Storage.Set<TimingPoint>().AsNoTracking().ToDictionaryAsync(p => p.Id, p => p.SystemId);
+            return (await database.Storage.Set<LoopStatusRollup>().AsNoTracking().ToListAsync())
+                // Timing point IDs differ per database; compare by loop.
+                .Select(r => { r.TemperatureSum = Math.Round(r.TemperatureSum, 6); r.VoltageSum = Math.Round(r.VoltageSum, 6); r.NoiseSum = Math.Round(r.NoiseSum, 6); return (points[r.TimingPointId], r); })
+                .OrderBy(x => x.Item1).ThenBy(x => x.r.BucketStart).Select(x => x.r).ToList();
+        }
+
+        var inOrder = await Rollups(samples);
+        var shuffled = await Rollups(samples.OrderBy(s => s.Time.Ticks * 7919 % 1009));
+        var replayed = await Rollups(samples.Concat(samples.Reverse()).Concat(samples));
+
+        Assert.Equal(4, inOrder.Count); // 10 minutes, 2 loops, 5-minute buckets.
+        Assert.Equal(samples.Length, inOrder.Sum(r => r.Samples));
+        string Shape(List<LoopStatusRollup> rows) => JsonSerializer.Serialize(rows.Select(r => new
+        {
+            r.BucketStart, r.Samples, r.NoiseSum, r.NoiseMin, r.NoiseMax, r.TemperatureSamples, r.TemperatureSum, r.TemperatureMin,
+            r.TemperatureMax, r.VoltageSamples, r.VoltageSum, r.VoltageMin, r.VoltageMax, r.TriggerSamples, r.TriggersSum,
+            r.SyncSamples, r.UnsynchronisedSamples, r.SharedScaleSamples
+        }));
+        Assert.Equal(Shape(inOrder), Shape(shuffled));
+        Assert.Equal(Shape(inOrder), Shape(replayed));
+    }
+
+    [Fact]
+    public async Task UpdateLastSeen_SkipsStepsSmallerThanTheResolution()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        var installation = new Installation { Id = Guid.NewGuid(), AgentId = "agent-seen" };
+        database.Storage.Add(installation);
+        await database.Storage.SaveChangesAsync();
+        database.Storage.ChangeTracker.Clear();
+        var start = new DateTime(2026, 11, 28, 10, 0, 0, DateTimeKind.Utc);
+        async Task<DateTime?> Seen(DateTime time)
+        {
+            var current = (await database.InstallationService.GetInstallationForAgent("agent-seen"))!;
+            await database.InstallationService.UpdateLastSeenAsync(current, time);
+            database.Storage.ChangeTracker.Clear();
+            return (await database.Storage.Set<Installation>().AsNoTracking().SingleAsync()).LastSeen;
+        }
+
+        Assert.Equal(start, await Seen(start));
+        Assert.Equal(start, await Seen(start.AddSeconds(29)));
+        Assert.Equal(start, await Seen(start.AddSeconds(-60)));
+        Assert.Equal(start.AddSeconds(30), await Seen(start.AddSeconds(30)));
+    }
+
+    [Fact]
+    public async Task InstallationLayoutHandler_InvalidatesUnloadedExistingAndIntermediateCreatedPointIdentities()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        var installation = new Installation
+        {
+            Id = Guid.NewGuid(), AgentId = "layout-agent", Description = "", TimingSystem = TimingSystem.Unknown
+        };
+        var existing = new TimingPoint
+        {
+            Id = Guid.NewGuid(), InstallationId = installation.Id, Installation = installation,
+            SystemId = "existing-loop", Description = ""
+        };
+        database.Storage.AddRange(installation, existing);
+        await database.Storage.SaveChangesAsync();
+        database.Storage.ChangeTracker.Clear();
+
+        var cachedInstallation = await database.InstallationService.GetInstallationForAgent("layout-agent");
+        Assert.NotNull(cachedInstallation);
+        Assert.Empty(cachedInstallation.TimingPoints);
+        Assert.Equal(installation.Id, (await database.InstallationService.GetInstallionForTimingPoint(existing.Id)).Id);
+        Assert.Equal(existing.Id, (await database.InstallationService.GetTimingPoint(cachedInstallation, existing.SystemId))?.Id);
+
+        var context = TestConsumerContext.Create(new Dictionary<string, object> { ["AgentId"] = "layout-agent" });
+        Assert.Equal("layout-agent", context.GetTransportMessage().ApplicationProperties["AgentId"]);
+        var handler = new InstallationLayoutHandler(
+            database.InstallationService, database.Storage, NullLogger<InstallationLayoutHandler>.Instance,
+            database.ServiceProvider.GetRequiredService<HybridCache>(), database.Operations)
+        {
+            Context = context
+        };
+        var layout = new InstallationLayoutEvent(
+            [new SystemConfigEvent("system-1", "cycling", "Installed system", true)],
+            [
+                new LoopConfigEvent(existing.SystemId, "Existing loop description", 1, "system-1"),
+                new LoopConfigEvent("new-loop", "New loop description", 2, "system-1")
+            ],
+            []);
+
+        await handler.OnHandle(layout, CancellationToken.None);
+
+        database.Storage.ChangeTracker.Clear();
+        var refreshedInstallation = await database.InstallationService.GetInstallationForAgent("layout-agent");
+        Assert.NotNull(refreshedInstallation);
+        Assert.Equal("Installed system", refreshedInstallation.Description);
+        // The decoder system is descriptive and admin-set; a layout never guesses it.
+        Assert.Equal(TimingSystem.Unknown, refreshedInstallation.TimingSystem);
+        Assert.Equal("Existing loop description",
+            (await database.InstallationService.GetTimingPoint(refreshedInstallation, "existing-loop"))?.Description);
+        Assert.Equal("New loop description",
+            (await database.InstallationService.GetTimingPoint(refreshedInstallation, "new-loop"))?.Description);
+        Assert.Equal(installation.Id,
+            (await database.InstallationService.GetInstallionForTimingPoint(existing.Id)).Id);
+        var createdPoint = await database.Storage.Set<TimingPoint>().SingleAsync(point => point.SystemId == "new-loop");
+        Assert.Equal(installation.Id,
+            (await database.InstallationService.GetInstallionForTimingPoint(createdPoint.Id)).Id);
+
+        await handler.OnHandle(layout with
+        {
+            Systems = [new SystemConfigEvent("system-1", "cycling", "Do not replace filled description", true)],
+            TimingLoops =
+            [
+                new LoopConfigEvent(existing.SystemId, "Do not replace filled loop", 1, "system-1"),
+                new LoopConfigEvent("new-loop", "Do not replace filled loop", 2, "system-1")
+            ]
+        }, CancellationToken.None);
+
+        database.Storage.ChangeTracker.Clear();
+        refreshedInstallation = await database.InstallationService.GetInstallationForAgent("layout-agent");
+        Assert.Equal("Installed system", refreshedInstallation!.Description);
+        Assert.Equal("Existing loop description",
+            (await database.InstallationService.GetTimingPoint(refreshedInstallation, "existing-loop"))?.Description);
+        Assert.Equal("New loop description",
+            (await database.InstallationService.GetTimingPoint(refreshedInstallation, "new-loop"))?.Description);
+        Assert.Equal(2, await database.Storage.Set<TimingPoint>().CountAsync());
+    }
+
+    [Fact]
+    public async Task InstallationLayoutHandler_CanceledBeforeDatabaseReadDoesNotApplyLayout()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        database.Storage.Add(new Installation
+        {
+            Id = Guid.NewGuid(), AgentId = "layout-cancel-agent", Description = "", TimingSystem = TimingSystem.Unknown
+        });
+        await database.Storage.SaveChangesAsync();
+
+        var context = TestConsumerContext.Create(new Dictionary<string, object> { ["AgentId"] = "layout-cancel-agent" });
+        Assert.Equal("layout-cancel-agent", context.GetTransportMessage().ApplicationProperties["AgentId"]);
+        var handler = new InstallationLayoutHandler(
+            database.InstallationService, database.Storage, NullLogger<InstallationLayoutHandler>.Instance,
+            database.ServiceProvider.GetRequiredService<HybridCache>(), database.Operations)
+        {
+            Context = context
+        };
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => handler.OnHandle(
+            new InstallationLayoutEvent(
+                [new SystemConfigEvent("system-1", "cycling", "Cancelled", true)],
+                [new LoopConfigEvent("new-loop", "Cancelled", 1, "system-1")],
+                []),
+            cancellation.Token));
+
+        Assert.Empty(await database.Storage.Set<TimingPoint>().ToListAsync());
+        var persisted = await database.Storage.Set<Installation>().SingleAsync();
+        Assert.Equal("", persisted.Description);
+        Assert.Equal(TimingSystem.Unknown, persisted.TimingSystem);
+    }
+
+    [Fact]
+    public async Task PassingObservedHandler_RegistersTheObservationWithItsSourcePassingId()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        var agentService = DispatchProxy.Create<IAgentService, RecordingAgentService>();
+        var agentProxy = (RecordingAgentService)(object)agentService;
+        var handler = new PassingObservedHandler(agentService, database.InstallationService)
+        {
+            Context = TestConsumerContext.Create(new Dictionary<string, object> { ["AgentId"] = "agent-test" })
+        };
+        var time = DateTime.UtcNow;
+
+        await handler.OnHandle(new PassingObservedV1(SourceId, time, "ProChip", "106187718", "loop-1")
+            { LowBattery = true, LowStrength = true, LowHits = true }, CancellationToken.None);
+
+        Assert.Equal(new PassingObservation("agent-test", SourceId, "106187718", "ProChip", "loop-1", time, true, true, true),
+            agentProxy.Observation);
+    }
+
+    [Fact]
+    public async Task PassingObservedHandler_RequiresAgentId()
+    {
+        await using var database = await TimingTestDatabase.CreateAsync();
+        var agentService = DispatchProxy.Create<IAgentService, RecordingAgentService>();
+        var handler = new PassingObservedHandler(agentService, database.InstallationService)
+        {
+            Context = TestConsumerContext.Create(new Dictionary<string, object>())
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.OnHandle(
+            new PassingObservedV1(SourceId, DateTime.UtcNow, "X2", "106187718", "loop-1"), CancellationToken.None));
+        Assert.Null(((RecordingAgentService)(object)agentService).Observation);
+    }
+
+    private sealed class RecordingControlService : IControlService
+    {
+        public int PauseCalls { get; private set; }
+        public int ResumeCalls { get; private set; }
+        public Task PauseAgent() { PauseCalls++; return Task.CompletedTask; }
+        public Task ResumeAgent() { ResumeCalls++; return Task.CompletedTask; }
+    }
+
+    public class RecordingMessageBus : DispatchProxy
+    {
+        public List<PublishedMessage> Published { get; } = [];
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod?.Name != "Publish")
+            {
+                throw new NotSupportedException(targetMethod?.Name);
+            }
+
+            var payload = args?.FirstOrDefault();
+            var headers = args?.OfType<IDictionary<string, object>>().FirstOrDefault();
+            Published.Add(new PublishedMessage(payload, headers));
+            return Task.CompletedTask;
+        }
+
+        public static (IMessageBus Bus, RecordingMessageBus Recorder) Create()
+        {
+            var bus = DispatchProxy.Create<IMessageBus, RecordingMessageBus>();
+            return (bus, (RecordingMessageBus)(object)bus);
+        }
+    }
+
+    public class RecordingAgentService : DispatchProxy
+    {
+        public PassingObservation? Observation { get; private set; }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (targetMethod?.Name != nameof(IAgentService.RegisterPassingAsync)) throw new NotSupportedException(targetMethod?.Name);
+            Observation = (PassingObservation)args![0]!;
+            return Task.FromResult(new PassingRegistration(PassingRegistrationOutcome.Recorded, new VeloTime.Module.Timing.Model.Passing
+            {
+                Time = Observation.Time, SourcePassingId = Observation.SourcePassingId
+            }));
+        }
+    }
+
+    public class TestConsumerContext : DispatchProxy
+    {
+        private IDictionary<string, object> headers = new Dictionary<string, object>();
+        private IDictionary<string, object> properties = new Dictionary<string, object>();
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            return targetMethod?.Name switch
+            {
+                "get_Headers" => headers,
+                "get_Properties" => properties,
+                _ => null
+            };
+        }
+
+        public static IConsumerContext Create(IDictionary<string, object> headers)
+        {
+            var context = DispatchProxy.Create<IConsumerContext, TestConsumerContext>();
+            var proxy = (TestConsumerContext)(object)context;
+            proxy.headers = headers;
+            var message = ServiceBusModelFactory.ServiceBusReceivedMessage(
+                properties: new Dictionary<string, object>(headers));
+            proxy.properties["transportMessage"] = message;
+            proxy.properties["TransportMessage"] = message;
+            proxy.properties["ServiceBusReceivedMessage"] = message;
+            proxy.properties["ServiceBus_Message"] = message;
+            proxy.headers["transportMessage"] = message;
+            proxy.headers["TransportMessage"] = message;
+            return context;
+        }
+    }
+
+    public sealed record PublishedMessage(object? Payload, IDictionary<string, object>? Headers);
+
+    private sealed class TimingTestDatabase : IAsyncDisposable
+    {
+        private readonly SqliteConnection connection;
+        private readonly ServiceProvider serviceProvider;
+
+        private TimingTestDatabase(SqliteConnection connection, TimingDbContext storage, ServiceProvider serviceProvider)
+        {
+            this.connection = connection;
+            this.serviceProvider = serviceProvider;
+            Storage = storage;
+            Operations = new FusionCacheInvalidationOperations(serviceProvider.GetRequiredService<IFusionCache>(), new FusionCacheCircuitBreakerState());
+            InstallationService = new InstallationService(storage, serviceProvider.GetRequiredService<HybridCache>(), null, Operations);
+        }
+
+        public ICacheInvalidationOperations Operations { get; }
+
+        public TimingDbContext Storage { get; }
+        public ServiceProvider ServiceProvider => serviceProvider;
+        public InstallationService InstallationService { get; }
+
+        public static async Task<TimingTestDatabase> CreateAsync()
+        {
+            var connection = new SqliteConnection("Data Source=:memory:");
+            await connection.OpenAsync();
+            var options = new DbContextOptionsBuilder<TimingDbContext>().UseSqlite(connection).Options;
+            var storage = new TimingDbContext(options);
+            await storage.Database.EnsureCreatedAsync();
+            var services = new ServiceCollection();
+            services.AddFusionCache()
+                .WithSerializer(new FusionCacheSystemTextJsonSerializer(new JsonSerializerOptions
+                {
+                    ReferenceHandler = ReferenceHandler.Preserve
+                }))
+                .AsHybridCache();
+            return new TimingTestDatabase(connection, storage, services.BuildServiceProvider());
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await Storage.DisposeAsync();
+            await serviceProvider.DisposeAsync();
+            await connection.DisposeAsync();
+        }
+    }
+}

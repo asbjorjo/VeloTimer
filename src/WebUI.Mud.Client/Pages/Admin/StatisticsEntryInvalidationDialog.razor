@@ -1,0 +1,23 @@
+@using VeloTime.Module.Statistics.Interface.Data
+
+<MudDialog>
+    <DialogContent>
+        <MudText Class="mb-3">@L[Mark ? "StatisticsMarkConfirm" : "StatisticsRestoreConfirm"]</MudText>
+        <MudText Class="mb-3" Style="overflow-wrap:anywhere">@Entry.Id — @Entry.StatisticsItemName — @(Entry.ProfileName ?? L["NoStatisticsProfile"].Value)</MudText>
+        <MudTextField T="string" @bind-Value="_note" Label="@L["StatisticsManualNote"]" Lines="3"
+                      MaxLength="@StatisticsEntryManualInvalidationRequest.MaximumNoteLength" HelperText="@L["StatisticsManualNoteHelp"]" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => Dialog.Cancel()">@L["Cancel"]</MudButton>
+        <MudButton OnClick="Confirm" Color="Color.Primary" Variant="Variant.Filled">@L[Mark ? "StatisticsMarkInvalid" : "StatisticsRestore"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = default!;
+    [Parameter, EditorRequired] public AdminStatisticsEntryDTO Entry { get; set; } = default!;
+    private bool Mark => !Entry.IsManuallyInvalidated;
+    private string? _note;
+    private void Confirm() => Dialog.Close(DialogResult.Ok(new StatisticsEntryManualInvalidationRequest(Mark,
+        string.IsNullOrWhiteSpace(_note) ? null : _note.Trim())));
+}

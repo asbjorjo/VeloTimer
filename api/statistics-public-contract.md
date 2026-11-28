@@ -1,0 +1,378 @@
+# Public Statistics contract-first gate
+
+## Additive Hall of Fame contract
+
+`GET /api/statistics/hall-of-fame` is anonymous on the Statistics API and browser
+BFF. It does not change chronological results, discovery, samples, or best-results
+contracts described below.
+
+- `category`: optional; defaults to `lap`. Allowed values are `lap`, `200m`,
+  `1000m`, `3000m`, `4000m`, and `laps`. Category names map exactly to the existing
+  item names `Lap`, `200m`, `1000m`, `3000m`, and `4000m`; `laps` also uses `Lap`.
+- `facilityId`: optional nonempty UUID. Omission means global; filter entries
+  before selecting personal bests or aggregating lap counts.
+- Unsupported, malformed, empty, or duplicate query parameters return 400.
+- Only `IsValid` entries with a currently linked public StatsProfile contribute.
+  Profiles are grouped by identity across transponders/configurations, not by name.
+- Other timed categories retain shortest-duration selection and ordering: per profile, then earliest
+  completion, then native UUID entry order. Facility-filtered timed Lap also retains
+  shortest-duration selection and ordering. Global timed Lap instead selects each profile's highest
+  positive finite metres-per-second speed, then earliest completion, then native UUID entry order;
+  global winners are ranked by that same descending speed order and capped at ten without expanding
+  ties.
+- Lap count groups valid `Lap` entries per profile when each has a positive finite snapshot or, only
+  while the item is Fixed, a null-snapshot fixed-distance fallback. It sorts count descending and
+  internal profile UUID ascending, and takes at most ten. No raw passing or other distance-item
+  entries contribute.
+
+The API returns `HallOfFameDTO(IsAvailable, Times, Laps)`.
+Timed rows contain `ProfileName`, `Duration` (TimeSpan), `SpeedMetresPerSecond`,
+and `FacilityId`. Count rows contain `ProfileName`, `LapCount` (64-bit), and
+`TotalDistanceMetres`. Lap count and total distance use exactly the same eligible entries. The SQL sum
+uses each positive finite distance snapshot; while the item is Fixed, a null snapshot uses the
+configured fixed distance as a transitional fallback for stage-one or older writers. CourseLayout
+never falls back to the zero sentinel: a missing or invalid snapshot on an otherwise eligible row
+returns 409. Only the applicable collection is populated. No profile-user or transponder identifiers
+are exposed.
+
+Missing item definitions return `IsAvailable=false`; existing definitions without
+eligible rows return `IsAvailable=true` with empty collections. An ambiguous or invalid Lap definition
+produces a logged 409 ProblemDetails. API and BFF responses are no-store; public-profile results are
+queried on every request.
+
+The WebUI server maps generated NSwag types to `HallOfFameView`, resolving each
+distinct timed-row facility through the existing Facilities client/cache and
+replacing its ID with `FacilityName`. Count rows require no result-level facility
+lookups. Both server and browser transports return the same view. Dependency
+failures remain explicit errors (502/503), and definition errors retain 409;
+no dependency error becomes a successful empty leaderboard.
+
+The UI route is `/hall-of-fame?tab=lap&facilityId=...` (note `tab`, not the API's
+`category`). Absent tab means Lap and absent facility means global. URL-backed
+selection supports refresh and history. The fixed table uses ten skeleton/filler
+rows and stable columns, with accessible loading state and reduced-motion support.
+Presentation converts SI speed using the existing km/h-based display helper only
+at the UI boundary.
+
+No schema migration is required for the existing fixed-tab implementation. PostgreSQL
+tests exercise bounded SQL grouped (windowed per-profile) personal-best selection and
+grouped lap totals, including exact ten-row cutoffs.
+
+## Facility-specific Lap distance and Statistics definition contract
+
+Statistics API and UI now support explicit Fixed and CourseLayout item modes. The Statistics storage
+migration adds nullable entry/sample evidence and snapshots existing Lap rows while leaving
+pre-existing definitions Fixed. A separate activation migration performs the final catch-up/backfill
+and opts the existing Lap item into CourseLayout. For an existing installation, the administrator
+scales the deployed Statistics processor to zero before the normal Helm upgrade, waits for its pods
+to terminate, and uses the release's intended nonzero processor replica count so the upgraded
+processor starts after the pre-upgrade migration succeeds; see the [Lap distance rollout](../src/Module.Statistics/Storage/LapDistanceRollout.md).
+
+`StatisticsItemDTO` and `SaveStatisticsItemRequest` retain their existing positional fields and add
+optional `DistanceMode` metadata (`Fixed = 0`, `CourseLayout = 1`, numeric enum JSON). A current
+response supplies the stored mode. An omitted or null mode in a legacy response means Fixed.
+
+For `SaveStatisticsItemRequest`, omitted/null mode on POST creates a Fixed item. Omitted/null mode
+on PUT preserves the stored mode; it is not a reset to Fixed, so a legacy client cannot accidentally
+switch a CourseLayout item back to Fixed. Validation still applies to the preserved mode. Send an
+explicit mode to request a mode change; changes to mode or numeric distance conflict when recorded
+entries depend on the definition.
+
+`Distance` remains a base-metre `float` and is authoritative and finite-positive only in Fixed mode.
+For CourseLayout, saves and responses use zero only as a compatibility sentinel; clients MUST ignore
+it and MUST NOT use it as an actual or fallback distance. A CourseLayout definition uses unique
+Simple loop configurations with identical nonempty start/end coursepoints and cannot have Multi
+configurations. Duration bounds and item/configuration IDs remain unchanged.
+
+The Facilities timing-point distance response has optional `CourseLayoutId` and
+`ClosedLoopDistanceMetres` evidence. The two values must be paired and identify one unambiguous
+layout whose ordered segments form a continuous closed path with a finite positive full length in
+metres; the value is the whole loop, not endpoint `Distance`. Equal endpoints alone do not prove a
+loop, and no geometry revision is available. The timing-point endpoint populates this evidence for
+valid closed layouts. Statistics persists available evidence with Samples, and the lap attempt reader
+rejects missing or conflicting evidence rather than inventing a distance. No timing-message contract
+change is needed because persisted Sample evidence is the attempt reader source.
+
+Stage one, `20261118121122_statistics_lap_distance_storage`, leaves existing definitions Fixed and backfills
+existing unsnapshotted Lap entries from the actual configured Statistics Lap distance, including
+entries across validity, visibility, facility, and linkage states. Positive-duration legacy speeds
+are recomputed from that baseline. Old writers can still add null-snapshot rows during rollout;
+while the item remains Fixed, Hall of Fame uses the configured fixed distance only for such null
+snapshots. It uses persisted snapshots when present. The fallback is never valid for CourseLayout
+mode.
+
+The normal Helm pre-upgrade activation transaction performs the final backfill and switches the
+same intended Lap definition to CourseLayout with Distance = 0 after the deployed Statistics
+processor has been scaled to zero and its pods have terminated. It must ensure no Lap snapshots
+remain null. After activation, every counted CourseLayout result requires a positive finite stored
+distance snapshot; missing or invalid evidence is an error, never a fixed-distance fallback. Preserve
+entry identities and moderation/profile decisions. Pre-upgrade in-flight Samples without persisted
+layout and closed-loop evidence cannot be reconstructed by the migration and must not be assigned an
+invented fallback. Do not treat the stage-one migration as activation or enable the sentinel early.
+
+Global timed Lap selects and ranks by descending positive finite speed, with earliest completion and
+entry ID tie-breaks. Facility-filtered timed Lap and other timed categories retain duration ranking.
+Fixed-distance pursuit and Multi semantics do not change. Generated OpenAPI/client updates are
+produced by the existing build; consumers must understand DistanceMode before CourseLayout is
+enabled.
+## Chronological public results
+
+This is the frozen implementation handoff for the approved public filtered results plan.
+The API/service phase implements the anonymous API/BFF routes, discovery resolver,
+SQL query and both transports and refreshes OpenAPI/NSwag through the build pipeline.
+UI, indexing migration and runtime regression/query-plan validation are separate gates.
+Existing best-results, samples, and admin contracts/authorization remain unchanged.
+
+## Owned artifacts and transport
+
+- `Module.Statistics.Interface/Data/PublicStatisticsDTO.cs`: public DTOs.
+- `Module.Statistics.Interface/Data/PublicStatisticsQuery.cs`: fixed limits, route
+  constants, normalization, typed validation, decoded query parsing/formatting.
+- `WebUI.Mud.Client/Services/IStatisticsService.cs`: additive signatures:
+  - `Task<PublicStatisticsDiscoveryDTO> GetPublicDiscoveryAsync(CancellationToken = default)`
+  - `Task<PublicStatisticsResultsPageDTO> GetPublicResultsAsync(GetPublicStatisticsResultsRequest, CancellationToken = default)`
+
+UI and BFF use these shared DTOs directly; no parallel view/request types or duplicated
+unit/range rules are needed. Generated NSwag DTOs will be mapped by the API/transport
+owner at the service boundary, including invariant TimeSpan parsing and lossless UTC
+timestamps. Both methods are now abstract and implemented on server/browser services;
+the gate's temporary throwing default bodies have been removed without signature changes.
+
+## Anonymous routes
+
+Both the Statistics API and WebUI BFF expose:
+
+- `GET /api/statistics/public/discovery` → `PublicStatisticsDiscoveryDTO`
+  (no request parameters).
+- `GET /api/statistics/public/results` → `PublicStatisticsResultsPageDTO`,
+  with the query parameters below.
+
+OpenAPI operation IDs: `GetPublicStatisticsDiscovery` and
+`GetPublicStatisticsResults`. Existing `/api/statistics/admin/...` groups retain
+their policies; add separate anonymous read-only routes rather than reuse admin routes.
+Invalid query/selection produces 400 ValidationProblem/ProblemDetails. Genuine Facilities
+lookup failures produce explicit upstream errors (502 for failed/malformed dependency
+responses, 503 for an identified temporary outage), never empty successful discovery.
+Results and BFF responses are no-store and must observe current visibility on every request.
+
+## Discovery, configuration labels, and defaults
+
+`PublicStatisticsDiscoveryDTO` contains:
+
+- `Items`: existing read-only `StatisticsItemDTO` (Id, Name, Description, Distance).
+- `Configurations`: `PublicStatisticsConfigurationDTO` with Id, StatisticsItemId,
+  resolved FacilityId, Type, resolved CoursePointStart/End and their display names,
+  nullable ParentConfigId and Repetitions.
+- `UnavailableConfigurations`: existing `StatisticsConfigurationDTO` plus a typed
+  reason (`MissingItem`, `MissingSimpleParent`, `MissingCoursePoint`, `MissingFacility`,
+  `DifferentFacilities`, `InvalidDefinition`). This is a legacy inconsistency, not
+  a successful empty result masquerading as an upstream outage. Log inconsistencies.
+
+Simple options have null parent/repetitions. Multi options require a valid Simple parent
+and positive repetitions and inherit **both** endpoint IDs/names from that parent.
+Empty configuration/item/parent IDs or endpoint IDs are `InvalidDefinition`, not
+selectable options; nonempty missing references retain their specific unavailable reason.
+Check item existence and both endpoints' facility equality; do not derive eligibility
+from entries. Resolve each unique coursepoint/facility/name once per request via
+Facilities HTTP (existing `ICoursePointReferences` for membership and public
+`/api/facilities/coursepoint/{id}` for names via `IPublicCoursePointNames`), never cross-service database access.
+Do not expose coursepoint timing-point IDs. Empty endpoint names remain explicit empty
+names for localized unnamed-point presentation, not raw IDs as primary labels.
+Missing membership/point/parent is unavailable; non-404 upstream failures are errors.
+
+Results use `PublicStatisticsDiscovery.IsSelectionAvailableAsync`, not full
+`GetAsync` discovery. Fetch only the selected configuration, its Simple parent when
+Multi, and existence of their referenced items. Reuse the discovery definition and
+facility validation rules. Resolve only the distinct selected start/end coursepoints'
+facility references (at most two membership HTTP calls per request, one if identical).
+Do not fetch names or unrelated catalogue definitions/items/coursepoints; unrelated
+invalid options or failing name/catalogue dependencies must not block a valid selection.
+Missing membership makes the selection unavailable without a separate name lookup.
+Invalid/mismatched selections return 400 and are logged; selected membership dependency
+failures retain explicit 502/503 handling and caller cancellation propagation.
+Full UI discovery still resolves names and reports unavailable options. Neither path
+caches result visibility; every results page queries current public-profile membership.
+
+UI labels use Simple start/end names, or Multi repetitions plus its Simple-parent label.
+Use configuration ID only as a stable secondary discriminator for ambiguous labels.
+Return items ordered by name ordinal then native UUID ascending; configurations by
+native UUID ascending. UI obtains facility names via existing public facilities service:
+first alphabetically with canonical UUID ordinal tie-break; select the item named
+exactly `Lap` with canonical UUID ordinal tie-break, then the eligible configuration
+with lowest native UUID. Canonical UUID `D` text ordinal ordering matches native UUID
+byte order for non-result discovery/default tie-breaks.
+Missing defaults/invalid explicit selections never silently fall back.
+On intentional facility/item changes recompute configuration and reset paging.
+
+## Filters and URL contract
+
+`GetPublicStatisticsResultsRequest` requires nonempty FacilityId, StatisticsItemId and
+StatisticsItemConfigId. Optional fields: Name, MinDuration/MaxDuration (`TimeSpan`),
+MinSpeedKmh/MaxSpeedKmh (`double`), Cursor and Direction. Fixed page size is **25**,
+lookahead is **26**, with no client-selectable size, offset, page number, or total count.
+
+Decoded query keys:
+
+| Key | Wire format |
+| --- | --- |
+| `facilityId`, `itemId`, `configurationId` | Required UUID `D` format |
+| `name` | Trimmed; empty/whitespace means no name predicate |
+| `minTime`, `maxTime` | Invariant `hh:mm:ss.fff`, or `d.hh:mm:ss.fff` for ≥24 hours |
+| `minSpeed`, `maxSpeed` | Finite nonnegative invariant km/h number; round-trip `R` formatting |
+| `cursor` | UTC round-trip `O` timestamp + literal `|` + UUID `D` |
+| `direction` | Exactly `next` or `previous`; required iff cursor is supplied |
+
+All bounds inclusive/nonnegative, min ≤ max. Typed duration filter bounds are whole
+milliseconds; result durations retain full precision and are displayed at milliseconds.
+No rounding of input bounds. Omitted bound differs from present-but-empty (invalid).
+Cursor timestamp has seven fractional digits and `+00:00` from the shared formatter;
+it must be finite UTC and whole PostgreSQL microseconds (ticks divisible by 10).
+Use database-returned TimeEnd, never browser milliseconds/Unix milliseconds, and never
+round a cursor. GUID is a native uuid parameter, not a string comparison in result SQL.
+Enums retain the existing serializer conventions in JSON; query directions are the
+explicit strings above, not enum numbers.
+
+`PublicStatisticsQuery.TryParse` handles decoded single-valued API/BFF/page parameters
+and applies shared typed validation; `Normalize`, `Validate`, `ToQuery`,
+`TryParseDuration`, `FormatDuration`, `TryParseCursor`, `FormatCursor` are reusable.
+Surfaces must reject duplicate query keys before parsing. Unknown keys (including
+pageSize/count/offset) are rejected. Selection consistency requires targeted discovery validation
+on the server and is deliberately not a contract-helper database concern.
+Use FormUrlEncodedContent/equivalent escaping (especially `+`, `|`, `%`, `&`, and spaces).
+For `/statistics/{facilityId}/{itemId}/{configurationId}`, merge path IDs into the
+parser's required keys and omit those keys from the page query on formatting; reject
+conflicting query selection IDs. UI resets cursor/direction on applied-filter changes.
+
+`PublicStatisticsResultDTO`: Id, ProfileName, StatisticsItemId, StatisticsItemConfigId,
+FacilityId, Duration, SpeedKmh, TimeEnd. No account/user/transponder/profile identifiers.
+`PublicStatisticsResultsPageDTO`: Items, Previous, Next. Rows always newest-first;
+Previous/Next are exclusive cursors for their corresponding direction, not opaque
+server sessions and not dependent on an anchor row existing or remaining public.
+Normal nonempty pages derive Previous from the first row, Next from the last row;
+set each only when an eligible row exists on that side.
+
+## Exact PostgreSQL query shape for API and data owners
+
+Production execution is EF Core LINQ with the Npgsql provider, including
+`EF.Functions.ILike` and translated tuple `LessThan`/`GreaterThan`. The SQL below
+describes the provider query shape for indexing/verification; it is not handwritten
+SQL executed by the API.
+
+Current physical relations: `statistics.statistics_entry` (`duration` interval,
+`speed` double precision m/s, `time_end` timestamptz, `id` uuid) and
+`statistics.stats_profile` (`user_id` uuid, `profile_name` text, `is_public` boolean).
+
+Validate the selected configuration/item/facility **before** executing entries queries,
+without loading full discovery. Build an
+AsNoTracking IQueryable, applying only supplied optional predicates (do not implement
+`@param IS NULL OR ...` catch-all predicates). The logical parameterized SQL is:
+
+```sql
+SELECT e.id, p.profile_name, e.statistics_item_id, e.statistics_item_config_id,
+       e.facility_id, e.duration, e.speed * 3.6 AS speed_kmh, e.time_end
+FROM statistics.statistics_entry AS e
+JOIN statistics.stats_profile AS p ON p.user_id = e.stats_profile_user_id
+WHERE p.is_public = TRUE
+  AND e.facility_id = @facility_id::uuid
+  AND e.statistics_item_id = @item_id::uuid
+  AND e.statistics_item_config_id = @configuration_id::uuid
+  -- only append each following predicate when its bound/search is supplied:
+  AND p.profile_name ILIKE @escaped_contains_pattern ESCAPE '\'
+  AND e.duration >= @min_duration::interval
+  AND e.duration <= @max_duration::interval
+  AND e.speed * 3.6::double precision >= @min_speed_kmh::double precision
+  AND e.speed * 3.6::double precision <= @max_speed_kmh::double precision
+  -- Next only; omit for initial page:
+  AND (e.time_end, e.id) < (@cursor_time::timestamptz, @cursor_id::uuid)
+ORDER BY e.time_end DESC, e.id DESC
+LIMIT 26;
+```
+
+Compare validated km/h bounds directly against `entry.Speed * 3.6d` in the EF
+IQueryable, the same double-precision expression used for projected `SpeedKmh`.
+Do not divide bounds by 3.6 or round either operand: multiply/divide floating-point
+round trips can exclude an exact returned speed at an inclusive bound.
+Escape name `\` → `\\`, `%` → `\%`, `_` → `\_` in that order, then surround
+with `%`; parameterize the resulting pattern. Case insensitivity is PostgreSQL ILIKE
+under the database collation, not an in-memory .NET comparison. Literal substring
+semantics include punctuation and SQL wildcards. No lower()/unaccent() semantic change.
+
+**Previous:** use tuple `>` and `ORDER BY e.time_end ASC, e.id ASC LIMIT 26`.
+Drop the furthest lookahead row, then reverse only the retained ≤25 rows for display.
+**Next/initial:** trim only the 26th bounded row. No in-memory filtering or sorting;
+no Skip, offset, full-table enumeration, aggregate/best-per-profile or count.
+
+Determine missing/opposite-side availability using bounded `SELECT EXISTS(SELECT 1
+FROM ... WHERE <identical privacy/selection/optional filters> AND
+(e.time_end,e.id) > (@first_time,@first_id))` for Previous, and tuple `<` the last
+row for Next. The lookahead may replace the existence query for its own direction.
+An empty page under concurrent mutations can use the supplied cursor as an inversion
+boundary only if a bounded strict-side existence query finds eligible rows; otherwise
+both cursors are null. Empty first-page results have both null. This is current-dataset
+keyset navigation, not snapshot paging; no anchor-row lookup or visibility bypass.
+
+### Mandatory UUID/EF strategy
+
+Use Npgsql's translated row comparison:
+`EF.Functions.LessThan(ValueTuple.Create(e.TimeEnd, e.Id),
+ValueTuple.Create(cursor.TimeEnd.UtcDateTime, cursor.Id))` for Next,
+and `EF.Functions.GreaterThan(...)` for Previous, with matching two-column ordering.
+Verify generated SQL uses native timestamptz/uuid tuple comparison before acceptance.
+PostgreSQL compares UUID's 16 bytes in network/canonical order; never implement this
+with .NET Guid.CompareTo, ToByteArray, GUID-as-text casts, or client evaluation.
+If the installed provider cannot translate this exact shape, stop and return to the
+contract/query owner; do not silently switch to client-side comparison.
+Anchor timestamps must originate from persisted PostgreSQL values.
+
+### Index ownership/prerequisite
+
+Data owner: evaluate/create the focused B-tree
+`(facility_id, statistics_item_id, statistics_item_config_id, time_end DESC, id DESC)`.
+It serves the equality prefix and both scan directions. Consider covering the
+profile foreign key/duration/speed only on measured evidence, not as new data fields.
+For name search evaluate a partial GIN trigram index on `profile_name gin_trgm_ops
+WHERE is_public = TRUE` matching the exact ILIKE expression above. A plain name B-tree
+does not accelerate contains. `pg_trgm`, deployment permissions, concurrent index
+creation/transaction suppression, history/snapshot conventions, upgrade/rollback,
+and representative EXPLAIN (ANALYZE, BUFFERS) evidence belong to Data & Migrations.
+Short/broad search terms can still scan; report measured limits, not synthetic
+small-fixture latency as scalability proof. Do not change query semantics or contracts
+independently if an index/query incompatibility is found.
+
+## Next owners and acceptance scenarios
+
+Coordinator can now route API endpoint/service/client/BFF implementation, data
+indexing and UI work with non-overlapping ownership from the plan. API owns shared
+contracts and transports; Data owns DbContext indexing/migrations; UI consumes these
+types without redefining them. New NSwag operations are generated by the API/client build.
+
+The Statistics OpenAPI document (`api/VeloTime.Module.Statistics.Api.json`) is tracked and refreshed
+by the API/client build. Generated NSwag client source under each client project
+`obj/...ApiClient.cs` and the Facilities API document are ignored. Do not hand-edit generated files;
+include tracked OpenAPI changes and do not force-add ignored outputs.
+
+Tester owns regressions: shared query/DTO JSON round trips; day durations and exact
+milliseconds; malformed/negative/reversed/nonfinite bounds; duplicate/unknown keys;
+partial/invalid cursor/direction and PostgreSQL microsecond precision; literal
+wildcard name search; anonymous/public-only reads and unchanged admin authorization;
+Simple/Multi and explicit unavailable discovery without results; selection mismatches;
+25/26 boundaries and equal-timestamp native UUID order; Previous/Next round trips and
+deleted/private anchors; no identifiers; current privacy and all predicates/limits in
+SQL. Also verify both transports forward all units/cancellation and preserve URL state.
+For results selection, verify Simple and Multi fetch only selected definitions/items,
+deduplicate identical endpoints, perform no name lookups, and ignore unrelated
+definitions and unrelated failing dependencies. Cover missing/invalid selected item,
+parent and endpoints, missing/different facilities, malformed/failed selected membership
+responses and logging. Full discovery's names/unavailable behavior must remain unchanged.
+Update captured SQL assertions to expect multiplication by double-precision 3.6
+in both inclusive speed predicates, in the row projection and in filtered side-existence
+queries, with km/h bound parameters (no pre-divided m/s bounds). Seed stored speeds
+computed as `250d / 19.1d` and `250d / 10.449d`; obtain each returned `SpeedKmh`,
+round-trip it through query formatting/parsing, and verify inclusion at the exact
+maximum and minimum respectively (and both equal bounds). All optional predicates,
+sort, keyset tuples, limits and privacy checks must still execute in PostgreSQL.
+Server transport dependency timeouts (cancellation without caller cancellation) map
+to explicit 503; caller cancellation continues to propagate unchanged. Include both
+cases, and empty legacy IDs/nonpositive Multi repetitions, in regression coverage.
+PostgreSQL translation/order/index/query-plan checks, runtime UI navigation and full
+regression validation remain later gates, not claims of the API/service compile checks.
